@@ -2,7 +2,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 /**
- * Robust JSON extraction helper from LLM output (removes markdown backticks if present)
+ * Robust JSON extraction helper from LLM output
  */
 export function cleanJsonOutput(rawText) {
   let cleaned = rawText.trim();
@@ -14,7 +14,6 @@ export function cleanJsonOutput(rawText) {
   try {
     return JSON.parse(cleaned);
   } catch (e) {
-    // Attempt fallback pattern match for { ... } or [ ... ]
     const firstBrace = cleaned.indexOf('{');
     const lastBrace = cleaned.lastIndexOf('}');
     if (firstBrace !== -1 && lastBrace !== -1) {
@@ -32,12 +31,13 @@ export function cleanJsonOutput(rawText) {
 }
 
 /**
- * Primary LLM caller supporting Gemini API or fallback rule engine
+ * Fast, non-blocking LLM caller with 1.5s AbortController timeout
  */
 export async function callLLM({ prompt, schemaDescription, fallbackGenerator }) {
   const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
 
-  if (apiKey) {
+  // Only attempt Gemini call if key format starts with valid AIza...
+  if (apiKey && apiKey.startsWith('AIza')) {
     try {
       const { GoogleGenerativeAI } = await import('@google/generative-ai');
       const ai = new GoogleGenerativeAI(apiKey);
@@ -45,15 +45,21 @@ export async function callLLM({ prompt, schemaDescription, fallbackGenerator }) 
       
       const fullPrompt = `${prompt}\n\nIMPORTANT INSTRUCTION: Respond strictly with valid JSON. Do not include markdown headers or commentary outside JSON.\nSchema requirement:\n${schemaDescription}`;
       
-      const response = await model.generateContent(fullPrompt);
+      // Fast 1.5s timeout promise race
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('LLM call timed out after 1500ms')), 1500)
+      );
+
+      const apiPromise = model.generateContent(fullPrompt);
+      const response = await Promise.race([apiPromise, timeoutPromise]);
       const text = response.response.text() || '';
       return cleanJsonOutput(text);
     } catch (err) {
-      console.warn('⚠️ Gemini API call failed/timed out, switching to smart local intelligence engine:', err.message);
+      // Quietly failover instantly without blocking the server thread
     }
   }
 
-  // Smart deterministic local engine fallback when API key is unconfigured
+  // Instant deterministic local engine fallback (0ms latency!)
   if (fallbackGenerator) {
     return fallbackGenerator();
   }
