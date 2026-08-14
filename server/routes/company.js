@@ -1,0 +1,121 @@
+import express from 'express';
+import db from '../db/index.js';
+import { calculateMatchScore } from '../ai/modules/matchingEngine.js';
+
+const router = express.Router();
+
+// Get Company Requirements
+router.get('/requirements', (req, res) => {
+  try {
+    const { companyId } = req.query;
+    let query = `
+      SELECT r.*, c.company_name, c.logo_url, c.industry,
+             (SELECT COUNT(*) FROM applications WHERE requirement_id = r.id) as applicant_count
+      FROM requirements r
+      JOIN company_profiles c ON r.company_id = c.id
+    `;
+    const params = [];
+    if (companyId) {
+      query += ` WHERE r.company_id = ?`;
+      params.push(companyId);
+    }
+    query += ` ORDER BY r.created_at DESC`;
+
+    const requirements = db.prepare(query).all(...params);
+    res.json(requirements);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Post New Job Requirement (Admin Approval Check Enforced)
+router.post('/requirements', (req, res) => {
+  try {
+    const { 
+      company_id, title, eligible_programs, min_cgpa, 
+      required_skills, preferred_skills, job_type, ctc_range, openings, deadline, job_description 
+    } = req.body;
+
+    const company = db.prepare('SELECT * FROM company_profiles WHERE id = ?').get(company_id);
+    if (!company) {
+      return res.status(404).json({ error: 'Company profile not found.' });
+    }
+
+    if (!company.approved) {
+      return res.status(403).json({ 
+        error: 'Your recruiter account is pending verification by TPC Admin. You cannot post job requirements until approved.' 
+      });
+    }
+
+    const reqId = 'req_' + Date.now();
+    const eligibleProgramsJson = JSON.stringify(Array.isArray(eligible_programs) ? eligible_programs : [eligible_programs]);
+    const reqSkillsJson = JSON.stringify(Array.isArray(required_skills) ? required_skills : String(required_skills).split(',').map(s=>s.trim()));
+    const prefSkillsJson = JSON.stringify(Array.isArray(preferred_skills) ? preferred_skills : String(preferred_skills || '').split(',').map(s=>s.trim()).filter(Boolean));
+
+    db.prepare(`
+      INSERT INTO requirements 
+      (id, company_id, title, eligible_programs_json, min_cgpa, required_skills_json, preferred_skills_json, job_type, ctc_range, openings, deadline, job_description)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      reqId, company_id, title, eligibleProgramsJson, parseFloat(min_cgpa || 0), 
+      reqSkillsJson, prefSkillsJson, job_type || 'Full-time', ctc_range || 'Competitive CTC', 
+      parseInt(openings || 1), deadline || '2026-12-31', job_description || ''
+    );
+
+    const createdReq = db.prepare('SELECT * FROM requirements WHERE id = ?').get(reqId);
+    res.status(201).json({ message: 'Requirement posted successfully', requirement: createdReq });
+  } catch (err) {
+    console.error('Error posting requirement:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// View Ranked Shortlist of Applicants for a Requirement
+router.get('/requirements/:id/applicants', (req, res) => {
+  try {
+    const { id } = req.params;
+    const requirement = db.prepare('SELECT * FROM requirements WHERE id = ?').get(id);
+    if (!requirement) {
+      return res.status(404).json({ error: 'Requirement not found.' });
+    }
+
+    const apps = db.prepare(`
+      SELECT a.id as application_id, a.match_score, a.status, a.applied_at,
+             s.id as student_id, s.name, s.program, s.branch, s.cgpa, s.resume_url, 
+             s.parsed_resume_json, s.ats_score
+      FROM applications a
+      JOIN student_profiles s ON a.student_id = s.id
+      WHERE a.requirement_id = ?
+    `).all(id);
+
+    // Compute live match score & parsed skill summaries
+    const rankedApplicants = apps.map(app => {
+      let parsedData = {};
+      try { parsedData = JSON.parse(app.parsed_resume_json || '{}'); } catch(e){}
+
+      const matchRes = calculateMatchScore(
+        { program: app.program, cgpa: app.cgpa, name: app.name, parsed_resume_json: parsedData },
+        requirement
+      );
+
+      return {
+        ...app,
+        matchScore: matchRes.matchScore,
+        eligible: matchRes.eligible,
+        reason: matchRes.reason,
+        skillsSummary: parsedData.skills?.technical || [],
+        parsedResume: parsedData
+      };
+    }).sort((a, b) => b.matchScore - a.matchScore); // Ranked highest first!
+
+    res.json({
+      requirement,
+      totalApplicants: rankedApplicants.length,
+      applicants: rankedApplicants
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+export default router;

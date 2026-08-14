@@ -1,0 +1,23 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Production build outputs
+dist/
+build/
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Environment & temporary files
+.env
+.env.local
+.DS_Store
+*.log
+npm-debug.log*
+
+# System
+.idea/
+.vscode/
