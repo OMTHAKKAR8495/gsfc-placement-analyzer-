@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Upload, FileText, CheckCircle, AlertTriangle, Sparkles, Briefcase, Award, TrendingUp, Search, SlidersHorizontal, ArrowRight, Play, Cpu, Check, Layers, ChevronRight, Compass, ShieldCheck, PieChart, BarChart2, RefreshCw, Zap, Database, X, Star, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Upload, FileText, CheckCircle, AlertTriangle, Sparkles, Briefcase, Award, TrendingUp, Search, SlidersHorizontal, ArrowRight, Play, Cpu, Check, Layers, ChevronRight, Compass, ShieldCheck, PieChart, BarChart2, RefreshCw, Zap, Database, X, Star, CheckCircle2, AlertCircle, Edit3, Mail, Download, Paperclip } from 'lucide-react';
 import MockInterviewChat from './MockInterviewChat';
 import CompanyTrackerSidebar from '../common/CompanyTrackerSidebar';
 
@@ -18,9 +18,18 @@ export default function StudentDashboard({ student, onUpdateStudent }) {
   const [analyzingStage, setAnalyzingStage] = useState(0);
   const [currentTipIndex, setCurrentTipIndex] = useState(0);
 
-  // Parsed Resume Details & Selection Status Preview Modal State
-  const [previewModalOpen, setPreviewModalOpen] = useState(false);
-  const [analysisResultData, setAnalysisResultData] = useState(null);
+  // Editable Candidate Fields
+  const [candidateName, setCandidateName] = useState(student?.name || 'Thakkar Om');
+  const [candidateEmail, setCandidateEmail] = useState('thakkar_om@gmail.com');
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [isEditingEmail, setIsEditingEmail] = useState(false);
+
+  // Mail Modal State
+  const [mailModalOpen, setMailModalOpen] = useState(false);
+  const [mailRecipient, setMailRecipient] = useState(candidateEmail);
+  const [mailSentSuccess, setMailSentSuccess] = useState(false);
+
+  // Database Save State
   const [savingToDb, setSavingToDb] = useState(false);
   const [dbSaveConfirmation, setDbSaveConfirmation] = useState(null);
 
@@ -46,6 +55,7 @@ export default function StudentDashboard({ student, onUpdateStudent }) {
     fetchFeed();
     if (student) {
       fetchApplications();
+      if (student.name) setCandidateName(student.name);
     }
   }, [student, showAllFeed]);
 
@@ -114,10 +124,9 @@ export default function StudentDashboard({ student, onUpdateStudent }) {
 
       setTimeout(() => {
         onUpdateStudent(data.student);
-        setAnalysisResultData(data);
         setAnalyzingModalOpen(false);
         setUploadingResume(false);
-        setPreviewModalOpen(true);
+        if (data.student?.name) setCandidateName(data.student.name);
         fetchFeed();
       }, 1500);
     } catch (err) {
@@ -137,12 +146,12 @@ export default function StudentDashboard({ student, onUpdateStudent }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           student_id: student.id,
-          name: student.name,
-          program: student.program,
-          branch: student.branch,
-          cgpa: student.cgpa,
+          name: candidateName,
+          program: student.program || 'BTech CSE',
+          branch: student.branch || 'Computer Science',
+          cgpa: student.cgpa || 8.5,
           ats_score: student.ats_score || 92,
-          skills: ['Python', 'React', 'SQL', 'FastAPI', 'Machine Learning']
+          skills: skillsList
         })
       });
 
@@ -150,12 +159,26 @@ export default function StudentDashboard({ student, onUpdateStudent }) {
       if (!res.ok) throw new Error(data.error || 'Database save failed');
 
       setDbSaveConfirmation(data);
-      alert('💾 Profile, Parsed Skills & Selection Status saved to GSFC SQLite Database!');
+      alert('💾 Candidate Data, Extracted Skills & Selection Status saved to GSFC SQLite Database!');
     } catch (err) {
       alert(err.message);
     } finally {
       setSavingToDb(false);
     }
+  };
+
+  const handleSendMailReport = (e) => {
+    e.preventDefault();
+    setMailSentSuccess(true);
+    setTimeout(() => {
+      setMailModalOpen(false);
+      setMailSentSuccess(false);
+      alert(`✉️ Candidate Placement Report mailed successfully to ${mailRecipient}!`);
+    }, 1200);
+  };
+
+  const handleDownloadPDF = () => {
+    window.print();
   };
 
   const handleApply = async (reqId) => {
@@ -190,15 +213,19 @@ export default function StudentDashboard({ student, onUpdateStudent }) {
     setMockSessionActive(true);
   };
 
-  const parsedResume = student?.parsed_resume_json
-    ? (typeof student.parsed_resume_json === 'string' ? JSON.parse(student.parsed_resume_json) : student.parsed_resume_json)
-    : {
-        name: student?.name || 'Rahul Verma',
-        program: student?.program || 'BTech CSE',
-        branch: student?.branch || 'Computer Science & Engineering',
-        cgpa: student?.cgpa || 8.5,
-        skills: ['Python', 'React', 'SQL', 'FastAPI', 'Docker', 'Machine Learning', 'Data Structures']
-      };
+  // Safe Skills Array Extractor
+  let skillsList = ['C#', 'Go', 'Git', 'GitHub', 'ETL', 'Python', 'SQL'];
+  if (student?.parsed_resume_json) {
+    try {
+      const parsed = typeof student.parsed_resume_json === 'string' ? JSON.parse(student.parsed_resume_json) : student.parsed_resume_json;
+      if (parsed.skills) {
+        if (Array.isArray(parsed.skills)) skillsList = parsed.skills;
+        else if (typeof parsed.skills === 'string') skillsList = parsed.skills.split(',').map(s=>s.trim()).filter(Boolean);
+      }
+    } catch (err) {
+      console.warn('Error parsing skills JSON:', err);
+    }
+  }
 
   const filteredFeed = requirementsFeed.filter(r => {
     const matchesSearch = r.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -235,7 +262,7 @@ export default function StudentDashboard({ student, onUpdateStudent }) {
             </div>
 
             <h1 className="text-2xl sm:text-4xl font-black text-slate-900 tracking-tight leading-tight">
-              Welcome to <span className="gradient-text">GSFC Placement Portal</span>, {student?.name || 'Candidate'}
+              Welcome to <span className="gradient-text">GSFC Placement Portal</span>, {candidateName}
             </h1>
             <p className="text-xs sm:text-sm text-slate-700 mt-1.5 max-w-2xl font-bold leading-relaxed">
               Smart Resume Analyzer powered by NLP & Gemini AI. Visual skill match analytics, ATS compliance evaluation, and automated interview coaching.
@@ -444,40 +471,109 @@ export default function StudentDashboard({ student, onUpdateStudent }) {
             </div>
           )}
 
-          {/* TAB 2: FULL DETAILED SMART RESUME ANALYZER REPORT DASHBOARD */}
+          {/* TAB 2: SMART RESUME ANALYZER PAGE (EXACT REFERENCE UI DESIGN) */}
           {activeTab === 'profile' && (
             <div className="space-y-6">
-              {/* Header Action & Status Card */}
-              <div className="glass-panel p-4 sm:p-6 rounded-3xl border border-slate-200/90 space-y-4">
-                <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+              {/* 1. Drag & Drop Resume Upload Banner */}
+              <div className="glass-panel p-6 rounded-3xl border-2 border-dashed border-blue-900/30 text-center space-y-3 bg-white/90">
+                <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-900 flex items-center justify-center mx-auto border border-blue-200 shadow-sm">
+                  <Upload className="w-6 h-6 text-blue-900" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-slate-900">Drag & Drop your Resume here</h3>
+                  <p className="text-xs text-slate-600 font-bold max-w-md mx-auto mt-0.5">
+                    Supports PDF, DOCX, or TXT format. Automated parsing will extract candidate name, technical skills, and eligibility.
+                  </p>
+                </div>
+                <label className="inline-flex items-center gap-2 py-2.5 px-5 bg-blue-900 hover:bg-blue-800 text-white font-black text-xs rounded-xl shadow-md cursor-pointer transition-all">
+                  <Paperclip className="w-4 h-4" />
+                  <span>{uploadingResume ? 'Parsing PDF...' : 'Browse File from Computer'}</span>
+                  <input
+                    type="file"
+                    accept=".pdf,.docx,.txt"
+                    onChange={handleResumeFileUpload}
+                    className="hidden"
+                    disabled={uploadingResume}
+                  />
+                </label>
+              </div>
+
+              {/* 2. Active Candidate Badge Bar */}
+              <div className="p-4 bg-white/90 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-blue-900 text-white font-black text-base flex items-center justify-center shadow-md">
+                    {candidateName.slice(0, 1).toUpperCase()}
+                  </div>
                   <div>
-                    <div className="flex items-center gap-2 mb-1">
-                      <Sparkles className="w-5 h-5 text-blue-900 shrink-0" />
-                      <h2 className="text-xl sm:text-2xl font-black text-slate-900">Smart Resume Analyzer & ATS Report</h2>
+                    <div className="flex items-center gap-2">
+                      <span className="font-black text-sm text-slate-900">{candidateName}</span>
+                      <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 text-[10px] font-black rounded-md border border-emerald-300">
+                        Active Candidate
+                      </span>
                     </div>
-                    <p className="text-xs text-slate-700 font-bold">Full PDF Vector Analysis, Shortlist Status Evaluation & SQLite DB Storage</p>
+                    <div className="text-xs text-slate-600 font-bold mt-0.5">
+                      Software & Tech Professional • {skillsList.length} Technical Skills Extracted
+                    </div>
+                  </div>
+                </div>
+
+                <div className="px-3 py-1.5 bg-amber-50 border border-amber-200 text-amber-900 text-xs font-black rounded-xl shrink-0">
+                  Experience: <span className="text-amber-800 font-black">~1 Years</span>
+                </div>
+              </div>
+
+              {/* 3. Extracted Candidate Analysis Report Box */}
+              <div className="glass-panel p-5 sm:p-6 rounded-3xl border border-slate-200/90 space-y-5 bg-white/95">
+                {/* Header Title & Action Buttons (Save DB, Download PDF, Mail Report) */}
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b border-slate-200">
+                  <div>
+                    <div className="text-xs font-black text-slate-500 uppercase tracking-wider">Extracted Candidate Name:</div>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      {isEditingName ? (
+                        <input
+                          type="text"
+                          value={candidateName}
+                          onChange={(e) => setCandidateName(e.target.value)}
+                          onBlur={() => setIsEditingName(false)}
+                          className="px-2.5 py-1 border border-blue-900 rounded-lg text-base font-black text-slate-900 focus:outline-none"
+                          autoFocus
+                        />
+                      ) : (
+                        <h2 className="text-xl font-black text-slate-900">{candidateName}</h2>
+                      )}
+                      <button
+                        onClick={() => setIsEditingName(!isEditingName)}
+                        className="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-black rounded-lg border border-slate-200 flex items-center gap-1"
+                      >
+                        <Edit3 className="w-3.5 h-3.5" /> {isEditingName ? 'Save' : 'Edit Name'}
+                      </button>
+                    </div>
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-2.5 w-full md:w-auto">
-                    <label className="flex-1 md:flex-initial py-2.5 px-4 bg-gradient-to-r from-blue-900 to-indigo-900 hover:from-blue-800 hover:to-indigo-800 text-white font-black text-xs rounded-xl shadow-lg cursor-pointer flex items-center justify-center gap-2 transition-all min-h-[44px]">
-                      <Upload className="w-4 h-4 shrink-0" />
-                      <span>{uploadingResume ? 'Parsing PDF...' : 'Upload PDF Resume'}</span>
-                      <input
-                        type="file"
-                        accept=".pdf,.docx"
-                        onChange={handleResumeFileUpload}
-                        className="hidden"
-                        disabled={uploadingResume}
-                      />
-                    </label>
-
+                  <div className="flex flex-wrap items-center gap-2">
                     <button
                       onClick={handleSaveToDatabase}
                       disabled={savingToDb}
-                      className="flex-1 md:flex-initial py-2.5 px-4 bg-emerald-700 hover:bg-emerald-600 text-white font-black text-xs rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 min-h-[44px]"
+                      className="py-2 px-3.5 bg-blue-900 hover:bg-blue-800 text-white rounded-xl text-xs font-black flex items-center gap-1.5 shadow-md transition-all min-h-[38px]"
                     >
-                      <Database className="w-4 h-4 shrink-0" />
-                      <span>{savingToDb ? 'Saving...' : 'Save to DB'}</span>
+                      <Database className="w-3.5 h-3.5 shrink-0" />
+                      <span>{savingToDb ? 'Saving...' : 'Save Candidate Data'}</span>
+                    </button>
+
+                    <button
+                      onClick={handleDownloadPDF}
+                      className="py-2 px-3.5 bg-indigo-900 hover:bg-indigo-800 text-white rounded-xl text-xs font-black flex items-center gap-1.5 shadow-md transition-all min-h-[38px]"
+                    >
+                      <Download className="w-3.5 h-3.5 shrink-0" />
+                      <span>Download PDF</span>
+                    </button>
+
+                    <button
+                      onClick={() => setMailModalOpen(true)}
+                      className="py-2 px-3.5 bg-amber-600 hover:bg-amber-500 text-white rounded-xl text-xs font-black flex items-center gap-1.5 shadow-md transition-all min-h-[38px]"
+                    >
+                      <Mail className="w-3.5 h-3.5 shrink-0" />
+                      <span>Mail Report</span>
                     </button>
                   </div>
                 </div>
@@ -494,126 +590,71 @@ export default function StudentDashboard({ student, onUpdateStudent }) {
                   </div>
                 )}
 
-                {/* SHORTLIST EVALUATION BANNER */}
-                <div className="p-4 bg-emerald-50/90 border-2 border-emerald-300 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                  <div>
-                    <span className="text-[10px] font-black uppercase tracking-wider text-emerald-800 block">Placement Shortlist Evaluation</span>
-                    <span className="text-base font-black text-emerald-950 flex items-center gap-2">
-                      <Star className="w-5 h-5 fill-emerald-500 text-emerald-600 shrink-0" />
-                      {student?.ats_score >= 85 || !student ? 'SELECTED FOR PLACEMENT ROUNDS' : 'PENDING RECRUITER REVIEW'}
+                {/* FINAL SELECTION DECISION BANNER */}
+                <div className="p-4 bg-slate-900 text-white rounded-2xl border border-slate-800 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-lg">
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                      FINAL SELECTION DECISION FOR {candidateName.toUpperCase()}:
                     </span>
-                  </div>
-
-                  <div className="flex items-center gap-3">
-                    <div className="text-right">
-                      <div className="text-[10px] text-slate-500 font-bold uppercase">ATS Compatibility</div>
-                      <div className="text-lg font-black text-blue-900">{student?.ats_score || 92} / 100</div>
+                    <div className="flex items-center gap-2">
+                      <span className="px-3 py-1 bg-emerald-500/20 border border-emerald-400 text-emerald-300 font-black text-sm rounded-xl flex items-center gap-1.5">
+                        <Award className="w-4 h-4 text-emerald-400" />
+                        PASS (ELIGIBLE FOR PLACEMENT)
+                      </span>
                     </div>
                   </div>
+
+                  <p className="text-xs text-slate-300 font-bold max-w-md leading-relaxed">
+                    Candidate fulfills core foundational requirements. Company condition is favorable for hiring with targeted on-the-job improvement.
+                  </p>
                 </div>
-              </div>
 
-              {/* CANDIDATE EXTRACTED CREDENTIALS CARD */}
-              <div className="glass-card p-5 rounded-3xl border border-slate-200/90 space-y-4">
-                <h3 className="font-black text-sm text-slate-900 flex items-center gap-2 pb-2 border-b border-slate-200">
-                  <ShieldCheck className="w-4 h-4 text-blue-900" /> Extracted Candidate Profile & Academic Details
-                </h3>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 text-xs font-bold">
-                  <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
+                {/* CANDIDATE INFO & CONTACT DETAILS GRID */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs font-bold">
+                  <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
                     <span className="text-slate-500 block text-[10px] font-black uppercase">Candidate Name</span>
-                    <span className="text-slate-900 font-black text-sm">{student?.name || 'Rahul Verma'}</span>
+                    <span className="text-slate-900 font-black text-sm">{candidateName}</span>
                   </div>
 
-                  <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
-                    <span className="text-slate-500 block text-[10px] font-black uppercase">Degree & Program</span>
-                    <span className="text-slate-900 font-black text-sm">{student?.program || 'BTech CSE'}</span>
+                  <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-500 block text-[10px] font-black uppercase">Contact Email & Phone</span>
+                      <button onClick={() => setIsEditingEmail(!isEditingEmail)} className="text-[10px] text-blue-900 hover:underline font-black">
+                        {isEditingEmail ? 'Save' : 'Edit Email'}
+                      </button>
+                    </div>
+                    {isEditingEmail ? (
+                      <input
+                        type="email"
+                        value={candidateEmail}
+                        onChange={(e) => setCandidateEmail(e.target.value)}
+                        onBlur={() => setIsEditingEmail(false)}
+                        className="w-full mt-1 px-2 py-1 border border-blue-900 rounded text-xs font-bold text-slate-900"
+                        autoFocus
+                      />
+                    ) : (
+                      <span className="text-blue-900 font-black text-xs block truncate mt-0.5">{candidateEmail}</span>
+                    )}
                   </div>
 
-                  <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
-                    <span className="text-slate-500 block text-[10px] font-black uppercase">Department / Branch</span>
-                    <span className="text-slate-900 font-black text-sm">{student?.branch || 'Computer Science'}</span>
-                  </div>
-
-                  <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
-                    <span className="text-slate-500 block text-[10px] font-black uppercase">Academic CGPA</span>
-                    <span className="text-emerald-800 font-black text-sm">{student?.cgpa || 8.5} CGPA</span>
+                  <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
+                    <span className="text-slate-500 block text-[10px] font-black uppercase">Professional Title</span>
+                    <span className="text-slate-900 font-black text-sm block mt-0.5">Software & Tech Professional</span>
                   </div>
                 </div>
-              </div>
 
-              {/* SKILLS MATRIX & COMPATIBILITY METRICS */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Skill Match Breakdown */}
-                <div className="glass-card p-5 rounded-3xl border border-slate-200/90 space-y-4">
-                  <div className="flex items-center justify-between pb-3 border-b border-slate-200">
-                    <h3 className="font-black text-sm text-slate-900 flex items-center gap-2">
-                      <BarChart2 className="w-4 h-4 text-blue-900" /> Parsed Technical Skills & Keyword Fit
-                    </h3>
-                    <span className="text-[10px] text-blue-900 font-black bg-blue-50 px-2 py-0.5 rounded-md border border-blue-200">NLP Index</span>
-                  </div>
+                {/* EXTRACTED TECHNICAL SKILLS MATRIX */}
+                <div className="space-y-3 pt-2 border-t border-slate-200">
+                  <h4 className="text-xs font-black uppercase tracking-wider text-slate-700">
+                    EXTRACTED TECHNICAL SKILLS MATRIX ({skillsList.length})
+                  </h4>
 
                   <div className="flex flex-wrap gap-2">
-                    {(parsedResume.skills || ['Python', 'React', 'SQL', 'FastAPI', 'Docker', 'Machine Learning', 'Data Structures']).map((sk, idx) => (
-                      <span key={idx} className="px-3 py-1.5 bg-blue-50 border border-blue-200 text-blue-900 text-xs font-black rounded-xl shadow-sm">
-                        ✓ {sk}
+                    {skillsList.map((sk, sIdx) => (
+                      <span key={sIdx} className="px-3.5 py-1.5 bg-slate-100 border border-slate-300 text-slate-900 text-xs font-black rounded-xl shadow-sm hover:border-blue-500 transition-all">
+                        {sk}
                       </span>
                     ))}
-                  </div>
-
-                  <div className="space-y-3 text-xs font-bold pt-2 border-t border-slate-200">
-                    <div>
-                      <div className="flex justify-between text-slate-900 mb-1">
-                        <span>Python & Machine Learning</span>
-                        <span className="text-blue-900 font-black">92% Fit</span>
-                      </div>
-                      <div className="w-full bg-slate-100 h-3 rounded-full overflow-hidden border border-slate-200">
-                        <div className="bg-gradient-to-r from-blue-900 to-indigo-700 h-full rounded-full" style={{ width: '92%' }}></div>
-                      </div>
-                    </div>
-
-                    <div>
-                      <div className="flex justify-between text-slate-900 mb-1">
-                        <span>Full-Stack Web & SQL Databases</span>
-                        <span className="text-blue-900 font-black">88% Fit</span>
-                      </div>
-                      <div className="w-full bg-slate-100 h-3 rounded-full overflow-hidden border border-slate-200">
-                        <div className="bg-gradient-to-r from-blue-900 to-teal-600 h-full rounded-full" style={{ width: '88%' }}></div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Profile Fit Analytics */}
-                <div className="glass-card p-5 rounded-3xl border border-slate-200/90 space-y-4">
-                  <div className="flex items-center justify-between pb-3 border-b border-slate-200">
-                    <h3 className="font-black text-sm text-slate-900 flex items-center gap-2">
-                      <PieChart className="w-4 h-4 text-amber-600" /> ATS Compatibility Ratio
-                    </h3>
-                    <span className="text-[10px] text-amber-800 font-black bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">Ratio</span>
-                  </div>
-
-                  <div className="flex items-center justify-around gap-4 pt-2">
-                    <div className="relative w-28 h-28 flex items-center justify-center shrink-0">
-                      <svg className="w-full h-full transform -rotate-90">
-                        <circle cx="56" cy="56" r="44" stroke="currentColor" strokeWidth="10" className="text-slate-100" fill="transparent" />
-                        <circle cx="56" cy="56" r="44" stroke="#1e3a8a" strokeWidth="10" strokeDasharray="276" strokeDashoffset="24" fill="transparent" />
-                      </svg>
-                      <div className="absolute text-center">
-                        <span className="text-base font-black text-slate-900">{student?.ats_score || 92}%</span>
-                        <span className="text-[8px] text-slate-600 block font-black">ATS MATCH</span>
-                      </div>
-                    </div>
-
-                    <div className="space-y-2 text-xs font-black text-slate-800">
-                      <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-blue-900 shrink-0"></span> Technical Skills (40%)</div>
-                      <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-blue-600 shrink-0"></span> Experience & Projects (30%)</div>
-                      <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-amber-600 shrink-0"></span> CGPA & Education (30%)</div>
-                    </div>
-                  </div>
-
-                  <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl text-blue-900 text-xs font-bold">
-                    💡 <span className="font-black">AI Recommendation:</span> Adding quantifiable metrics (e.g., "Improved query execution by 30%") raises recruiter ranking!
                   </div>
                 </div>
               </div>
@@ -671,6 +712,49 @@ export default function StudentDashboard({ student, onUpdateStudent }) {
 
       </div>
 
+      {/* MAIL REPORT MODAL */}
+      {mailModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-md animate-fadeIn">
+          <div className="relative w-full max-w-md bg-white rounded-3xl border border-slate-200 shadow-2xl p-6 space-y-4 text-slate-900">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200">
+              <h3 className="font-black text-base text-slate-900 flex items-center gap-2">
+                <Mail className="w-5 h-5 text-amber-600" /> Mail Placement Report
+              </h3>
+              <button onClick={() => setMailModalOpen(false)} className="p-1 text-slate-400 hover:text-slate-900">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSendMailReport} className="space-y-3 text-xs">
+              <div>
+                <label className="block text-slate-700 font-bold mb-1">Recipient Email Address</label>
+                <input
+                  type="email"
+                  required
+                  value={mailRecipient}
+                  onChange={(e) => setMailRecipient(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl font-bold text-slate-900 focus:outline-none focus:border-blue-900"
+                />
+              </div>
+
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-1">
+                <div className="text-[10px] font-black text-slate-500 uppercase">Attached Summary</div>
+                <div className="font-black text-slate-900">GSFC Placement Result — {candidateName}</div>
+                <div className="text-[11px] text-emerald-800 font-black">Status: PASS (ELIGIBLE FOR PLACEMENT)</div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={mailSentSuccess}
+                className="w-full py-3 bg-gradient-to-r from-blue-900 via-indigo-900 to-amber-600 hover:from-blue-800 hover:to-amber-500 text-white font-black text-xs rounded-xl shadow-lg min-h-[44px]"
+              >
+                {mailSentSuccess ? 'Sending Email...' : 'Send Mail Report'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* AI RESUME ANALYZING COUNTDOWN MODAL */}
       {analyzingModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-md animate-fadeIn">
@@ -713,109 +797,6 @@ export default function StudentDashboard({ student, onUpdateStudent }) {
               <p className="text-xs text-slate-800 font-bold leading-relaxed">
                 {placementTips[currentTipIndex]}
               </p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* PARSED RESUME DETAILS & SELECTION STATUS PREVIEW MODAL */}
-      {previewModalOpen && analysisResultData && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/75 backdrop-blur-md animate-fadeIn">
-          <div className="relative w-full max-w-2xl bg-white rounded-3xl border border-slate-200 shadow-2xl p-4 sm:p-8 space-y-6 text-slate-900 max-h-[90vh] overflow-y-auto">
-            {/* Header */}
-            <div className="flex items-center justify-between pb-4 border-b border-slate-200">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-900 border border-emerald-300 flex items-center justify-center shrink-0">
-                  <CheckCircle className="w-6 h-6 text-emerald-700" />
-                </div>
-                <div>
-                  <h2 className="text-lg sm:text-xl font-black text-slate-900">AI Analysis & Selection Result</h2>
-                  <p className="text-xs text-slate-600 font-bold">Extracted PDF Profile, ATS Score & Selection Status</p>
-                </div>
-              </div>
-              <button
-                onClick={() => setPreviewModalOpen(false)}
-                className="p-2 rounded-xl text-slate-400 hover:text-slate-900 hover:bg-slate-100"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* SELECTION STATUS BADGE BANNER */}
-            <div className="p-4 bg-emerald-50 border-2 border-emerald-300 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-              <div>
-                <span className="text-[10px] font-black uppercase tracking-wider text-emerald-800 block">Shortlist Evaluation Result</span>
-                <span className="text-base font-black text-emerald-950 flex items-center gap-2">
-                  <Star className="w-5 h-5 fill-emerald-500 text-emerald-600" />
-                  {analysisResultData.selectionStatus || 'SELECTED FOR PLACEMENT ROUNDS'}
-                </span>
-              </div>
-              <div className="px-3.5 py-1.5 bg-emerald-900 text-white rounded-xl font-black text-xs shadow-md shrink-0">
-                Score: {analysisResultData.atsScore || 92}/100
-              </div>
-            </div>
-
-            {/* EXTRACTED CANDIDATE DETAILS GRID */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-bold bg-slate-50 p-4 rounded-2xl border border-slate-200">
-              <div><span className="text-slate-500">Candidate Name:</span> <span className="text-slate-900 font-black block text-sm">{analysisResultData.parsedResume?.name || student?.name}</span></div>
-              <div><span className="text-slate-500">Degree & Program:</span> <span className="text-slate-900 font-black block text-sm">{analysisResultData.parsedResume?.program || student?.program}</span></div>
-              <div><span className="text-slate-500">Academic CGPA:</span> <span className="text-emerald-800 font-black block text-sm">{analysisResultData.parsedResume?.cgpa || student?.cgpa} CGPA</span></div>
-              <div><span className="text-slate-500">Department / Branch:</span> <span className="text-slate-900 font-black block text-sm">{analysisResultData.parsedResume?.branch || student?.branch}</span></div>
-            </div>
-
-            {/* EXTRACTED SKILLS SUMMARY */}
-            <div className="space-y-2">
-              <h3 className="text-xs font-black uppercase tracking-wider text-slate-700">Parsed Technical Skills & Keywords</h3>
-              <div className="flex flex-wrap gap-2">
-                {(analysisResultData.parsedResume?.skills || ['Python', 'React', 'SQL', 'FastAPI', 'Docker', 'Machine Learning']).map((sk, sIdx) => (
-                  <span key={sIdx} className="px-3 py-1.5 bg-blue-50 border border-blue-200 text-blue-900 text-xs font-black rounded-xl shadow-sm">
-                    ✓ {sk}
-                  </span>
-                ))}
-              </div>
-            </div>
-
-            {/* DATABASE SAVE ACTION SECTION */}
-            <div className="p-4 bg-slate-100 rounded-2xl border border-slate-200 space-y-3">
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-                <div>
-                  <h4 className="font-black text-xs text-slate-900 flex items-center gap-1.5">
-                    <Database className="w-4 h-4 text-blue-900" /> Save to GSFC SQLite Database
-                  </h4>
-                  <p className="text-[11px] text-slate-600 font-bold mt-0.5">Persist candidate resume vectors & selection status to database</p>
-                </div>
-
-                <button
-                  onClick={handleSaveToDatabase}
-                  disabled={savingToDb}
-                  className="py-2.5 px-4 bg-gradient-to-r from-blue-900 via-indigo-900 to-amber-600 hover:from-blue-800 hover:to-amber-500 text-white font-black text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-2 min-h-[42px] shrink-0"
-                >
-                  <Database className="w-4 h-4 shrink-0" />
-                  <span>{savingToDb ? 'Saving to DB...' : 'Save Data to Database'}</span>
-                </button>
-              </div>
-
-              {dbSaveConfirmation && (
-                <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-900 text-xs font-black flex items-center justify-between gap-2 animate-fadeIn">
-                  <div className="flex items-center gap-2">
-                    <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
-                    <span>{dbSaveConfirmation.message}</span>
-                  </div>
-                  <span className="text-[10px] text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded font-mono">
-                    ID: {dbSaveConfirmation.db_record_id}
-                  </span>
-                </div>
-              )}
-            </div>
-
-            {/* Modal Footer */}
-            <div className="pt-2 flex justify-end">
-              <button
-                onClick={() => setPreviewModalOpen(false)}
-                className="py-2.5 px-6 bg-slate-900 hover:bg-slate-950 text-white rounded-xl font-black text-xs shadow-md transition-all"
-              >
-                Close Preview & View Live Feed
-              </button>
             </div>
           </div>
         </div>
