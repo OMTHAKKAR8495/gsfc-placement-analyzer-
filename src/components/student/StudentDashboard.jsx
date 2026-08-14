@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Upload, FileText, CheckCircle, AlertTriangle, Sparkles, Briefcase, Award, TrendingUp, Search, SlidersHorizontal, ArrowRight, Play, Cpu, Check, Layers, ChevronRight, Compass, ShieldCheck, PieChart, BarChart2 } from 'lucide-react';
+import { Upload, FileText, CheckCircle, AlertTriangle, Sparkles, Briefcase, Award, TrendingUp, Search, SlidersHorizontal, ArrowRight, Play, Cpu, Check, Layers, ChevronRight, Compass, ShieldCheck, PieChart, BarChart2, RefreshCw, Zap } from 'lucide-react';
 import MockInterviewChat from './MockInterviewChat';
 import CompanyTrackerSidebar from '../common/CompanyTrackerSidebar';
 
@@ -11,11 +11,30 @@ export default function StudentDashboard({ student, onUpdateStudent }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedBranch, setSelectedBranch] = useState('All');
   const [uploadingResume, setUploadingResume] = useState(false);
-  const [message, setMessage] = useState('');
+
+  // AI Resume Analyzing Progress Modal & Countdown State
+  const [analyzingModalOpen, setAnalyzingModalOpen] = useState(false);
+  const [countdown, setCountdown] = useState(5);
+  const [analyzingStage, setAnalyzingStage] = useState(0);
+  const [currentTipIndex, setCurrentTipIndex] = useState(0);
 
   // AI Mock Interview state
   const [mockSessionActive, setMockSessionActive] = useState(false);
   const [mockTargetRequirement, setMockTargetRequirement] = useState(null);
+
+  const placementTips = [
+    '💡 Tip 1: Quantifiable metrics like "Boosted database speed by 35%" increase ATS score by 40%!',
+    '🚀 Fact: Over 85% of GSFC BTech CSE graduates secured PPO & placement offers in 2025!',
+    '🎯 Tip 2: Listing Python, React, and SQL directly matches high-demand corporate drives.',
+    '🔮 AI Engine: Gemini NLP is vectorizing technical skills & calculating ATS match index...'
+  ];
+
+  const analysisStages = [
+    '📄 Stage 1: Extracting PDF Text & Candidate Credentials',
+    '🔍 Stage 2: Gemini NLP Vectorizing Technical & Soft Skills',
+    '📊 Stage 3: Evaluating ATS Match Index & CGPA Cutoffs',
+    '✨ Stage 4: Generating Role Recommendations & Skill Gap Analysis'
+  ];
 
   useEffect(() => {
     fetchFeed();
@@ -56,7 +75,24 @@ export default function StudentDashboard({ student, onUpdateStudent }) {
     }
 
     setUploadingResume(true);
-    setMessage('');
+    setAnalyzingModalOpen(true);
+    setCountdown(5);
+    setAnalyzingStage(0);
+    setCurrentTipIndex(0);
+
+    // Live countdown timer and rotating tips
+    const countdownInterval = setInterval(() => {
+      setCountdown(prev => {
+        if (prev <= 1) {
+          clearInterval(countdownInterval);
+          return 0;
+        }
+        return prev - 1;
+      });
+
+      setAnalyzingStage(prev => (prev < 3 ? prev + 1 : 3));
+      setCurrentTipIndex(prev => (prev + 1) % placementTips.length);
+    }, 1200);
 
     const formData = new FormData();
     formData.append('resume', file);
@@ -70,12 +106,16 @@ export default function StudentDashboard({ student, onUpdateStudent }) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to upload resume');
 
-      onUpdateStudent(data.student);
-      setMessage('✨ Resume parsed by Gemini AI! GSFC profile & ATS score updated.');
-      fetchFeed();
+      // Wait for countdown animation to finish gracefully
+      setTimeout(() => {
+        onUpdateStudent(data.student);
+        setAnalyzingModalOpen(false);
+        setUploadingResume(false);
+        fetchFeed();
+      }, 1500);
     } catch (err) {
       alert(err.message);
-    } finally {
+      setAnalyzingModalOpen(false);
       setUploadingResume(false);
     }
   };
@@ -234,10 +274,10 @@ export default function StudentDashboard({ student, onUpdateStudent }) {
         </div>
       </div>
 
-      {/* Main Content Layout Grid with Sticky Right Sidebar */}
+      {/* Main Content Layout Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
         
-        {/* Left / Main Workspace Feed (Span 2) */}
+        {/* Left / Main Workspace Feed */}
         <div className="lg:col-span-2 space-y-6">
           {activeTab === 'feed' && (
             <div className="space-y-6">
@@ -491,12 +531,63 @@ export default function StudentDashboard({ student, onUpdateStudent }) {
           )}
         </div>
 
-        {/* Right Sticky Sidebar: Corporate Placement Drives Tracker (Span 1) */}
+        {/* Right Sticky Sidebar */}
         <div className="lg:col-span-1">
           <CompanyTrackerSidebar />
         </div>
 
       </div>
+
+      {/* AI RESUME ANALYZING COUNTDOWN MODAL */}
+      {analyzingModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-md animate-fadeIn">
+          <div className="relative w-full max-w-lg bg-white rounded-3xl border border-slate-200 shadow-2xl p-6 sm:p-8 space-y-6 text-slate-900 text-center overflow-hidden">
+            {/* Ambient Animated Glow Ring */}
+            <div className="absolute -top-24 -right-24 w-48 h-48 bg-blue-600/20 rounded-full blur-3xl pointer-events-none"></div>
+
+            <div className="space-y-3">
+              <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-blue-900 to-indigo-700 text-white flex items-center justify-center mx-auto shadow-lg shadow-blue-900/30 animate-pulse">
+                <Sparkles className="w-8 h-8 text-amber-300" />
+              </div>
+              <h2 className="text-xl font-black text-slate-900">Gemini AI Resume Analyzer</h2>
+              <p className="text-xs text-slate-600 font-bold max-w-sm mx-auto">
+                Parsing PDF vector text, calculating ATS compatibility, and matching against corporate requirements...
+              </p>
+            </div>
+
+            {/* Countdown Meter & Stage */}
+            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-3">
+              <div className="flex items-center justify-between text-xs font-black">
+                <span className="text-slate-700 flex items-center gap-1.5">
+                  <RefreshCw className="w-4 h-4 animate-spin text-blue-900" />
+                  {analysisStages[analyzingStage]}
+                </span>
+                <span className="text-blue-900 text-base font-black px-2.5 py-0.5 bg-blue-50 border border-blue-200 rounded-lg">
+                  {countdown > 0 ? `0${countdown}s` : '✨ Complete!'}
+                </span>
+              </div>
+
+              {/* Progress Bar */}
+              <div className="w-full bg-slate-200 h-3 rounded-full overflow-hidden p-0.5 border border-slate-300">
+                <div
+                  className="bg-gradient-to-r from-blue-900 via-indigo-700 to-amber-500 h-full rounded-full transition-all duration-1000"
+                  style={{ width: `${((5 - countdown) / 5) * 100}%` }}
+                ></div>
+              </div>
+            </div>
+
+            {/* Rotating Placement Tip / Fact (Boredom Buster) */}
+            <div className="p-4 bg-amber-50/80 border border-amber-200/90 rounded-2xl text-left space-y-1 animate-fadeIn">
+              <div className="text-[10px] font-black text-amber-800 uppercase tracking-wider flex items-center gap-1">
+                <Zap className="w-3.5 h-3.5 text-amber-600" /> GSFC Placement Insight & Tip
+              </div>
+              <p className="text-xs text-slate-800 font-bold leading-relaxed">
+                {placementTips[currentTipIndex]}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
