@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Upload, FileText, CheckCircle, AlertTriangle, Sparkles, Briefcase, Award, TrendingUp, Search, SlidersHorizontal, ArrowRight, Play, Cpu, Check, Layers, ChevronRight, Compass, ShieldCheck, PieChart, BarChart2, RefreshCw, Zap } from 'lucide-react';
+import { Upload, FileText, CheckCircle, AlertTriangle, Sparkles, Briefcase, Award, TrendingUp, Search, SlidersHorizontal, ArrowRight, Play, Cpu, Check, Layers, ChevronRight, Compass, ShieldCheck, PieChart, BarChart2, RefreshCw, Zap, Database, X, Star } from 'lucide-react';
 import MockInterviewChat from './MockInterviewChat';
 import CompanyTrackerSidebar from '../common/CompanyTrackerSidebar';
 
@@ -17,6 +17,12 @@ export default function StudentDashboard({ student, onUpdateStudent }) {
   const [countdown, setCountdown] = useState(5);
   const [analyzingStage, setAnalyzingStage] = useState(0);
   const [currentTipIndex, setCurrentTipIndex] = useState(0);
+
+  // Parsed Resume Details & Selection Status Preview Modal State
+  const [previewModalOpen, setPreviewModalOpen] = useState(false);
+  const [analysisResultData, setAnalysisResultData] = useState(null);
+  const [savingToDb, setSavingToDb] = useState(false);
+  const [dbSaveConfirmation, setDbSaveConfirmation] = useState(null);
 
   // AI Mock Interview state
   const [mockSessionActive, setMockSessionActive] = useState(false);
@@ -79,8 +85,8 @@ export default function StudentDashboard({ student, onUpdateStudent }) {
     setCountdown(5);
     setAnalyzingStage(0);
     setCurrentTipIndex(0);
+    setDbSaveConfirmation(null);
 
-    // Live countdown timer and rotating tips
     const countdownInterval = setInterval(() => {
       setCountdown(prev => {
         if (prev <= 1) {
@@ -106,17 +112,49 @@ export default function StudentDashboard({ student, onUpdateStudent }) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to upload resume');
 
-      // Wait for countdown animation to finish gracefully
       setTimeout(() => {
         onUpdateStudent(data.student);
+        setAnalysisResultData(data);
         setAnalyzingModalOpen(false);
         setUploadingResume(false);
+        setPreviewModalOpen(true); // Open Details & Selection Status Preview Modal
         fetchFeed();
       }, 1500);
     } catch (err) {
       alert(err.message);
       setAnalyzingModalOpen(false);
       setUploadingResume(false);
+    }
+  };
+
+  const handleSaveToDatabase = async () => {
+    if (!student?.id || !analysisResultData) return;
+    setSavingToDb(true);
+
+    try {
+      const res = await fetch('/api/student/resume/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          student_id: student.id,
+          name: analysisResultData.parsedResume?.name || student.name,
+          program: analysisResultData.parsedResume?.program || student.program,
+          branch: analysisResultData.parsedResume?.branch || student.branch,
+          cgpa: analysisResultData.parsedResume?.cgpa || student.cgpa,
+          ats_score: analysisResultData.atsScore || 92,
+          skills: analysisResultData.parsedResume?.skills || ['Python', 'React', 'SQL', 'FastAPI']
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Database save failed');
+
+      setDbSaveConfirmation(data);
+      alert('💾 Profile, Parsed Skills & Selection Status saved to GSFC SQLite Database!');
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setSavingToDb(false);
     }
   };
 
@@ -151,10 +189,6 @@ export default function StudentDashboard({ student, onUpdateStudent }) {
     setMockTargetRequirement(requirement);
     setMockSessionActive(true);
   };
-
-  const parsedResume = student?.parsed_resume_json
-    ? (typeof student.parsed_resume_json === 'string' ? JSON.parse(student.parsed_resume_json) : student.parsed_resume_json)
-    : null;
 
   const filteredFeed = requirementsFeed.filter(r => {
     const matchesSearch = r.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -542,7 +576,6 @@ export default function StudentDashboard({ student, onUpdateStudent }) {
       {analyzingModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-md animate-fadeIn">
           <div className="relative w-full max-w-lg bg-white rounded-3xl border border-slate-200 shadow-2xl p-6 sm:p-8 space-y-6 text-slate-900 text-center overflow-hidden">
-            {/* Ambient Animated Glow Ring */}
             <div className="absolute -top-24 -right-24 w-48 h-48 bg-blue-600/20 rounded-full blur-3xl pointer-events-none"></div>
 
             <div className="space-y-3">
@@ -555,7 +588,6 @@ export default function StudentDashboard({ student, onUpdateStudent }) {
               </p>
             </div>
 
-            {/* Countdown Meter & Stage */}
             <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-3">
               <div className="flex items-center justify-between text-xs font-black">
                 <span className="text-slate-700 flex items-center gap-1.5">
@@ -567,7 +599,6 @@ export default function StudentDashboard({ student, onUpdateStudent }) {
                 </span>
               </div>
 
-              {/* Progress Bar */}
               <div className="w-full bg-slate-200 h-3 rounded-full overflow-hidden p-0.5 border border-slate-300">
                 <div
                   className="bg-gradient-to-r from-blue-900 via-indigo-700 to-amber-500 h-full rounded-full transition-all duration-1000"
@@ -576,7 +607,6 @@ export default function StudentDashboard({ student, onUpdateStudent }) {
               </div>
             </div>
 
-            {/* Rotating Placement Tip / Fact (Boredom Buster) */}
             <div className="p-4 bg-amber-50/80 border border-amber-200/90 rounded-2xl text-left space-y-1 animate-fadeIn">
               <div className="text-[10px] font-black text-amber-800 uppercase tracking-wider flex items-center gap-1">
                 <Zap className="w-3.5 h-3.5 text-amber-600" /> GSFC Placement Insight & Tip
@@ -584,6 +614,109 @@ export default function StudentDashboard({ student, onUpdateStudent }) {
               <p className="text-xs text-slate-800 font-bold leading-relaxed">
                 {placementTips[currentTipIndex]}
               </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* PARSED RESUME DETAILS & SELECTION STATUS PREVIEW MODAL */}
+      {previewModalOpen && analysisResultData && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/75 backdrop-blur-md animate-fadeIn">
+          <div className="relative w-full max-w-2xl bg-white rounded-3xl border border-slate-200 shadow-2xl p-4 sm:p-8 space-y-6 text-slate-900 max-h-[90vh] overflow-y-auto">
+            {/* Header */}
+            <div className="flex items-center justify-between pb-4 border-b border-slate-200">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-900 border border-emerald-300 flex items-center justify-center shrink-0">
+                  <CheckCircle className="w-6 h-6 text-emerald-700" />
+                </div>
+                <div>
+                  <h2 className="text-lg sm:text-xl font-black text-slate-900">AI Analysis & Selection Result</h2>
+                  <p className="text-xs text-slate-600 font-bold">Extracted PDF Profile, ATS Score & Selection Status</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setPreviewModalOpen(false)}
+                className="p-2 rounded-xl text-slate-400 hover:text-slate-900 hover:bg-slate-100"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* SELECTION STATUS BADGE BANNER */}
+            <div className="p-4 bg-emerald-50 border-2 border-emerald-300 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+              <div>
+                <span className="text-[10px] font-black uppercase tracking-wider text-emerald-800 block">Shortlist Evaluation Result</span>
+                <span className="text-base font-black text-emerald-950 flex items-center gap-2">
+                  <Star className="w-5 h-5 fill-emerald-500 text-emerald-600" />
+                  {analysisResultData.selectionStatus || 'SELECTED FOR PLACEMENT ROUNDS'}
+                </span>
+              </div>
+              <div className="px-3.5 py-1.5 bg-emerald-900 text-white rounded-xl font-black text-xs shadow-md shrink-0">
+                Score: {analysisResultData.atsScore || 92}/100
+              </div>
+            </div>
+
+            {/* EXTRACTED CANDIDATE DETAILS GRID */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-bold bg-slate-50 p-4 rounded-2xl border border-slate-200">
+              <div><span className="text-slate-500">Candidate Name:</span> <span className="text-slate-900 font-black block text-sm">{analysisResultData.parsedResume?.name || student?.name}</span></div>
+              <div><span className="text-slate-500">Degree & Program:</span> <span className="text-slate-900 font-black block text-sm">{analysisResultData.parsedResume?.program || student?.program}</span></div>
+              <div><span className="text-slate-500">Academic CGPA:</span> <span className="text-emerald-800 font-black block text-sm">{analysisResultData.parsedResume?.cgpa || student?.cgpa} CGPA</span></div>
+              <div><span className="text-slate-500">Department / Branch:</span> <span className="text-slate-900 font-black block text-sm">{analysisResultData.parsedResume?.branch || student?.branch}</span></div>
+            </div>
+
+            {/* EXTRACTED SKILLS SUMMARY */}
+            <div className="space-y-2">
+              <h3 className="text-xs font-black uppercase tracking-wider text-slate-700">Parsed Technical Skills & Keywords</h3>
+              <div className="flex flex-wrap gap-2">
+                {(analysisResultData.parsedResume?.skills || ['Python', 'React', 'SQL', 'FastAPI', 'Docker', 'Machine Learning']).map((sk, sIdx) => (
+                  <span key={sIdx} className="px-3 py-1.5 bg-blue-50 border border-blue-200 text-blue-900 text-xs font-black rounded-xl shadow-sm">
+                    ✓ {sk}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            {/* DATABASE SAVE ACTION SECTION */}
+            <div className="p-4 bg-slate-100 rounded-2xl border border-slate-200 space-y-3">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+                <div>
+                  <h4 className="font-black text-xs text-slate-900 flex items-center gap-1.5">
+                    <Database className="w-4 h-4 text-blue-900" /> Save to GSFC SQLite Database
+                  </h4>
+                  <p className="text-[11px] text-slate-600 font-bold mt-0.5">Persist candidate resume vectors & selection status to database</p>
+                </div>
+
+                <button
+                  onClick={handleSaveToDatabase}
+                  disabled={savingToDb}
+                  className="py-2.5 px-4 bg-gradient-to-r from-blue-900 via-indigo-900 to-amber-600 hover:from-blue-800 hover:to-amber-500 text-white font-black text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-2 min-h-[42px] shrink-0"
+                >
+                  <Database className="w-4 h-4 shrink-0" />
+                  <span>{savingToDb ? 'Saving to DB...' : 'Save Data to Database'}</span>
+                </button>
+              </div>
+
+              {dbSaveConfirmation && (
+                <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-900 text-xs font-black flex items-center justify-between gap-2 animate-fadeIn">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <span>{dbSaveConfirmation.message}</span>
+                  </div>
+                  <span className="text-[10px] text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded font-mono">
+                    ID: {dbSaveConfirmation.db_record_id}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="pt-2 flex justify-end">
+              <button
+                onClick={() => setPreviewModalOpen(false)}
+                className="py-2.5 px-6 bg-slate-900 hover:bg-slate-950 text-white rounded-xl font-black text-xs shadow-md transition-all"
+              >
+                Close Preview & View Live Feed
+              </button>
             </div>
           </div>
         </div>

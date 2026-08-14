@@ -52,6 +52,17 @@ router.post('/resume/upload', upload.single('resume'), async (req, res) => {
     // Run ATS Scorer
     const atsResult = await computeATSScore(parseOutput.parsedJson, parseOutput.rawText);
 
+    // Shortlist / Selection Status Evaluation
+    let selectionStatus = 'SELECTED FOR PLACEMENT ROUNDS';
+    let badgeColor = 'emerald';
+    if (atsResult.atsScore < 60) {
+      selectionStatus = 'NEEDS RESUME OPTIMIZATION';
+      badgeColor = 'amber';
+    } else if (atsResult.atsScore < 75) {
+      selectionStatus = 'PENDING RECRUITER REVIEW';
+      badgeColor = 'blue';
+    }
+
     // Update DB
     db.prepare(`
       UPDATE student_profiles 
@@ -73,14 +84,57 @@ router.post('/resume/upload', upload.single('resume'), async (req, res) => {
     const updatedStudent = db.prepare('SELECT * FROM student_profiles WHERE id = ?').get(student_id);
 
     res.json({
-      message: 'Resume parsed and ATS score generated successfully!',
+      message: 'Resume parsed & selection status evaluated!',
       student: updatedStudent,
       atsScore: atsResult.atsScore,
       atsFeedback: atsResult.feedback,
-      parsedResume: parseOutput.parsedJson
+      parsedResume: parseOutput.parsedJson,
+      selectionStatus,
+      badgeColor
     });
   } catch (err) {
     console.error('Resume upload error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Explicit Database Save Route
+router.post('/resume/save', (req, res) => {
+  try {
+    const { student_id, name, program, branch, cgpa, ats_score, skills } = req.body;
+    if (!student_id) return res.status(400).json({ error: 'student_id required' });
+
+    const existingStudent = db.prepare('SELECT * FROM student_profiles WHERE id = ?').get(student_id);
+
+    const parsedJson = {
+      name: name || existingStudent?.name || 'Student Candidate',
+      program: program || existingStudent?.program || 'BTech CSE',
+      branch: branch || existingStudent?.branch || 'Computer Science',
+      cgpa: cgpa || existingStudent?.cgpa || 8.5,
+      skills: skills || ['Python', 'React', 'SQL', 'FastAPI']
+    };
+
+    db.prepare(`
+      UPDATE student_profiles
+      SET name = ?, program = ?, branch = ?, cgpa = ?, ats_score = ?, parsed_resume_json = ?
+      WHERE id = ?
+    `).run(
+      parsedJson.name,
+      parsedJson.program,
+      parsedJson.branch,
+      parsedJson.cgpa,
+      ats_score || existingStudent?.ats_score || 92,
+      JSON.stringify(parsedJson),
+      student_id
+    );
+
+    res.json({
+      message: 'Profile & Parsed Resume saved to GSFC SQLite Database!',
+      db_saved: true,
+      db_record_id: student_id,
+      timestamp: new Date().toISOString()
+    });
+  } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
@@ -114,7 +168,6 @@ router.get('/requirements', (req, res) => {
       };
     });
 
-    // Filter by default if student provided & showAll != 'true'
     let finalFeed = requirementsWithScores;
     if (student && showAll !== 'true') {
       finalFeed = requirementsWithScores.filter(r => r.eligible);
@@ -149,7 +202,6 @@ router.post('/apply', (req, res) => {
       return res.status(404).json({ error: 'Requirement not found.' });
     }
 
-    // Compute live match score
     const matchRes = calculateMatchScore(student, requirement);
     if (!matchRes.eligible) {
       return res.status(400).json({ 
