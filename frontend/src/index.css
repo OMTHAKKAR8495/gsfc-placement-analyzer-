@@ -12,6 +12,26 @@
   }
 }
 
+/* Print-Only CSS Optimization Rules for Clean PDF Export */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #printable-evaluation-report, #printable-evaluation-report * {
+    visibility: visible;
+  }
+  #printable-evaluation-report {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+}
+
 /* 100% Crystal Clear Full-Opacity GSFC Background Image Layer */
 .gsfc-background-wrapper {
   position: fixed;
@@ -52,7 +72,7 @@ html.dark .gsfc-overlay-layer {
   -webkit-backdrop-filter: blur(2px);
 }
 
-/* Translucent Glass UI Containers (Light & Dark Mode Adaptive) */
+/* Translucent Glass UI Containers */
 .glass-panel {
   background: rgba(255, 255, 255, 0.55);
   backdrop-filter: blur(6px);

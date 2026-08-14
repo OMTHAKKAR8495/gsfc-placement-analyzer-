@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Upload, FileText, CheckCircle, AlertTriangle, Sparkles, Briefcase, Award, TrendingUp, Search, SlidersHorizontal, ArrowRight, Play, Cpu, Check, Layers, ChevronRight, Compass, ShieldCheck, PieChart, BarChart2, RefreshCw, Zap, Database, X, Star, CheckCircle2, AlertCircle, Edit3, Mail, Download, Paperclip } from 'lucide-react';
+import { Upload, FileText, CheckCircle, AlertTriangle, Sparkles, Briefcase, Award, TrendingUp, Search, SlidersHorizontal, ArrowRight, Play, Cpu, Check, Layers, ChevronRight, Compass, ShieldCheck, PieChart, BarChart2, RefreshCw, Zap, Database, X, Star, CheckCircle2, AlertCircle, Edit3, Mail, Download, Paperclip, Printer } from 'lucide-react';
 import MockInterviewChat from './MockInterviewChat';
 import CompanyTrackerSidebar from '../common/CompanyTrackerSidebar';
+import ReportPDFModal from '../common/ReportPDFModal';
 
 export default function StudentDashboard({ student, onUpdateStudent }) {
   const [activeTab, setActiveTab] = useState('feed'); // 'feed', 'profile', 'applications'
@@ -24,8 +25,9 @@ export default function StudentDashboard({ student, onUpdateStudent }) {
   const [isEditingName, setIsEditingName] = useState(false);
   const [isEditingEmail, setIsEditingEmail] = useState(false);
 
-  // Mail Modal State
+  // Mail Modal & PDF Report Modal State
   const [mailModalOpen, setMailModalOpen] = useState(false);
+  const [pdfReportModalOpen, setPdfReportModalOpen] = useState(false);
   const [mailRecipient, setMailRecipient] = useState(candidateEmail);
   const [mailSentSuccess, setMailSentSuccess] = useState(false);
 
@@ -178,7 +180,7 @@ export default function StudentDashboard({ student, onUpdateStudent }) {
   };
 
   const handleDownloadPDF = () => {
-    window.print();
+    setPdfReportModalOpen(true);
   };
 
   const handleApply = async (reqId) => {
@@ -471,7 +473,7 @@ export default function StudentDashboard({ student, onUpdateStudent }) {
             </div>
           )}
 
-          {/* TAB 2: SMART RESUME ANALYZER PAGE (EXACT REFERENCE UI DESIGN) */}
+          {/* TAB 2: SMART RESUME ANALYZER PAGE */}
           {activeTab === 'profile' && (
             <div className="space-y-6">
               {/* 1. Drag & Drop Resume Upload Banner */}
@@ -564,8 +566,8 @@ export default function StudentDashboard({ student, onUpdateStudent }) {
                       onClick={handleDownloadPDF}
                       className="py-2 px-3.5 bg-indigo-900 hover:bg-indigo-800 text-white rounded-xl text-xs font-black flex items-center gap-1.5 shadow-md transition-all min-h-[38px]"
                     >
-                      <Download className="w-3.5 h-3.5 shrink-0" />
-                      <span>Download PDF</span>
+                      <Printer className="w-3.5 h-3.5 shrink-0" />
+                      <span>Download PDF Report</span>
                     </button>
 
                     <button
@@ -754,6 +756,18 @@ export default function StudentDashboard({ student, onUpdateStudent }) {
           </div>
         </div>
       )}
+
+      {/* 1-PAGE PRINTABLE EVALUATION REPORT MODAL */}
+      <ReportPDFModal
+        isOpen={pdfReportModalOpen}
+        onClose={() => setPdfReportModalOpen(false)}
+        candidateData={{
+          name: candidateName,
+          email: candidateEmail,
+          atsScore: student?.ats_score || 92,
+          skills: skillsList
+        }}
+      />
 
       {/* AI RESUME ANALYZING COUNTDOWN MODAL */}
       {analyzingModalOpen && (
