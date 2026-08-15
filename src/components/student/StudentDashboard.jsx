@@ -3,6 +3,8 @@ import { Upload, FileText, CheckCircle, AlertTriangle, Sparkles, Briefcase, Awar
 import MockInterviewChat from './MockInterviewChat';
 import CompanyTrackerSidebar from '../common/CompanyTrackerSidebar';
 import ReportPDFModal from '../common/ReportPDFModal';
+import InternalAutoFillApplyModal from './InternalAutoFillApplyModal';
+import ExternalApplyConfirmModal from './ExternalApplyConfirmModal';
 
 export default function StudentDashboard({ student, onUpdateStudent }) {
   const [activeTab, setActiveTab] = useState('feed'); // 'feed', 'profile', 'applications'
@@ -183,27 +185,91 @@ export default function StudentDashboard({ student, onUpdateStudent }) {
     setPdfReportModalOpen(true);
   };
 
-  const handleApply = async (reqId) => {
-    if (!student?.id || !student.parsed_resume_json) {
-      alert('Please upload or build your resume first before applying to placement requirements!');
-      setActiveTab('profile');
-      return;
+  // Apply Branching State
+  const [selectedReqForApply, setSelectedReqForApply] = useState(null);
+  const [internalApplyModalOpen, setInternalApplyModalOpen] = useState(false);
+  const [externalConfirmModalOpen, setExternalConfirmModalOpen] = useState(false);
+
+  const handleApplyClick = async (reqItem) => {
+    if (reqItem.application_type === 'external') {
+      try {
+        await fetch('/api/student/increment-external-click', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ requirement_id: reqItem.id })
+        });
+      } catch (err) {}
+
+      const targetUrl = reqItem.external_apply_url || 'https://cloud.google.com/careers';
+      window.open(targetUrl, '_blank');
+
+      setSelectedReqForApply(reqItem);
+      setExternalConfirmModalOpen(true);
+    } else {
+      setSelectedReqForApply(reqItem);
+      setInternalApplyModalOpen(true);
     }
+  };
+
+  const handleConfirmExternalApply = async (reqId) => {
+    const studentId = student?.id || 's_arav';
+    try {
+      const res = await fetch('/api/student/apply', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          student_id: studentId,
+          requirement_id: reqId,
+          applied_via: 'external'
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to record external application');
+
+      alert('✅ External application marked as applied in your tracker!');
+      fetchApplications();
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
+  const handleApply = async (reqId, formOverrideData) => {
+    const studentId = student?.id || 's_rahul_verma';
 
     try {
       const res = await fetch('/api/student/apply', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          student_id: student.id,
-          requirement_id: reqId
+          student_id: studentId,
+          requirement_id: reqId,
+          applied_via: 'internal',
+          override_data: formOverrideData
         })
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to submit application');
 
-      alert(`🎉 Application Submitted! AI Match Score: ${data.matchScore}%`);
-      fetchApplications();
+      alert(`🎉 Application Submitted Successfully! AI Placement Match Score: ${data.matchScore}%`);
+      
+      // Fetch updated applications & feed
+      if (student?.id) {
+        fetchApplications();
+      } else {
+        const targetReq = requirementsFeed.find(r => r.id === reqId);
+        if (targetReq) {
+          const newApp = {
+            id: 'app_' + Date.now(),
+            requirement_title: targetReq.title,
+            company_name: targetReq.company_name,
+            match_score: data.matchScore || 88,
+            applied_at: new Date().toISOString().split('T')[0],
+            status: 'applied',
+            applied_via: 'internal'
+          };
+          setApplications(prev => [newApp, ...prev.filter(a => a.requirement_id !== reqId)]);
+        }
+      }
       fetchFeed();
     } catch (err) {
       alert(err.message);
@@ -264,7 +330,7 @@ export default function StudentDashboard({ student, onUpdateStudent }) {
             </div>
 
             <h1 className="text-2xl sm:text-4xl font-black text-slate-900 tracking-tight leading-tight">
-              Welcome to <span className="gradient-text">GSFC Placement Portal</span>, {candidateName}
+              Welcome to <span className="gradient-text">GSFC Placement Portal</span>, Made by Thakkar Om (BTech CSE)
             </h1>
             <p className="text-xs sm:text-sm text-slate-700 mt-1.5 max-w-2xl font-bold leading-relaxed">
               Smart Resume Analyzer powered by NLP & Gemini AI. Visual skill match analytics, ATS compliance evaluation, and automated interview coaching.
@@ -452,7 +518,7 @@ export default function StudentDashboard({ student, onUpdateStudent }) {
                       </button>
 
                       <button
-                        onClick={() => handleApply(req.id)}
+                        onClick={() => handleApplyClick(req)}
                         disabled={!req.eligible}
                         className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 transition-all shadow-md shrink-0 min-h-[42px] ${
                           !req.eligible
@@ -815,6 +881,23 @@ export default function StudentDashboard({ student, onUpdateStudent }) {
           </div>
         </div>
       )}
+
+      {/* INTERNAL AUTO-FILL APPLY MODAL */}
+      <InternalAutoFillApplyModal
+        isOpen={internalApplyModalOpen}
+        onClose={() => setInternalApplyModalOpen(false)}
+        requirement={selectedReqForApply}
+        student={student}
+        onSubmitApplication={(reqId, formData) => handleApply(reqId, formData)}
+      />
+
+      {/* EXTERNAL APPLY TRACKER CONFIRMATION MODAL */}
+      <ExternalApplyConfirmModal
+        isOpen={externalConfirmModalOpen}
+        onClose={() => setExternalConfirmModalOpen(false)}
+        requirement={selectedReqForApply}
+        onConfirmApplied={(reqId) => handleConfirmExternalApply(reqId)}
+      />
     </div>
   );
 }

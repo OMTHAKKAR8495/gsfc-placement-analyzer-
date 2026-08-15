@@ -4,14 +4,16 @@ import AuthModal from './components/auth/AuthModal';
 import StudentDashboard from './components/student/StudentDashboard';
 import CompanyDashboard from './components/company/CompanyDashboard';
 import AdminDashboard from './components/admin/AdminDashboard';
+import InterviewStudioView from './components/student/InterviewStudioView';
 import AIBugChatbotWidget from './components/common/AIBugChatbotWidget';
+import ErrorBoundary from './components/common/ErrorBoundary';
 import { Eye, EyeOff, Sparkles, ChevronDown, ArrowDown, Sun, Moon } from 'lucide-react';
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState(null);
   const [activeRole, setActiveRole] = useState(() => {
     const hash = window.location.hash.replace('#', '');
-    return ['student', 'company', 'admin'].includes(hash) ? hash : 'student';
+    return ['student', 'interview', 'company', 'admin'].includes(hash) ? hash : 'student';
   });
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [hideCardsForBGView, setHideCardsForBGView] = useState(false);
@@ -125,45 +127,53 @@ export default function App() {
         </button>
       </div>
 
-      {/* Main Role Workspaces */}
-      <main className={`flex-1 z-10 transition-opacity duration-300 pb-[80vh] ${hideCardsForBGView ? 'opacity-5 pointer-events-none' : 'opacity-100'}`}>
-        {activeRole === 'student' && (
-          <StudentDashboard
-            student={currentUser?.role === 'student' ? currentUser.profile : null}
-            onUpdateStudent={(updatedProfile) => {
-              setCurrentUser(prev => prev ? { ...prev, profile: updatedProfile } : prev);
-            }}
-          />
-        )}
+      {/* Main Role Workspaces Wrapped in Global Error Boundary */}
+      <ErrorBoundary>
+        <main className={`flex-1 relative transition-opacity duration-300 pb-[80vh] ${hideCardsForBGView ? 'opacity-5 pointer-events-none' : 'opacity-100'}`}>
+          {activeRole === 'student' && (
+            <StudentDashboard
+              student={currentUser?.role === 'student' ? currentUser.profile : null}
+              onUpdateStudent={(updatedProfile) => {
+                setCurrentUser(prev => prev ? { ...prev, profile: updatedProfile } : prev);
+              }}
+            />
+          )}
 
-        {activeRole === 'company' && (
-          <CompanyDashboard
-            company={currentUser?.role === 'company' ? currentUser.profile : {
-              id: 'c_google',
-              company_name: 'Google Cloud India (Demo)',
-              logo_url: 'https://upload.wikimedia.org/wikipedia/commons/2/2f/Google_2015_logo.svg',
-              industry: 'Cloud & AI',
-              website: 'https://cloud.google.com',
-              approved: 1
-            }}
-            onRefreshCompany={checkCurrentUser}
-          />
-        )}
+          {activeRole === 'company' && (
+            <CompanyDashboard
+              company={currentUser?.role === 'company' ? currentUser.profile : {
+                id: 'c_google',
+                company_name: 'Google Cloud India (Demo)',
+                logo_url: 'https://upload.wikimedia.org/wikipedia/commons/2/2f/Google_2015_logo.svg',
+                industry: 'Cloud & AI',
+                website: 'https://cloud.google.com',
+                approved: 1
+              }}
+              onRefreshCompany={checkCurrentUser}
+            />
+          )}
 
-        {activeRole === 'admin' && (
-          <AdminDashboard />
-        )}
+          {activeRole === 'interview' && (
+            <InterviewStudioView
+              studentProfile={currentUser?.profile}
+            />
+          )}
 
-        {/* Dedicated Empty Scroll Section */}
-        <div className="max-w-4xl mx-auto px-4 mt-20 text-center">
-          <div className="inline-flex items-center gap-2 px-5 py-2.5 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-white/90 dark:border-slate-700 rounded-full text-xs font-black text-slate-900 dark:text-slate-100 shadow-xl animate-bounce">
-            <ArrowDown className="w-4 h-4 text-blue-900 dark:text-blue-400" /> Scroll Down to View Full GSFC Campus Poster
+          {activeRole === 'admin' && (
+            <AdminDashboard />
+          )}
+
+          {/* Dedicated Empty Scroll Section */}
+          <div className="max-w-4xl mx-auto px-4 mt-20 text-center">
+            <div className="inline-flex items-center gap-2 px-5 py-2.5 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-white/90 dark:border-slate-700 rounded-full text-xs font-black text-slate-900 dark:text-slate-100 shadow-xl animate-bounce">
+              <ArrowDown className="w-4 h-4 text-blue-900 dark:text-blue-400" /> Scroll Down to View Full GSFC Campus Poster
+            </div>
+            <p className="text-xs font-extrabold text-slate-800 dark:text-slate-300 mt-2 drop-shadow-sm">
+              Swami Vivekanand Bhavan & School of Science Campus View
+            </p>
           </div>
-          <p className="text-xs font-extrabold text-slate-800 dark:text-slate-300 mt-2 drop-shadow-sm">
-            Swami Vivekanand Bhavan & School of Science Campus View
-          </p>
-        </div>
-      </main>
+        </main>
+      </ErrorBoundary>
 
       {/* Floating AI Bug & Placement Assistant Chatbot */}
       <AIBugChatbotWidget />

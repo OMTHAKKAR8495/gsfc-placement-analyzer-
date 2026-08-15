@@ -1,5 +1,5 @@
 import React from 'react';
-import { User, Building2, ShieldCheck, LogOut, LogIn, Sun, Moon } from 'lucide-react';
+import { User, Building2, ShieldCheck, LogOut, LogIn, Sun, Moon, HelpCircle } from 'lucide-react';
 
 export default function Navbar({ currentUser, activeRole, onRoleSwitch, onOpenAuth, onLogout, theme, onToggleTheme }) {
   return (
@@ -33,6 +33,18 @@ export default function Navbar({ currentUser, activeRole, onRoleSwitch, onOpenAu
           >
             <User className="w-3.5 h-3.5" />
             <span>Student <span className="hidden sm:inline">Workspace</span></span>
+          </button>
+
+          <button
+            onClick={() => onRoleSwitch('interview')}
+            className={`flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-xl text-[11px] sm:text-xs font-black transition-all shrink-0 whitespace-nowrap ${
+              activeRole === 'interview'
+                ? 'bg-gradient-to-r from-blue-900 to-indigo-800 text-white shadow-md shadow-blue-900/20'
+                : 'text-slate-700 dark:text-slate-200 hover:text-slate-900 hover:bg-slate-200/60 dark:hover:bg-slate-700'
+            }`}
+          >
+            <HelpCircle className="w-3.5 h-3.5 text-amber-400" />
+            <span>Interview <span className="hidden sm:inline">Studio</span></span>
           </button>
 
           <button

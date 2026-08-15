@@ -17,10 +17,23 @@ export default function AdminDashboard() {
   useEffect(() => {
     fetchAdminData();
     fetchCandidateDatabase();
+
+    // Live 5-second auto-sync interval for 100% real-time accuracy
+    const interval = setInterval(() => {
+      fetchAdminDataSilently();
+      fetchCandidateDatabase();
+    }, 5000);
+
+    return () => clearInterval(interval);
   }, []);
 
   const fetchAdminData = async () => {
     setLoading(true);
+    await fetchAdminDataSilently();
+    setLoading(false);
+  };
+
+  const fetchAdminDataSilently = async () => {
     try {
       const [pendingRes, analyticsRes] = await Promise.all([
         fetch('/api/admin/pending-companies'),
@@ -34,8 +47,6 @@ export default function AdminDashboard() {
       setAnalytics(analyticsData || null);
     } catch (err) {
       console.error('Error loading TPC admin data:', err);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -145,7 +156,131 @@ export default function AdminDashboard() {
         >
           <Database className="w-4 h-4 text-amber-400" /> 🗄️ Candidate Database ({allCandidates.length})
         </button>
+
+        <button
+          onClick={() => setActiveTab('search')}
+          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black transition-all shrink-0 ${
+            activeTab === 'search'
+              ? 'bg-blue-900 text-white shadow-md'
+              : 'text-slate-700 hover:bg-slate-100'
+          }`}
+        >
+          <Search className="w-4 h-4 text-cyan-400" /> 🔍 Cross-Tenant Global Search
+        </button>
       </div>
+
+      {/* VIEW 3: TPC ADMIN GLOBAL SEARCH & AUDIT TRAIL VIEW */}
+      {activeTab === 'search' && (
+        <div className="space-y-4 glass-panel p-6 rounded-3xl border border-slate-200">
+          <div className="space-y-2">
+            <h2 className="text-lg font-black text-slate-900 flex items-center gap-2">
+              <Search className="w-5 h-5 text-blue-900" /> TPC Director Global Entity Search
+            </h2>
+            <p className="text-xs text-slate-600 font-bold">
+              Search any student by name/roll number, company by name, or placement drive by title. Inspection events are logged to audit trail.
+            </p>
+          </div>
+
+          <div className="relative max-w-xl">
+            <Search className="w-4 h-4 absolute left-3.5 top-3.5 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Search student name, roll number, company, or requirement title..."
+              value={searchQuery}
+              onChange={async (e) => {
+                const val = e.target.value;
+                setSearchQuery(val);
+                if (val.trim().length >= 2) {
+                  try {
+                    const res = await fetch(`/api/admin/global-search?q=${encodeURIComponent(val)}`);
+                    const data = await res.json();
+                    setSelectedCandidateReport(data);
+                  } catch(err){}
+                }
+              }}
+              className="w-full pl-10 pr-4 py-3 bg-white border border-slate-300 rounded-2xl text-xs font-bold text-slate-900 focus:outline-none focus:border-blue-900 shadow-sm"
+            />
+          </div>
+
+          {selectedCandidateReport && (selectedCandidateReport.students || selectedCandidateReport.companies || selectedCandidateReport.requirements) && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t border-slate-200">
+              {/* Students Match */}
+              <div className="space-y-2">
+                <h3 className="text-xs font-black uppercase text-blue-900">Students ({selectedCandidateReport.students?.length || 0})</h3>
+                <div className="space-y-2">
+                  {(selectedCandidateReport.students || []).map(s => (
+                    <div
+                      key={s.id}
+                      onClick={() => {
+                        fetch('/api/admin/audit-log', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ admin_id: 'u_admin_01', viewed_entity_type: 'student', viewed_entity_id: s.id })
+                        });
+                        openCandidatePdfReport(s);
+                      }}
+                      className="p-3 bg-white rounded-xl border border-slate-200 cursor-pointer hover:border-blue-900 transition-all text-xs"
+                    >
+                      <div className="font-black text-slate-900">{s.name}</div>
+                      <div className="text-[10px] text-slate-500 font-bold">{s.roll_number || 'GSFC Student'} • {s.program} ({s.cgpa} CGPA)</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Companies Match */}
+              <div className="space-y-2">
+                <h3 className="text-xs font-black uppercase text-amber-600">Companies ({selectedCandidateReport.companies?.length || 0})</h3>
+                <div className="space-y-2">
+                  {(selectedCandidateReport.companies || []).map(c => (
+                    <div
+                      key={c.id}
+                      onClick={async () => {
+                        try {
+                          const res = await fetch(`/api/admin/company-applicant-inbox?companyId=${c.id}&adminId=u_admin_01`);
+                          const apps = await res.json();
+                          const appSummary = apps.map(a => `• Candidate: ${a.candidate_name} | Role: ${a.job_title} | Score: ${a.match_score}% | Status: ${a.status}`).join('\n');
+                          alert(`🏢 TPC Director Cross-View for ${c.company_name}:\nTotal Applicants: ${apps.length}\n\n${appSummary || 'No applicants yet.'}`);
+                        } catch(err) {
+                          alert(err.message);
+                        }
+                      }}
+                      className="p-3 bg-white rounded-xl border border-slate-200 cursor-pointer hover:border-blue-900 transition-all text-xs"
+                    >
+                      <div className="font-black text-slate-900">{c.company_name}</div>
+                      <div className="text-[10px] text-slate-500 font-bold">{c.industry} • {c.email} (Click to view full applicant inbox)</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Requirements Match */}
+              <div className="space-y-2">
+                <h3 className="text-xs font-black uppercase text-indigo-900">Placement Drives ({selectedCandidateReport.requirements?.length || 0})</h3>
+                <div className="space-y-2">
+                  {(selectedCandidateReport.requirements || []).map(r => (
+                    <div
+                      key={r.id}
+                      onClick={() => {
+                        fetch('/api/admin/audit-log', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ admin_id: 'u_admin_01', viewed_entity_type: 'requirement', viewed_entity_id: r.id })
+                        });
+                        alert(`💼 Drive Detail: ${r.title}\nCompany: ${r.company_name}\nCTC: ${r.ctc_range}`);
+                      }}
+                      className="p-3 bg-white rounded-xl border border-slate-200 cursor-pointer hover:border-blue-900 transition-all text-xs"
+                    >
+                      <div className="font-black text-slate-900">{r.title}</div>
+                      <div className="text-[10px] text-slate-500 font-bold">{r.company_name} • CTC: {r.ctc_range}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* VIEW 1: CANDIDATE DATABASE VIEW */}
       {activeTab === 'database' && (

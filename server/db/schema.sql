@@ -78,3 +78,12 @@ CREATE TABLE IF NOT EXISTS mock_interview_sessions (
     status TEXT DEFAULT 'in_progress', -- in_progress, completed
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS admin_audit_logs (
+    id TEXT PRIMARY KEY,
+    admin_id TEXT NOT NULL,
+    viewed_entity_type TEXT CHECK(viewed_entity_type IN ('student', 'company', 'requirement', 'application')) NOT NULL,
+    viewed_entity_id TEXT NOT NULL,
+    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+

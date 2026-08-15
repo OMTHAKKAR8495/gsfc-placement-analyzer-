@@ -1,0 +1,10 @@
+{
+  "appId": "edu.gsfc.placement",
+  "appName": "GSFC Placement Portal",
+  "webDir": "dist",
+  "bundledWebRuntime": false,
+  "server": {
+    "androidScheme": "https",
+    "iosScheme": "https"
+  }
+}

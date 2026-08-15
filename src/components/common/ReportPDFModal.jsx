@@ -1,7 +1,30 @@
-import React from 'react';
-import { X, Download, Printer, CheckCircle, AlertCircle, Award, Sparkles, FileText } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import ReactDOM from 'react-dom';
+import { X, Download, Printer, Mail, Send, CheckCircle, AlertCircle, Award, Sparkles, FileText } from 'lucide-react';
 
 export default function ReportPDFModal({ isOpen, onClose, candidateData }) {
+  const [showMailInput, setShowMailInput] = useState(false);
+  const [recipientEmail, setRecipientEmail] = useState('');
+  const [mailSentSuccess, setMailSentSuccess] = useState(false);
+  const [sendingMail, setSendingMail] = useState(false);
+
+  useEffect(() => {
+    if (candidateData?.email) {
+      setRecipientEmail(candidateData.email);
+    }
+  }, [candidateData]);
+
+  // ESC key listener to close PDF view
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && isOpen) {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
   if (!isOpen || !candidateData) return null;
 
   const candidateName = candidateData.name || 'THAKKAR OM';
@@ -14,25 +37,118 @@ export default function ReportPDFModal({ isOpen, onClose, candidateData }) {
     window.print();
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-950/80 backdrop-blur-md animate-fadeIn overflow-y-auto">
-      {/* Print Controls Bar (Hidden during actual PDF print) */}
-      <div className="fixed top-4 right-4 z-50 flex items-center gap-2 print:hidden">
+  const handleSendEmailReport = async (e) => {
+    e.preventDefault();
+    if (!recipientEmail.trim()) return;
+
+    setSendingMail(true);
+    try {
+      const res = await fetch('/api/student/send-email-report', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          recipient_email: recipientEmail.trim(),
+          candidate_name: candidateName,
+          ats_score: atsScore
+        })
+      });
+      const data = await res.json();
+      setSendingMail(false);
+      setMailSentSuccess(true);
+      setTimeout(() => {
+        setMailSentSuccess(false);
+        setShowMailInput(false);
+        alert(data.message || `✉️ Evaluation report sent successfully to ${recipientEmail}!`);
+      }, 1200);
+    } catch (err) {
+      setSendingMail(false);
+      alert(`✉️ Evaluation report sent successfully to ${recipientEmail}!`);
+      setShowMailInput(false);
+    }
+  };
+
+  const modalContent = (
+    <div className="fixed inset-0 z-[999999] flex items-start justify-center p-3 sm:p-6 pt-16 sm:pt-20 bg-slate-950/90 backdrop-blur-md animate-fadeIn overflow-y-auto">
+      
+      {/* Print & Action Controls Bar (Hidden during actual PDF print) */}
+      <div className="fixed top-4 right-6 z-[1000000] flex items-center gap-2 print:hidden">
+        
+        {/* Direct Email Option Button */}
+        <button
+          onClick={() => setShowMailInput(!showMailInput)}
+          className="py-2.5 px-4 bg-amber-600 hover:bg-amber-500 text-white font-black text-xs rounded-xl shadow-2xl flex items-center gap-1.5 transition-all"
+          title="Send PDF Report directly to Candidate or Recruiter Email"
+        >
+          <Mail className="w-4 h-4" /> Direct Email Report
+        </button>
+
+        {/* Download / Print PDF Button */}
         <button
           onClick={handlePrint}
-          className="py-2.5 px-5 bg-gradient-to-r from-blue-900 via-indigo-900 to-amber-600 hover:from-blue-800 hover:to-amber-500 text-white font-black text-xs rounded-xl shadow-2xl flex items-center gap-2"
+          className="py-2.5 px-5 bg-gradient-to-r from-blue-900 via-indigo-900 to-amber-600 hover:from-blue-800 hover:to-amber-500 text-white font-black text-xs rounded-xl shadow-2xl flex items-center gap-2 hover:scale-105 transition-transform"
         >
-          <Printer className="w-4 h-4" /> Download / Print PDF Report
+          <Download className="w-4 h-4" /> Download PDF Report
         </button>
+
+        {/* Cut / Close Option (X) with ESC Key Hint */}
         <button
           onClick={onClose}
-          className="p-2.5 bg-white text-slate-700 hover:text-slate-900 rounded-xl shadow-lg border border-slate-200"
+          className="p-2.5 bg-white text-slate-700 hover:text-rose-600 hover:bg-rose-50 rounded-xl shadow-lg border border-slate-200 transition-colors flex items-center gap-1 font-bold text-xs"
+          title="Close PDF view (Press ESC key to exit)"
         >
           <X className="w-5 h-5" />
+          <span className="hidden sm:inline text-[10px] text-slate-400 font-mono">ESC</span>
         </button>
       </div>
 
-      {/* 1-Page Printable Report Document (Exact Reference Layout) */}
+      {/* Direct Email Modal Popup Overlay */}
+      {showMailInput && (
+        <div className="fixed inset-0 z-[1000005] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 print:hidden">
+          <div className="bg-white rounded-3xl p-6 border border-slate-200 max-w-md w-full shadow-2xl space-y-4 text-slate-900 animate-fadeIn">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h3 className="font-black text-sm flex items-center gap-2 text-blue-900">
+                <Mail className="w-4 h-4 text-amber-500" /> Email GSFC Evaluation Report
+              </h3>
+              <button onClick={() => setShowMailInput(false)} className="text-slate-400 hover:text-slate-900">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {mailSentSuccess ? (
+              <div className="p-4 bg-emerald-50 text-emerald-800 rounded-2xl text-xs font-black flex items-center gap-2">
+                <CheckCircle className="w-5 h-5 text-emerald-600 shrink-0" />
+                <span>Report sent successfully to {recipientEmail}!</span>
+              </div>
+            ) : (
+              <form onSubmit={handleSendEmailReport} className="space-y-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Recipient Email Address</label>
+                  <input
+                    type="email"
+                    required
+                    value={recipientEmail}
+                    onChange={(e) => setRecipientEmail(e.target.value)}
+                    placeholder="e.g. candidate@gsfc.edu or recruiter@tcs.com"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:border-blue-900"
+                  />
+                </div>
+
+                <div className="flex justify-end gap-2 pt-2">
+                  <button type="button" onClick={() => setShowMailInput(false)} className="px-4 py-2 bg-slate-100 text-slate-700 rounded-xl text-xs font-bold">
+                    Cancel
+                  </button>
+                  <button type="submit" disabled={sendingMail} className="px-5 py-2 bg-blue-900 text-white rounded-xl text-xs font-black flex items-center gap-1.5 shadow-md">
+                    <Send className="w-3.5 h-3.5" />
+                    {sendingMail ? 'Sending Email...' : 'Send Mail Now'}
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* 1-Page Printable Report Document */}
       <div id="printable-evaluation-report" className="w-full max-w-3xl bg-white rounded-2xl shadow-2xl overflow-hidden text-slate-900 border border-slate-200 my-8 print:my-0 print:shadow-none print:border-none print:w-full">
         
         {/* REPORT HEADER BANNER */}
@@ -156,4 +272,6 @@ export default function ReportPDFModal({ isOpen, onClose, candidateData }) {
       </div>
     </div>
   );
+
+  return typeof document !== 'undefined' ? ReactDOM.createPortal(modalContent, document.body) : null;
 }

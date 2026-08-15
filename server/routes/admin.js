@@ -20,6 +20,22 @@ router.get('/pending-companies', (req, res) => {
   }
 });
 
+// All Student Candidate Profiles Database
+router.get('/students', (req, res) => {
+  try {
+    const students = db.prepare(`
+      SELECT s.*, u.email
+      FROM student_profiles s
+      JOIN users u ON s.user_id = u.id
+      ORDER BY s.cgpa DESC
+    `).all();
+
+    res.json(students);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Approve or Reject Company
 router.post('/approve-company', (req, res) => {
   try {
@@ -132,6 +148,127 @@ router.get('/export-report', (req, res) => {
     res.setHeader('Content-Type', 'text/csv');
     res.setHeader('Content-Disposition', 'attachment; filename="CampusHire_Placement_Report_2026.csv"');
     res.status(200).send(csvContent);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Global TPC Admin Search Endpoint (Section 2 Requirement)
+router.get('/global-search', (req, res) => {
+  try {
+    const q = req.query.q || '';
+    if (!q.trim()) {
+      return res.json({ students: [], companies: [], requirements: [] });
+    }
+
+    const searchTerm = `%${q.trim().toLowerCase()}%`;
+
+    const students = db.prepare(`
+      SELECT s.*, u.email
+      FROM student_profiles s
+      JOIN users u ON s.user_id = u.id
+      WHERE LOWER(s.name) LIKE ? OR LOWER(s.roll_number) LIKE ? OR LOWER(s.program) LIKE ?
+      LIMIT 10
+    `).all(searchTerm, searchTerm, searchTerm);
+
+    const companies = db.prepare(`
+      SELECT c.*, u.email
+      FROM company_profiles c
+      JOIN users u ON c.user_id = u.id
+      WHERE LOWER(c.company_name) LIKE ? OR LOWER(c.industry) LIKE ?
+      LIMIT 10
+    `).all(searchTerm, searchTerm);
+
+    const requirements = db.prepare(`
+      SELECT r.*, c.company_name
+      FROM requirements r
+      JOIN company_profiles c ON r.company_id = c.id
+      WHERE LOWER(r.title) LIKE ? OR LOWER(c.company_name) LIKE ?
+      LIMIT 10
+    `).all(searchTerm, searchTerm);
+
+    res.json({ students, companies, requirements });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Admin Inspection Audit Logging Endpoint (Section 2 Requirement)
+router.post('/audit-log', (req, res) => {
+  try {
+    const { admin_id, viewed_entity_type, viewed_entity_id } = req.body;
+    if (!viewed_entity_type || !viewed_entity_id) {
+      return res.status(400).json({ error: 'viewed_entity_type and viewed_entity_id required.' });
+    }
+
+    const logId = 'log_' + Date.now();
+    db.prepare(`
+      INSERT INTO admin_audit_logs (id, admin_id, viewed_entity_type, viewed_entity_id)
+      VALUES (?, ?, ?, ?)
+    `).run(logId, admin_id || 'u_admin_01', viewed_entity_type, viewed_entity_id);
+
+    res.json({ success: true, logId });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// TPC Admin Cross-View: Get Any Company's Full Applicant Inbox with Audit Trail
+router.get('/company-applicant-inbox', (req, res) => {
+  try {
+    const { companyId, adminId } = req.query;
+    if (!companyId) return res.status(400).json({ error: 'companyId is required.' });
+
+    // Audit Log
+    const logId = 'log_' + Date.now();
+    db.prepare(`
+      INSERT INTO admin_audit_logs (id, admin_id, viewed_entity_type, viewed_entity_id)
+      VALUES (?, ?, 'company', ?)
+    `).run(logId, adminId || 'u_admin_01', companyId);
+
+    const apps = db.prepare(`
+      SELECT a.id as application_id, a.match_score, a.status, a.applied_at, a.applied_via,
+             r.id as requirement_id, r.title as job_title, r.ctc_range, r.job_type,
+             s.id as student_id, s.name as candidate_name, s.program, s.branch, s.cgpa, 
+             s.resume_url, s.parsed_resume_json, s.ats_score, u.email as candidate_email
+      FROM applications a
+      JOIN requirements r ON a.requirement_id = r.id
+      JOIN student_profiles s ON a.student_id = s.id
+      JOIN users u ON s.user_id = u.id
+      WHERE r.company_id = ?
+      ORDER BY a.match_score DESC, a.applied_at DESC
+    `).all(companyId);
+
+    res.json(apps);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// TPC Admin Cross-View: Get Any Student's Full Applications across all Companies
+router.get('/student-applications', (req, res) => {
+  try {
+    const { studentId, adminId } = req.query;
+    if (!studentId) return res.status(400).json({ error: 'studentId is required.' });
+
+    // Audit Log
+    const logId = 'log_' + Date.now();
+    db.prepare(`
+      INSERT INTO admin_audit_logs (id, admin_id, viewed_entity_type, viewed_entity_id)
+      VALUES (?, ?, 'student', ?)
+    `).run(logId, adminId || 'u_admin_01', studentId);
+
+    const apps = db.prepare(`
+      SELECT a.id as application_id, a.match_score, a.status, a.applied_at, a.applied_via,
+             r.id as requirement_id, r.title as job_title, r.ctc_range, c.company_name, c.logo_url
+      FROM applications a
+      JOIN requirements r ON a.requirement_id = r.id
+      JOIN company_profiles c ON r.company_id = c.id
+      WHERE a.student_id = ?
+      ORDER BY a.applied_at DESC
+    `).all(studentId);
+
+    res.json(apps);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

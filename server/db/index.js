@@ -18,7 +18,33 @@ export function initDatabase() {
   const schema = fs.readFileSync(schemaPath, 'utf8');
   db.exec(schema);
 
+  applyMigrations();
   seedInitialData();
+}
+
+function applyMigrations() {
+  try {
+    const reqColumns = db.prepare("PRAGMA table_info(requirements)").all().map(c => c.name);
+    if (!reqColumns.includes('application_type')) {
+      db.exec("ALTER TABLE requirements ADD COLUMN application_type TEXT CHECK(application_type IN ('internal', 'external')) DEFAULT 'internal'");
+    }
+    if (!reqColumns.includes('external_apply_url')) {
+      db.exec("ALTER TABLE requirements ADD COLUMN external_apply_url TEXT");
+    }
+    if (!reqColumns.includes('application_instructions')) {
+      db.exec("ALTER TABLE requirements ADD COLUMN application_instructions TEXT");
+    }
+    if (!reqColumns.includes('external_click_count')) {
+      db.exec("ALTER TABLE requirements ADD COLUMN external_click_count INTEGER DEFAULT 0");
+    }
+
+    const appColumns = db.prepare("PRAGMA table_info(applications)").all().map(c => c.name);
+    if (!appColumns.includes('applied_via')) {
+      db.exec("ALTER TABLE applications ADD COLUMN applied_via TEXT CHECK(applied_via IN ('internal', 'external')) DEFAULT 'internal'");
+    }
+  } catch (err) {
+    console.error('Migration notice:', err.message);
+  }
 }
 
 function seedInitialData() {
