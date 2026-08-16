@@ -283,7 +283,7 @@ export default function InterviewStudioView({ studentProfile, selectedJob }) {
       </div>
 
       {/* COMPANY / ROLE SELECTOR & SMART SAMPLER PANEL */}
-      <div className="glass-panel rounded-3xl p-6 border border-slate-200/90 dark:border-slate-800 bg-gradient-to-r from-slate-900 via-indigo-950 to-blue-950 text-white shadow-xl space-y-4">
+      <div className="rounded-3xl p-6 border border-indigo-950/40 bg-gradient-to-r from-slate-950 via-indigo-950 to-blue-950 text-white shadow-2xl space-y-4">
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2 mb-1">
@@ -292,10 +292,10 @@ export default function InterviewStudioView({ studentProfile, selectedJob }) {
                 Target Company Drive Practice
               </span>
             </div>
-            <h3 className="text-lg font-black text-white">
+            <h3 className="text-lg font-black text-white leading-snug">
               Select Company & Hiring Drive for Focused Practice
             </h3>
-            <p className="text-xs text-slate-300 font-medium mt-0.5">
+            <p className="text-xs text-slate-300 font-bold mt-0.5">
               Practice with real recruiter question banks or AI-synthesized role benchmarks tailored to specific campus placement drives.
             </p>
           </div>
@@ -329,10 +329,10 @@ export default function InterviewStudioView({ studentProfile, selectedJob }) {
             <select
               value={selectedDriveId}
               onChange={(e) => setSelectedDriveId(e.target.value)}
-              className="w-full pl-4 pr-10 py-3 bg-white/10 dark:bg-slate-800/80 border border-white/20 rounded-2xl text-xs font-black text-white focus:outline-none focus:border-amber-400 cursor-pointer backdrop-blur-md"
+              className="w-full pl-4 pr-10 py-3 bg-slate-900 border border-slate-700 rounded-2xl text-xs font-black text-white focus:outline-none focus:border-amber-400 cursor-pointer shadow-inner"
             >
               {availableDrives.map((drive) => (
-                <option key={drive.id} value={drive.id} className="bg-slate-900 text-white">
+                <option key={drive.id} value={drive.id} className="bg-slate-900 text-white font-bold">
                   🏢 {drive.company_name} — {drive.title} ({drive.ctc_range})
                 </option>
               ))}
