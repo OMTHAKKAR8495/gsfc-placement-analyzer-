@@ -8,6 +8,7 @@ export default function Navbar({ currentUser, activeRole, onRoleSwitch, onOpenAu
   const colorSwatches = Array.from({ length: 100 }, (_, i) => Math.round((i * 360) / 100));
 
   const presets = [
+    { name: '🌈 Rainbow Mode', hue: 'rainbow' },
     { name: '🏛️ GSFC Navy', hue: 215 },
     { name: '👑 Royal Emerald', hue: 150 },
     { name: '🌅 Sunset Gold', hue: 38 },

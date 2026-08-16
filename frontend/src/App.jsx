@@ -27,6 +27,7 @@ export default function App() {
     document.documentElement.className = theme;
     localStorage.setItem('theme', theme);
     document.documentElement.style.setProperty('--theme-hue', themeHue);
+    document.documentElement.setAttribute('data-theme-hue', themeHue);
     localStorage.setItem('gsfc_theme_hue', themeHue);
 
     // Listen for browser Back/Forward navigation

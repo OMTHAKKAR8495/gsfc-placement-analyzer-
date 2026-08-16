@@ -32,27 +32,50 @@ html.dark {
   --badge-nlp-border: hsl(var(--theme-hue), 60%, 35%);
 }
 
-/* Dynamic HSL Theme Classes */
+/* Dynamic Vibrant HSL Theme Classes */
 .bg-theme-primary {
-  background-color: hsl(var(--theme-hue), 85%, 32%) !important;
+  background-color: hsl(var(--theme-hue), 90%, 38%) !important;
   color: #ffffff !important;
 }
 
 .bg-theme-gradient {
-  background: linear-gradient(135deg, hsl(var(--theme-hue), 85%, 28%) 0%, hsl(var(--theme-hue), 75%, 18%) 100%) !important;
+  background: linear-gradient(135deg, hsl(var(--theme-hue), 90%, 42%) 0%, hsl(var(--theme-hue), 85%, 30%) 100%) !important;
   color: #ffffff !important;
+  box-shadow: 0 8px 20px -4px hsla(var(--theme-hue), 85%, 45%, 0.45) !important;
 }
 
 .border-theme-primary {
-  border-color: hsl(var(--theme-hue), 80%, 45%) !important;
+  border-color: hsl(var(--theme-hue), 85%, 50%) !important;
 }
 
 .text-theme-primary {
-  color: hsl(var(--theme-hue), 85%, 32%) !important;
+  color: hsl(var(--theme-hue), 90%, 38%) !important;
 }
 
 html.dark .text-theme-primary {
   color: hsl(var(--theme-hue), 90%, 65%) !important;
+}
+
+/* 🌈 Animated Multi-Color Rainbow Theme Mode */
+html[data-theme-hue="rainbow"] .bg-theme-gradient,
+html[data-theme-hue="rainbow"] .bg-theme-primary {
+  background: linear-gradient(120deg, #ff0055, #ff5000, #ffcc00, #00e676, #00b0ff, #7c4dff, #ff0055) !important;
+  background-size: 300% 300% !important;
+  animation: rainbowShift 6s ease infinite !important;
+  color: #ffffff !important;
+  box-shadow: 0 10px 25px -4px rgba(255, 0, 85, 0.4) !important;
+}
+
+html[data-theme-hue="rainbow"] .text-theme-primary {
+  background: linear-gradient(120deg, #ff0055, #ff5000, #00e676, #00b0ff, #7c4dff);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+@keyframes rainbowShift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
 }
 
 @layer base {
