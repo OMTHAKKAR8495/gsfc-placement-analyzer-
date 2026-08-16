@@ -204,4 +204,29 @@ router.post('/update-application-status', (req, res) => {
   }
 });
 
+// Delete Requirement Drive
+router.delete('/requirements/:id', (req, res) => {
+  try {
+    const reqId = req.params.id;
+    // Delete associated applications first
+    db.prepare('DELETE FROM applications WHERE requirement_id = ?').run(reqId);
+    // Delete requirement
+    db.prepare('DELETE FROM requirements WHERE id = ?').run(reqId);
+    res.json({ message: 'Placement requirement drive deleted successfully.', id: reqId });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Delete Candidate Application
+router.delete('/applications/:id', (req, res) => {
+  try {
+    const appId = req.params.id;
+    db.prepare('DELETE FROM applications WHERE id = ?').run(appId);
+    res.json({ message: 'Application deleted successfully.', id: appId });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 export default router;

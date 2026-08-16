@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Building2, Plus, Users, Sparkles, AlertCircle, ArrowLeft, CheckCircle, ExternalLink, Download, FileText, Search, Tag, ShieldCheck, Database, Printer, Eye, Briefcase, XCircle } from 'lucide-react';
+import { Building2, Plus, Users, Sparkles, AlertCircle, ArrowLeft, CheckCircle, ExternalLink, Download, FileText, Search, Tag, ShieldCheck, Database, Printer, Eye, Briefcase, XCircle, Trash2 } from 'lucide-react';
 import InterviewQuestionGeneratorModal from './InterviewQuestionGeneratorModal';
 import ReportPDFModal from '../common/ReportPDFModal';
 import CompanyQuestionUploadModal from '../common/CompanyQuestionUploadModal';
@@ -32,6 +32,38 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
   const [uploadQuestionsModalOpen, setUploadQuestionsModalOpen] = useState(false);
   const [uploadedCompanyQuestions, setUploadedCompanyQuestions] = useState(() => getCompanyUploadedQuestions());
   const [selectedCandidate, setSelectedCandidate] = useState(null);
+
+  const handleDeleteRequirement = async (reqId) => {
+    if (!window.confirm('Are you sure you want to delete this hiring requirement drive and all associated candidate applications?')) return;
+    try {
+      const res = await fetch(`/api/company/requirements/${reqId}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (res.ok) {
+        setRequirements(prev => prev.filter(r => r.id !== reqId));
+        alert('Requirement drive deleted successfully.');
+      } else {
+        alert(data.error || 'Failed to delete requirement');
+      }
+    } catch (err) {
+      console.error('Error deleting requirement:', err);
+    }
+  };
+
+  const handleDeleteApplication = async (appId) => {
+    if (!window.confirm('Are you sure you want to delete this applicant entry?')) return;
+    try {
+      const res = await fetch(`/api/company/applications/${appId}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (res.ok) {
+        setAllCompanyApplicants(prev => prev.filter(a => a.application_id !== appId));
+        alert('Applicant entry deleted successfully.');
+      } else {
+        alert(data.error || 'Failed to delete application');
+      }
+    } catch (err) {
+      console.error('Error deleting application:', err);
+    }
+  };
 
   // Form state
   const [postForm, setPostForm] = useState({
@@ -473,6 +505,14 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
                         >
                           <Printer className="w-3.5 h-3.5 text-amber-300" /> PDF Report
                         </button>
+
+                        <button
+                          onClick={() => handleDeleteApplication(app.application_id)}
+                          className="py-1.5 px-3 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-black inline-flex items-center gap-1 transition-all shadow-md"
+                          title="Delete candidate application entry"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" /> Delete
+                        </button>
                       </td>
                     </tr>
                   ))}
@@ -504,10 +544,19 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
                 <div className="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
                   <button
                     onClick={() => viewApplicants(req)}
-                    className="w-full py-2.5 px-3 bg-gradient-to-r from-blue-900 via-indigo-900 to-amber-600 text-white rounded-xl text-xs font-black flex items-center justify-center gap-1.5 shadow-md transition-all min-h-[42px]"
+                    className="w-full py-2.5 px-3 bg-theme-gradient text-white rounded-xl text-xs font-black flex items-center justify-center gap-1.5 shadow-md transition-all min-h-[42px]"
                   >
                     <Users className="w-3.5 h-3.5 shrink-0" />
                     <span>View Applicants ({req.applicant_count})</span>
+                  </button>
+
+                  <button
+                    onClick={() => handleDeleteRequirement(req.id)}
+                    className="py-2.5 px-4 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-black flex items-center justify-center gap-1.5 shadow-md transition-all shrink-0 min-h-[42px]"
+                    title="Delete placement requirement drive"
+                  >
+                    <Trash2 className="w-3.5 h-3.5 shrink-0" />
+                    <span>Delete Drive</span>
                   </button>
                 </div>
               </div>

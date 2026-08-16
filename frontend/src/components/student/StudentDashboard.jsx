@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Upload, FileText, CheckCircle, AlertTriangle, Sparkles, Briefcase, Award, TrendingUp, Search, SlidersHorizontal, ArrowRight, Play, Cpu, Check, Layers, ChevronRight, Compass, ShieldCheck, PieChart, BarChart2, RefreshCw, Zap, Database, X, Star, CheckCircle2, AlertCircle, Edit3, Mail, Download, Paperclip, Printer } from 'lucide-react';
+import { Upload, FileText, CheckCircle, AlertTriangle, Sparkles, Briefcase, Award, TrendingUp, Search, SlidersHorizontal, ArrowRight, Play, Cpu, Check, Layers, ChevronRight, Compass, ShieldCheck, PieChart, BarChart2, RefreshCw, Zap, Database, X, Star, CheckCircle2, AlertCircle, Edit3, Mail, Download, Paperclip, Printer, Trash2 } from 'lucide-react';
 import MockInterviewChat from './MockInterviewChat';
 import CompanyTrackerSidebar from '../common/CompanyTrackerSidebar';
 import ReportPDFModal from '../common/ReportPDFModal';
@@ -16,6 +16,22 @@ export default function StudentDashboard({ student, onUpdateStudent }) {
   const [uploadingResume, setUploadingResume] = useState(false);
   const [selectedTargetReqId, setSelectedTargetReqId] = useState('');
   const [targetCompanyMatchData, setTargetCompanyMatchData] = useState(null);
+
+  const handleWithdrawApplication = async (appId) => {
+    if (!window.confirm('Are you sure you want to withdraw/delete your application?')) return;
+    try {
+      const res = await fetch(`/api/student/applications/${appId}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (res.ok) {
+        setApplications(prev => prev.filter(a => a.id !== appId));
+        alert('Application withdrawn successfully.');
+      } else {
+        alert(data.error || 'Failed to withdraw application');
+      }
+    } catch (err) {
+      console.error('Error withdrawing application:', err);
+    }
+  };
 
   // AI Resume Analyzing Progress Modal & Countdown State
   const [analyzingModalOpen, setAnalyzingModalOpen] = useState(false);
@@ -881,9 +897,18 @@ export default function StudentDashboard({ student, onUpdateStudent }) {
 
                       <button
                         onClick={() => startMockInterview({ id: app.requirement_id, title: app.job_title, company_name: app.company_name })}
-                        className="py-2.5 px-4 bg-gradient-to-r from-blue-900 to-indigo-900 hover:from-blue-800 hover:to-indigo-800 text-white rounded-xl text-xs font-black flex items-center gap-1.5 shadow-md shadow-blue-900/20 transition-all shrink-0 min-h-[42px]"
+                        className="py-2.5 px-4 bg-theme-gradient text-white rounded-xl text-xs font-black flex items-center gap-1.5 shadow-md transition-all shrink-0 min-h-[42px]"
                       >
                         <Play className="w-3.5 h-3.5 shrink-0" /> <span>AI Mock Interview</span>
+                      </button>
+
+                      <button
+                        onClick={() => handleWithdrawApplication(app.id)}
+                        className="py-2.5 px-3 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-black flex items-center gap-1.5 shadow-md transition-all shrink-0 min-h-[42px]"
+                        title="Withdraw / Delete Application"
+                      >
+                        <Trash2 className="w-3.5 h-3.5 shrink-0" />
+                        <span className="hidden sm:inline">Withdraw</span>
                       </button>
                     </div>
                   </div>

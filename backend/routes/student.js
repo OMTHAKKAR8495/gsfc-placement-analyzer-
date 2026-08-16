@@ -358,4 +358,15 @@ router.post('/send-email-report', (req, res) => {
   }
 });
 
+// Withdraw / Delete Application
+router.delete('/applications/:id', (req, res) => {
+  try {
+    const appId = req.params.id;
+    db.prepare('DELETE FROM applications WHERE id = ?').run(appId);
+    res.json({ message: 'Application withdrawn/deleted successfully.', id: appId });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 export default router;
