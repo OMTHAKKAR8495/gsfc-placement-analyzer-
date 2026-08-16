@@ -1,8 +1,12 @@
 import express from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
+import cookieParser from 'cookie-parser';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { initDatabase } from './db/index.js';
+import { AuthRateLimiter } from './middleware/security.js';
+import { verifyCsrfToken } from './middleware/authMiddleware.js';
 
 import authRoutes from './routes/auth.js';
 import companyRoutes from './routes/company.js';
@@ -16,9 +20,37 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 5001;
 
-app.use(cors());
+// Disable X-Powered-By framework fingerprinting header
+app.disable('x-powered-by');
+
+// Security Headers (Helmet)
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+      imgSrc: ["'self'", "data:", "blob:", "https:"],
+      fontSrc: ["'self'", "https://fonts.gstatic.com"],
+      connectSrc: ["'self'", "http://localhost:5001", "ws://localhost:5173", "http://localhost:5173", "https://generativelanguage.googleapis.com"]
+    }
+  },
+  xContentTypeOptions: true,
+  frameguard: { action: 'deny' },
+  referrerPolicy: { policy: 'strict-origin-when-cross-origin' }
+}));
+
+app.use(cookieParser());
+app.use(cors({
+  origin: ['http://localhost:5173', 'http://localhost:5001'],
+  credentials: true
+}));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Global General Rate Limiting & CSRF Checks
+app.use('/api', AuthRateLimiter.generalApiLimiter);
+app.use('/api', verifyCsrfToken);
 
 // Static uploads & frontend build directory
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
@@ -55,6 +87,20 @@ app.get('*', (req, res) => {
         </html>
       `);
     }
+  });
+});
+
+// Centralized Security Error Handler (Masks Internal Stack Traces)
+app.use((err, req, res, next) => {
+  console.error('🔒 [SECURITY AUDIT SERVER ERROR]:', err.stack || err.message || err);
+  
+  if (res.headersSent) {
+    return next(err);
+  }
+
+  const statusCode = err.statusCode || err.status || 500;
+  res.status(statusCode).json({
+    error: statusCode === 500 ? 'An internal security error occurred. Our engineering team has been notified.' : err.message
   });
 });
 

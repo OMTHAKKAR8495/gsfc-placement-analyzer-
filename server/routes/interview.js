@@ -3,11 +3,12 @@ import db from '../db/index.js';
 import { generateInterviewQuestions } from '../ai/modules/interviewGenerator.js';
 import { evaluateAnswer, generateFinalReadinessSummary } from '../ai/modules/mockInterviewCoach.js';
 import { callLLM } from '../ai/llm.js';
+import { AuthRateLimiter, sanitizeAiPromptInput } from '../middleware/security.js';
 
 const router = express.Router();
 
-// Generate AI Interview Question Set
-router.post('/generate', async (req, res) => {
+// Generate AI Interview Question Set (Rate Limited)
+router.post('/generate', AuthRateLimiter.aiFeatureLimiter, async (req, res) => {
   try {
     const { requirement_id, student_id } = req.body;
     if (!requirement_id) {

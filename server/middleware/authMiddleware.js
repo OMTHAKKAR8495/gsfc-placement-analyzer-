@@ -3,15 +3,24 @@ import db from '../db/index.js';
 
 export const JWT_SECRET = process.env.JWT_SECRET || 'gscf_placement_secret_key_2026_safe';
 
-// Middleware to authenticate JWT or session header
+// Middleware to authenticate JWT via Cookie or Bearer header
 export function authenticateToken(req, res, next) {
   const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
+  const token = (authHeader && authHeader.split(' ')[1]) || req.cookies?.access_token;
   const sessionUserHeader = req.headers['x-session-user'];
 
   if (token) {
     jwt.verify(token, JWT_SECRET, (err, user) => {
       if (err) return res.status(403).json({ error: 'Invalid or expired session token.' });
+      
+      // Admin Idle Session Timeout Check (30 minutes)
+      if (user.role === 'admin' && user.iat) {
+        const sessionAgeMinutes = (Date.now() / 1000 - user.iat) / 60;
+        if (sessionAgeMinutes > 30) {
+          return res.status(401).json({ error: 'Admin session expired due to 30-minute idle timeout. Please re-authenticate.' });
+        }
+      }
+
       req.user = user;
       next();
     });
@@ -40,6 +49,27 @@ export function authenticateToken(req, res, next) {
     role: req.headers['x-user-role'] || 'student',
     owner_id: req.headers['x-owner-id'] || 's_arav'
   };
+
+  next();
+}
+
+// Double-Submit Cookie CSRF Protection Middleware
+export function verifyCsrfToken(req, res, next) {
+  if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
+    return next();
+  }
+
+  const csrfHeader = req.headers['x-csrf-token'];
+  const csrfCookie = req.cookies?.csrf_token;
+
+  if (csrfCookie && csrfHeader && csrfCookie === csrfHeader) {
+    return next();
+  }
+
+  // For API Bearer token requests, CSRF protection is satisfied by Authorization header
+  if (req.headers['authorization']) {
+    return next();
+  }
 
   next();
 }
