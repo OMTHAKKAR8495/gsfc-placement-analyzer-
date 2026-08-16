@@ -1,0 +1,35 @@
+{
+  "name": "GSFC University Placement Portal",
+  "short_name": "GSFC Placement",
+  "description": "AI Placement matching, ATS resume scoring, and mock interview coaching for GSFC University students.",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0f172a",
+  "theme_color": "#1e3a8a",
+  "scope": "/",
+  "icons": [
+    {
+      "src": "/gsfc-logo-official.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/gsfc-logo-official.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["education", "business", "productivity"],
+  "screenshots": [
+    {
+      "src": "/docs/images/student_dashboard_preview.jpg",
+      "sizes": "1280x720",
+      "type": "image/jpeg",
+      "form_factor": "wide",
+      "label": "Student Placement Dashboard"
+    }
+  ]
+}
