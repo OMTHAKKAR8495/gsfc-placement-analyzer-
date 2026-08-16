@@ -53,7 +53,6 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
   };
 
   const fetchAdminData = async () => {
-    setLoading(true);
     try {
       await Promise.all([
         fetchAdminDataSilently(),
@@ -63,16 +62,12 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
       ]);
     } catch (err) {
       console.error('Error fetching admin data:', err);
-    } finally {
-      setLoading(false);
     }
   };
 
   useEffect(() => {
     if (currentUser?.role === 'admin') {
       fetchAdminData();
-    } else {
-      setLoading(false);
     }
 
     // Live 5-second auto-sync interval for 100% real-time accuracy
@@ -247,15 +242,6 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
             ID: admin@gsfcuniversity.ac.in &nbsp;|&nbsp; Pass: password123
           </div>
         </div>
-      </div>
-    );
-  }
-
-  if (loading) {
-    return (
-      <div className="max-w-7xl mx-auto py-20 text-center space-y-3">
-        <div className="w-10 h-10 border-4 border-blue-900 border-t-transparent rounded-full animate-spin mx-auto"></div>
-        <p className="text-xs font-bold text-slate-700">Loading GSFC TPC Placement Command Center...</p>
       </div>
     );
   }
