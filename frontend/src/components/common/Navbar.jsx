@@ -42,7 +42,7 @@ export default function Navbar({ currentUser, activeRole, onRoleSwitch, onOpenAu
             onClick={() => onRoleSwitch('student')}
             className={`flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-xl text-[11px] sm:text-xs font-black transition-all shrink-0 whitespace-nowrap ${
               activeRole === 'student'
-                ? 'bg-gradient-to-r from-blue-900 to-indigo-800 text-white shadow-md shadow-blue-900/20'
+                ? 'bg-theme-gradient text-white shadow-md'
                 : 'text-slate-700 dark:text-slate-200 hover:text-slate-900 hover:bg-slate-200/60 dark:hover:bg-slate-700'
             }`}
           >
@@ -54,7 +54,7 @@ export default function Navbar({ currentUser, activeRole, onRoleSwitch, onOpenAu
             onClick={() => onRoleSwitch('interview')}
             className={`flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-xl text-[11px] sm:text-xs font-black transition-all shrink-0 whitespace-nowrap ${
               activeRole === 'interview'
-                ? 'bg-gradient-to-r from-blue-900 to-indigo-800 text-white shadow-md shadow-blue-900/20'
+                ? 'bg-theme-gradient text-white shadow-md'
                 : 'text-slate-700 dark:text-slate-200 hover:text-slate-900 hover:bg-slate-200/60 dark:hover:bg-slate-700'
             }`}
           >
@@ -66,7 +66,7 @@ export default function Navbar({ currentUser, activeRole, onRoleSwitch, onOpenAu
             onClick={() => onRoleSwitch('company')}
             className={`flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-xl text-[11px] sm:text-xs font-black transition-all shrink-0 whitespace-nowrap ${
               activeRole === 'company'
-                ? 'bg-gradient-to-r from-blue-900 to-indigo-800 text-white shadow-md shadow-blue-900/20'
+                ? 'bg-theme-gradient text-white shadow-md'
                 : 'text-slate-700 dark:text-slate-200 hover:text-slate-900 hover:bg-slate-200/60 dark:hover:bg-slate-700'
             }`}
           >
@@ -78,7 +78,7 @@ export default function Navbar({ currentUser, activeRole, onRoleSwitch, onOpenAu
             onClick={() => onRoleSwitch('admin')}
             className={`flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-xl text-[11px] sm:text-xs font-black transition-all shrink-0 whitespace-nowrap ${
               activeRole === 'admin'
-                ? 'bg-gradient-to-r from-blue-900 to-indigo-800 text-white shadow-md shadow-blue-900/20'
+                ? 'bg-theme-gradient text-white shadow-md'
                 : 'text-slate-700 dark:text-slate-200 hover:text-slate-900 hover:bg-slate-200/60 dark:hover:bg-slate-700'
             }`}
           >

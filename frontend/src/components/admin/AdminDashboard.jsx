@@ -285,7 +285,7 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
           onClick={() => setActiveTab('overview')}
           className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black transition-all shrink-0 ${
             activeTab === 'overview'
-              ? 'bg-blue-900 text-white shadow-md'
+              ? 'bg-theme-gradient text-white shadow-md'
               : 'text-slate-700 hover:bg-slate-100'
           }`}
         >
@@ -296,7 +296,7 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
           onClick={() => setActiveTab('database')}
           className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black transition-all shrink-0 ${
             activeTab === 'database'
-              ? 'bg-blue-900 text-white shadow-md'
+              ? 'bg-theme-gradient text-white shadow-md'
               : 'text-slate-700 hover:bg-slate-100'
           }`}
         >
@@ -307,7 +307,7 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
           onClick={() => setActiveTab('companies')}
           className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black transition-all shrink-0 ${
             activeTab === 'companies'
-              ? 'bg-blue-900 text-white shadow-md'
+              ? 'bg-theme-gradient text-white shadow-md'
               : 'text-slate-700 hover:bg-slate-100'
           }`}
         >
@@ -318,7 +318,7 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
           onClick={() => setActiveTab('drives')}
           className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black transition-all shrink-0 ${
             activeTab === 'drives'
-              ? 'bg-blue-900 text-white shadow-md'
+              ? 'bg-theme-gradient text-white shadow-md'
               : 'text-slate-700 hover:bg-slate-100'
           }`}
         >
@@ -329,7 +329,7 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
           onClick={() => setActiveTab('applications')}
           className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black transition-all shrink-0 ${
             activeTab === 'applications'
-              ? 'bg-blue-900 text-white shadow-md'
+              ? 'bg-theme-gradient text-white shadow-md'
               : 'text-slate-700 hover:bg-slate-100'
           }`}
         >
@@ -343,7 +343,7 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
           }}
           className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black transition-all shrink-0 ${
             activeTab === 'search'
-              ? 'bg-blue-900 text-white shadow-md'
+              ? 'bg-theme-gradient text-white shadow-md'
               : 'text-slate-700 hover:bg-slate-100'
           }`}
         >

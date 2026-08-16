@@ -32,6 +32,29 @@ html.dark {
   --badge-nlp-border: hsl(var(--theme-hue), 60%, 35%);
 }
 
+/* Dynamic HSL Theme Classes */
+.bg-theme-primary {
+  background-color: hsl(var(--theme-hue), 85%, 32%) !important;
+  color: #ffffff !important;
+}
+
+.bg-theme-gradient {
+  background: linear-gradient(135deg, hsl(var(--theme-hue), 85%, 28%) 0%, hsl(var(--theme-hue), 75%, 18%) 100%) !important;
+  color: #ffffff !important;
+}
+
+.border-theme-primary {
+  border-color: hsl(var(--theme-hue), 80%, 45%) !important;
+}
+
+.text-theme-primary {
+  color: hsl(var(--theme-hue), 85%, 32%) !important;
+}
+
+html.dark .text-theme-primary {
+  color: hsl(var(--theme-hue), 90%, 65%) !important;
+}
+
 @layer base {
   body {
     @apply bg-slate-100 text-slate-900 font-sans antialiased selection:bg-blue-600 selection:text-white min-h-screen relative overflow-x-hidden transition-colors duration-300;

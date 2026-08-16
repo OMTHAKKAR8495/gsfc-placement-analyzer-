@@ -391,7 +391,7 @@ export default function StudentDashboard({ student, onUpdateStudent }) {
             onClick={() => setActiveTab('feed')}
             className={`flex items-center gap-2 px-3.5 sm:px-5 py-2.5 rounded-xl text-xs font-black transition-all shrink-0 whitespace-nowrap ${
               activeTab === 'feed'
-                ? 'bg-gradient-to-r from-blue-900 via-indigo-900 to-amber-600 text-white shadow-lg shadow-blue-900/20'
+                ? 'bg-theme-gradient text-white shadow-lg'
                 : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100/80'
             }`}
           >
@@ -402,7 +402,7 @@ export default function StudentDashboard({ student, onUpdateStudent }) {
             onClick={() => setActiveTab('profile')}
             className={`flex items-center gap-2 px-3.5 sm:px-5 py-2.5 rounded-xl text-xs font-black transition-all shrink-0 whitespace-nowrap ${
               activeTab === 'profile'
-                ? 'bg-gradient-to-r from-blue-900 via-indigo-900 to-amber-600 text-white shadow-lg shadow-blue-900/20'
+                ? 'bg-theme-gradient text-white shadow-lg'
                 : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100/80'
             }`}
           >
@@ -413,7 +413,7 @@ export default function StudentDashboard({ student, onUpdateStudent }) {
             onClick={() => setActiveTab('applications')}
             className={`flex items-center gap-2 px-3.5 sm:px-5 py-2.5 rounded-xl text-xs font-black transition-all shrink-0 whitespace-nowrap ${
               activeTab === 'applications'
-                ? 'bg-gradient-to-r from-blue-900 via-indigo-900 to-amber-600 text-white shadow-lg shadow-blue-900/20'
+                ? 'bg-theme-gradient text-white shadow-lg'
                 : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100/80'
             }`}
           >
