@@ -70,14 +70,15 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
       fetchAdminData();
     }
 
-    // Live 5-second auto-sync interval for 100% real-time accuracy
+    // Live 15-second auto-sync interval (Only when tab is active)
     const interval = setInterval(() => {
+      if (document.hidden) return;
       if (currentUser?.role === 'admin') {
         fetchAdminDataSilently();
         fetchCandidateDatabase();
         fetchMasterData();
       }
-    }, 5000);
+    }, 15000);
 
     return () => clearInterval(interval);
   }, [currentUser]);
