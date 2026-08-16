@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.gsfcuniversity.placement",
+      "sha256_cert_fingerprints": [
+        "14:6D:E9:7D:01:80:61:94:43:24:D1:D4:BA:FA:47:A6:6C:56:4C:E6:B6:02:80:6D:83:8B:AB:33:63:F6:BC:54"
+      ]
+    }
+  }
+]

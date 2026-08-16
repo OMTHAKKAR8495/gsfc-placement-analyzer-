@@ -1,0 +1,28 @@
+{
+  "packageId": "com.gsfcuniversity.placement",
+  "host": "gsfc-placement.university.edu",
+  "name": "GSFC University Placement Portal",
+  "launcherName": "GSFC Placement",
+  "themeColor": "#1E3A8A",
+  "navigationColor": "#0F172A",
+  "appVersionName": "1.0.0",
+  "appVersionCode": 1,
+  "signingKey": {
+    "path": "./android-release-key.keystore",
+    "alias": "gsfc-key-alias"
+  },
+  "generatorApp": "bubblewrap-cli",
+  "webManifestUrl": "https://gsfc-placement.university.edu/manifest.json",
+  "fallbackType": "customtabs",
+  "features": {
+    "locationDelegation": {
+      "enabled": false
+    },
+    "playBilling": {
+      "enabled": false
+    }
+  },
+  "alphaDependencies": {
+    "enabled": false
+  }
+}
