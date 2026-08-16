@@ -6,7 +6,7 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
   const [activeTab, setActiveTab] = useState('overview'); // 'overview', 'database'
   const [pendingCompanies, setPendingCompanies] = useState([]);
   const [analytics, setAnalytics] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
 
   // Admin Authentication Lock Screen State
   const [adminEmail, setAdminEmail] = useState('');
