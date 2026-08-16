@@ -135,7 +135,7 @@ function seedInitialData() {
       logo: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=100&auto=format&fit=crop&q=60',
       industry: 'Quantum Tech / AI',
       website: 'https://nexusquantum.ai',
-      approved: 0 // Pending TPC Approval
+      approved: 1 // Official Verified Partner
     }
   ];
 
@@ -338,6 +338,20 @@ function seedInitialData() {
       openings: 25,
       deadline: '2026-11-01',
       description: 'Cross-functional data analyst role supporting global enterprise clients. Analyze business KPIs, craft automated reporting dashboards, and build SQL query pipelines.'
+    },
+    {
+      id: 'req_nexus_ai',
+      companyId: 'c_nexus',
+      title: 'AI & Quantum Systems Researcher',
+      eligiblePrograms: JSON.stringify(['BTech CSE', 'BTech IT', 'BTech Mechanical', 'MSc CS']),
+      minCgpa: 7.0,
+      requiredSkills: JSON.stringify(['Python', 'PyTorch', 'Quantum Computing', 'FastAPI']),
+      preferredSkills: JSON.stringify(['Qiskit', 'Docker', 'Machine Learning']),
+      jobType: 'Full-time',
+      ctcRange: '₹18,00,000 - ₹22,00,000 PA',
+      openings: 4,
+      deadline: '2026-11-15',
+      description: 'Exciting opportunity at Nexus Quantum Labs to research and implement hybrid quantum-classical AI algorithms and high-performance neural computing frameworks.'
     }
   ];
 
