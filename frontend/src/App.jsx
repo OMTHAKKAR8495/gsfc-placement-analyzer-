@@ -7,10 +7,15 @@ import AdminDashboard from './components/admin/AdminDashboard';
 import InterviewStudioView from './components/student/InterviewStudioView';
 import AIBugChatbotWidget from './components/common/AIBugChatbotWidget';
 import ErrorBoundary from './components/common/ErrorBoundary';
-import { Eye, EyeOff, Sparkles, ChevronDown, ArrowDown, Sun, Moon } from 'lucide-react';
+import { Eye, EyeOff, Sparkles, ChevronDown, ArrowDown, Sun, Moon, WifiOff } from 'lucide-react';
+import { App as CapacitorApp } from '@capacitor/app';
+import { StatusBar, Style } from '@capacitor/status-bar';
+import { Network } from '@capacitor/network';
+import { SplashScreen } from '@capacitor/splash-screen';
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState(null);
+  const [isOffline, setIsOffline] = useState(false);
   const [activeRole, setActiveRole] = useState(() => {
     const hash = window.location.hash.replace('#', '');
     return ['student', 'interview', 'company', 'admin'].includes(hash) ? hash : 'student';
@@ -19,6 +24,36 @@ export default function App() {
   const [hideCardsForBGView, setHideCardsForBGView] = useState(false);
   const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'light');
   const [themeHue, setThemeHue] = useState(() => localStorage.getItem('gsfc_theme_hue') || '215');
+
+  useEffect(() => {
+    // Hide native splash screen once React mounts
+    SplashScreen.hide().catch(() => {});
+
+    // Configure Native Status Bar colors
+    StatusBar.setStyle({ style: Style.Dark }).catch(() => {});
+    StatusBar.setBackgroundColor({ color: '#1E3A8A' }).catch(() => {});
+
+    // Network status listener for graceful offline banner
+    Network.getStatus().then(status => setIsOffline(!status.connected)).catch(() => {});
+    const netListener = Network.addListener('networkStatusChange', status => {
+      setIsOffline(!status.connected);
+    });
+
+    // Native Android Hardware Back Button handler
+    const backListener = CapacitorApp.addListener('backButton', () => {
+      const hash = window.location.hash.replace('#', '');
+      if (hash && hash !== 'student') {
+        window.location.hash = '#student';
+      } else {
+        CapacitorApp.exitApp();
+      }
+    });
+
+    return () => {
+      netListener.then(l => l.remove()).catch(() => {});
+      backListener.then(l => l.remove()).catch(() => {});
+    };
+  }, []);
 
   // Helper to validate whether user role is permitted to access target workspace
   const isRoleAllowedInWorkspace = (user, targetWorkspace) => {
@@ -150,6 +185,13 @@ export default function App() {
         theme={theme}
         onToggleTheme={toggleTheme}
       />
+
+      {isOffline && (
+        <div className="bg-amber-500 text-slate-950 font-black text-xs py-2 px-4 text-center flex items-center justify-center gap-2 shadow-lg relative z-50">
+          <WifiOff className="w-4 h-4 text-slate-950 shrink-0" />
+          <span>Network connection lost. Offline mode active — portal sync will resume automatically when reconnected.</span>
+        </div>
+      )}
 
       {/* Floating Controls Bar (Poster View Toggle & Light/Dark Theme) */}
       <div className="fixed bottom-20 right-6 z-40 flex flex-col items-end gap-2">
