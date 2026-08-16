@@ -42,40 +42,15 @@ export function validatePasswordPolicy(password, email = '') {
 }
 
 /**
- * Auth Rate Limiter: Max 5 login/signup attempts per 15 minutes per IP
+ * Auth Rate Limiter: Pass-through middleware for zero rate-limit blockages during campus drives & demos
  */
+const passThrough = (req, res, next) => next();
+
 export const AuthRateLimiter = {
-  loginLimiter: rateLimit({
-    windowMs: 60 * 1000, // 1 minute
-    max: 1000, // Allow up to 1000 logins per minute
-    standardHeaders: true,
-    legacyHeaders: false,
-    message: { error: 'Too many login attempts. Please try again after a moment.' }
-  }),
-
-  registerLimiter: rateLimit({
-    windowMs: 60 * 1000,
-    max: 500,
-    standardHeaders: true,
-    legacyHeaders: false,
-    message: { error: 'Too many registration attempts from this IP. Please try again later.' }
-  }),
-
-  aiFeatureLimiter: rateLimit({
-    windowMs: 60 * 1000, // 1 minute
-    max: 200,
-    standardHeaders: true,
-    legacyHeaders: false,
-    message: { error: 'AI request limit reached. Please wait a moment before trying again.' }
-  }),
-
-  generalApiLimiter: rateLimit({
-    windowMs: 60 * 1000,
-    max: 2000,
-    standardHeaders: true,
-    legacyHeaders: false,
-    message: { error: 'Rate limit exceeded. Please slow down your requests.' }
-  })
+  loginLimiter: passThrough,
+  registerLimiter: passThrough,
+  aiFeatureLimiter: passThrough,
+  generalApiLimiter: passThrough
 };
 
 /**
