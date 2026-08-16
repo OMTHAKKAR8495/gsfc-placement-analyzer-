@@ -20,6 +20,27 @@ export default function App() {
   const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'light');
   const [themeHue, setThemeHue] = useState(() => localStorage.getItem('gsfc_theme_hue') || '215');
 
+  // Helper to validate whether user role is permitted to access target workspace
+  const isRoleAllowedInWorkspace = (user, targetWorkspace) => {
+    if (!user) {
+      // Guest: can only access Student Workspace
+      return targetWorkspace === 'student';
+    }
+    if (user.role === 'admin') {
+      // Admin: has oversight access to all workspaces
+      return true;
+    }
+    if (user.role === 'company') {
+      // Recruiter: scoped ONLY to Recruiter Portal
+      return targetWorkspace === 'company';
+    }
+    if (user.role === 'student') {
+      // Student: scoped ONLY to Student Workspace and Interview Studio
+      return targetWorkspace === 'student' || targetWorkspace === 'interview';
+    }
+    return targetWorkspace === 'student';
+  };
+
   useEffect(() => {
     checkCurrentUser();
 
@@ -30,14 +51,19 @@ export default function App() {
     document.documentElement.setAttribute('data-theme-hue', themeHue);
     localStorage.setItem('gsfc_theme_hue', themeHue);
 
-    // Listen for browser Back/Forward navigation
+    // Listen for browser Back/Forward navigation with Strict Role-Scoped Route Guards
     const handleHashOrPopState = () => {
       const hash = window.location.hash.replace('#', '');
-      if (['student', 'company', 'admin'].includes(hash)) {
-        setActiveRole(hash);
-      } else if (!hash) {
-        setActiveRole('student');
+      const targetWorkspace = ['student', 'interview', 'company', 'admin'].includes(hash) ? hash : 'student';
+
+      if (!isRoleAllowedInWorkspace(currentUser, targetWorkspace)) {
+        const defaultRole = currentUser ? (currentUser.role === 'company' ? 'company' : currentUser.role) : 'student';
+        setActiveRole(defaultRole);
+        window.history.replaceState(null, '', `#${defaultRole}`);
+        return;
       }
+
+      setActiveRole(targetWorkspace);
     };
 
     window.addEventListener('popstate', handleHashOrPopState);
@@ -47,7 +73,7 @@ export default function App() {
       window.removeEventListener('popstate', handleHashOrPopState);
       window.removeEventListener('hashchange', handleHashOrPopState);
     };
-  }, [theme, themeHue]);
+  }, [theme, themeHue, currentUser]);
 
   const toggleTheme = () => {
     setTheme(prev => (prev === 'dark' ? 'light' : 'dark'));
@@ -55,7 +81,10 @@ export default function App() {
 
   const checkCurrentUser = async () => {
     const token = localStorage.getItem('campushire_token');
-    if (!token) return;
+    if (!token) {
+      setCurrentUser(null);
+      return;
+    }
 
     try {
       const res = await fetch('/api/auth/me', {
@@ -64,12 +93,17 @@ export default function App() {
       const data = await res.json();
       if (res.ok && data.user) {
         setCurrentUser(data.user);
-        if (!window.location.hash) {
-          setActiveRole(data.user.role);
-          window.history.replaceState(null, '', `#${data.user.role}`);
+        
+        // Prayas-Style Login Redirect: Route user to their default role workspace on initial load
+        const currentHash = window.location.hash.replace('#', '');
+        if (!isRoleAllowedInWorkspace(data.user, currentHash)) {
+          const defaultRoleWorkspace = data.user.role === 'company' ? 'company' : data.user.role;
+          setActiveRole(defaultRoleWorkspace);
+          window.history.replaceState(null, '', `#${defaultRoleWorkspace}`);
         }
       } else {
         localStorage.removeItem('campushire_token');
+        setCurrentUser(null);
       }
     } catch (err) {
       console.error('Error fetching user profile:', err);
@@ -77,6 +111,10 @@ export default function App() {
   };
 
   const handleRoleSwitch = (newRole) => {
+    if (!isRoleAllowedInWorkspace(currentUser, newRole)) {
+      alert(`Access Restricted: Your account (${currentUser?.role || 'Guest'}) does not have permission to access the ${newRole} workspace.`);
+      return;
+    }
     setActiveRole(newRole);
     window.location.hash = `#${newRole}`;
   };
@@ -90,8 +128,9 @@ export default function App() {
 
   const handleAuthSuccess = (userData) => {
     setCurrentUser(userData);
-    setActiveRole(userData.role);
-    window.location.hash = `#${userData.role}`;
+    const defaultWorkspace = userData.role === 'company' ? 'company' : userData.role;
+    setActiveRole(defaultWorkspace);
+    window.location.hash = `#${defaultWorkspace}`;
     checkCurrentUser();
   };
 

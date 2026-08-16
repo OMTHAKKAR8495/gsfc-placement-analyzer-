@@ -21,55 +21,68 @@ export default function Navbar({ currentUser, activeRole, onRoleSwitch, onOpenAu
           </div>
         </div>
 
-        {/* Segmented Role Navigation Bar */}
+        {/* Segmented Role Navigation Bar — Prayas-Style Role Scoped UI Access */}
         <div className="flex items-center bg-slate-100/90 dark:bg-slate-800/90 p-1 sm:p-1.5 rounded-2xl border border-slate-200/80 dark:border-slate-700 shadow-inner overflow-x-auto max-w-full">
-          <button
-            onClick={() => onRoleSwitch('student')}
-            className={`flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-xl text-[11px] sm:text-xs font-black transition-all shrink-0 whitespace-nowrap ${
-              activeRole === 'student'
-                ? 'bg-theme-gradient text-white shadow-md'
-                : 'text-slate-700 dark:text-slate-200 hover:text-slate-900 hover:bg-slate-200/60 dark:hover:bg-slate-700'
-            }`}
-          >
-            <User className="w-3.5 h-3.5" />
-            <span>Student <span className="hidden sm:inline">Workspace</span></span>
-          </button>
+          
+          {/* Student Workspace Tab (Visible to Student, Admin, and Guest) */}
+          {(currentUser?.role === 'student' || currentUser?.role === 'admin' || !currentUser) && (
+            <button
+              onClick={() => onRoleSwitch('student')}
+              className={`flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-xl text-[11px] sm:text-xs font-black transition-all shrink-0 whitespace-nowrap ${
+                activeRole === 'student'
+                  ? 'bg-theme-gradient text-white shadow-md'
+                  : 'text-slate-700 dark:text-slate-200 hover:text-slate-900 hover:bg-slate-200/60 dark:hover:bg-slate-700'
+              }`}
+            >
+              <User className="w-3.5 h-3.5" />
+              <span>Student <span className="hidden sm:inline">Workspace</span></span>
+            </button>
+          )}
 
-          <button
-            onClick={() => onRoleSwitch('interview')}
-            className={`flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-xl text-[11px] sm:text-xs font-black transition-all shrink-0 whitespace-nowrap ${
-              activeRole === 'interview'
-                ? 'bg-theme-gradient text-white shadow-md'
-                : 'text-slate-700 dark:text-slate-200 hover:text-slate-900 hover:bg-slate-200/60 dark:hover:bg-slate-700'
-            }`}
-          >
-            <HelpCircle className="w-3.5 h-3.5 text-amber-400" />
-            <span>Interview <span className="hidden sm:inline">Studio</span></span>
-          </button>
+          {/* Interview Studio Tab (Visible to Student and Admin) */}
+          {(currentUser?.role === 'student' || currentUser?.role === 'admin') && (
+            <button
+              onClick={() => onRoleSwitch('interview')}
+              className={`flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-xl text-[11px] sm:text-xs font-black transition-all shrink-0 whitespace-nowrap ${
+                activeRole === 'interview'
+                  ? 'bg-theme-gradient text-white shadow-md'
+                  : 'text-slate-700 dark:text-slate-200 hover:text-slate-900 hover:bg-slate-200/60 dark:hover:bg-slate-700'
+              }`}
+            >
+              <HelpCircle className="w-3.5 h-3.5 text-amber-400" />
+              <span>Interview <span className="hidden sm:inline">Studio</span></span>
+            </button>
+          )}
 
-          <button
-            onClick={() => onRoleSwitch('company')}
-            className={`flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-xl text-[11px] sm:text-xs font-black transition-all shrink-0 whitespace-nowrap ${
-              activeRole === 'company'
-                ? 'bg-theme-gradient text-white shadow-md'
-                : 'text-slate-700 dark:text-slate-200 hover:text-slate-900 hover:bg-slate-200/60 dark:hover:bg-slate-700'
-            }`}
-          >
-            <Building2 className="w-3.5 h-3.5" />
-            <span>Recruiter <span className="hidden sm:inline">Portal</span></span>
-          </button>
+          {/* Recruiter Portal Tab (Visible to Recruiter / Company and Admin) */}
+          {(currentUser?.role === 'company' || currentUser?.role === 'admin') && (
+            <button
+              onClick={() => onRoleSwitch('company')}
+              className={`flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-xl text-[11px] sm:text-xs font-black transition-all shrink-0 whitespace-nowrap ${
+                activeRole === 'company'
+                  ? 'bg-theme-gradient text-white shadow-md'
+                  : 'text-slate-700 dark:text-slate-200 hover:text-slate-900 hover:bg-slate-200/60 dark:hover:bg-slate-700'
+              }`}
+            >
+              <Building2 className="w-3.5 h-3.5" />
+              <span>Recruiter <span className="hidden sm:inline">Portal</span></span>
+            </button>
+          )}
 
-          <button
-            onClick={() => onRoleSwitch('admin')}
-            className={`flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-xl text-[11px] sm:text-xs font-black transition-all shrink-0 whitespace-nowrap ${
-              activeRole === 'admin'
-                ? 'bg-theme-gradient text-white shadow-md'
-                : 'text-slate-700 dark:text-slate-200 hover:text-slate-900 hover:bg-slate-200/60 dark:hover:bg-slate-700'
-            }`}
-          >
-            <ShieldCheck className="w-3.5 h-3.5" />
-            <span>TPC Admin</span>
-          </button>
+          {/* TPC Admin Tab (Visible ONLY to Admin) */}
+          {currentUser?.role === 'admin' && (
+            <button
+              onClick={() => onRoleSwitch('admin')}
+              className={`flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-xl text-[11px] sm:text-xs font-black transition-all shrink-0 whitespace-nowrap ${
+                activeRole === 'admin'
+                  ? 'bg-theme-gradient text-white shadow-md'
+                  : 'text-slate-700 dark:text-slate-200 hover:text-slate-900 hover:bg-slate-200/60 dark:hover:bg-slate-700'
+              }`}
+            >
+              <ShieldCheck className="w-3.5 h-3.5" />
+              <span>TPC Admin</span>
+            </button>
+          )}
         </div>
 
         {/* User Auth & Theme Controls Section */}

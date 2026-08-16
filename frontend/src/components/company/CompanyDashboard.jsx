@@ -137,12 +137,28 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
   };
 
   const fetchCandidateDatabase = async () => {
+    if (!company?.id) return;
     try {
-      const res = await fetch('/api/admin/students');
+      const res = await fetch(`/api/company/all-applicants?companyId=${company.id}`);
       const data = await res.json();
-      setAllCandidates(data || []);
+      const apps = Array.isArray(data) ? data : [];
+      setAllCompanyApplicants(apps);
+
+      // Prayas Data Isolation: Recruiters only see student profiles for applicants to their own drives
+      const mappedCandidates = apps.map(a => ({
+        id: a.student_id,
+        name: a.candidate_name,
+        email: a.candidate_email,
+        program: a.program,
+        branch: a.branch,
+        cgpa: a.cgpa,
+        ats_score: a.ats_score,
+        applied_job: a.job_title,
+        status: a.status
+      }));
+      setAllCandidates(mappedCandidates);
     } catch (err) {
-      console.error('Error fetching candidate database:', err);
+      console.error('Error fetching company candidate database:', err);
     }
   };
 
