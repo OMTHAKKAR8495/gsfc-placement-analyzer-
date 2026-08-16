@@ -145,14 +145,9 @@ export default function App() {
 
           {activeRole === 'company' && (
             <CompanyDashboard
-              company={currentUser?.role === 'company' ? currentUser.profile : {
-                id: 'c_google',
-                company_name: 'Google Cloud India (Demo)',
-                logo_url: 'https://upload.wikimedia.org/wikipedia/commons/2/2f/Google_2015_logo.svg',
-                industry: 'Cloud & AI',
-                website: 'https://cloud.google.com',
-                approved: 1
-              }}
+              currentUser={currentUser}
+              company={currentUser?.role === 'company' ? currentUser.profile : null}
+              onCompanyAuthSuccess={handleAuthSuccess}
               onRefreshCompany={checkCurrentUser}
             />
           )}

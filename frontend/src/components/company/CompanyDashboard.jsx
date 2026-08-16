@@ -6,13 +6,19 @@ import CompanyQuestionUploadModal from '../common/CompanyQuestionUploadModal';
 import RequirementQuestionBankForm from './RequirementQuestionBankForm';
 import { getCompanyUploadedQuestions, saveCompanyUploadedQuestion, bulkUploadCompanyQuestions, deleteCompanyUploadedQuestion } from '../../utils/companyQuestionStorage';
 
-export default function CompanyDashboard({ company, onRefreshCompany }) {
+export default function CompanyDashboard({ currentUser, company, onCompanyAuthSuccess, onRefreshCompany }) {
   const [activeTab, setActiveTab] = useState('requirements'); // 'requirements', 'database'
   const [requirements, setRequirements] = useState([]);
   const [activeReqApplicants, setActiveReqApplicants] = useState(null);
   const [applicantsData, setApplicantsData] = useState([]);
   const [showPostModal, setShowPostModal] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  // Recruiter Authentication Lock Screen State
+  const [recruiterEmail, setRecruiterEmail] = useState('');
+  const [recruiterPassword, setRecruiterPassword] = useState('');
+  const [loggingIn, setLoggingIn] = useState(false);
+  const [loginError, setLoginError] = useState('');
 
   // Candidate Database View State
   const [allCompanyApplicants, setAllCompanyApplicants] = useState([]);
@@ -52,6 +58,35 @@ export default function CompanyDashboard({ company, onRefreshCompany }) {
   });
 
   const availablePrograms = ['BTech CSE', 'BTech IT', 'BTech Mechanical', 'BTech ECE', 'BBA', 'MBA', 'MSc CS'];
+
+  const handleRecruiterLogin = async (e) => {
+    e.preventDefault();
+    setLoggingIn(true);
+    setLoginError('');
+
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: recruiterEmail, password: recruiterPassword })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Invalid Corporate Recruiter Email or Password');
+
+      if (data.user?.role !== 'company') {
+        throw new Error('Access Denied: Only registered Corporate Recruiter accounts can access this portal.');
+      }
+
+      localStorage.setItem('campushire_token', data.token);
+      if (onCompanyAuthSuccess) {
+        onCompanyAuthSuccess(data.user);
+      }
+    } catch (err) {
+      setLoginError(err.message);
+    } finally {
+      setLoggingIn(false);
+    }
+  };
 
   useEffect(() => {
     fetchCompanyRequirements();
@@ -140,6 +175,77 @@ export default function CompanyDashboard({ company, onRefreshCompany }) {
     c.name.toLowerCase().includes(searchCandidateQuery.toLowerCase()) ||
     c.program.toLowerCase().includes(searchCandidateQuery.toLowerCase())
   );
+
+  // Corporate Recruiter Authentication Lock Screen (When not logged in as a company)
+  if (currentUser?.role !== 'company' && !company) {
+    return (
+      <div className="max-w-md mx-auto my-12 p-6 sm:p-8 bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl space-y-6 text-slate-100">
+        <div className="text-center space-y-2">
+          <div className="w-16 h-16 rounded-2xl bg-blue-900/40 border border-blue-500/30 flex items-center justify-center mx-auto shadow-inner">
+            <Building2 className="w-8 h-8 text-blue-400" />
+          </div>
+          <h2 className="text-xl font-black text-white">Recruiter Portal Authentication</h2>
+          <p className="text-xs text-slate-300 font-medium leading-relaxed">
+            Access Restricted: Please sign in with your corporate recruiter account to post placement drives, manage job requirements, and shortlist candidates.
+          </p>
+        </div>
+
+        <form onSubmit={handleRecruiterLogin} className="space-y-4">
+          {loginError && (
+            <div className="p-3 bg-rose-500/20 border border-rose-500/30 text-rose-300 text-xs font-bold rounded-xl text-center">
+              {loginError}
+            </div>
+          )}
+
+          <div>
+            <label className="block text-[11px] font-black text-blue-400 uppercase tracking-wider mb-1">
+              Corporate Email ID
+            </label>
+            <input
+              type="email"
+              required
+              value={recruiterEmail}
+              onChange={(e) => setRecruiterEmail(e.target.value)}
+              placeholder="c_google@recruiter.com or c_microsoft@recruiter.com"
+              className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-xs font-bold text-white focus:outline-none focus:border-blue-400 placeholder-slate-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-black text-blue-400 uppercase tracking-wider mb-1">
+              Password
+            </label>
+            <input
+              type="password"
+              required
+              value={recruiterPassword}
+              onChange={(e) => setRecruiterPassword(e.target.value)}
+              placeholder="••••••••••••"
+              className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-xs font-bold text-white focus:outline-none focus:border-blue-400 placeholder-slate-500"
+            />
+          </div>
+
+          <button
+            type="submit"
+            disabled={loggingIn}
+            className="w-full py-3 bg-theme-gradient hover:opacity-90 text-white font-black text-xs rounded-xl shadow-lg transition-all flex items-center justify-center gap-2"
+          >
+            <Building2 className="w-4 h-4" />
+            <span>{loggingIn ? 'Verifying Corporate Credentials...' : 'Unlock Recruiter Portal'}</span>
+          </button>
+        </form>
+
+        <div className="pt-3 border-t border-slate-800 text-center space-y-1.5">
+          <p className="text-[11px] text-slate-400 font-bold">
+            🏢 Recruiter Demo Credentials (For Testing & Demo):
+          </p>
+          <div className="text-[10px] font-mono text-blue-300 font-bold bg-slate-950 py-2 px-3 rounded-xl border border-slate-800 inline-block">
+            Google: c_google@recruiter.com &nbsp;|&nbsp; Pass: password123
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8 space-y-6 sm:space-y-8">
