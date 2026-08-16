@@ -32,7 +32,7 @@
   }
 }
 
-/* 100% Crystal Clear Full-Opacity GSFC Background Image Layer */
+/* Faded Background Watermark Layer - Soft Subtle Watermark Receding into Backdrop */
 .gsfc-background-wrapper {
   position: fixed;
   inset: 0;
@@ -43,14 +43,14 @@
   background-size: cover;
   background-position: center top;
   background-repeat: no-repeat;
-  opacity: 0.95;
-  filter: brightness(1.0) contrast(1.02);
+  opacity: 0.06;
+  filter: brightness(0.95) contrast(1.05);
   transition: opacity 0.3s ease;
 }
 
 html.dark .gsfc-background-wrapper {
-  opacity: 0.55;
-  filter: brightness(0.65) contrast(1.15);
+  opacity: 0.12;
+  filter: brightness(0.55) contrast(1.2);
 }
 
 /* Overlay Layer for Light/Dark Mode */
@@ -60,85 +60,90 @@ html.dark .gsfc-background-wrapper {
   z-index: -9;
   width: 100vw;
   height: 100vh;
-  background: radial-gradient(circle at 50% 10%, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.3) 85%);
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
+  background: #f8fafc;
   transition: background 0.3s ease;
 }
 
 html.dark .gsfc-overlay-layer {
-  background: radial-gradient(circle at 50% 10%, rgba(15, 23, 42, 0.4) 0%, rgba(2, 6, 23, 0.82) 85%);
-  backdrop-filter: blur(2px);
-  -webkit-backdrop-filter: blur(2px);
+  background: #020617;
 }
 
-/* Human-Engineered Modern Enterprise UI System */
+/* Precision Enterprise UI Card System */
 .glass-panel {
-  background: rgba(255, 255, 255, 0.94);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(226, 232, 240, 0.9);
-  box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.06), 0 4px 6px -2px rgba(15, 23, 42, 0.03);
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08), 0 1px 3px rgba(15, 23, 42, 0.04);
   color: #0f172a;
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: all 0.2s ease-in-out;
 }
 
 html.dark .glass-panel {
-  background: rgba(15, 23, 42, 0.92);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(51, 65, 85, 0.6);
-  box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.5);
+  background: #0f172a;
+  border: 1px solid #334155;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
   color: #f8fafc;
 }
 
 .glass-card {
-  background: rgba(255, 255, 255, 0.92);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border: 1px solid rgba(226, 232, 240, 0.85);
-  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.04);
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
   color: #0f172a;
   transition: all 0.2s ease-in-out;
 }
 
 html.dark .glass-card {
-  background: rgba(30, 41, 59, 0.75);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(51, 65, 85, 0.7);
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+  background: #1e293b;
+  border: 1px solid #334155;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
   color: #f8fafc;
 }
 
 .glass-card:hover {
-  border-color: rgba(37, 99, 235, 0.5);
-  box-shadow: 0 12px 30px -5px rgba(37, 99, 235, 0.12);
+  border-color: #cbd5e1;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
   transform: translateY(-2px);
 }
 
 html.dark .glass-card:hover {
-  border-color: rgba(96, 165, 250, 0.5);
-  box-shadow: 0 15px 35px -5px rgba(59, 130, 246, 0.25);
+  border-color: #64748b;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
 }
 
-/* Light / Dark Mode Text Contrast Rules */
+/* High-Contrast Color Token System */
 .glass-panel h1, .glass-panel h2, .glass-panel h3, .glass-panel h4,
 .glass-card h1, .glass-card h2, .glass-card h3, .glass-card h4 {
-  color: #0f172a;
+  color: #0f172a !important;
 }
 
 html.dark .glass-panel h1, html.dark .glass-panel h2, html.dark .glass-panel h3, html.dark .glass-panel h4,
 html.dark .glass-card h1, html.dark .glass-card h2, html.dark .glass-card h3, html.dark .glass-card h4 {
-  color: #ffffff;
+  color: #ffffff !important;
 }
 
-.glass-panel p, .glass-card p {
-  color: #475569;
+.glass-panel p, .glass-card p,
+.glass-panel span.text-slate-600, .glass-panel span.text-slate-500,
+.glass-card span.text-slate-600, .glass-card span.text-slate-500 {
+  color: #334155 !important;
 }
 
-html.dark .glass-panel p, html.dark .glass-card p {
-  color: #94a3b8;
+html.dark .glass-panel p, html.dark .glass-card p,
+html.dark .glass-panel span.text-slate-600, html.dark .glass-panel span.text-slate-500,
+html.dark .glass-card span.text-slate-600, html.dark .glass-card span.text-slate-500 {
+  color: #94a3b8 !important;
+}
+
+/* Badge Tokens: Deep Blue on Light Blue */
+.badge-nlp-match, .badge-primary {
+  background-color: #dbeafe !important;
+  color: #1e40af !important;
+  border: 1px solid #93c5fd !important;
+}
+
+html.dark .badge-nlp-match, html.dark .badge-primary {
+  background-color: rgba(30, 58, 138, 0.5) !important;
+  color: #93c5fd !important;
+  border: 1px solid #1e40af !important;
 }
 
 /* Form Controls */
