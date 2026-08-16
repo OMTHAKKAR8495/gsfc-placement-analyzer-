@@ -41,42 +41,41 @@ html.dark {
   }
 }
 
-/* Faded Background Watermark Layer - Navy & Gold Brand Tint */
+/* Official GSFC Poster Background Image Layer */
 .gsfc-background-wrapper {
   position: fixed;
   inset: 0;
   z-index: -10;
   width: 100vw;
   height: 100vh;
-  background-image: radial-gradient(circle at 20% 25%, rgba(217, 119, 6, 0.06) 0%, transparent 45%),
-                    radial-gradient(circle at 80% 75%, rgba(30, 58, 95, 0.08) 0%, transparent 55%),
-                    url('/gsfc-exact-poster-bg.jpg');
+  background-image: url('/gsfc-exact-poster-bg.jpg');
   background-size: cover;
   background-position: center top;
   background-repeat: no-repeat;
-  opacity: 0.07;
-  filter: brightness(0.95) contrast(1.05);
+  opacity: 0.88;
+  filter: brightness(1.0) contrast(1.02);
   transition: opacity 0.3s ease;
 }
 
 html.dark .gsfc-background-wrapper {
-  opacity: 0.12;
-  filter: brightness(0.55) contrast(1.2);
+  opacity: 0.55;
+  filter: brightness(0.65) contrast(1.15);
 }
 
-/* Overlay Layer for Light/Dark Mode */
+/* Translucent Soft Overlay Layer for High Contrast */
 .gsfc-overlay-layer {
   position: fixed;
   inset: 0;
   z-index: -9;
   width: 100vw;
   height: 100vh;
-  background: #f8fafc;
+  background: radial-gradient(circle at 50% 10%, rgba(255, 255, 255, 0.2) 0%, rgba(248, 250, 252, 0.45) 85%);
+  pointer-events: none;
   transition: background 0.3s ease;
 }
 
 html.dark .gsfc-overlay-layer {
-  background: #020617;
+  background: radial-gradient(circle at 50% 10%, rgba(15, 23, 42, 0.4) 0%, rgba(2, 6, 23, 0.82) 85%);
 }
 
 /* Precision Enterprise UI Card System */
