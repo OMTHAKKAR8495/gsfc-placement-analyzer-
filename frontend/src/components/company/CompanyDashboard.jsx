@@ -182,6 +182,22 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
     }
   };
 
+  const handleUpdateApplicationStatus = async (appId, newStatus) => {
+    try {
+      const res = await fetch('/api/company/update-application-status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ application_id: appId, status: newStatus })
+      });
+      if (res.ok) {
+        setApplicantsData(prev => prev.map(a => a.application_id === appId ? { ...a, status: newStatus } : a));
+        setAllCompanyApplicants(prev => prev.map(a => a.application_id === appId ? { ...a, status: newStatus } : a));
+      }
+    } catch (err) {
+      console.error('Error updating status:', err);
+    }
+  };
+
   const viewApplicants = async (reqItem) => {
     setActiveReqApplicants(reqItem);
     try {
@@ -561,6 +577,108 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* APPLICANTS INSPECTION MODAL FOR SPECIFIC REQUIREMENT DRIVE */}
+      {activeReqApplicants && (
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fadeIn overflow-y-auto">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 max-w-4xl w-full shadow-2xl overflow-hidden my-8 text-slate-900 dark:text-slate-100">
+            
+            {/* Modal Header */}
+            <div className="bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 p-6 text-white flex items-center justify-between">
+              <div>
+                <span className="px-2.5 py-0.5 bg-amber-500/20 text-amber-300 text-[10px] font-black uppercase rounded-lg border border-amber-500/30 flex items-center gap-1 w-fit mb-1">
+                  <Users className="w-3 h-3" /> Candidate Applicants Feed
+                </span>
+                <h2 className="text-xl font-black">{activeReqApplicants.title}</h2>
+                <p className="text-xs text-slate-300 font-bold">{company?.company_name || 'Recruiter'} • {applicantsData.length} Candidates Submitted</p>
+              </div>
+              <button
+                onClick={() => setActiveReqApplicants(null)}
+                className="p-2 bg-white/10 hover:bg-white/20 rounded-xl text-white transition-colors cursor-pointer"
+              >
+                <XCircle className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
+              {applicantsData.length === 0 ? (
+                <div className="text-center py-12 space-y-2">
+                  <Users className="w-12 h-12 text-slate-400 mx-auto" />
+                  <h3 className="font-black text-sm text-slate-700 dark:text-slate-300">No Applications Submitted Yet</h3>
+                  <p className="text-xs text-slate-500">Students will appear here as soon as they apply to this hiring drive.</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {applicantsData.map((app) => (
+                    <div key={app.application_id} className="p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h4 className="font-black text-sm text-slate-900 dark:text-slate-100">{app.name}</h4>
+                          <span className="px-2.5 py-0.5 bg-blue-100 dark:bg-blue-900/40 text-blue-900 dark:text-blue-300 text-[10px] font-black rounded-lg border border-blue-200 dark:border-blue-700">
+                            {app.matchScore || app.match_score || 85}% AI Match
+                          </span>
+                        </div>
+                        <div className="text-xs text-slate-600 dark:text-slate-400 font-bold mt-0.5">
+                          {app.program} • CGPA: {app.cgpa} • Applied: {app.applied_at ? String(app.applied_at).split('T')[0] : 'Recently'}
+                        </div>
+                        {Array.isArray(app.skillsSummary) && app.skillsSummary.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-2">
+                            {app.skillsSummary.slice(0, 5).map(skill => (
+                              <span key={skill} className="px-2 py-0.5 bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-200 text-[10px] font-bold rounded">
+                                {skill}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-end">
+                        <select
+                          value={app.status || 'applied'}
+                          onChange={(e) => handleUpdateApplicationStatus(app.application_id, e.target.value)}
+                          className="px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-black text-slate-900 dark:text-slate-100 focus:outline-none focus:border-blue-900 cursor-pointer"
+                        >
+                          <option value="applied">Applied</option>
+                          <option value="shortlisted">Shortlisted</option>
+                          <option value="interview">Interview Scheduled</option>
+                          <option value="selected">Selected (Offer)</option>
+                          <option value="rejected">Rejected</option>
+                        </select>
+
+                        <button
+                          onClick={() => openCandidatePdfReport({ name: app.name, email: app.email || `${app.name.toLowerCase().replace(/\s+/g, '_')}@student.edu`, ats_score: app.ats_score || 92 })}
+                          className="py-1.5 px-3 bg-blue-900 hover:bg-blue-800 text-white rounded-xl text-xs font-black inline-flex items-center gap-1 transition-all shadow-md"
+                        >
+                          <Printer className="w-3.5 h-3.5 text-amber-300" /> PDF Report
+                        </button>
+
+                        <button
+                          onClick={() => handleDeleteApplication(app.application_id)}
+                          className="py-1.5 px-3 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-black inline-flex items-center gap-1 transition-all shadow-md"
+                          title="Delete candidate application entry"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" /> Delete
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="bg-slate-100 dark:bg-slate-800/80 p-4 border-t border-slate-200 dark:border-slate-700 flex justify-end">
+              <button
+                onClick={() => setActiveReqApplicants(null)}
+                className="px-5 py-2 bg-slate-900 text-white font-black text-xs rounded-xl hover:bg-slate-800 transition-all cursor-pointer"
+              >
+                Close Applicants Feed
+              </button>
+            </div>
           </div>
         </div>
       )}
