@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ShieldCheck, CheckCircle2, XCircle, BarChart3, Download, Building, Users, Briefcase, FileSpreadsheet, Sparkles, TrendingUp, PieChart, Database, Search, Printer, CheckCircle } from 'lucide-react';
+import { ShieldCheck, CheckCircle2, XCircle, BarChart3, Download, Building, Users, Briefcase, FileSpreadsheet, Sparkles, TrendingUp, PieChart, Database, Search, Printer, CheckCircle, Trash2 } from 'lucide-react';
 import ReportPDFModal from '../common/ReportPDFModal';
 
 export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
@@ -154,6 +154,24 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
       fetchMasterData();
     } catch (err) {
       alert(err.message);
+    }
+  };
+
+  const handleDeleteCompany = async (companyId, companyName) => {
+    if (!window.confirm(`⚠️ ARE YOU SURE YOU WANT TO REMOVE ${companyName.toUpperCase()}?\n\nThis will permanently delete the company recruiter account and all associated hiring drives/applications.`)) return;
+
+    try {
+      const res = await fetch(`/api/admin/companies/${companyId}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (res.ok) {
+        alert(`🎉 Company "${companyName}" and its associated hiring drives removed successfully.`);
+        fetchMasterData();
+        fetchAdminDataSilently();
+      } else {
+        alert(data.error || 'Failed to remove company');
+      }
+    } catch (err) {
+      console.error('Error removing company:', err);
     }
   };
 
@@ -413,17 +431,24 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
                         )}
                       </td>
 
-                      <td className="py-4 px-5 text-right">
-                        {!comp.approved ? (
+                      <td className="py-4 px-5 text-right space-x-2">
+                        {!comp.approved && (
                           <button
                             onClick={() => handleApproveRejectCompany(comp.id, 'approve')}
                             className="py-1.5 px-3 bg-emerald-700 hover:bg-emerald-600 text-white rounded-xl text-xs font-black transition-all shadow-sm"
                           >
-                            Approve Recruiter
+                            Approve
                           </button>
-                        ) : (
-                          <span className="text-[11px] text-slate-400 font-bold">Active Recruiter</span>
                         )}
+
+                        <button
+                          onClick={() => handleDeleteCompany(comp.id, comp.company_name)}
+                          className="py-1.5 px-3 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-black inline-flex items-center gap-1 transition-all shadow-sm cursor-pointer"
+                          title="Remove company account and all associated hiring drives"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          <span>Remove</span>
+                        </button>
                       </td>
                     </tr>
                   ))}

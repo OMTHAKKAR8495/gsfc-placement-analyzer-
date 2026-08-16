@@ -55,6 +55,27 @@ router.post('/approve-company', (req, res) => {
       }
       return res.json({ message: 'Company registration rejected and removed.' });
     }
+// Remove / Delete Company Profile & Associated Drives (Admin Manager Authority)
+router.delete('/companies/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+    const company = db.prepare('SELECT user_id FROM company_profiles WHERE id = ?').get(id);
+    if (!company) {
+      return res.status(404).json({ error: 'Company profile not found.' });
+    }
+
+    // Cascade delete associated applications and requirements
+    const reqs = db.prepare('SELECT id FROM requirements WHERE company_id = ?').all(id);
+    for (const r of reqs) {
+      db.prepare('DELETE FROM applications WHERE requirement_id = ?').run(r.id);
+    }
+    db.prepare('DELETE FROM requirements WHERE company_id = ?').run(id);
+
+    // Delete company profile and user account
+    db.prepare('DELETE FROM company_profiles WHERE id = ?').run(id);
+    db.prepare('DELETE FROM users WHERE id = ?').run(company.user_id);
+
+    res.json({ message: 'Company account and associated placement drives deleted successfully.' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
