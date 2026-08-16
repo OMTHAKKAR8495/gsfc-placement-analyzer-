@@ -1,23 +1,7 @@
-import React, { useState } from 'react';
-import { User, Building2, ShieldCheck, LogOut, LogIn, Sun, Moon, HelpCircle, Palette, Sparkles, X } from 'lucide-react';
+import React from 'react';
+import { User, Building2, ShieldCheck, LogOut, LogIn, Sun, Moon, HelpCircle } from 'lucide-react';
 
-export default function Navbar({ currentUser, activeRole, onRoleSwitch, onOpenAuth, onLogout, theme, onToggleTheme, themeHue, onChangeThemeHue }) {
-  const [colorPickerOpen, setColorPickerOpen] = useState(false);
-
-  // Generate 100 distinct HSL color swatches across the 360-degree color spectrum
-  const colorSwatches = Array.from({ length: 100 }, (_, i) => Math.round((i * 360) / 100));
-
-  const presets = [
-    { name: '🌈 Rainbow Mode', hue: 'rainbow' },
-    { name: '🏛️ GSFC Navy', hue: 215 },
-    { name: '👑 Royal Emerald', hue: 150 },
-    { name: '🌅 Sunset Gold', hue: 38 },
-    { name: '⚡ Cyber Cyan', hue: 190 },
-    { name: '🔮 Deep Violet', hue: 270 },
-    { name: '🌸 Rose Crimson', hue: 340 },
-    { name: '🛡️ Titanium Slate', hue: 220 }
-  ];
-
+export default function Navbar({ currentUser, activeRole, onRoleSwitch, onOpenAuth, onLogout, theme, onToggleTheme }) {
   return (
     <header className="sticky top-0 z-40 w-full glass-panel border-b border-slate-200/90 dark:border-slate-800 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl shadow-sm transition-colors duration-300">
       <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 min-h-[4.5rem] py-2 flex flex-wrap items-center justify-between gap-2 sm:gap-4">
@@ -91,98 +75,6 @@ export default function Navbar({ currentUser, activeRole, onRoleSwitch, onOpenAu
         {/* User Auth & Theme Controls Section */}
         <div className="flex items-center gap-2 sm:gap-3 shrink-0 relative">
           
-          {/* 🎨 100 COLOR PALETTE THEME SELECTOR BUTTON */}
-          <div className="relative">
-            <button
-              onClick={() => setColorPickerOpen(prev => !prev)}
-              className="p-2 sm:p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 transition-all font-black text-xs shrink-0 flex items-center gap-1.5 shadow-sm"
-              title="Select from 100 UI Theme Color Shades"
-            >
-              <Palette className="w-4 h-4 text-amber-500 animate-bounce" />
-              <span className="hidden lg:inline text-[11px] font-black">100 Colors</span>
-            </button>
-
-            {/* 100 COLOR SHADES POPUP PANEL */}
-            {colorPickerOpen && (
-              <div className="absolute right-0 top-12 w-80 sm:w-96 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-3xl p-4 shadow-2xl z-50 space-y-4">
-                <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-2">
-                  <div className="flex items-center gap-2">
-                    <Sparkles className="w-4 h-4 text-amber-500" />
-                    <h4 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider">
-                      UI Theme Color Palette (100 Shades)
-                    </h4>
-                  </div>
-                  <button 
-                    onClick={() => setColorPickerOpen(false)}
-                    className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-white"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
-
-                {/* Hue Spectrum Slider */}
-                <div className="space-y-1">
-                  <div className="flex justify-between text-[10px] font-black text-slate-600 dark:text-slate-300">
-                    <span>Hue Color Spectrum Slider</span>
-                    <span className="text-blue-600 dark:text-blue-400">{themeHue}° HSL</span>
-                  </div>
-                  <input
-                    type="range"
-                    min="0"
-                    max="360"
-                    value={themeHue}
-                    onChange={(e) => onChangeThemeHue(e.target.value)}
-                    className="w-full h-2 rounded-lg appearance-none cursor-pointer accent-blue-600 bg-gradient-to-r from-red-500 via-yellow-500 via-green-500 via-cyan-500 via-blue-500 via-purple-500 to-red-500"
-                  />
-                </div>
-
-                {/* Popular Presets */}
-                <div>
-                  <div className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">
-                    Recommended Presets
-                  </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {presets.map(p => (
-                      <button
-                        key={p.name}
-                        onClick={() => onChangeThemeHue(p.hue.toString())}
-                        className={`px-2.5 py-1 rounded-xl text-[10px] font-black border transition-all ${
-                          Number(themeHue) === p.hue
-                            ? 'bg-blue-900 text-white border-blue-900 shadow-sm'
-                            : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-200'
-                        }`}
-                      >
-                        {p.name}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* 100 Individual Color Swatch Grid */}
-                <div>
-                  <div className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5 flex justify-between">
-                    <span>Select Color Shade (100 Spectrum Swatches)</span>
-                  </div>
-                  <div className="grid grid-cols-10 gap-1 max-h-36 overflow-y-auto p-1 bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800">
-                    {colorSwatches.map((hueVal) => (
-                      <button
-                        key={hueVal}
-                        onClick={() => onChangeThemeHue(hueVal.toString())}
-                        className={`w-6 h-6 rounded-lg transition-transform hover:scale-125 border ${
-                          Math.abs(Number(themeHue) - hueVal) < 4
-                            ? 'ring-2 ring-blue-600 scale-110 shadow-md border-white'
-                            : 'border-black/10 dark:border-white/10'
-                        }`}
-                        style={{ backgroundColor: `hsl(${hueVal}, 85%, 45%)` }}
-                        title={`Color Shade ${hueVal}°`}
-                      />
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-
           {/* Light / Dark Mode Toggle Button */}
           <button
             onClick={onToggleTheme}
