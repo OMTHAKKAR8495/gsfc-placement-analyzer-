@@ -90,16 +90,6 @@ export default function Navbar({ currentUser, activeRole, onRoleSwitch, onOpenAu
         {/* User Auth & Theme Controls Section */}
         <div className="flex items-center gap-2 sm:gap-3 shrink-0 relative">
           
-          {/* Highlighted Mobile App Download Button */}
-          <button
-            onClick={() => setDownloadModalOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gradient-to-r from-emerald-600 via-teal-600 to-blue-600 hover:from-emerald-500 hover:to-blue-500 text-white font-black text-xs shadow-md hover:shadow-lg transition-all animate-pulse hover:animate-none shrink-0 border border-emerald-400/40 cursor-pointer"
-            title="Download Official GSFC Placement Portal Mobile App (Android APK & iOS)"
-          >
-            <Smartphone className="w-3.5 h-3.5 text-amber-300" />
-            <span className="hidden sm:inline">Download</span> App <span className="text-[10px] font-mono text-amber-200 bg-black/30 px-1.5 py-0.5 rounded-md">Android / iOS</span>
-          </button>
-
           {/* Light / Dark Mode Toggle Button */}
           <button
             onClick={onToggleTheme}
@@ -144,6 +134,16 @@ export default function Navbar({ currentUser, activeRole, onRoleSwitch, onOpenAu
               <span>Sign In <span className="hidden xs:inline">/ Portal</span></span>
             </button>
           )}
+
+          {/* Download App Button — Placed on Far Right Side */}
+          <button
+            onClick={() => setDownloadModalOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gradient-to-r from-emerald-600 via-teal-600 to-blue-600 hover:from-emerald-500 hover:to-blue-500 text-white font-black text-xs shadow-md hover:shadow-lg transition-all shrink-0 border border-emerald-400/40 cursor-pointer"
+            title="Download Official GSFC Placement Portal Mobile App (Android APK & iOS)"
+          >
+            <Smartphone className="w-3.5 h-3.5 text-amber-300" />
+            <span className="hidden sm:inline">Download</span> App <span className="text-[10px] font-mono text-amber-200 bg-black/30 px-1.5 py-0.5 rounded-md">Android / iOS</span>
+          </button>
         </div>
       </div>
 
