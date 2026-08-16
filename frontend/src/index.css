@@ -72,67 +72,107 @@ html.dark .gsfc-overlay-layer {
   -webkit-backdrop-filter: blur(2px);
 }
 
-/* Universal High-Contrast Dark Glass UI System */
-.glass-panel, .glass-card {
-  background: linear-gradient(135deg, #090d16 0%, #0f172a 55%, #1e1b4b 100%) !important;
-  backdrop-filter: blur(16px) !important;
-  -webkit-backdrop-filter: blur(16px) !important;
-  border: 1.5px solid rgba(255, 255, 255, 0.15) !important;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.65) !important;
-  color: #ffffff !important;
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+/* Human-Engineered Modern Enterprise UI System */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.06), 0 4px 6px -2px rgba(15, 23, 42, 0.03);
+  color: #0f172a;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+html.dark .glass-panel {
+  background: rgba(15, 23, 42, 0.92);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(51, 65, 85, 0.6);
+  box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.5);
+  color: #f8fafc;
+}
+
+.glass-card {
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(226, 232, 240, 0.85);
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.04);
+  color: #0f172a;
+  transition: all 0.2s ease-in-out;
+}
+
+html.dark .glass-card {
+  background: rgba(30, 41, 59, 0.75);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(51, 65, 85, 0.7);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+  color: #f8fafc;
 }
 
 .glass-card:hover {
-  border-color: rgba(251, 191, 36, 0.5) !important;
-  box-shadow: 0 25px 50px -10px rgba(30, 27, 75, 0.8) !important;
-  transform: translateY(-2px) !important;
+  border-color: rgba(37, 99, 235, 0.5);
+  box-shadow: 0 12px 30px -5px rgba(37, 99, 235, 0.12);
+  transform: translateY(-2px);
 }
 
-/* Global Text Contrast Rules inside Glass Containers */
+html.dark .glass-card:hover {
+  border-color: rgba(96, 165, 250, 0.5);
+  box-shadow: 0 15px 35px -5px rgba(59, 130, 246, 0.25);
+}
+
+/* Light / Dark Mode Text Contrast Rules */
 .glass-panel h1, .glass-panel h2, .glass-panel h3, .glass-panel h4,
 .glass-card h1, .glass-card h2, .glass-card h3, .glass-card h4 {
-  color: #ffffff !important;
+  color: #0f172a;
 }
 
-.glass-panel p, .glass-card p,
-.glass-panel span.text-slate-600, .glass-panel span.text-slate-500, .glass-panel span.text-slate-700,
-.glass-card span.text-slate-600, .glass-card span.text-slate-500, .glass-card span.text-slate-700 {
-  color: #cbd5e1 !important;
+html.dark .glass-panel h1, html.dark .glass-panel h2, html.dark .glass-panel h3, html.dark .glass-panel h4,
+html.dark .glass-card h1, html.dark .glass-card h2, html.dark .glass-card h3, html.dark .glass-card h4 {
+  color: #ffffff;
 }
 
-/* Global Inputs & Select Dropdowns inside Glass Containers */
-.glass-panel select, .glass-panel input, .glass-panel textarea,
-.glass-card select, .glass-card input, .glass-card textarea {
-  background-color: #090d16 !important;
-  color: #ffffff !important;
-  border-color: #334155 !important;
+.glass-panel p, .glass-card p {
+  color: #475569;
+}
+
+html.dark .glass-panel p, html.dark .glass-card p {
+  color: #94a3b8;
+}
+
+/* Form Controls */
+.glass-panel input, .glass-panel select, .glass-panel textarea,
+.glass-card input, .glass-card select, .glass-card textarea {
+  background-color: #ffffff;
+  color: #0f172a;
+  border: 1px solid #cbd5e1;
+}
+
+html.dark .glass-panel input, html.dark .glass-panel select, html.dark .glass-panel textarea,
+html.dark .glass-card input, html.dark .glass-card select, html.dark .glass-card textarea {
+  background-color: #0f172a;
+  color: #ffffff;
+  border: 1px solid #334155;
 }
 
 .glass-panel option, .glass-card option {
-  background-color: #0f172a !important;
-  color: #ffffff !important;
+  background-color: #ffffff;
+  color: #0f172a;
 }
 
-/* Global Tables inside Glass Containers */
-.glass-panel table thead tr, .glass-card table thead tr {
-  background-color: #0f172a !important;
-  color: #fbbf24 !important;
-  border-bottom: 1px solid #334155 !important;
-}
-
-.glass-panel table tbody tr, .glass-card table tbody tr {
-  color: #f8fafc !important;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
-}
-
-.glass-panel table tbody tr:hover, .glass-card table tbody tr:hover {
-  background-color: rgba(30, 41, 59, 0.7) !important;
+html.dark .glass-panel option, html.dark .glass-card option {
+  background-color: #0f172a;
+  color: #ffffff;
 }
 
 /* Gradient Text Utilities */
 .gradient-text {
-  @apply bg-clip-text text-transparent bg-gradient-to-r from-amber-400 via-indigo-200 to-white;
+  @apply bg-clip-text text-transparent bg-gradient-to-r from-blue-900 via-indigo-900 to-amber-600;
+}
+
+html.dark .gradient-text {
+  @apply bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-indigo-300 to-amber-400;
 }
 
 /* Custom Scrollbars */
