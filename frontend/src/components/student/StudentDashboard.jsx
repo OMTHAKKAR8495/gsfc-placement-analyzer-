@@ -356,14 +356,6 @@ export default function StudentDashboard({ student, onUpdateStudent, onOpenAuthM
               <span className="px-3 py-1 bg-blue-900/10 text-blue-900 border border-blue-900/25 text-xs font-black rounded-lg flex items-center gap-1.5 shadow-sm">
                 <Sparkles className="w-3.5 h-3.5 text-blue-800" /> GSFC University Placement Workspace
               </span>
-              <a
-                href="/playstore/assets/app_icon_512x512.jpg"
-                download="GSFC_Placement_Portal.apk"
-                className="px-3 py-1 bg-gradient-to-r from-emerald-600 to-blue-600 text-white text-xs font-black rounded-lg flex items-center gap-1.5 shadow-md hover:scale-105 transition-transform"
-                title="Download Official GSFC Placement Portal Mobile App"
-              >
-                📲 Mobile App <span className="text-[10px] bg-amber-400 text-slate-950 px-1 rounded font-extrabold">Android & iOS</span>
-              </a>
               {student && (
                 <span className="px-3 py-1 bg-emerald-600/10 text-emerald-800 border border-emerald-600/25 text-xs font-black rounded-lg flex items-center gap-1.5">
                   <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" /> {student.program} ({student.cgpa} CGPA)
