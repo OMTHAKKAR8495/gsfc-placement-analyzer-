@@ -2,6 +2,35 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  /* GSFC Brand Identity & Reusable Contrast Tokens */
+  --bg-watermark: #1e3a5f;
+  --bg-watermark-tree: #d97706;
+  --text-heading: #0f172a;
+  --text-body: #334155;
+  --brand-accent: #c2650c;
+  --card-bg: #ffffff;
+  --card-border: #e2e8f0;
+  --card-shadow: 0 4px 12px rgba(15, 23, 42, 0.08), 0 1px 3px rgba(15, 23, 42, 0.04);
+  --badge-nlp-bg: #dbeafe;
+  --badge-nlp-text: #1e40af;
+  --badge-nlp-border: #93c5fd;
+}
+
+html.dark {
+  --bg-watermark: #0f172a;
+  --bg-watermark-tree: #fbbf24;
+  --text-heading: #ffffff;
+  --text-body: #94a3b8;
+  --brand-accent: #fbbf24;
+  --card-bg: #0f172a;
+  --card-border: #334155;
+  --card-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+  --badge-nlp-bg: rgba(30, 58, 138, 0.5);
+  --badge-nlp-text: #93c5fd;
+  --badge-nlp-border: #1e40af;
+}
+
 @layer base {
   body {
     @apply bg-slate-100 text-slate-900 font-sans antialiased selection:bg-blue-600 selection:text-white min-h-screen relative overflow-x-hidden transition-colors duration-300;
@@ -12,38 +41,20 @@
   }
 }
 
-/* Print-Only CSS Optimization Rules for Clean PDF Export */
-@media print {
-  body * {
-    visibility: hidden;
-  }
-  #printable-evaluation-report, #printable-evaluation-report * {
-    visibility: visible;
-  }
-  #printable-evaluation-report {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 100% !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    box-shadow: none !important;
-    border: none !important;
-  }
-}
-
-/* Faded Background Watermark Layer - Soft Subtle Watermark Receding into Backdrop */
+/* Faded Background Watermark Layer - Navy & Gold Brand Tint */
 .gsfc-background-wrapper {
   position: fixed;
   inset: 0;
   z-index: -10;
   width: 100vw;
   height: 100vh;
-  background-image: url('/gsfc-exact-poster-bg.jpg');
+  background-image: radial-gradient(circle at 20% 25%, rgba(217, 119, 6, 0.06) 0%, transparent 45%),
+                    radial-gradient(circle at 80% 75%, rgba(30, 58, 95, 0.08) 0%, transparent 55%),
+                    url('/gsfc-exact-poster-bg.jpg');
   background-size: cover;
   background-position: center top;
   background-repeat: no-repeat;
-  opacity: 0.06;
+  opacity: 0.07;
   filter: brightness(0.95) contrast(1.05);
   transition: opacity 0.3s ease;
 }
@@ -69,34 +80,12 @@ html.dark .gsfc-overlay-layer {
 }
 
 /* Precision Enterprise UI Card System */
-.glass-panel {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08), 0 1px 3px rgba(15, 23, 42, 0.04);
-  color: #0f172a;
+.glass-panel, .glass-card {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  box-shadow: var(--card-shadow);
+  color: var(--text-heading);
   transition: all 0.2s ease-in-out;
-}
-
-html.dark .glass-panel {
-  background: #0f172a;
-  border: 1px solid #334155;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
-  color: #f8fafc;
-}
-
-.glass-card {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
-  color: #0f172a;
-  transition: all 0.2s ease-in-out;
-}
-
-html.dark .glass-card {
-  background: #1e293b;
-  border: 1px solid #334155;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
-  color: #f8fafc;
 }
 
 .glass-card:hover {
@@ -110,34 +99,27 @@ html.dark .glass-card:hover {
   box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
 }
 
-/* High-Contrast Color Token System */
+/* Reusable High-Contrast Token System */
 .glass-panel h1, .glass-panel h2, .glass-panel h3, .glass-panel h4,
 .glass-card h1, .glass-card h2, .glass-card h3, .glass-card h4 {
-  color: #0f172a !important;
-}
-
-html.dark .glass-panel h1, html.dark .glass-panel h2, html.dark .glass-panel h3, html.dark .glass-panel h4,
-html.dark .glass-card h1, html.dark .glass-card h2, html.dark .glass-card h3, html.dark .glass-card h4 {
-  color: #ffffff !important;
+  color: var(--text-heading) !important;
 }
 
 .glass-panel p, .glass-card p,
 .glass-panel span.text-slate-600, .glass-panel span.text-slate-500,
 .glass-card span.text-slate-600, .glass-card span.text-slate-500 {
-  color: #334155 !important;
+  color: var(--text-body) !important;
 }
 
-html.dark .glass-panel p, html.dark .glass-card p,
-html.dark .glass-panel span.text-slate-600, html.dark .glass-panel span.text-slate-500,
-html.dark .glass-card span.text-slate-600, html.dark .glass-card span.text-slate-500 {
-  color: #94a3b8 !important;
+.brand-highlight {
+  color: var(--brand-accent) !important;
 }
 
 /* Badge Tokens: Deep Blue on Light Blue */
 .badge-nlp-match, .badge-primary {
-  background-color: #dbeafe !important;
-  color: #1e40af !important;
-  border: 1px solid #93c5fd !important;
+  background-color: var(--badge-nlp-bg) !important;
+  color: var(--badge-nlp-text) !important;
+  border: 1px solid var(--badge-nlp-border) !important;
 }
 
 html.dark .badge-nlp-match, html.dark .badge-primary {
