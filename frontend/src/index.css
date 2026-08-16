@@ -4,17 +4,18 @@
 
 :root {
   /* GSFC Brand Identity & Reusable Contrast Tokens */
-  --bg-watermark: #1e3a5f;
+  --theme-hue: 215;
+  --bg-watermark: hsl(var(--theme-hue), 50%, 25%);
   --bg-watermark-tree: #d97706;
   --text-heading: #0f172a;
   --text-body: #334155;
-  --brand-accent: #c2650c;
+  --brand-accent: hsl(var(--theme-hue), 85%, 35%);
   --card-bg: #ffffff;
   --card-border: #e2e8f0;
   --card-shadow: 0 4px 12px rgba(15, 23, 42, 0.08), 0 1px 3px rgba(15, 23, 42, 0.04);
-  --badge-nlp-bg: #dbeafe;
-  --badge-nlp-text: #1e40af;
-  --badge-nlp-border: #93c5fd;
+  --badge-nlp-bg: hsl(var(--theme-hue), 95%, 93%);
+  --badge-nlp-text: hsl(var(--theme-hue), 90%, 25%);
+  --badge-nlp-border: hsl(var(--theme-hue), 80%, 75%);
 }
 
 html.dark {
@@ -22,13 +23,13 @@ html.dark {
   --bg-watermark-tree: #fbbf24;
   --text-heading: #ffffff;
   --text-body: #94a3b8;
-  --brand-accent: #fbbf24;
+  --brand-accent: hsl(var(--theme-hue), 90%, 65%);
   --card-bg: #0f172a;
   --card-border: #334155;
   --card-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
-  --badge-nlp-bg: rgba(30, 58, 138, 0.5);
-  --badge-nlp-text: #93c5fd;
-  --badge-nlp-border: #1e40af;
+  --badge-nlp-bg: hsl(var(--theme-hue), 70%, 18%);
+  --badge-nlp-text: hsl(var(--theme-hue), 90%, 80%);
+  --badge-nlp-border: hsl(var(--theme-hue), 60%, 35%);
 }
 
 @layer base {

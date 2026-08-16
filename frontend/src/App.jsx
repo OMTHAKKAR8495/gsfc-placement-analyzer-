@@ -18,13 +18,16 @@ export default function App() {
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [hideCardsForBGView, setHideCardsForBGView] = useState(false);
   const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'light');
+  const [themeHue, setThemeHue] = useState(() => localStorage.getItem('gsfc_theme_hue') || '215');
 
   useEffect(() => {
     checkCurrentUser();
 
-    // Set light / dark mode class on document element
+    // Set light / dark mode class and dynamic theme hue on document element
     document.documentElement.className = theme;
     localStorage.setItem('theme', theme);
+    document.documentElement.style.setProperty('--theme-hue', themeHue);
+    localStorage.setItem('gsfc_theme_hue', themeHue);
 
     // Listen for browser Back/Forward navigation
     const handleHashOrPopState = () => {
@@ -43,7 +46,7 @@ export default function App() {
       window.removeEventListener('popstate', handleHashOrPopState);
       window.removeEventListener('hashchange', handleHashOrPopState);
     };
-  }, [theme]);
+  }, [theme, themeHue]);
 
   const toggleTheme = () => {
     setTheme(prev => (prev === 'dark' ? 'light' : 'dark'));
