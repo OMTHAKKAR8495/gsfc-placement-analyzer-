@@ -65,7 +65,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
     } else if (demoRole === 'company') {
       setFormData(prev => ({ ...prev, email: 'c_google@recruiter.com', password: 'password123' }));
     } else if (demoRole === 'admin') {
-      setFormData(prev => ({ ...prev, email: 'tpc@university.edu', password: 'password123' }));
+      setFormData(prev => ({ ...prev, email: 'admin@gsfcuniversity.ac.in', password: 'password123' }));
     }
   };
 

@@ -78,8 +78,8 @@ function applyMigrations() {
 
 function seedInitialData() {
   // Check if seed needed
-  const userCount = db.prepare('SELECT COUNT(*) as count FROM users').get().count;
-  if (userCount > 0) {
+  const reqCount = db.prepare('SELECT COUNT(*) as count FROM requirements').get().count;
+  if (reqCount > 0) {
     return;
   }
 
@@ -90,9 +90,14 @@ function seedInitialData() {
   // 1. TPC Admin
   const adminId = 'u_admin_01';
   db.prepare(`
-    INSERT INTO users (id, email, password_hash, role)
+    INSERT OR IGNORE INTO users (id, email, password_hash, role)
     VALUES (?, ?, ?, ?)
   `).run(adminId, 'tpc@university.edu', passwordHash, 'admin');
+
+  db.prepare(`
+    INSERT OR IGNORE INTO users (id, email, password_hash, role)
+    VALUES (?, ?, ?, ?)
+  `).run('u_admin_gsfc', 'admin@gsfcuniversity.ac.in', passwordHash, 'admin');
 
   // 2. Approved Companies
   const companies = [
