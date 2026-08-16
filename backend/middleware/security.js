@@ -46,16 +46,16 @@ export function validatePasswordPolicy(password, email = '') {
  */
 export const AuthRateLimiter = {
   loginLimiter: rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 5,
+    windowMs: 60 * 1000, // 1 minute
+    max: 1000, // Allow up to 1000 logins per minute
     standardHeaders: true,
     legacyHeaders: false,
-    message: { error: 'Too many login attempts. Please try again after 15 minutes.' }
+    message: { error: 'Too many login attempts. Please try again after a moment.' }
   }),
 
   registerLimiter: rateLimit({
-    windowMs: 15 * 60 * 1000,
-    max: 5,
+    windowMs: 60 * 1000,
+    max: 500,
     standardHeaders: true,
     legacyHeaders: false,
     message: { error: 'Too many registration attempts from this IP. Please try again later.' }
@@ -63,15 +63,15 @@ export const AuthRateLimiter = {
 
   aiFeatureLimiter: rateLimit({
     windowMs: 60 * 1000, // 1 minute
-    max: 10,
+    max: 200,
     standardHeaders: true,
     legacyHeaders: false,
-    message: { error: 'AI request limit reached (10 requests/min). Please wait a moment before trying again.' }
+    message: { error: 'AI request limit reached. Please wait a moment before trying again.' }
   }),
 
   generalApiLimiter: rateLimit({
-    windowMs: 15 * 60 * 1000,
-    max: 300,
+    windowMs: 60 * 1000,
+    max: 2000,
     standardHeaders: true,
     legacyHeaders: false,
     message: { error: 'Rate limit exceeded. Please slow down your requests.' }
