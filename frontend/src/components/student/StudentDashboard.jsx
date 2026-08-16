@@ -321,9 +321,18 @@ export default function StudentDashboard({ student, onUpdateStudent, onOpenAuthM
   }
 
   const filteredFeed = requirementsFeed.filter(r => {
-    const matchesSearch = r.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          r.company_name.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesBranch = selectedBranch === 'All' || JSON.parse(r.eligible_programs_json || '[]').some(p => p.includes(selectedBranch));
+    const titleMatch = (r.title || '').toLowerCase().includes(searchQuery.toLowerCase());
+    const companyMatch = (r.company_name || '').toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch = titleMatch || companyMatch;
+
+    let programs = [];
+    if (Array.isArray(r.eligible_programs_json)) {
+      programs = r.eligible_programs_json;
+    } else if (typeof r.eligible_programs_json === 'string') {
+      try { programs = JSON.parse(r.eligible_programs_json); } catch (e) { programs = [r.eligible_programs_json]; }
+    }
+
+    const matchesBranch = selectedBranch === 'All' || (Array.isArray(programs) && programs.some(p => String(p).toLowerCase().includes(selectedBranch.toLowerCase())));
     return matchesSearch && matchesBranch;
   });
 
