@@ -52,12 +52,27 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
     }
   };
 
+  const fetchAdminData = async () => {
+    setLoading(true);
+    try {
+      await Promise.all([
+        fetchAdminDataSilently(),
+        fetchCandidateDatabase(),
+        fetchMasterData(),
+        fetchGlobalSearch('')
+      ]);
+    } catch (err) {
+      console.error('Error fetching admin data:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (currentUser?.role === 'admin') {
       fetchAdminData();
-      fetchCandidateDatabase();
-      fetchMasterData();
-      fetchGlobalSearch('');
+    } else {
+      setLoading(false);
     }
 
     // Live 5-second auto-sync interval for 100% real-time accuracy
@@ -99,12 +114,6 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
     } finally {
       setLoggingIn(false);
     }
-  };
-
-  const fetchAdminData = async () => {
-    setLoading(true);
-    await fetchAdminDataSilently();
-    setLoading(false);
   };
 
   const fetchAdminDataSilently = async () => {
