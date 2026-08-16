@@ -47,6 +47,12 @@ CREATE TABLE IF NOT EXISTS requirements (
     deadline TEXT NOT NULL,
     job_description TEXT NOT NULL,
     embedding_vector TEXT,
+    application_type TEXT CHECK(application_type IN ('internal', 'external')) DEFAULT 'internal',
+    external_apply_url TEXT,
+    application_instructions TEXT,
+    external_click_count INTEGER DEFAULT 0,
+    question_bank_json TEXT DEFAULT '[]',
+    question_bank_status TEXT CHECK(question_bank_status IN ('pending', 'complete')) DEFAULT 'pending',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 

@@ -3,6 +3,7 @@ import { Building2, Plus, Users, Sparkles, AlertCircle, ArrowLeft, CheckCircle, 
 import InterviewQuestionGeneratorModal from './InterviewQuestionGeneratorModal';
 import ReportPDFModal from '../common/ReportPDFModal';
 import CompanyQuestionUploadModal from '../common/CompanyQuestionUploadModal';
+import RequirementQuestionBankForm from './RequirementQuestionBankForm';
 import { getCompanyUploadedQuestions, saveCompanyUploadedQuestion, bulkUploadCompanyQuestions, deleteCompanyUploadedQuestion } from '../../utils/companyQuestionStorage';
 
 export default function CompanyDashboard({ company, onRefreshCompany }) {
@@ -40,7 +41,14 @@ export default function CompanyDashboard({ company, onRefreshCompany }) {
     job_description: 'We are seeking talented software engineers to build enterprise web services, cloud microservices, and AI integrations.',
     application_type: 'internal',
     external_apply_url: '',
-    application_instructions: ''
+    application_instructions: '',
+    question_bank: [
+      { id: 'q_default_1', text: 'How do you optimize SQL queries and indexes under high database load?', category: 'Technical', difficulty: 'Medium', skillTags: ['SQL', 'Database'], source: 'recruiter' },
+      { id: 'q_default_2', text: 'Walk through your experience building asynchronous web services with FastAPI or Node.', category: 'Technical', difficulty: 'Medium', skillTags: ['FastAPI', 'Node.js'], source: 'recruiter' },
+      { id: 'q_default_3', text: 'How do you approach designing a rate limiter for microservices?', category: 'System Design', difficulty: 'Hard', skillTags: ['System Design'], source: 'recruiter' },
+      { id: 'q_default_4', text: 'Describe a situation where a technical project fell behind schedule. How did you resolve it?', category: 'Behavioral', difficulty: 'Medium', skillTags: ['Agile'], source: 'recruiter' },
+      { id: 'q_default_5', text: 'Why are you passionate about joining our engineering team?', category: 'HR', difficulty: 'Easy', skillTags: ['Communication'], source: 'recruiter' }
+    ]
   });
 
   const availablePrograms = ['BTech CSE', 'BTech IT', 'BTech Mechanical', 'BTech ECE', 'BBA', 'MBA', 'MSc CS'];
@@ -625,6 +633,12 @@ export default function CompanyDashboard({ company, onRefreshCompany }) {
                 />
               </div>
 
+              {/* MANDATORY INTERVIEW QUESTION BANK SECTION */}
+              <RequirementQuestionBankForm
+                questions={postForm.question_bank}
+                onChangeQuestions={(qList) => setPostForm({ ...postForm, question_bank: qList })}
+              />
+
               {/* Submit Buttons */}
               <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-200 dark:border-slate-800">
                 <button
@@ -637,8 +651,13 @@ export default function CompanyDashboard({ company, onRefreshCompany }) {
 
                 <button
                   type="submit"
-                  disabled={loading}
-                  className="px-6 py-2.5 bg-gradient-to-r from-blue-900 via-indigo-900 to-amber-600 hover:from-blue-800 hover:to-amber-500 text-white font-black text-xs rounded-xl shadow-xl flex items-center gap-2"
+                  disabled={loading || (postForm.question_bank || []).length < 5}
+                  title={(postForm.question_bank || []).length < 5 ? "Add at least 5 interview questions to publish this drive" : ""}
+                  className={`px-6 py-2.5 font-black text-xs rounded-xl shadow-xl flex items-center gap-2 transition-all ${
+                    (postForm.question_bank || []).length >= 5
+                      ? 'bg-gradient-to-r from-blue-900 via-indigo-900 to-amber-600 hover:from-blue-800 hover:to-amber-500 text-white cursor-pointer'
+                      : 'bg-slate-300 text-slate-500 cursor-not-allowed'
+                  }`}
                 >
                   <Plus className="w-4 h-4" />
                   {loading ? 'Posting Requirement...' : 'Publish Job Requirement'}

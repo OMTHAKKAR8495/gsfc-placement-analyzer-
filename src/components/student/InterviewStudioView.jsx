@@ -11,6 +11,7 @@ import {
   HelpCircle
 } from 'lucide-react';
 import { generateTailoredInterviewQuestions } from '../../utils/interviewGenerator';
+import { buildInterviewSet } from '../../utils/questionSelectionAlgorithm';
 import CompanyQuestionUploadModal from '../common/CompanyQuestionUploadModal';
 import PracticeModeModal from '../common/PracticeModeModal';
 import { 
@@ -28,6 +29,45 @@ export default function InterviewStudioView({ studentProfile, selectedJob }) {
   const [activeCategory, setActiveCategory] = useState('All');
   const [sourceFilter, setSourceFilter] = useState('All');
   const [selectedCompanyFilter, setSelectedCompanyFilter] = useState('All');
+
+  // Company / Role Selection State
+  const [availableDrives, setAvailableDrives] = useState([
+    {
+      id: 'req_google_swe',
+      title: 'Software Development Engineer - AI & Cloud',
+      company_name: 'Google Cloud India',
+      ctc_range: '₹28,00,000 - ₹34,00,000 PA',
+      required_skills_json: '["Python", "React", "SQL", "FastAPI"]',
+      question_bank_json: JSON.stringify([
+        { id: 'g_1', text: 'How do you optimize SQL query execution plans under high database concurrency?', category: 'Technical', difficulty: 'Medium', source: 'recruiter' },
+        { id: 'g_2', text: 'Walk through architecting a real-time WebSocket notification engine in Node/FastAPI.', category: 'System Design', difficulty: 'Hard', source: 'recruiter' },
+        { id: 'g_3', text: 'Explain the internal memory model of Python GIL vs multi-processing worker pools.', category: 'Technical', difficulty: 'Hard', source: 'recruiter' },
+        { id: 'g_4', text: 'Describe a situation where a service failed in production. How did you diagnose it?', category: 'Behavioral', difficulty: 'Medium', source: 'recruiter' },
+        { id: 'g_5', text: 'Why are you passionate about joining Google Cloud India?', category: 'HR', difficulty: 'Easy', source: 'recruiter' }
+      ]),
+      question_bank_status: 'complete'
+    },
+    {
+      id: 'req_msft_azure',
+      title: 'Graduate Software Engineer',
+      company_name: 'Microsoft Azure Systems',
+      ctc_range: '₹24,00,000 - ₹30,00,000 PA',
+      required_skills_json: '["C#", "Azure", "Distributed Systems", "SQL"]',
+      question_bank_json: JSON.stringify([
+        { id: 'm_1', text: 'How do you implement distributed lock management in Azure Service Bus?', category: 'System Design', difficulty: 'Hard', source: 'recruiter' },
+        { id: 'm_2', text: 'Compare garbage collection cycles in Java vs .NET CLR runtime.', category: 'Technical', difficulty: 'Medium', source: 'recruiter' },
+        { id: 'm_3', text: 'How do you handle zero-downtime database schema migrations?', category: 'Technical', difficulty: 'Hard', source: 'recruiter' },
+        { id: 'm_4', text: 'Tell me about a time you led a cross-functional team project.', category: 'Behavioral', difficulty: 'Medium', source: 'recruiter' },
+        { id: 'm_5', text: 'Why Microsoft Azure over other cloud infrastructure vendors?', category: 'HR', difficulty: 'Easy', source: 'recruiter' }
+      ]),
+      question_bank_status: 'complete'
+    }
+  ]);
+
+  const [selectedDriveId, setSelectedDriveId] = useState(() => selectedJob?.id || 'req_google_swe');
+
+  const activeDrive = availableDrives.find(d => d.id === selectedDriveId) || availableDrives[0];
+  const interviewSet = buildInterviewSet(activeDrive, studentProfile, 8);
 
   const [expandedQuestionId, setExpandedQuestionId] = useState(null);
   const [practiceQuestion, setPracticeQuestion] = useState(null);
@@ -104,6 +144,73 @@ export default function InterviewStudioView({ studentProfile, selectedJob }) {
           >
             <Building2 className="w-4 h-4" />
             Upload Company Questions
+          </button>
+        </div>
+      </div>
+
+      {/* COMPANY / ROLE SELECTOR & SMART SAMPLER PANEL */}
+      <div className="glass-panel rounded-3xl p-6 border border-slate-200/90 dark:border-slate-800 bg-gradient-to-r from-slate-900 via-indigo-950 to-blue-950 text-white shadow-xl space-y-4">
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <Building2 className="w-4 h-4 text-amber-400" />
+              <span className="text-xs font-black text-amber-400 uppercase tracking-wider">
+                Target Company Drive Practice
+              </span>
+            </div>
+            <h3 className="text-lg font-black text-white">
+              Select Company & Hiring Drive for Focused Practice
+            </h3>
+            <p className="text-xs text-slate-300 font-medium mt-0.5">
+              Practice with real recruiter question banks or AI-synthesized role benchmarks tailored to specific campus placement drives.
+            </p>
+          </div>
+
+          {/* QUESTION SOURCE BADGE */}
+          <div className="shrink-0">
+            {interviewSet.sourceBadge === 'recruiter' && (
+              <span className="px-4 py-2 bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 rounded-2xl text-xs font-black flex items-center gap-1.5 shadow-lg">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                Recruiter-Verified Questions ({interviewSet.questions.length})
+              </span>
+            )}
+            {interviewSet.sourceBadge === 'mixed' && (
+              <span className="px-4 py-2 bg-purple-500/20 text-purple-300 border border-purple-500/40 rounded-2xl text-xs font-black flex items-center gap-1.5 shadow-lg">
+                <span className="w-2 h-2 rounded-full bg-purple-400 animate-pulse"></span>
+                Mixed Set (Recruiter + AI Benchmark)
+              </span>
+            )}
+            {interviewSet.sourceBadge === 'ai_generated' && (
+              <span className="px-4 py-2 bg-blue-500/20 text-blue-300 border border-blue-500/40 rounded-2xl text-xs font-black flex items-center gap-1.5 shadow-lg">
+                <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse"></span>
+                AI-Generated Practice Set
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* SELECTOR DROPDOWN ROW */}
+        <div className="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+          <div className="relative flex-1">
+            <select
+              value={selectedDriveId}
+              onChange={(e) => setSelectedDriveId(e.target.value)}
+              className="w-full pl-4 pr-10 py-3 bg-white/10 dark:bg-slate-800/80 border border-white/20 rounded-2xl text-xs font-black text-white focus:outline-none focus:border-amber-400 cursor-pointer backdrop-blur-md"
+            >
+              {availableDrives.map((drive) => (
+                <option key={drive.id} value={drive.id} className="bg-slate-900 text-white">
+                  🏢 {drive.company_name} — {drive.title} ({drive.ctc_range})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <button
+            onClick={() => setPracticeQuestion(interviewSet.questions[0])}
+            className="px-6 py-3 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs rounded-2xl shadow-lg flex items-center justify-center gap-2 transition-all hover:scale-105 shrink-0"
+          >
+            <Play className="w-4 h-4 fill-slate-950" />
+            <span>Start Mock Interview Session ({interviewSet.questions.length} Qs)</span>
           </button>
         </div>
       </div>

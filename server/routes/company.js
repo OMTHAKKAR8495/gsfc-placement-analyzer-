@@ -34,7 +34,8 @@ router.post('/requirements', (req, res) => {
     const { 
       company_id, title, eligible_programs, min_cgpa, 
       required_skills, preferred_skills, job_type, ctc_range, openings, deadline, job_description,
-      application_type, external_apply_url, application_instructions
+      application_type, external_apply_url, application_instructions,
+      question_bank
     } = req.body;
 
     const company = db.prepare('SELECT * FROM company_profiles WHERE id = ?').get(company_id);
@@ -46,6 +47,11 @@ router.post('/requirements', (req, res) => {
       return res.status(403).json({ 
         error: 'Your recruiter account is pending verification by TPC Admin. You cannot post job requirements until approved.' 
       });
+    }
+
+    const qBank = Array.isArray(question_bank) ? question_bank : [];
+    if (qBank.length < 5) {
+      return res.status(400).json({ error: 'Publishing Gated: Minimum 5 interview questions are required to publish a job drive.' });
     }
 
     const appType = application_type === 'external' ? 'external' : 'internal';
@@ -61,22 +67,47 @@ router.post('/requirements', (req, res) => {
     const eligibleProgramsJson = JSON.stringify(Array.isArray(eligible_programs) ? eligible_programs : [eligible_programs]);
     const reqSkillsJson = JSON.stringify(Array.isArray(required_skills) ? required_skills : String(required_skills).split(',').map(s=>s.trim()));
     const prefSkillsJson = JSON.stringify(Array.isArray(preferred_skills) ? preferred_skills : String(preferred_skills || '').split(',').map(s=>s.trim()).filter(Boolean));
+    const qBankJson = JSON.stringify(qBank);
+    const qBankStatus = qBank.length >= 5 ? 'complete' : 'pending';
 
     db.prepare(`
       INSERT INTO requirements 
-      (id, company_id, title, eligible_programs_json, min_cgpa, required_skills_json, preferred_skills_json, job_type, ctc_range, openings, deadline, job_description, application_type, external_apply_url, application_instructions)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      (id, company_id, title, eligible_programs_json, min_cgpa, required_skills_json, preferred_skills_json, job_type, ctc_range, openings, deadline, job_description, application_type, external_apply_url, application_instructions, question_bank_json, question_bank_status)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       reqId, company_id, title, eligibleProgramsJson, parseFloat(min_cgpa || 0), 
       reqSkillsJson, prefSkillsJson, job_type || 'Full-time', ctc_range || 'Competitive CTC', 
       parseInt(openings || 1), deadline || '2026-12-31', job_description || '',
-      appType, extUrl, application_instructions || null
+      appType, extUrl, application_instructions || null, qBankJson, qBankStatus
     );
 
     const createdReq = db.prepare('SELECT * FROM requirements WHERE id = ?').get(reqId);
     res.status(201).json({ message: 'Requirement posted successfully', requirement: createdReq });
   } catch (err) {
     console.error('Error posting requirement:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Update Question Bank for a Requirement (Edit / Add / Delete questions)
+router.put('/requirements/:id/question-bank', (req, res) => {
+  try {
+    const { id } = req.params;
+    const { question_bank } = req.body;
+
+    const requirement = db.prepare('SELECT * FROM requirements WHERE id = ?').get(id);
+    if (!requirement) {
+      return res.status(404).json({ error: 'Requirement not found.' });
+    }
+
+    const qBank = Array.isArray(question_bank) ? question_bank : [];
+    const qBankJson = JSON.stringify(qBank);
+    const qBankStatus = qBank.length >= 5 ? 'complete' : 'pending';
+
+    db.prepare('UPDATE requirements SET question_bank_json = ?, question_bank_status = ? WHERE id = ?').run(qBankJson, qBankStatus, id);
+
+    res.json({ message: 'Interview question bank updated successfully', questionBankCount: qBank.length, status: qBankStatus });
+  } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });

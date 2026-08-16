@@ -37,6 +37,12 @@ function applyMigrations() {
     if (!reqColumns.includes('external_click_count')) {
       db.exec("ALTER TABLE requirements ADD COLUMN external_click_count INTEGER DEFAULT 0");
     }
+    if (!reqColumns.includes('question_bank_json')) {
+      db.exec("ALTER TABLE requirements ADD COLUMN question_bank_json TEXT DEFAULT '[]'");
+    }
+    if (!reqColumns.includes('question_bank_status')) {
+      db.exec("ALTER TABLE requirements ADD COLUMN question_bank_status TEXT CHECK(question_bank_status IN ('pending', 'complete')) DEFAULT 'pending'");
+    }
 
     const appColumns = db.prepare("PRAGMA table_info(applications)").all().map(c => c.name);
     if (!appColumns.includes('applied_via')) {
