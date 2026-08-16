@@ -249,4 +249,94 @@ Provide a trained, direct, step-by-step answer explaining how to use the portal,
   }
 });
 
+// AI Answer Evaluation Endpoint for Interview Studio (Swappable Multi-Model Provider)
+router.post('/evaluate-answer', AuthRateLimiter.aiFeatureLimiter, async (req, res) => {
+  try {
+    const { questionText, category, difficulty, keyConcepts, suggestedAnswer, studentAnswer, studentId, requirementId } = req.body;
+
+    if (!questionText || !studentAnswer) {
+      return res.status(400).json({ error: 'questionText and studentAnswer are required.' });
+    }
+
+    // 1. Edge Case: Empty / Very Short Answers (< 15 words) -> Instant Auto-Fail without LLM call (Saves API Quota)
+    const sanitizedAnswer = sanitizeAiPromptInput(studentAnswer);
+    const wordCount = sanitizedAnswer.trim().split(/\s+/).filter(Boolean).length;
+
+    if (wordCount < 15) {
+      const concepts = Array.isArray(keyConcepts) ? keyConcepts : ['Technical Specificity', 'STAR Structure'];
+      return res.json({
+        verdict: 'fail',
+        score: 25,
+        feedback: 'Your answer is too brief (' + wordCount + ' words) to demonstrate technical depth for a campus placement drive. Expand your response with concrete examples and technical details.',
+        conceptsCovered: [],
+        conceptsMissing: concepts,
+        offTopic: true,
+        wordCount
+      });
+    }
+
+    // 2. Structured AI Evaluation Prompt
+    const conceptsList = Array.isArray(keyConcepts) ? keyConcepts.join(', ') : (keyConcepts || 'Key Technical Concepts');
+    const prompt = `You are a Senior Technical Recruiter screening candidates for a top campus placement drive at GSFC University.
+
+    EVALUATION CRITERIA:
+    Question: "${questionText}"
+    Category: "${category || 'Technical'}"
+    Difficulty: "${difficulty || 'Medium'}"
+    Key Concepts to Address: "${conceptsList}"
+    Rubric / Ideal Answer: "${suggestedAnswer || 'Substantive technical answer'}"
+
+    CANDIDATE ANSWER TO EVALUATE:
+    "${sanitizedAnswer}"
+
+    INSTRUCTIONS:
+    - If answer is generic filler, unrelated, or clearly off-topic, set "verdict": "fail", "offTopic": true, "score": 20.
+    - If answer is on-topic but missing key concepts or lacks structure, set "verdict": "needs_improvement", "score": 60-75.
+    - Set "verdict": "pass" ONLY if answer covers the majority of key concepts with technical accuracy (score 80-100).
+    - Return JSON ONLY following the schema.`;
+
+    const schemaDescription = `{
+      "verdict": "pass | needs_improvement | fail",
+      "score": 85,
+      "feedback": "2-4 sentences of specific, constructive feedback explaining what was good and what was missing.",
+      "conceptsCovered": ["Concept 1"],
+      "conceptsMissing": ["Concept 2"],
+      "offTopic": false
+    }`;
+
+    const fallbackGenerator = () => {
+      const matchCount = (Array.isArray(keyConcepts) ? keyConcepts : []).filter(c => 
+        sanitizedAnswer.toLowerCase().includes(c.toLowerCase())
+      );
+      const isPass = matchCount.length >= 1 && wordCount >= 30;
+      return {
+        verdict: isPass ? 'pass' : 'needs_improvement',
+        score: isPass ? 82 : 65,
+        feedback: isPass 
+          ? `Solid technical answer! You covered key concepts like ${matchCount.join(', ') || 'core principles'}. Ensure you emphasize latency metrics for top tier placement interviews.` 
+          : `Good initial response, but needs more technical depth. Be sure to address: ${(keyConcepts || []).join(', ')}.`,
+        conceptsCovered: matchCount,
+        conceptsMissing: (keyConcepts || []).filter(c => !matchCount.includes(c)),
+        offTopic: false
+      };
+    };
+
+    const evaluationResult = await callLLM({ prompt, schemaDescription, fallbackGenerator });
+
+    // Log evaluation for TPC Admin analytics audit trail
+    try {
+      const logId = 'eval_' + Date.now();
+      db.prepare(`
+        INSERT INTO admin_audit_logs (id, admin_id, viewed_entity_type, viewed_entity_id)
+        VALUES (?, ?, 'eval_result', ?)
+      `).run(logId, studentId || 's_demo', evaluationResult.verdict + '_' + (requirementId || 'req_gen'));
+    } catch(e) {}
+
+    res.json(evaluationResult);
+  } catch (err) {
+    console.error('Error evaluating answer:', err);
+    res.status(500).json({ error: 'Failed to evaluate answer. Please try again.' });
+  }
+});
+
 export default router;

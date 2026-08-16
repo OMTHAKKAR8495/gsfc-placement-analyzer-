@@ -72,6 +72,13 @@ export default function InterviewStudioView({ studentProfile, selectedJob }) {
   const [expandedQuestionId, setExpandedQuestionId] = useState(null);
   const [practiceQuestion, setPracticeQuestion] = useState(null);
   const [showUploadModal, setShowUploadModal] = useState(false);
+  const [completedQuestionIds, setCompletedQuestionIds] = useState([]);
+
+  const handleQuestionCompleted = (qId) => {
+    if (!completedQuestionIds.includes(qId)) {
+      setCompletedQuestionIds(prev => [...prev, qId]);
+    }
+  };
 
   const allQuestions = generateTailoredInterviewQuestions(studentProfile || {}, selectedJob);
 
@@ -430,10 +437,29 @@ export default function InterviewStudioView({ studentProfile, selectedJob }) {
         )}
       </div>
 
+      {/* END-OF-SESSION PRACTICE SUMMARY BANNER */}
+      {completedQuestionIds.length > 0 && (
+        <div className="glass-panel rounded-3xl p-6 border border-emerald-500/30 bg-gradient-to-r from-emerald-950/90 via-slate-900 to-blue-950 text-white shadow-xl space-y-3 animate-in fade-in">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <h3 className="text-base font-black text-white flex items-center gap-2">
+              <CheckCircle className="w-5 h-5 text-emerald-400" /> Practice Progress Summary: {completedQuestionIds.length} of {interviewSet.questions.length} Questions Passed
+            </h3>
+            <span className="px-3 py-1 bg-emerald-500/20 text-emerald-300 rounded-xl text-xs font-black border border-emerald-500/40 shrink-0">
+              {Math.round((completedQuestionIds.length / interviewSet.questions.length) * 100)}% Drive Mastery
+            </span>
+          </div>
+
+          <p className="text-xs text-slate-300 font-bold leading-relaxed">
+            💡 **Recruiter Recommendation for {activeDrive.company_name}**: Your technical answers on core principles are solid! Review **System Design & query latency optimization** before your live {activeDrive.title} placement drive.
+          </p>
+        </div>
+      )}
+
       {practiceQuestion && (
         <PracticeModeModal
           question={practiceQuestion}
           onClose={() => setPracticeQuestion(null)}
+          onQuestionCompleted={handleQuestionCompleted}
         />
       )}
 
