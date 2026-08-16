@@ -8,7 +8,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "build:android": "npm run build && npx cap sync android",
-    "mobile:build": "npm run build && npx cap sync android",
+    "build:ios": "npm run build && npx cap sync ios",
+    "mobile:build": "npm run build && npx cap sync android && npx cap sync ios",
     "mobile:android": "npx cap open android",
     "mobile:ios": "npx cap open ios"
   },

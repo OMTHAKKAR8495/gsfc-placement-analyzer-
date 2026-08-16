@@ -66,5 +66,11 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>GSFC Placement Portal requires photo library access to upload resume PDF/Word documents and academic certificates.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>GSFC Placement Portal requires camera access to scan and upload resume documents or student ID certificates.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>GSFC Placement Portal requires microphone access for voice response evaluations in the AI Mock Interview Studio.</string>
 </dict>
 </plist>
