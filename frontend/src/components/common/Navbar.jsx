@@ -1,7 +1,9 @@
-import React from 'react';
-import { User, Building2, ShieldCheck, LogOut, LogIn, Sun, Moon, HelpCircle } from 'lucide-react';
+import React, { useState } from 'react';
+import { User, Building2, ShieldCheck, LogOut, LogIn, Sun, Moon, HelpCircle, Smartphone, Download, Sparkles } from 'lucide-react';
+import AppDownloadModal from './AppDownloadModal';
 
 export default function Navbar({ currentUser, activeRole, onRoleSwitch, onOpenAuth, onLogout, theme, onToggleTheme }) {
+  const [downloadModalOpen, setDownloadModalOpen] = useState(false);
   return (
     <header className="sticky top-0 z-40 w-full glass-panel border-b border-slate-200/90 dark:border-slate-800 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl shadow-sm transition-colors duration-300">
       <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 min-h-[4.5rem] py-2 flex flex-wrap items-center justify-between gap-2 sm:gap-4">
@@ -88,6 +90,16 @@ export default function Navbar({ currentUser, activeRole, onRoleSwitch, onOpenAu
         {/* User Auth & Theme Controls Section */}
         <div className="flex items-center gap-2 sm:gap-3 shrink-0 relative">
           
+          {/* Highlighted Mobile App Download Button */}
+          <button
+            onClick={() => setDownloadModalOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gradient-to-r from-emerald-600 via-teal-600 to-blue-600 hover:from-emerald-500 hover:to-blue-500 text-white font-black text-xs shadow-md hover:shadow-lg transition-all animate-pulse hover:animate-none shrink-0 border border-emerald-400/40 cursor-pointer"
+            title="Download Official GSFC Placement Portal Mobile App (Android APK & iOS)"
+          >
+            <Smartphone className="w-3.5 h-3.5 text-amber-300" />
+            <span className="hidden sm:inline">Download</span> App <span className="text-[10px] font-mono text-amber-200 bg-black/30 px-1.5 py-0.5 rounded-md">Android / iOS</span>
+          </button>
+
           {/* Light / Dark Mode Toggle Button */}
           <button
             onClick={onToggleTheme}
@@ -134,6 +146,11 @@ export default function Navbar({ currentUser, activeRole, onRoleSwitch, onOpenAu
           )}
         </div>
       </div>
+
+      <AppDownloadModal
+        isOpen={downloadModalOpen}
+        onClose={() => setDownloadModalOpen(false)}
+      />
     </header>
   );
 }
