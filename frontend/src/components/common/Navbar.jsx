@@ -6,7 +6,7 @@ export default function Navbar({ currentUser, activeRole, onRoleSwitch, onOpenAu
   const [downloadModalOpen, setDownloadModalOpen] = useState(false);
   return (
     <header className="sticky top-0 z-40 w-full glass-panel border-b border-slate-200/90 dark:border-slate-800 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl shadow-sm transition-colors duration-300">
-      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 min-h-[4.5rem] py-2 flex flex-wrap items-center justify-between gap-2 sm:gap-4">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 min-h-[4.5rem] py-2 flex items-center justify-between gap-2 sm:gap-4 overflow-x-auto">
         
         {/* GSFC Official Logo Header — Clicking returns to Main Homepage / Student Workspace */}
         <div 
