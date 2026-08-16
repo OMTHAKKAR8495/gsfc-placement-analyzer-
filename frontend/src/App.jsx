@@ -179,6 +179,7 @@ export default function App() {
               onUpdateStudent={(updatedProfile) => {
                 setCurrentUser(prev => prev ? { ...prev, profile: updatedProfile } : prev);
               }}
+              onOpenAuthModal={() => setAuthModalOpen(true)}
             />
           )}
 

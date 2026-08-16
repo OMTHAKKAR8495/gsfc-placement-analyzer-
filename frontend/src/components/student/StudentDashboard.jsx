@@ -6,7 +6,7 @@ import ReportPDFModal from '../common/ReportPDFModal';
 import InternalAutoFillApplyModal from './InternalAutoFillApplyModal';
 import ExternalApplyConfirmModal from './ExternalApplyConfirmModal';
 
-export default function StudentDashboard({ student, onUpdateStudent }) {
+export default function StudentDashboard({ student, onUpdateStudent, onOpenAuthModal }) {
   const [activeTab, setActiveTab] = useState('feed'); // 'feed', 'profile', 'applications'
   const [requirementsFeed, setRequirementsFeed] = useState([]);
   const [applications, setApplications] = useState([]);
@@ -678,29 +678,56 @@ export default function StudentDashboard({ student, onUpdateStudent }) {
                 })()}
               </div>
 
-              {/* 1. Drag & Drop Resume Upload Banner */}
-              <div className="glass-panel p-6 rounded-3xl border-2 border-dashed border-blue-900/30 text-center space-y-3 bg-white/90">
-                <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-900 flex items-center justify-center mx-auto border border-blue-200 shadow-sm">
-                  <Upload className="w-6 h-6 text-blue-900" />
+              {/* 1. Drag & Drop Resume Upload Banner — Sign-In Required Guard */}
+              {!student?.id ? (
+                <div className="glass-panel p-6 sm:p-8 rounded-3xl border-2 border-amber-500/40 text-center space-y-4 bg-gradient-to-br from-amber-500/10 via-slate-900/90 to-slate-950 text-white shadow-xl">
+                  <div className="w-14 h-14 rounded-2xl bg-amber-500/20 border border-amber-500/40 text-amber-400 flex items-center justify-center mx-auto shadow-inner">
+                    <ShieldCheck className="w-8 h-8 text-amber-400" />
+                  </div>
+                  <div className="space-y-1 max-w-lg mx-auto">
+                    <span className="px-2.5 py-0.5 bg-amber-400/20 text-amber-300 text-[10px] font-black uppercase rounded-md border border-amber-400/30">
+                      GSFC University Student Sign-In Required
+                    </span>
+                    <h3 className="text-lg font-black text-white">Sign In to Upload & Analyze Resume</h3>
+                    <p className="text-xs text-slate-300 font-medium leading-relaxed">
+                      To calculate personalized NLP match scores, extract technical skills, and check eligibility for active GSFC campus recruitment drives, please sign in with your official GSFC student account.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      if (onOpenAuthModal) onOpenAuthModal();
+                      else alert('Please click "Sign In" at the top right header to log in or register your GSFC student account.');
+                    }}
+                    className="py-3 px-6 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs rounded-xl shadow-lg transition-all inline-flex items-center gap-2 cursor-pointer"
+                  >
+                    <User className="w-4 h-4" />
+                    <span>Sign In / Register to Upload Resume</span>
+                  </button>
                 </div>
-                <div>
-                  <h3 className="text-base font-black text-slate-900">Drag & Drop your Resume here</h3>
-                  <p className="text-xs text-slate-600 font-bold max-w-md mx-auto mt-0.5">
-                    Supports PDF, DOCX, or TXT format. Automated parsing will extract candidate name, technical skills, and eligibility.
-                  </p>
+              ) : (
+                <div className="glass-panel p-6 rounded-3xl border-2 border-dashed border-blue-900/30 text-center space-y-3 bg-white/90">
+                  <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-900 flex items-center justify-center mx-auto border border-blue-200 shadow-sm">
+                    <Upload className="w-6 h-6 text-blue-900" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-black text-slate-900">Drag & Drop your Resume here</h3>
+                    <p className="text-xs text-slate-600 font-bold max-w-md mx-auto mt-0.5">
+                      Supports PDF, DOCX, or TXT format. Automated parsing will extract candidate name, technical skills, and eligibility.
+                    </p>
+                  </div>
+                  <label className="inline-flex items-center gap-2 py-2.5 px-5 bg-blue-900 hover:bg-blue-800 text-white font-black text-xs rounded-xl shadow-md cursor-pointer transition-all">
+                    <Paperclip className="w-4 h-4" />
+                    <span>{uploadingResume ? 'Parsing PDF...' : 'Browse File from Computer'}</span>
+                    <input
+                      type="file"
+                      accept=".pdf,.docx,.txt"
+                      onChange={handleResumeFileUpload}
+                      className="hidden"
+                      disabled={uploadingResume}
+                    />
+                  </label>
                 </div>
-                <label className="inline-flex items-center gap-2 py-2.5 px-5 bg-blue-900 hover:bg-blue-800 text-white font-black text-xs rounded-xl shadow-md cursor-pointer transition-all">
-                  <Paperclip className="w-4 h-4" />
-                  <span>{uploadingResume ? 'Parsing PDF...' : 'Browse File from Computer'}</span>
-                  <input
-                    type="file"
-                    accept=".pdf,.docx,.txt"
-                    onChange={handleResumeFileUpload}
-                    className="hidden"
-                    disabled={uploadingResume}
-                  />
-                </label>
-              </div>
+              )}
 
               {/* 2. Active Candidate Badge Bar */}
               <div className="p-4 bg-white/90 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
