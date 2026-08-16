@@ -72,63 +72,67 @@ html.dark .gsfc-overlay-layer {
   -webkit-backdrop-filter: blur(2px);
 }
 
-/* Translucent Glass UI Containers */
-.glass-panel {
-  background: rgba(255, 255, 255, 0.55);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-  border: 1.5px solid rgba(255, 255, 255, 0.95);
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.15);
-  transition: all 0.3s ease;
-}
-
-html.dark .glass-panel {
-  background: rgba(15, 23, 42, 0.82);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  border: 1.5px solid rgba(30, 41, 59, 0.9);
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
-  color: #f8fafc;
-}
-
-.glass-card {
-  background: rgba(255, 255, 255, 0.5);
-  backdrop-filter: blur(5px);
-  -webkit-backdrop-filter: blur(5px);
-  border: 1.5px solid rgba(255, 255, 255, 0.9);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-html.dark .glass-card {
-  background: rgba(15, 23, 42, 0.75);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border: 1.5px solid rgba(51, 65, 85, 0.8);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
-  color: #f8fafc;
+/* Universal High-Contrast Dark Glass UI System */
+.glass-panel, .glass-card {
+  background: linear-gradient(135deg, #090d16 0%, #0f172a 55%, #1e1b4b 100%) !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+  border: 1.5px solid rgba(255, 255, 255, 0.15) !important;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.65) !important;
+  color: #ffffff !important;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
 }
 
 .glass-card:hover {
-  background: rgba(255, 255, 255, 0.75);
-  border-color: rgba(37, 99, 235, 0.6);
-  box-shadow: 0 15px 40px rgba(37, 99, 235, 0.25);
-  transform: translateY(-2px);
+  border-color: rgba(251, 191, 36, 0.5) !important;
+  box-shadow: 0 25px 50px -10px rgba(30, 27, 75, 0.8) !important;
+  transform: translateY(-2px) !important;
 }
 
-html.dark .glass-card:hover {
-  background: rgba(30, 41, 59, 0.9);
-  border-color: rgba(96, 165, 250, 0.6);
-  box-shadow: 0 15px 40px rgba(59, 130, 246, 0.3);
+/* Global Text Contrast Rules inside Glass Containers */
+.glass-panel h1, .glass-panel h2, .glass-panel h3, .glass-panel h4,
+.glass-card h1, .glass-card h2, .glass-card h3, .glass-card h4 {
+  color: #ffffff !important;
+}
+
+.glass-panel p, .glass-card p,
+.glass-panel span.text-slate-600, .glass-panel span.text-slate-500, .glass-panel span.text-slate-700,
+.glass-card span.text-slate-600, .glass-card span.text-slate-500, .glass-card span.text-slate-700 {
+  color: #cbd5e1 !important;
+}
+
+/* Global Inputs & Select Dropdowns inside Glass Containers */
+.glass-panel select, .glass-panel input, .glass-panel textarea,
+.glass-card select, .glass-card input, .glass-card textarea {
+  background-color: #090d16 !important;
+  color: #ffffff !important;
+  border-color: #334155 !important;
+}
+
+.glass-panel option, .glass-card option {
+  background-color: #0f172a !important;
+  color: #ffffff !important;
+}
+
+/* Global Tables inside Glass Containers */
+.glass-panel table thead tr, .glass-card table thead tr {
+  background-color: #0f172a !important;
+  color: #fbbf24 !important;
+  border-bottom: 1px solid #334155 !important;
+}
+
+.glass-panel table tbody tr, .glass-card table tbody tr {
+  color: #f8fafc !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+.glass-panel table tbody tr:hover, .glass-card table tbody tr:hover {
+  background-color: rgba(30, 41, 59, 0.7) !important;
 }
 
 /* Gradient Text Utilities */
 .gradient-text {
-  @apply bg-clip-text text-transparent bg-gradient-to-r from-blue-950 via-indigo-950 to-amber-700;
-}
-
-html.dark .gradient-text {
-  @apply bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-indigo-300 to-amber-400;
+  @apply bg-clip-text text-transparent bg-gradient-to-r from-amber-400 via-indigo-200 to-white;
 }
 
 /* Custom Scrollbars */
