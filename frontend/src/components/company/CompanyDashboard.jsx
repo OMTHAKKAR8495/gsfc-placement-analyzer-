@@ -123,23 +123,25 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
   useEffect(() => {
     fetchCompanyRequirements();
     fetchCandidateDatabase();
-  }, [company]);
+  }, [company, currentUser]);
 
   const fetchCompanyRequirements = async () => {
-    if (!company?.id) return;
+    const compId = company?.id || currentUser?.owner_id || currentUser?.profile?.id || currentUser?.id;
+    if (!compId) return;
     try {
-      const res = await fetch(`/api/company/requirements?companyId=${company.id}`);
+      const res = await fetch(`/api/company/requirements?companyId=${compId}`);
       const data = await res.json();
-      setRequirements(data);
+      setRequirements(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error('Error fetching company requirements:', err);
     }
   };
 
   const fetchCandidateDatabase = async () => {
-    if (!company?.id) return;
+    const compId = company?.id || currentUser?.owner_id || currentUser?.profile?.id || currentUser?.id;
+    if (!compId) return;
     try {
-      const res = await fetch(`/api/company/all-applicants?companyId=${company.id}`);
+      const res = await fetch(`/api/company/all-applicants?companyId=${compId}`);
       const data = await res.json();
       const apps = Array.isArray(data) ? data : [];
       setAllCompanyApplicants(apps);
@@ -242,7 +244,7 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...postForm,
-          company_id: company.id,
+          company_id: company?.id || currentUser?.owner_id || currentUser?.profile?.id || currentUser?.id,
           required_skills: reqSkillsArr,
           preferred_skills: prefSkillsArr
         })

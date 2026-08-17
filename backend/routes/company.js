@@ -9,15 +9,15 @@ router.get('/requirements', (req, res) => {
   try {
     const { companyId } = req.query;
     let query = `
-      SELECT r.*, c.company_name, c.logo_url, c.industry,
+      SELECT r.*, c.company_name, c.logo_url, c.industry, c.approved as company_approved,
              (SELECT COUNT(*) FROM applications WHERE requirement_id = r.id) as applicant_count
       FROM requirements r
       JOIN company_profiles c ON r.company_id = c.id
     `;
     const params = [];
     if (companyId) {
-      query += ` WHERE r.company_id = ?`;
-      params.push(companyId);
+      query += ` WHERE r.company_id = ? OR c.user_id = ? OR c.id = ?`;
+      params.push(companyId, companyId, companyId);
     } else {
       query += ` WHERE c.approved = 1`;
     }
@@ -40,7 +40,7 @@ router.post('/requirements', (req, res) => {
       question_bank
     } = req.body;
 
-    const company = db.prepare('SELECT * FROM company_profiles WHERE id = ?').get(company_id);
+    let company = db.prepare('SELECT * FROM company_profiles WHERE id = ? OR user_id = ?').get(company_id, company_id);
     if (!company) {
       return res.status(404).json({ error: 'Company profile not found.' });
     }
@@ -71,7 +71,7 @@ router.post('/requirements', (req, res) => {
       (id, company_id, title, eligible_programs_json, min_cgpa, required_skills_json, preferred_skills_json, job_type, ctc_range, openings, deadline, job_description, application_type, external_apply_url, application_instructions, question_bank_json, question_bank_status)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
-      reqId, company_id, title, eligibleProgramsJson, parseFloat(min_cgpa || 0), 
+      reqId, company.id, title, eligibleProgramsJson, parseFloat(min_cgpa || 0), 
       reqSkillsJson, prefSkillsJson, job_type || 'Full-time', ctc_range || 'Competitive CTC', 
       parseInt(openings || 1), deadline || '2026-12-31', job_description || '',
       appType, extUrl, application_instructions || null, qBankJson, qBankStatus
