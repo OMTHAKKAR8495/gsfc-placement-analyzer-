@@ -296,20 +296,51 @@ router.get('/requirements/:id/applicants', (req, res) => {
           return res.status(400).json({ error: 'companyId is required.' });
         }
 
-        const apps = db.prepare(`
-      SELECT a.id as application_id, a.match_score, a.status, a.applied_at, a.applied_via,
-             r.id as requirement_id, r.title as job_title, r.ctc_range, r.job_type,
-             s.id as student_id, s.name as candidate_name, s.program, s.branch, s.cgpa, 
-             s.resume_url, s.parsed_resume_json, s.ats_score, u.email as candidate_email
-      FROM applications a
-      JOIN requirements r ON a.requirement_id = r.id
-      JOIN student_profiles s ON a.student_id = s.id
-      JOIN users u ON s.user_id = u.id
-      WHERE r.company_id = ?
-      ORDER BY a.applied_at DESC
-    `).all(companyId);
+        const rawApps = db.prepare(`
+          SELECT a.id as application_id, a.match_score, a.status, a.applied_at, a.applied_via,
+                 r.id as requirement_id, r.title as job_title, r.ctc_range, r.job_type, r.eligible_programs_json, r.min_cgpa, r.required_skills_json, r.preferred_skills_json, r.job_description,
+                 s.id as student_id, s.name as candidate_name, s.program, s.branch, s.cgpa, 
+                 s.resume_url, s.parsed_resume_json, s.ats_score, u.email as candidate_email
+          FROM applications a
+          JOIN requirements r ON a.requirement_id = r.id
+          JOIN student_profiles s ON a.student_id = s.id
+          JOIN users u ON s.user_id = u.id
+          WHERE r.company_id = ?
+          ORDER BY a.applied_at DESC
+        `).all(companyId);
 
-        res.json(apps);
+        const mappedApps = rawApps.map(app => {
+          const requirement = {
+            title: app.job_title,
+            eligible_programs_json: app.eligible_programs_json,
+            min_cgpa: app.min_cgpa,
+            required_skills_json: app.required_skills_json,
+            preferred_skills_json: app.preferred_skills_json,
+            job_description: app.job_description
+          };
+
+          const student = {
+            name: app.candidate_name,
+            program: app.program,
+            branch: app.branch,
+            cgpa: app.cgpa,
+            parsed_resume_json: app.parsed_resume_json
+          };
+
+          const matchRes = calculateMatchScore(student, requirement);
+
+          return {
+            ...app,
+            matchScore: app.match_score || matchRes.matchScore,
+            eligible: matchRes.eligible,
+            matchedSkills: matchRes.matchedSkills,
+            missingSkills: matchRes.missingSkills,
+            strengthSummary: matchRes.strengthSummary,
+            improvementTips: matchRes.improvementTips
+          };
+        });
+
+        res.json(mappedApps);
       } catch (err) {
         res.status(500).json({ error: err.message });
       }

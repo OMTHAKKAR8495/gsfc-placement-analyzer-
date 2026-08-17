@@ -884,8 +884,14 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
                       <div>
                         <div className="flex items-center gap-2">
                           <h4 className="font-black text-sm text-slate-900 dark:text-slate-100">{app.name}</h4>
-                          <span className="px-2.5 py-0.5 bg-blue-100 dark:bg-blue-900/40 text-blue-900 dark:text-blue-300 text-[10px] font-black rounded-lg border border-blue-200 dark:border-blue-700">
-                            {app.matchScore || app.match_score || 85}% AI Match
+                          <span className={`px-2.5 py-0.5 text-[10px] font-black rounded-lg border ${
+                            app.matchScore >= 85
+                              ? 'bg-emerald-100 text-emerald-900 border-emerald-300'
+                              : app.matchScore >= 70
+                              ? 'bg-blue-100 text-blue-900 border-blue-300'
+                              : 'bg-amber-100 text-amber-900 border-amber-300'
+                          }`}>
+                            {app.matchScore !== undefined && app.matchScore !== null ? `${app.matchScore}% NLP Match` : 'Mapped Candidate'}
                           </span>
                         </div>
                         <div className="text-xs text-slate-600 dark:text-slate-400 font-bold mt-0.5">
