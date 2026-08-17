@@ -24,27 +24,19 @@ export default function Navbar({ currentUser, activeRole, onRoleSwitch, onOpenAu
         
         {/* GSFC Official Logo Header */}
         <div 
-          className="flex items-center gap-2.5 cursor-pointer group shrink-0" 
+          className="flex items-center cursor-pointer group shrink-0" 
           onClick={handleLogoClick}
           title="Return to GSFC Main Placement Homepage"
         >
           <img 
             src="/gsfc-logo-official.png" 
-            alt="GSFC University Logo" 
-            className="h-10 sm:h-12 w-auto object-contain group-hover:scale-105 transition-transform drop-shadow-sm" 
+            alt="GSFC University Logo - Education Re-Envisioned" 
+            className="h-10 sm:h-14 w-auto object-contain group-hover:scale-105 transition-transform" 
             onError={(e) => {
               e.target.onerror = null;
-              e.target.src = 'https://images.unsplash.com/photo-1562774053-701939374585?w=120&auto=format&fit=crop&q=60';
+              e.target.src = '/gsfc-logo-official.jpg';
             }}
           />
-          <div className="flex flex-col">
-            <span className="font-black text-sm sm:text-base text-slate-900 dark:text-white tracking-tight leading-none group-hover:text-blue-900 dark:group-hover:text-blue-400 transition-colors">
-              GSFC <span className="text-amber-500 font-extrabold">UNIVERSITY</span>
-            </span>
-            <span className="text-[10px] font-black text-slate-500 dark:text-slate-400 tracking-wider uppercase mt-0.5">
-              Placement Cell
-            </span>
-          </div>
         </div>
 
         {/* Desktop Segmented Role Navigation Bar (Hidden on Mobile < md) */}
