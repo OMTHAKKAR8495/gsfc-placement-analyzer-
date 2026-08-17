@@ -162,10 +162,17 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
     }
   };
 
+  const [postStatus, setPostStatus] = useState(null);
+
   const handlePostRequirement = async (e) => {
     e.preventDefault();
+    setPostStatus(null);
+
     if (!company?.approved) {
-      alert('Your recruiter account is pending TPC Admin approval. You cannot post requirements until verified.');
+      setPostStatus({
+        type: 'pending',
+        message: '⏳ Your recruiter account is pending TPC Admin approval. Your hiring drive application is under review — please wait for verification.'
+      });
       return;
     }
 
@@ -188,11 +195,18 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to post requirement');
 
-      alert('🎉 Placement hiring requirement posted successfully!');
-      setShowPostModal(false);
-      fetchCompanyRequirements();
+      setPostStatus({
+        type: 'success',
+        message: '🎉 Your new hiring requirement application has been submitted and is under TPC Admin approval!'
+      });
+
+      setTimeout(() => {
+        setShowPostModal(false);
+        setPostStatus(null);
+        fetchCompanyRequirements();
+      }, 2200);
     } catch (err) {
-      alert(err.message);
+      setPostStatus({ type: 'error', message: err.message });
     } finally {
       setLoading(false);
     }
@@ -750,6 +764,28 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
 
             {/* Modal Form */}
             <form onSubmit={handlePostRequirement} className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
+              
+              {/* Highlighted Status Notification Banner (No top browser alerts) */}
+              {postStatus && (
+                <div className={`p-4 rounded-2xl border font-bold text-xs flex items-center justify-between gap-3 shadow-lg ${
+                  postStatus.type === 'pending'
+                    ? 'bg-amber-500/20 border-amber-500/40 text-amber-900 dark:text-amber-300'
+                    : postStatus.type === 'success'
+                    ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-900 dark:text-emerald-300'
+                    : 'bg-rose-500/20 border-rose-500/40 text-rose-900 dark:text-rose-300'
+                }`}>
+                  <div className="flex items-center gap-2">
+                    {postStatus.type === 'pending' && <Sparkles className="w-4 h-4 text-amber-500 shrink-0 animate-pulse" />}
+                    {postStatus.type === 'success' && <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0" />}
+                    {postStatus.type === 'error' && <AlertCircle className="w-4 h-4 text-rose-500 shrink-0" />}
+                    <span>{postStatus.message}</span>
+                  </div>
+                  <button type="button" onClick={() => setPostStatus(null)} className="text-slate-400 hover:text-slate-700 dark:hover:text-white">
+                    <XCircle className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
+
               <div>
                 <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Job Title / Role Name *</label>
                 <input
