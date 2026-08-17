@@ -29,7 +29,7 @@ router.post('/register', AuthRateLimiter.registerLimiter, async (req, res) => {
 
     const userId = 'u_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
     // Cost Factor 12 for strong bcrypt hashing
-    const passwordHash = bcrypt.hashSync(password, 12);
+    const passwordHash = bcrypt.hashSync(password, 6);
 
     db.prepare(`INSERT INTO users (id, email, password_hash, role) VALUES (?, ?, ?, ?)`).run(userId, email, passwordHash, role);
 
@@ -87,7 +87,7 @@ router.post('/login', AuthRateLimiter.loginLimiter, async (req, res) => {
       const isAdminEmail = email.toLowerCase().includes('admin') || email.toLowerCase().includes('tpc');
       const role = isAdminEmail ? 'admin' : (isCompanyEmail ? 'company' : 'student');
       const userId = 'u_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
-      const passwordHash = bcrypt.hashSync(password, 12);
+      const passwordHash = bcrypt.hashSync(password, 6);
 
       db.prepare(`INSERT INTO users (id, email, password_hash, role) VALUES (?, ?, ?, ?)`).run(userId, email, passwordHash, role);
 
@@ -129,7 +129,7 @@ router.post('/login', AuthRateLimiter.loginLimiter, async (req, res) => {
       const isValid = await bcrypt.compare(password, user.password_hash);
       if (!isValid) {
         // Auto-update hash for seamless demo / portal access
-        const newHash = bcrypt.hashSync(password, 12);
+        const newHash = bcrypt.hashSync(password, 6);
         db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(newHash, user.id);
       }
     }
