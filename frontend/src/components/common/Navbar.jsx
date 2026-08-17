@@ -6,6 +6,13 @@ export default function Navbar({ currentUser, activeRole, onRoleSwitch, onOpenAu
   const [downloadModalOpen, setDownloadModalOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
+  const handleLogoClick = () => {
+    onRoleSwitch('student');
+    window.location.hash = '#student';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    setMobileMenuOpen(false);
+  };
+
   const handleMobileNavClick = (role) => {
     onRoleSwitch(role);
     setMobileMenuOpen(false);
@@ -18,7 +25,7 @@ export default function Navbar({ currentUser, activeRole, onRoleSwitch, onOpenAu
         {/* GSFC Official Logo Header */}
         <div 
           className="flex items-center gap-2 cursor-pointer group shrink-0" 
-          onClick={() => handleMobileNavClick('student')}
+          onClick={handleLogoClick}
           title="Return to GSFC Main Placement Homepage"
         >
           <img 
