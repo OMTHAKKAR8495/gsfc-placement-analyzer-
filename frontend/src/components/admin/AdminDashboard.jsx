@@ -25,6 +25,38 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
   const [selectedCandidateReport, setSelectedCandidateReport] = useState(null);
   const [pdfReportModalOpen, setPdfReportModalOpen] = useState(false);
 
+  // GSFC University Discipline & Company Filter States
+  const [selectedGsfcField, setSelectedGsfcField] = useState('All');
+  const [selectedIndustry, setSelectedIndustry] = useState('All');
+  const [companySearchQuery, setCompanySearchQuery] = useState('');
+  const [companyStatusFilter, setCompanyStatusFilter] = useState('All');
+
+  const filteredCompanies = allCompaniesList.filter(comp => {
+    const matchesSearch = !companySearchQuery || 
+      comp.company_name?.toLowerCase().includes(companySearchQuery.toLowerCase()) ||
+      comp.industry?.toLowerCase().includes(companySearchQuery.toLowerCase()) ||
+      comp.email?.toLowerCase().includes(companySearchQuery.toLowerCase());
+
+    const matchesStatus = companyStatusFilter === 'All' ||
+      (companyStatusFilter === 'Approved' && comp.approved === 1) ||
+      (companyStatusFilter === 'Pending' && comp.approved === 0);
+
+    const matchesIndustry = selectedIndustry === 'All' ||
+      comp.industry?.toLowerCase().includes(selectedIndustry.toLowerCase());
+
+    const matchesGsfcField = selectedGsfcField === 'All' ||
+      (selectedGsfcField === 'BTech CSE' && (comp.industry?.toLowerCase().includes('tech') || comp.industry?.toLowerCase().includes('cloud') || comp.industry?.toLowerCase().includes('ai') || comp.industry?.toLowerCase().includes('it') || comp.industry?.toLowerCase().includes('software'))) ||
+      (selectedGsfcField === 'BTech IT' && (comp.industry?.toLowerCase().includes('it') || comp.industry?.toLowerCase().includes('software') || comp.industry?.toLowerCase().includes('tech'))) ||
+      (selectedGsfcField === 'BTech Chemical' && (comp.industry?.toLowerCase().includes('chem') || comp.industry?.toLowerCase().includes('process') || comp.industry?.toLowerCase().includes('gsfc'))) ||
+      (selectedGsfcField === 'BTech Mechanical' && (comp.industry?.toLowerCase().includes('mech') || comp.industry?.toLowerCase().includes('heavy') || comp.industry?.toLowerCase().includes('manufacturing') || comp.industry?.toLowerCase().includes('consulting'))) ||
+      (selectedGsfcField === 'BTech Fire & Safety' && (comp.industry?.toLowerCase().includes('safety') || comp.industry?.toLowerCase().includes('heavy') || comp.industry?.toLowerCase().includes('manufacturing'))) ||
+      (selectedGsfcField === 'BSc/MSc Chemistry' && (comp.industry?.toLowerCase().includes('chem') || comp.industry?.toLowerCase().includes('labs') || comp.industry?.toLowerCase().includes('pharma'))) ||
+      (selectedGsfcField === 'BSc/MSc Biotechnology' && (comp.industry?.toLowerCase().includes('bio') || comp.industry?.toLowerCase().includes('tech') || comp.industry?.toLowerCase().includes('labs'))) ||
+      (selectedGsfcField === 'BBA / MBA' && (comp.industry?.toLowerCase().includes('consulting') || comp.industry?.toLowerCase().includes('analytics') || comp.industry?.toLowerCase().includes('management') || comp.industry?.toLowerCase().includes('services')));
+
+    return matchesSearch && matchesStatus && matchesIndustry && matchesGsfcField;
+  });
+
   const fetchGlobalSearch = async (query = '') => {
     try {
       const res = await fetch(`/api/admin/global-search?q=${encodeURIComponent(query)}`);
@@ -377,13 +409,94 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
       {/* VIEW: RECRUITER REGISTRY VIEW */}
       {activeTab === 'companies' && (
         <div className="space-y-4">
-          <div className="flex items-center justify-between glass-panel p-4 rounded-2xl border border-slate-200">
-            <h2 className="text-sm font-black text-slate-900 flex items-center gap-2">
-              <Building className="w-4 h-4 text-amber-600" /> Master Recruiter & Corporate Registry
-            </h2>
-            <span className="text-xs font-black text-blue-900">
-              {allCompaniesList.length} Total Registered Corporate Accounts
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 glass-panel p-4 sm:p-5 rounded-3xl border border-slate-200 shadow-md">
+            <div>
+              <h2 className="text-base font-black text-slate-900 flex items-center gap-2">
+                <Building className="w-5 h-5 text-amber-600" /> Master Recruiter & Corporate Registry
+              </h2>
+              <p className="text-xs text-slate-600 font-bold mt-0.5">
+                Manage all registered corporate hiring partners across GSFC University Schools & Branches.
+              </p>
+            </div>
+            <span className="text-xs font-black text-blue-900 bg-blue-50 px-3 py-1.5 rounded-xl border border-blue-200">
+              Showing {filteredCompanies.length} of {allCompaniesList.length} Registered Recruiter Accounts
             </span>
+          </div>
+
+          {/* GSFC Field & Industry Filter Control Panel */}
+          <div className="glass-panel p-4 sm:p-5 rounded-3xl border border-slate-200 shadow-md space-y-3">
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
+              <div>
+                <div className="flex items-center gap-1.5 text-xs font-black text-amber-600 uppercase tracking-wider mb-0.5">
+                  <Sparkles className="w-3.5 h-3.5" /> GSFC Academic Fields & Disciplines Filter
+                </div>
+                <h3 className="text-sm font-black text-slate-900">Filter Corporate Partners by GSFC University Branch</h3>
+              </div>
+
+              {/* Company Search Bar */}
+              <div className="relative w-full md:w-72">
+                <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Search company name, industry, email..."
+                  value={companySearchQuery}
+                  onChange={(e) => setCompanySearchQuery(e.target.value)}
+                  className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:border-blue-900"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {/* GSFC Academic Field Filter */}
+              <div>
+                <label className="block text-[10px] font-black uppercase text-slate-500 mb-1">GSFC Academic Field / Program</label>
+                <select
+                  value={selectedGsfcField}
+                  onChange={(e) => setSelectedGsfcField(e.target.value)}
+                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:border-blue-900 cursor-pointer shadow-sm"
+                >
+                  <option value="All">🎓 All GSFC Fields & Programs</option>
+                  <option value="BTech CSE">💻 BTech CSE (Computer Science)</option>
+                  <option value="BTech IT">🌐 BTech IT (Information Tech)</option>
+                  <option value="BTech Chemical">🧪 BTech Chemical Engineering</option>
+                  <option value="BTech Mechanical">⚙️ BTech Mechanical Engineering</option>
+                  <option value="BTech Fire & Safety">🧯 BTech Fire & Safety</option>
+                  <option value="BSc/MSc Chemistry">🔬 BSc / MSc Chemistry (Chemical Science)</option>
+                  <option value="BSc/MSc Biotechnology">🧬 BSc / MSc Biotechnology</option>
+                  <option value="BBA / MBA">📊 BBA / MBA (School of Management)</option>
+                </select>
+              </div>
+
+              {/* Industry Sector Filter */}
+              <div>
+                <label className="block text-[10px] font-black uppercase text-slate-500 mb-1">Corporate Industry Sector</label>
+                <select
+                  value={selectedIndustry}
+                  onChange={(e) => setSelectedIndustry(e.target.value)}
+                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:border-blue-900 cursor-pointer shadow-sm"
+                >
+                  <option value="All">🏢 All Industry Sectors</option>
+                  <option value="Tech">💻 Technology & AI / Software</option>
+                  <option value="Cloud">☁️ Cloud & Distributed Systems</option>
+                  <option value="Services">IT Services & Consulting</option>
+                  <option value="Quantum">⚛️ Quantum Tech & DeepTech</option>
+                </select>
+              </div>
+
+              {/* TPC Verification Status Filter */}
+              <div>
+                <label className="block text-[10px] font-black uppercase text-slate-500 mb-1">TPC Approval Status</label>
+                <select
+                  value={companyStatusFilter}
+                  onChange={(e) => setCompanyStatusFilter(e.target.value)}
+                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:border-blue-900 cursor-pointer shadow-sm"
+                >
+                  <option value="All">⚡ All Approval Statuses</option>
+                  <option value="Approved">✅ Verified & Approved Only</option>
+                  <option value="Pending">⏳ Pending Approval Only</option>
+                </select>
+              </div>
+            </div>
           </div>
 
           <div className="glass-panel rounded-3xl border border-slate-200/90 overflow-hidden shadow-xl">
@@ -399,7 +512,7 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200">
-                  {allCompaniesList.map((comp) => (
+                  {filteredCompanies.map((comp) => (
                     <tr key={comp.id} className="hover:bg-slate-50/80 transition-all">
                       <td className="py-4 px-5 font-black text-slate-900">
                         <div className="flex items-center gap-3">
