@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { ShieldCheck, CheckCircle2, XCircle, BarChart3, Download, Building, Users, Briefcase, FileSpreadsheet, Sparkles, TrendingUp, PieChart, Database, Search, Printer, CheckCircle, Trash2 } from 'lucide-react';
 import ReportPDFModal from '../common/ReportPDFModal';
+import ApprovalNotificationModal from '../common/ApprovalNotificationModal';
 
 export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
   const [activeTab, setActiveTab] = useState('overview'); // 'overview', 'database'
   const [pendingCompanies, setPendingCompanies] = useState([]);
   const [analytics, setAnalytics] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [approvalModal, setApprovalModal] = useState({ isOpen: false, title: '', message: '', entityName: '' });
 
   // Admin Authentication Lock Screen State
   const [adminEmail, setAdminEmail] = useState('');
@@ -149,11 +151,18 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Action failed');
 
-      alert(data.message);
+      if (action === 'approve') {
+        setApprovalModal({
+          isOpen: true,
+          title: '🎉 Recruiter Request Accepted!',
+          message: 'GSFC TPC Placement Cell has approved and accepted the corporate recruiter application request. The recruiter account and hiring drive are now verified!',
+          entityName: companyId
+        });
+      }
       fetchAdminData();
       fetchMasterData();
     } catch (err) {
-      alert(err.message);
+      console.error('Approval error:', err);
     }
   };
 
@@ -884,6 +893,15 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
         isOpen={pdfReportModalOpen}
         onClose={() => setPdfReportModalOpen(false)}
         candidateData={selectedCandidateReport}
+      />
+
+      {/* RECRUITER & DRIVE APPROVAL SUCCESS MODAL */}
+      <ApprovalNotificationModal
+        isOpen={approvalModal.isOpen}
+        onClose={() => setApprovalModal({ ...approvalModal, isOpen: false })}
+        title={approvalModal.title}
+        message={approvalModal.message}
+        entityName={approvalModal.entityName}
       />
     </div>
   );

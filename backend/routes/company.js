@@ -84,8 +84,8 @@ router.get('/requirements', (req, res) => {
 // Post New Job Requirement (Admin Approval Check Enforced)
 router.post('/requirements', (req, res) => {
   try {
-    const { 
-      company_id, title, eligible_programs, min_cgpa, 
+    const {
+      company_id, title, eligible_programs, min_cgpa,
       required_skills, preferred_skills, job_type, ctc_range, openings, deadline, job_description,
       application_type, external_apply_url, application_instructions,
       question_bank
@@ -112,8 +112,8 @@ router.post('/requirements', (req, res) => {
 
     const reqId = 'req_' + Date.now();
     const eligibleProgramsJson = JSON.stringify(Array.isArray(eligible_programs) ? eligible_programs : [eligible_programs]);
-    const reqSkillsJson = JSON.stringify(Array.isArray(required_skills) ? required_skills : String(required_skills).split(',').map(s=>s.trim()));
-    const prefSkillsJson = JSON.stringify(Array.isArray(preferred_skills) ? preferred_skills : String(preferred_skills || '').split(',').map(s=>s.trim()).filter(Boolean));
+    const reqSkillsJson = JSON.stringify(Array.isArray(required_skills) ? required_skills : String(required_skills).split(',').map(s => s.trim()));
+    const prefSkillsJson = JSON.stringify(Array.isArray(preferred_skills) ? preferred_skills : String(preferred_skills || '').split(',').map(s => s.trim()).filter(Boolean));
     const qBankJson = JSON.stringify(qBank);
     const qBankStatus = qBank.length >= 5 ? 'complete' : 'pending';
 
@@ -122,8 +122,8 @@ router.post('/requirements', (req, res) => {
       (id, company_id, title, eligible_programs_json, min_cgpa, required_skills_json, preferred_skills_json, job_type, ctc_range, openings, deadline, job_description, application_type, external_apply_url, application_instructions, question_bank_json, question_bank_status)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
-      reqId, company.id, title, eligibleProgramsJson, parseFloat(min_cgpa || 0), 
-      reqSkillsJson, prefSkillsJson, job_type || 'Full-time', ctc_range || 'Competitive CTC', 
+      reqId, company.id, title, eligibleProgramsJson, parseFloat(min_cgpa || 0),
+      reqSkillsJson, prefSkillsJson, job_type || 'Full-time', ctc_range || 'Competitive CTC',
       parseInt(openings || 1), deadline || '2026-12-31', job_description || '',
       appType, extUrl, application_instructions || null, qBankJson, qBankStatus
     );
@@ -153,43 +153,43 @@ router.put('/requirements/:id/question-bank', (req, res) => {
 
     db.prepare('UPDATE requirements SET question_bank_json = ?, question_bank_status = ? WHERE id = ?').run(qBankJson, qBankStatus, id);
 
-// Edit / Update Existing Requirement Drive (Recruiter Authority)
-router.put('/requirements/:id', (req, res) => {
-  try {
-    const { id } = req.params;
-    const { 
-      title, eligible_programs, min_cgpa, 
-      required_skills, preferred_skills, job_type, ctc_range, openings, deadline, job_description,
-      application_type, external_apply_url, application_instructions,
-      question_bank
-    } = req.body;
+    // Edit / Update Existing Requirement Drive (Recruiter Authority)
+    router.put('/requirements/:id', (req, res) => {
+      try {
+        const { id } = req.params;
+        const {
+          title, eligible_programs, min_cgpa,
+          required_skills, preferred_skills, job_type, ctc_range, openings, deadline, job_description,
+          application_type, external_apply_url, application_instructions,
+          question_bank
+        } = req.body;
 
-    const existingReq = db.prepare('SELECT * FROM requirements WHERE id = ?').get(id);
-    if (!existingReq) {
-      return res.status(404).json({ error: 'Job requirement not found.' });
-    }
+        const existingReq = db.prepare('SELECT * FROM requirements WHERE id = ?').get(id);
+        if (!existingReq) {
+          return res.status(404).json({ error: 'Job requirement not found.' });
+        }
 
-    const qBank = Array.isArray(question_bank) ? question_bank : [];
-    if (qBank.length < 5) {
-      return res.status(400).json({ error: 'Minimum 5 interview questions are required to update a job drive.' });
-    }
+        const qBank = Array.isArray(question_bank) ? question_bank : [];
+        if (qBank.length < 5) {
+          return res.status(400).json({ error: 'Minimum 5 interview questions are required to update a job drive.' });
+        }
 
-    const appType = application_type === 'external' ? 'external' : 'internal';
-    let extUrl = external_apply_url ? String(external_apply_url).trim() : null;
+        const appType = application_type === 'external' ? 'external' : 'internal';
+        let extUrl = external_apply_url ? String(external_apply_url).trim() : null;
 
-    if (appType === 'external') {
-      if (!extUrl || !extUrl.toLowerCase().startsWith('https://')) {
-        return res.status(400).json({ error: 'External Application URL must start with https://' });
-      }
-    }
+        if (appType === 'external') {
+          if (!extUrl || !extUrl.toLowerCase().startsWith('https://')) {
+            return res.status(400).json({ error: 'External Application URL must start with https://' });
+          }
+        }
 
-    const eligibleProgramsJson = JSON.stringify(Array.isArray(eligible_programs) ? eligible_programs : [eligible_programs]);
-    const reqSkillsJson = JSON.stringify(Array.isArray(required_skills) ? required_skills : String(required_skills).split(',').map(s=>s.trim()));
-    const prefSkillsJson = JSON.stringify(Array.isArray(preferred_skills) ? preferred_skills : String(preferred_skills || '').split(',').map(s=>s.trim()).filter(Boolean));
-    const qBankJson = JSON.stringify(qBank);
-    const qBankStatus = qBank.length >= 5 ? 'complete' : 'pending';
+        const eligibleProgramsJson = JSON.stringify(Array.isArray(eligible_programs) ? eligible_programs : [eligible_programs]);
+        const reqSkillsJson = JSON.stringify(Array.isArray(required_skills) ? required_skills : String(required_skills).split(',').map(s => s.trim()));
+        const prefSkillsJson = JSON.stringify(Array.isArray(preferred_skills) ? preferred_skills : String(preferred_skills || '').split(',').map(s => s.trim()).filter(Boolean));
+        const qBankJson = JSON.stringify(qBank);
+        const qBankStatus = qBank.length >= 5 ? 'complete' : 'pending';
 
-    db.prepare(`
+        db.prepare(`
       UPDATE requirements
       SET title = ?, eligible_programs_json = ?, min_cgpa = ?, required_skills_json = ?, preferred_skills_json = ?,
           job_type = ?, ctc_range = ?, openings = ?, deadline = ?, job_description = ?,
@@ -197,29 +197,29 @@ router.put('/requirements/:id', (req, res) => {
           question_bank_json = ?, question_bank_status = ?
       WHERE id = ?
     `).run(
-      title, eligibleProgramsJson, parseFloat(min_cgpa || 0),
-      reqSkillsJson, prefSkillsJson, job_type, ctc_range, parseInt(openings || 1),
-      deadline, job_description, appType, extUrl, application_instructions || '',
-      qBankJson, qBankStatus, id
-    );
+          title, eligibleProgramsJson, parseFloat(min_cgpa || 0),
+          reqSkillsJson, prefSkillsJson, job_type, ctc_range, parseInt(openings || 1),
+          deadline, job_description, appType, extUrl, application_instructions || '',
+          qBankJson, qBankStatus, id
+        );
 
-    const updated = db.prepare('SELECT * FROM requirements WHERE id = ?').get(id);
-    res.json({ message: 'Requirement drive updated successfully!', requirement: updated });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
+        const updated = db.prepare('SELECT * FROM requirements WHERE id = ?').get(id);
+        res.json({ message: 'Requirement drive updated successfully!', requirement: updated });
+      } catch (err) {
+        res.status(500).json({ error: err.message });
+      }
+    });
 
-// View Ranked Shortlist of Applicants for a Requirement
-router.get('/requirements/:id/applicants', (req, res) => {
-  try {
-    const { id } = req.params;
-    const requirement = db.prepare('SELECT * FROM requirements WHERE id = ?').get(id);
-    if (!requirement) {
-      return res.status(404).json({ error: 'Requirement not found.' });
-    }
+    // View Ranked Shortlist of Applicants for a Requirement
+    router.get('/requirements/:id/applicants', (req, res) => {
+      try {
+        const { id } = req.params;
+        const requirement = db.prepare('SELECT * FROM requirements WHERE id = ?').get(id);
+        if (!requirement) {
+          return res.status(404).json({ error: 'Requirement not found.' });
+        }
 
-    const apps = db.prepare(`
+        const apps = db.prepare(`
       SELECT a.id as application_id, a.match_score, a.status, a.applied_at,
              s.id as student_id, s.name, s.program, s.branch, s.cgpa, s.resume_url, 
              s.parsed_resume_json, s.ats_score
@@ -228,45 +228,45 @@ router.get('/requirements/:id/applicants', (req, res) => {
       WHERE a.requirement_id = ?
     `).all(id);
 
-    // Compute live match score & parsed skill summaries
-    const rankedApplicants = apps.map(app => {
-      let parsedData = {};
-      try { parsedData = JSON.parse(app.parsed_resume_json || '{}'); } catch(e){}
+        // Compute live match score & parsed skill summaries
+        const rankedApplicants = apps.map(app => {
+          let parsedData = {};
+          try { parsedData = JSON.parse(app.parsed_resume_json || '{}'); } catch (e) { }
 
-      const matchRes = calculateMatchScore(
-        { program: app.program, cgpa: app.cgpa, name: app.name, parsed_resume_json: parsedData },
-        requirement
-      );
+          const matchRes = calculateMatchScore(
+            { program: app.program, cgpa: app.cgpa, name: app.name, parsed_resume_json: parsedData },
+            requirement
+          );
 
-      return {
-        ...app,
-        matchScore: matchRes.matchScore,
-        eligible: matchRes.eligible,
-        reason: matchRes.reason,
-        skillsSummary: parsedData.skills?.technical || [],
-        parsedResume: parsedData
-      };
-    }).sort((a, b) => b.matchScore - a.matchScore); // Ranked highest first!
+          return {
+            ...app,
+            matchScore: matchRes.matchScore,
+            eligible: matchRes.eligible,
+            reason: matchRes.reason,
+            skillsSummary: parsedData.skills?.technical || [],
+            parsedResume: parsedData
+          };
+        }).sort((a, b) => b.matchScore - a.matchScore); // Ranked highest first!
 
-    res.json({
-      requirement,
-      totalApplicants: rankedApplicants.length,
-      applicants: rankedApplicants
+        res.json({
+          requirement,
+          totalApplicants: rankedApplicants.length,
+          applicants: rankedApplicants
+        });
+      } catch (err) {
+        res.status(500).json({ error: err.message });
+      }
     });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
 
-// Get All Master Applied Candidates for a Company (Across all hiring requirements)
-router.get('/all-applicants', (req, res) => {
-  try {
-    const { companyId } = req.query;
-    if (!companyId) {
-      return res.status(400).json({ error: 'companyId is required.' });
-    }
+    // Get All Master Applied Candidates for a Company (Across all hiring requirements)
+    router.get('/all-applicants', (req, res) => {
+      try {
+        const { companyId } = req.query;
+        if (!companyId) {
+          return res.status(400).json({ error: 'companyId is required.' });
+        }
 
-    const apps = db.prepare(`
+        const apps = db.prepare(`
       SELECT a.id as application_id, a.match_score, a.status, a.applied_at, a.applied_via,
              r.id as requirement_id, r.title as job_title, r.ctc_range, r.job_type,
              s.id as student_id, s.name as candidate_name, s.program, s.branch, s.cgpa, 
@@ -279,50 +279,50 @@ router.get('/all-applicants', (req, res) => {
       ORDER BY a.applied_at DESC
     `).all(companyId);
 
-    res.json(apps);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
+        res.json(apps);
+      } catch (err) {
+        res.status(500).json({ error: err.message });
+      }
+    });
 
-// Update Application Status (e.g. 'shortlisted', 'interview', 'selected', 'rejected')
-router.post('/update-application-status', (req, res) => {
-  try {
-    const { application_id, status } = req.body;
-    if (!application_id || !status) {
-      return res.status(400).json({ error: 'application_id and status are required.' });
-    }
+    // Update Application Status (e.g. 'shortlisted', 'interview', 'selected', 'rejected')
+    router.post('/update-application-status', (req, res) => {
+      try {
+        const { application_id, status } = req.body;
+        if (!application_id || !status) {
+          return res.status(400).json({ error: 'application_id and status are required.' });
+        }
 
-    db.prepare('UPDATE applications SET status = ? WHERE id = ?').run(status, application_id);
-    res.json({ message: `Application status updated to '${status}' successfully!`, application_id, status });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
+        db.prepare('UPDATE applications SET status = ? WHERE id = ?').run(status, application_id);
+        res.json({ message: `Application status updated to '${status}' successfully!`, application_id, status });
+      } catch (err) {
+        res.status(500).json({ error: err.message });
+      }
+    });
 
-// Delete Requirement Drive
-router.delete('/requirements/:id', (req, res) => {
-  try {
-    const reqId = req.params.id;
-    // Delete associated applications first
-    db.prepare('DELETE FROM applications WHERE requirement_id = ?').run(reqId);
-    // Delete requirement
-    db.prepare('DELETE FROM requirements WHERE id = ?').run(reqId);
-    res.json({ message: 'Placement requirement drive deleted successfully.', id: reqId });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
+    // Delete Requirement Drive
+    router.delete('/requirements/:id', (req, res) => {
+      try {
+        const reqId = req.params.id;
+        // Delete associated applications first
+        db.prepare('DELETE FROM applications WHERE requirement_id = ?').run(reqId);
+        // Delete requirement
+        db.prepare('DELETE FROM requirements WHERE id = ?').run(reqId);
+        res.json({ message: 'Placement requirement drive deleted successfully.', id: reqId });
+      } catch (err) {
+        res.status(500).json({ error: err.message });
+      }
+    });
 
-// Delete Candidate Application
-router.delete('/applications/:id', (req, res) => {
-  try {
-    const appId = req.params.id;
-    db.prepare('DELETE FROM applications WHERE id = ?').run(appId);
-    res.json({ message: 'Application deleted successfully.', id: appId });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
+    // Delete Candidate Application
+    router.delete('/applications/:id', (req, res) => {
+      try {
+        const appId = req.params.id;
+        db.prepare('DELETE FROM applications WHERE id = ?').run(appId);
+        res.json({ message: 'Application deleted successfully.', id: appId });
+      } catch (err) {
+        res.status(500).json({ error: err.message });
+      }
+    });
 
-export default router;
+    export default router;
