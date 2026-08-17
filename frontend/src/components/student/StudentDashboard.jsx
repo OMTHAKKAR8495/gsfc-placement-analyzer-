@@ -363,7 +363,7 @@ export default function StudentDashboard({ student, onUpdateStudent, onOpenAuthM
               )}
             </div>
 
-            <h1 className="text-2xl sm:text-4xl font-black text-slate-900 tracking-tight leading-tight">
+            <h1 className="text-xl sm:text-3xl lg:text-4xl font-black text-slate-900 tracking-tight leading-snug break-words">
               Welcome to <span className="gradient-text">GSFC Placement Portal</span>, Made by Thakkar Om (BTech CSE)
             </h1>
             <p className="text-xs sm:text-sm text-slate-700 mt-1.5 max-w-2xl font-bold leading-relaxed">
