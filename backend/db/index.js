@@ -69,6 +69,17 @@ function applyMigrations() {
       db.exec("ALTER TABLE applications ADD COLUMN applied_via TEXT CHECK(applied_via IN ('internal', 'external')) DEFAULT 'internal'");
     }
 
+    // High-Performance Database Indexes for Instant TPC Admin Login & Queries
+    db.exec(`
+      CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+      CREATE INDEX IF NOT EXISTS idx_company_profiles_user_id ON company_profiles(user_id);
+      CREATE INDEX IF NOT EXISTS idx_company_profiles_approved ON company_profiles(approved);
+      CREATE INDEX IF NOT EXISTS idx_student_profiles_user_id ON student_profiles(user_id);
+      CREATE INDEX IF NOT EXISTS idx_requirements_company_id ON requirements(company_id);
+      CREATE INDEX IF NOT EXISTS idx_applications_req_id ON applications(requirement_id);
+      CREATE INDEX IF NOT EXISTS idx_applications_student_id ON applications(student_id);
+    `);
+
     db.exec(`
       CREATE TABLE IF NOT EXISTS interview_evaluations (
         id TEXT PRIMARY KEY,

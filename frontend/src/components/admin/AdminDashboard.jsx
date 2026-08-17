@@ -88,8 +88,8 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
 
   const fetchAdminData = async () => {
     try {
-      await Promise.all([
-        fetchAdminDataSilently(),
+      fetchAdminDataSilently();
+      Promise.all([
         fetchCandidateDatabase(),
         fetchMasterData()
       ]);

@@ -14,7 +14,7 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
   const [showPostModal, setShowPostModal] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  // Recruiter Authentication Lock Screen State
+  // Recrit uiter Authentication Lock Screen State
   const [recruiterEmail, setRecruiterEmail] = useState('');
   const [recruiterPassword, setRecruiterPassword] = useState('');
   const [loggingIn, setLoggingIn] = useState(false);
