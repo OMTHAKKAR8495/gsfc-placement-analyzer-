@@ -27,10 +27,9 @@
 ### 1.1 Background & Purpose
 GSFC University hosts thousands of students across diverse academic disciplines, including **BTech Computer Science & Engineering**, **BTech Mechanical Engineering**, **BTech Civil Engineering**, **BTech Chemical Engineering**, **BTech Electrical & Electronics Engineering**, **MSc Chemical Sciences**, **Biotechnology**, and **BBA/MBA Management**. 
 
-Prior placement workflows faced three critical industry challenges:
+Prior placement workflows faced key industry challenges:
 1. **Domain Bias in Resume Evaluation**: Traditional recruitment portals evaluated resumes against fixed keyword dictionaries (primarily Computer Science keywords like `Python` or `React`), penalizing top-performing students from core engineering disciplines (Mechanical, Civil, Chemical) when applying for core or interdisciplinary roles.
-2. **Static & Arbitrary Scoring**: Legacy systems assigned fixed fallback scores (e.g. 75% Match) without parsing actual resume contents against corporate hiring requirements.
-3. **Manual Applicant Screening**: Placement officers and corporate recruiters spent hundreds of hours manually verifying CGPA cutoffs, degree program eligibility, and ATS compatibility.
+2. **Manual Applicant Screening**: Placement officers and corporate recruiters spent hundreds of hours manually verifying CGPA cutoffs, degree program eligibility, and ATS compatibility.
 
 ### 1.2 The GSFC CampusHire AI Solution
 Developed by **Thakkar Om (BTech CSE)**, the **GSFC University Placement Analyzer & AI Recruitment System** is an enterprise full-stack platform designed to automate end-to-end campus recruitment:
