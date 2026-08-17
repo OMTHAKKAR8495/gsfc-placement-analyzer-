@@ -4,7 +4,7 @@ import { calculateMatchScore } from '../ai/modules/matchingEngine.js';
 
 const router = express.Router();
 
-// Get Company Requirements
+// Get Company Requirements (With Automatic Demo Application Seeding)
 router.get('/requirements', (req, res) => {
   try {
     const { companyId } = req.query;
@@ -23,7 +23,58 @@ router.get('/requirements', (req, res) => {
     }
     query += ` ORDER BY r.created_at DESC`;
 
-    const requirements = db.prepare(query).all(...params);
+    let requirements = db.prepare(query).all(...params);
+
+    // Auto-seed Demo Applications if recruiter currently has 0 applications
+    if (companyId && requirements.length === 0) {
+      let company = db.prepare('SELECT * FROM company_profiles WHERE id = ? OR user_id = ?').get(companyId, companyId);
+      if (company) {
+        const demoQBank1 = JSON.stringify([
+          { id: 'q_demo_1', text: 'How do you optimize SQL queries and indexes under high database load?', category: 'Technical', difficulty: 'Medium', skillTags: ['SQL', 'Database'], source: 'recruiter' },
+          { id: 'q_demo_2', text: 'Walk through your experience building asynchronous web services with FastAPI or Node.', category: 'Technical', difficulty: 'Medium', skillTags: ['FastAPI', 'Node.js'], source: 'recruiter' },
+          { id: 'q_demo_3', text: 'How do you approach designing a rate limiter for microservices?', category: 'System Design', difficulty: 'Hard', skillTags: ['System Design'], source: 'recruiter' },
+          { id: 'q_demo_4', text: 'Describe a situation where a technical project fell behind schedule. How did you resolve it?', category: 'Behavioral', difficulty: 'Medium', skillTags: ['Agile'], source: 'recruiter' },
+          { id: 'q_demo_5', text: 'Why are you passionate about joining our engineering team?', category: 'HR', difficulty: 'Easy', skillTags: ['Communication'], source: 'recruiter' }
+        ]);
+
+        const demoQBank2 = JSON.stringify([
+          { id: 'q_demo_6', text: 'Explain how indexing improves SELECT query execution speed in PostgreSQL.', category: 'Technical', difficulty: 'Easy', skillTags: ['SQL'], source: 'recruiter' },
+          { id: 'q_demo_7', text: 'How do you clean and transform raw unstructured JSON data using Python Pandas?', category: 'Technical', difficulty: 'Medium', skillTags: ['Python', 'Data'], source: 'recruiter' },
+          { id: 'q_demo_8', text: 'What key metrics would you track to evaluate campaign performance in PowerBI?', category: 'Analytics', difficulty: 'Medium', skillTags: ['PowerBI'], source: 'recruiter' },
+          { id: 'q_demo_9', text: 'How do you prioritize urgent data requests from multiple cross-functional teams?', category: 'Behavioral', difficulty: 'Medium', skillTags: ['Agile'], source: 'recruiter' },
+          { id: 'q_demo_10', text: 'What is your understanding of our company products and growth strategy?', category: 'HR', difficulty: 'Easy', skillTags: ['Research'], source: 'recruiter' }
+        ]);
+
+        db.prepare(`
+          INSERT INTO requirements 
+          (id, company_id, title, eligible_programs_json, min_cgpa, required_skills_json, preferred_skills_json, job_type, ctc_range, openings, deadline, job_description, application_type, question_bank_json, question_bank_status)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(
+          `req_demo_swe_${Date.now()}`, company.id, 'Software Development Engineer - AI & Web Systems (Demo Application)',
+          JSON.stringify(['BTech CSE', 'BTech IT', 'MSc CS']), 7.5,
+          JSON.stringify(['Python', 'React', 'Node.js', 'SQL']), JSON.stringify(['FastAPI', 'Docker', 'Machine Learning']),
+          'Full-time', '₹18,00,000 - ₹24,00,000 PA', 3, '2026-10-30',
+          'Demo Hiring Requirement Application submitted to GSFC TPC Admin. Focuses on full-stack web architecture, API design, and AI model integration.',
+          'internal', demoQBank1, 'complete'
+        );
+
+        db.prepare(`
+          INSERT INTO requirements 
+          (id, company_id, title, eligible_programs_json, min_cgpa, required_skills_json, preferred_skills_json, job_type, ctc_range, openings, deadline, job_description, application_type, question_bank_json, question_bank_status)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(
+          `req_demo_analyst_${Date.now() + 1}`, company.id, 'Cloud Systems & Data Analytics Intern (Demo Application)',
+          JSON.stringify(['BTech CSE', 'BTech Mechanical', 'MBA']), 7.0,
+          JSON.stringify(['SQL', 'Python', 'Excel', 'Data Visualization']), JSON.stringify(['PowerBI', 'Tableau', 'PostgreSQL']),
+          'Internship', '₹12,00,000 - ₹15,00,000 PA', 5, '2026-11-15',
+          'Demo Internship Application for GSFC Placement Cell. Candidates analyze business metrics, query database pipelines, and build analytics dashboards.',
+          'internal', demoQBank2, 'complete'
+        );
+
+        requirements = db.prepare(query).all(...params);
+      }
+    }
+
     res.json(requirements);
   } catch (err) {
     res.status(500).json({ error: err.message });
