@@ -57,23 +57,27 @@ export default function App() {
 
   // Helper to validate whether user role is permitted to access target workspace
   const isRoleAllowedInWorkspace = (user, targetWorkspace) => {
+    // Main Student Homepage is universally accessible to all users & guests
+    if (targetWorkspace === 'student' || !targetWorkspace) {
+      return true;
+    }
     if (!user) {
       // Guest: can only access Student Workspace
-      return targetWorkspace === 'student';
+      return false;
     }
     if (user.role === 'admin') {
       // Admin: has oversight access to all workspaces
       return true;
     }
     if (user.role === 'company') {
-      // Recruiter: scoped ONLY to Recruiter Portal
-      return targetWorkspace === 'company';
+      // Recruiter: can access Recruiter Portal and Main Homepage
+      return targetWorkspace === 'company' || targetWorkspace === 'student';
     }
     if (user.role === 'student') {
       // Student: scoped ONLY to Student Workspace and Interview Studio
       return targetWorkspace === 'student' || targetWorkspace === 'interview';
     }
-    return targetWorkspace === 'student';
+    return true;
   };
 
   useEffect(() => {
@@ -152,6 +156,9 @@ export default function App() {
     }
     setActiveRole(newRole);
     window.location.hash = `#${newRole}`;
+    if (newRole === 'student') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   };
 
   const handleLogout = () => {
