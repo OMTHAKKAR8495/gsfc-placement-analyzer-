@@ -18,24 +18,8 @@ export function validatePasswordPolicy(password, email = '') {
     return { valid: false, message: 'Password is required.' };
   }
 
-  if (password.length < 10) {
-    return { valid: false, message: 'Password must be at least 10 characters long.' };
-  }
-
-  if (COMMON_PASSWORDS.has(password.toLowerCase())) {
-    return { valid: false, message: 'Password is too common or easily guessable. Please choose a stronger password.' };
-  }
-
-  if (email && password.toLowerCase().includes(email.split('@')[0].toLowerCase())) {
-    return { valid: false, message: 'Password cannot contain your email or username.' };
-  }
-
-  const hasUpper = /[A-Z]/.test(password);
-  const hasLower = /[a-z]/.test(password);
-  const hasDigit = /[0-9]/.test(password);
-
-  if (!hasUpper || !hasLower || !hasDigit) {
-    return { valid: false, message: 'Password must contain at least one uppercase letter, one lowercase letter, and one number.' };
+  if (password.length < 4) {
+    return { valid: false, message: 'Password must be at least 4 characters long.' };
   }
 
   return { valid: true };

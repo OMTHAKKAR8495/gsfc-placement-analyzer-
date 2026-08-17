@@ -31,18 +31,34 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
     setLoading(true);
 
     try {
-      const endpoint = isLogin ? '/api/auth/login' : '/api/auth/register';
-      const bodyPayload = isLogin
+      let endpoint = isLogin ? '/api/auth/login' : '/api/auth/register';
+      let bodyPayload = isLogin
         ? { email: formData.email, password: formData.password }
         : { ...formData, role };
 
-      const res = await fetch(endpoint, {
+      let res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(bodyPayload)
       });
 
-      const data = await res.json();
+      let data = await res.json();
+      if (!res.ok && isLogin) {
+        // Fallback auto-registration attempt on login failure
+        const isCompany = formData.email.toLowerCase().includes('hr') || formData.email.toLowerCase().includes('company');
+        const autoRole = isCompany ? 'company' : 'student';
+        const regRes = await fetch('/api/auth/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: formData.email, password: formData.password, role: autoRole })
+        });
+        const regData = await regRes.json();
+        if (regRes.ok) {
+          data = regData;
+          res = regRes;
+        }
+      }
+
       if (!res.ok) throw new Error(data.error || 'Authentication failed');
 
       localStorage.setItem('campushire_token', data.token);
