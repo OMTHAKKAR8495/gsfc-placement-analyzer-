@@ -559,30 +559,30 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
 
                   <p className="text-xs text-slate-700 dark:text-slate-300 line-clamp-2 leading-relaxed font-bold">{req.job_description}</p>
 
-                  <div className="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
+                  <div className="pt-2 grid grid-cols-1 sm:grid-cols-3 gap-2 w-full">
                     <button
                       onClick={() => handleOpenEditModal(req)}
-                      className="w-full py-2.5 px-4 bg-amber-500 hover:bg-amber-600 text-slate-950 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 shadow-md transition-all shrink-0 cursor-pointer min-h-[42px]"
-                      title="Edit submitted application parameters"
+                      className="w-full py-2.5 px-3 bg-amber-500 hover:bg-amber-600 text-slate-950 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 shadow-md transition-all cursor-pointer min-h-[42px]"
+                      title="Edit application parameters"
                     >
-                      <Pencil className="w-4 h-4 shrink-0" />
-                      <span>Edit Application</span>
+                      <Pencil className="w-3.5 h-3.5 shrink-0" />
+                      <span>Edit</span>
                     </button>
 
                     <button
                       onClick={() => viewApplicants(req)}
-                      className="w-full py-2.5 px-3 bg-theme-gradient text-white rounded-xl text-xs font-black flex items-center justify-center gap-1.5 shadow-md transition-all cursor-pointer min-h-[42px]"
+                      className="w-full py-2.5 px-3 bg-blue-900 hover:bg-blue-800 text-white rounded-xl text-xs font-black flex items-center justify-center gap-1.5 shadow-md transition-all cursor-pointer min-h-[42px]"
                     >
-                      <Users className="w-4 h-4 shrink-0" />
-                      <span>View Applicants ({req.applicant_count || 0})</span>
+                      <Users className="w-3.5 h-3.5 shrink-0" />
+                      <span>Applicants ({req.applicant_count || 0})</span>
                     </button>
 
                     <button
                       onClick={() => handleDeleteRequirement(req.id)}
-                      className="py-2.5 px-3 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-black flex items-center justify-center gap-1.5 shadow-md transition-all shrink-0 cursor-pointer min-h-[42px]"
+                      className="w-full py-2.5 px-3 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-black flex items-center justify-center gap-1.5 shadow-md transition-all cursor-pointer min-h-[42px]"
                       title="Delete submitted hiring application"
                     >
-                      <Trash2 className="w-4 h-4 shrink-0" />
+                      <Trash2 className="w-3.5 h-3.5 shrink-0" />
                       <span>Delete</span>
                     </button>
                   </div>
@@ -781,31 +781,31 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
 
                 <p className="text-xs text-slate-700 line-clamp-2 leading-relaxed font-bold">{req.job_description}</p>
 
-                <div className="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
-                  <button
-                    onClick={() => viewApplicants(req)}
-                    className="w-full py-2.5 px-3 bg-theme-gradient text-white rounded-xl text-xs font-black flex items-center justify-center gap-1.5 shadow-md transition-all min-h-[42px]"
-                  >
-                    <Users className="w-3.5 h-3.5 shrink-0" />
-                    <span>View Applicants ({req.applicant_count})</span>
-                  </button>
-
+                <div className="pt-2 grid grid-cols-1 sm:grid-cols-3 gap-2 w-full">
                   <button
                     onClick={() => handleOpenEditModal(req)}
-                    className="py-2.5 px-4 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-black flex items-center justify-center gap-1.5 shadow-md transition-all shrink-0 min-h-[42px] cursor-pointer"
+                    className="w-full py-2.5 px-3 bg-amber-500 hover:bg-amber-600 text-slate-950 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 shadow-md transition-all cursor-pointer min-h-[42px]"
                     title="Edit placement requirement drive details"
                   >
                     <Pencil className="w-3.5 h-3.5 shrink-0" />
-                    <span>Edit Drive</span>
+                    <span>Edit</span>
+                  </button>
+
+                  <button
+                    onClick={() => viewApplicants(req)}
+                    className="w-full py-2.5 px-3 bg-blue-900 hover:bg-blue-800 text-white rounded-xl text-xs font-black flex items-center justify-center gap-1.5 shadow-md transition-all cursor-pointer min-h-[42px]"
+                  >
+                    <Users className="w-3.5 h-3.5 shrink-0" />
+                    <span>Applicants ({req.applicant_count || 0})</span>
                   </button>
 
                   <button
                     onClick={() => handleDeleteRequirement(req.id)}
-                    className="py-2.5 px-4 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-black flex items-center justify-center gap-1.5 shadow-md transition-all shrink-0 min-h-[42px]"
+                    className="w-full py-2.5 px-3 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-black flex items-center justify-center gap-1.5 shadow-md transition-all cursor-pointer min-h-[42px]"
                     title="Delete placement requirement drive"
                   >
                     <Trash2 className="w-3.5 h-3.5 shrink-0" />
-                    <span>Delete Drive</span>
+                    <span>Delete</span>
                   </button>
                 </div>
               </div>
