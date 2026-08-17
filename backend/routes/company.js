@@ -81,19 +81,39 @@ router.get('/requirements', (req, res) => {
   }
 });
 
-// Post New Job Requirement (Admin Approval Check Enforced)
+// Post New Job Requirement (With Compulsory Logo & Contact Verification)
 router.post('/requirements', (req, res) => {
   try {
     const {
       company_id, title, eligible_programs, min_cgpa,
       required_skills, preferred_skills, job_type, ctc_range, openings, deadline, job_description,
       application_type, external_apply_url, application_instructions,
-      question_bank
+      question_bank,
+      company_logo_url, company_website, company_email, company_phone
     } = req.body;
 
     let company = db.prepare('SELECT * FROM company_profiles WHERE id = ? OR user_id = ?').get(company_id, company_id);
     if (!company) {
-      return res.status(404).json({ error: 'Company profile not found.' });
+      const compProfileId = 'c_' + Date.now();
+      db.prepare(`
+        INSERT INTO company_profiles (id, user_id, company_name, logo_url, industry, website, approved, contact_email, contact_phone)
+        VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?)
+      `).run(compProfileId, company_id, 'Corporate Recruiter', company_logo_url || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=100', 'Technology & Engineering', company_website || 'https://company.com', company_email || 'hr@company.com', company_phone || '+91 98765 43210');
+      company = db.prepare('SELECT * FROM company_profiles WHERE id = ?').get(compProfileId);
+    }
+
+    // Validate Compulsory Fields
+    if (!company_logo_url || String(company_logo_url).trim().length === 0) {
+      return res.status(400).json({ error: 'Compulsory Field Required: Please upload your Official Company Logo file or logo image.' });
+    }
+    if (!company_website || !String(company_website).toLowerCase().startsWith('http')) {
+      return res.status(400).json({ error: 'Compulsory Field Required: Valid Official Company Website URL (https://...) is required.' });
+    }
+    if (!company_email || !String(company_email).includes('@')) {
+      return res.status(400).json({ error: 'Compulsory Field Required: Valid Corporate Recruiter Email Address is required.' });
+    }
+    if (!company_phone || String(company_phone).trim().length < 5) {
+      return res.status(400).json({ error: 'Compulsory Field Required: Corporate Phone / Contact Number is required.' });
     }
 
     const qBank = Array.isArray(question_bank) ? question_bank : [];
@@ -110,6 +130,13 @@ router.post('/requirements', (req, res) => {
       }
     }
 
+    // Update Company Master Profile with contact details
+    db.prepare(`
+      UPDATE company_profiles 
+      SET logo_url = ?, website = ?, contact_email = ?, contact_phone = ?
+      WHERE id = ?
+    `).run(company_logo_url, company_website, company_email, company_phone, company.id);
+
     const reqId = 'req_' + Date.now();
     const eligibleProgramsJson = JSON.stringify(Array.isArray(eligible_programs) ? eligible_programs : [eligible_programs]);
     const reqSkillsJson = JSON.stringify(Array.isArray(required_skills) ? required_skills : String(required_skills).split(',').map(s => s.trim()));
@@ -119,13 +146,14 @@ router.post('/requirements', (req, res) => {
 
     db.prepare(`
       INSERT INTO requirements 
-      (id, company_id, title, eligible_programs_json, min_cgpa, required_skills_json, preferred_skills_json, job_type, ctc_range, openings, deadline, job_description, application_type, external_apply_url, application_instructions, question_bank_json, question_bank_status)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      (id, company_id, title, eligible_programs_json, min_cgpa, required_skills_json, preferred_skills_json, job_type, ctc_range, openings, deadline, job_description, application_type, external_apply_url, application_instructions, question_bank_json, question_bank_status, company_logo_url, company_website, company_email, company_phone)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       reqId, company.id, title, eligibleProgramsJson, parseFloat(min_cgpa || 0),
       reqSkillsJson, prefSkillsJson, job_type || 'Full-time', ctc_range || 'Competitive CTC',
       parseInt(openings || 1), deadline || '2026-12-31', job_description || '',
-      appType, extUrl, application_instructions || null, qBankJson, qBankStatus
+      appType, extUrl, application_instructions || null, qBankJson, qBankStatus,
+      company_logo_url, company_website, company_email, company_phone
     );
 
     const createdReq = db.prepare('SELECT * FROM requirements WHERE id = ?').get(reqId);
@@ -138,82 +166,84 @@ router.post('/requirements', (req, res) => {
 
 // Update Question Bank for a Requirement (Edit / Add / Delete questions)
 router.put('/requirements/:id/question-bank', (req, res) => {
+  const { id } = req.params;
+  const { question_bank } = req.body;
+  const qBank = Array.isArray(question_bank) ? question_bank : [];
+  const qBankJson = JSON.stringify(qBank);
+  const qBankStatus = qBank.length >= 5 ? 'complete' : 'pending';
+
+  db.prepare('UPDATE requirements SET question_bank_json = ?, question_bank_status = ? WHERE id = ?').run(qBankJson, qBankStatus, id);
+  res.json({ message: 'Question bank updated', id });
+});
+
+// Edit / Update Existing Requirement Drive (Recruiter Authority)
+router.put('/requirements/:id', (req, res) => {
   try {
     const { id } = req.params;
-    const { question_bank } = req.body;
+    const {
+      title, eligible_programs, min_cgpa,
+      required_skills, preferred_skills, job_type, ctc_range, openings, deadline, job_description,
+      application_type, external_apply_url, application_instructions,
+      question_bank,
+      company_logo_url, company_website, company_email, company_phone
+    } = req.body;
 
-    const requirement = db.prepare('SELECT * FROM requirements WHERE id = ?').get(id);
-    if (!requirement) {
-      return res.status(404).json({ error: 'Requirement not found.' });
+    const existingReq = db.prepare('SELECT * FROM requirements WHERE id = ?').get(id);
+    if (!existingReq) {
+      return res.status(404).json({ error: 'Job requirement not found.' });
     }
 
     const qBank = Array.isArray(question_bank) ? question_bank : [];
+    if (qBank.length < 5) {
+      return res.status(400).json({ error: 'Minimum 5 interview questions are required to update a job drive.' });
+    }
+
+    const appType = application_type === 'external' ? 'external' : 'internal';
+    let extUrl = external_apply_url ? String(external_apply_url).trim() : null;
+
+    if (appType === 'external') {
+      if (!extUrl || !extUrl.toLowerCase().startsWith('https://')) {
+        return res.status(400).json({ error: 'External Application URL must start with https://' });
+      }
+    }
+
+    const eligibleProgramsJson = JSON.stringify(Array.isArray(eligible_programs) ? eligible_programs : [eligible_programs]);
+    const reqSkillsJson = JSON.stringify(Array.isArray(required_skills) ? required_skills : String(required_skills).split(',').map(s => s.trim()));
+    const prefSkillsJson = JSON.stringify(Array.isArray(preferred_skills) ? preferred_skills : String(preferred_skills || '').split(',').map(s => s.trim()).filter(Boolean));
     const qBankJson = JSON.stringify(qBank);
     const qBankStatus = qBank.length >= 5 ? 'complete' : 'pending';
 
-    db.prepare('UPDATE requirements SET question_bank_json = ?, question_bank_status = ? WHERE id = ?').run(qBankJson, qBankStatus, id);
-
-    // Edit / Update Existing Requirement Drive (Recruiter Authority)
-    router.put('/requirements/:id', (req, res) => {
-      try {
-        const { id } = req.params;
-        const {
-          title, eligible_programs, min_cgpa,
-          required_skills, preferred_skills, job_type, ctc_range, openings, deadline, job_description,
-          application_type, external_apply_url, application_instructions,
-          question_bank
-        } = req.body;
-
-        const existingReq = db.prepare('SELECT * FROM requirements WHERE id = ?').get(id);
-        if (!existingReq) {
-          return res.status(404).json({ error: 'Job requirement not found.' });
-        }
-
-        const qBank = Array.isArray(question_bank) ? question_bank : [];
-        if (qBank.length < 5) {
-          return res.status(400).json({ error: 'Minimum 5 interview questions are required to update a job drive.' });
-        }
-
-        const appType = application_type === 'external' ? 'external' : 'internal';
-        let extUrl = external_apply_url ? String(external_apply_url).trim() : null;
-
-        if (appType === 'external') {
-          if (!extUrl || !extUrl.toLowerCase().startsWith('https://')) {
-            return res.status(400).json({ error: 'External Application URL must start with https://' });
-          }
-        }
-
-        const eligibleProgramsJson = JSON.stringify(Array.isArray(eligible_programs) ? eligible_programs : [eligible_programs]);
-        const reqSkillsJson = JSON.stringify(Array.isArray(required_skills) ? required_skills : String(required_skills).split(',').map(s => s.trim()));
-        const prefSkillsJson = JSON.stringify(Array.isArray(preferred_skills) ? preferred_skills : String(preferred_skills || '').split(',').map(s => s.trim()).filter(Boolean));
-        const qBankJson = JSON.stringify(qBank);
-        const qBankStatus = qBank.length >= 5 ? 'complete' : 'pending';
-
-        db.prepare(`
+    db.prepare(`
       UPDATE requirements
       SET title = ?, eligible_programs_json = ?, min_cgpa = ?, required_skills_json = ?, preferred_skills_json = ?,
           job_type = ?, ctc_range = ?, openings = ?, deadline = ?, job_description = ?,
           application_type = ?, external_apply_url = ?, application_instructions = ?,
-          question_bank_json = ?, question_bank_status = ?
+          question_bank_json = ?, question_bank_status = ?,
+          company_logo_url = COALESCE(?, company_logo_url),
+          company_website = COALESCE(?, company_website),
+          company_email = COALESCE(?, company_email),
+          company_phone = COALESCE(?, company_phone)
       WHERE id = ?
     `).run(
-          title, eligibleProgramsJson, parseFloat(min_cgpa || 0),
-          reqSkillsJson, prefSkillsJson, job_type, ctc_range, parseInt(openings || 1),
-          deadline, job_description, appType, extUrl, application_instructions || '',
-          qBankJson, qBankStatus, id
-        );
+      title, eligibleProgramsJson, parseFloat(min_cgpa || 0),
+      reqSkillsJson, prefSkillsJson, job_type, ctc_range, parseInt(openings || 1),
+      deadline, job_description, appType, extUrl, application_instructions || '',
+      qBankJson, qBankStatus,
+      company_logo_url || null, company_website || null, company_email || null, company_phone || null,
+      id
+    );
 
-        const updated = db.prepare('SELECT * FROM requirements WHERE id = ?').get(id);
-        res.json({ message: 'Requirement drive updated successfully!', requirement: updated });
-      } catch (err) {
-        res.status(500).json({ error: err.message });
-      }
-    });
+    const updated = db.prepare('SELECT * FROM requirements WHERE id = ?').get(id);
+    res.json({ message: 'Requirement drive updated successfully!', requirement: updated });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
-    // View Ranked Shortlist of Applicants for a Requirement
-    router.get('/requirements/:id/applicants', (req, res) => {
-      try {
-        const { id } = req.params;
+// View Ranked Shortlist of Applicants for a Requirement
+router.get('/requirements/:id/applicants', (req, res) => {
+  try {
+    const { id } = req.params;
         const requirement = db.prepare('SELECT * FROM requirements WHERE id = ?').get(id);
         if (!requirement) {
           return res.status(404).json({ error: 'Requirement not found.' });

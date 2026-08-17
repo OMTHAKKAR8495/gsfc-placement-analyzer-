@@ -43,6 +43,26 @@ function applyMigrations() {
     if (!reqColumns.includes('question_bank_status')) {
       db.exec("ALTER TABLE requirements ADD COLUMN question_bank_status TEXT CHECK(question_bank_status IN ('pending', 'complete')) DEFAULT 'pending'");
     }
+    if (!reqColumns.includes('company_logo_url')) {
+      db.exec("ALTER TABLE requirements ADD COLUMN company_logo_url TEXT");
+    }
+    if (!reqColumns.includes('company_website')) {
+      db.exec("ALTER TABLE requirements ADD COLUMN company_website TEXT");
+    }
+    if (!reqColumns.includes('company_email')) {
+      db.exec("ALTER TABLE requirements ADD COLUMN company_email TEXT");
+    }
+    if (!reqColumns.includes('company_phone')) {
+      db.exec("ALTER TABLE requirements ADD COLUMN company_phone TEXT");
+    }
+
+    const compColumns = db.prepare("PRAGMA table_info(company_profiles)").all().map(c => c.name);
+    if (!compColumns.includes('contact_email')) {
+      db.exec("ALTER TABLE company_profiles ADD COLUMN contact_email TEXT");
+    }
+    if (!compColumns.includes('contact_phone')) {
+      db.exec("ALTER TABLE company_profiles ADD COLUMN contact_phone TEXT");
+    }
 
     const appColumns = db.prepare("PRAGMA table_info(applications)").all().map(c => c.name);
     if (!appColumns.includes('applied_via')) {

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Building2, Plus, Users, Sparkles, AlertCircle, ArrowLeft, CheckCircle, ExternalLink, Download, FileText, Search, Tag, ShieldCheck, Database, Printer, Eye, Briefcase, XCircle, Trash2, Pencil } from 'lucide-react';
+import { Building2, Building, Plus, Users, Sparkles, AlertCircle, ArrowLeft, CheckCircle, ExternalLink, Download, Upload, FileText, Search, Tag, ShieldCheck, Database, Printer, Eye, Briefcase, XCircle, Trash2, Pencil } from 'lucide-react';
 import InterviewQuestionGeneratorModal from './InterviewQuestionGeneratorModal';
 import ReportPDFModal from '../common/ReportPDFModal';
 import CompanyQuestionUploadModal from '../common/CompanyQuestionUploadModal';
@@ -167,6 +167,16 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
   const [postStatus, setPostStatus] = useState(null);
   const [editingReqId, setEditingReqId] = useState(null);
 
+  const handleLogoFileUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      setPostForm(prev => ({ ...prev, company_logo_url: event.target.result }));
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleOpenEditModal = (req) => {
     setEditingReqId(req.id);
     let elProg = ['BTech CSE', 'BTech IT'];
@@ -174,10 +184,10 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
     let prefSkills = 'Docker, FastAPI';
     let qBank = [];
 
-    try { elProg = typeof req.eligible_programs_json === 'string' ? JSON.parse(req.eligible_programs_json) : (req.eligible_programs_json || elProg); } catch(e) {}
-    try { reqSkills = typeof req.required_skills_json === 'string' ? JSON.parse(req.required_skills_json).join(', ') : (Array.isArray(req.required_skills_json) ? req.required_skills_json.join(', ') : reqSkills); } catch(e) {}
-    try { prefSkills = typeof req.preferred_skills_json === 'string' ? JSON.parse(req.preferred_skills_json).join(', ') : (Array.isArray(req.preferred_skills_json) ? req.preferred_skills_json.join(', ') : prefSkills); } catch(e) {}
-    try { qBank = typeof req.question_bank_json === 'string' ? JSON.parse(req.question_bank_json) : (req.question_bank_json || []); } catch(e) {}
+    try { elProg = typeof req.eligible_programs_json === 'string' ? JSON.parse(req.eligible_programs_json) : (req.eligible_programs_json || elProg); } catch (e) { }
+    try { reqSkills = typeof req.required_skills_json === 'string' ? JSON.parse(req.required_skills_json).join(', ') : (Array.isArray(req.required_skills_json) ? req.required_skills_json.join(', ') : reqSkills); } catch (e) { }
+    try { prefSkills = typeof req.preferred_skills_json === 'string' ? JSON.parse(req.preferred_skills_json).join(', ') : (Array.isArray(req.preferred_skills_json) ? req.preferred_skills_json.join(', ') : prefSkills); } catch (e) { }
+    try { qBank = typeof req.question_bank_json === 'string' ? JSON.parse(req.question_bank_json) : (req.question_bank_json || []); } catch (e) { }
 
     setPostForm({
       title: req.title || '',
@@ -193,7 +203,11 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
       application_type: req.application_type || 'internal',
       external_apply_url: req.external_apply_url || '',
       application_instructions: req.application_instructions || '',
-      question_bank: qBank.length > 0 ? qBank : postForm.question_bank
+      question_bank: qBank.length > 0 ? qBank : postForm.question_bank,
+      company_logo_url: req.company_logo_url || company?.logo_url || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=100',
+      company_website: req.company_website || company?.website || 'https://company.com',
+      company_email: req.company_email || company?.contact_email || currentUser?.email || 'hr@company.com',
+      company_phone: req.company_phone || company?.contact_phone || '+91 98765 43210'
     });
     setPostStatus(null);
     setShowPostModal(true);
@@ -215,6 +229,10 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
       application_type: 'internal',
       external_apply_url: '',
       application_instructions: '',
+      company_logo_url: company?.logo_url || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=100',
+      company_website: company?.website || 'https://company.com',
+      company_email: company?.contact_email || currentUser?.email || 'hr@company.com',
+      company_phone: company?.contact_phone || '+91 98765 43210',
       question_bank: [
         { id: 'q_default_1', text: 'How do you optimize SQL queries and indexes under high database load?', category: 'Technical', difficulty: 'Medium', skillTags: ['SQL', 'Database'], source: 'recruiter' },
         { id: 'q_default_2', text: 'Walk through your experience building asynchronous web services with FastAPI or Node.', category: 'Technical', difficulty: 'Medium', skillTags: ['FastAPI', 'Node.js'], source: 'recruiter' },
@@ -259,8 +277,8 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
         message: isPending
           ? '🎉 Your hiring requirement application has been submitted and is currently under TPC Admin review & approval!'
           : editingReqId
-          ? '✅ Placement hiring requirement drive updated successfully!'
-          : '🎉 Placement hiring requirement drive published successfully!'
+            ? '✅ Placement hiring requirement drive updated successfully!'
+            : '🎉 Placement hiring requirement drive published successfully!'
       });
 
       setTimeout(() => {
@@ -438,11 +456,10 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
       <div className="flex items-center gap-3 bg-white/90 p-2 rounded-2xl border border-slate-200 shadow-sm max-w-full overflow-x-auto">
         <button
           onClick={() => setActiveTab('my_applications')}
-          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black transition-all shrink-0 cursor-pointer ${
-            activeTab === 'my_applications'
+          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black transition-all shrink-0 cursor-pointer ${activeTab === 'my_applications'
               ? 'bg-gradient-to-r from-blue-900 via-indigo-900 to-amber-600 text-white shadow-md'
               : 'text-slate-700 hover:bg-slate-100'
-          }`}
+            }`}
         >
           <FileText className="w-4 h-4 text-amber-400 shrink-0" />
           <span>📋 Posted Hiring Applications ({requirements.length})</span>
@@ -450,33 +467,30 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
 
         <button
           onClick={() => setActiveTab('requirements')}
-          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black transition-all shrink-0 cursor-pointer ${
-            activeTab === 'requirements'
+          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black transition-all shrink-0 cursor-pointer ${activeTab === 'requirements'
               ? 'bg-blue-900 text-white shadow-md'
               : 'text-slate-700 hover:bg-slate-100'
-          }`}
+            }`}
         >
           <Briefcase className="w-4 h-4 shrink-0" /> Active Hiring Drives ({requirements.length})
         </button>
 
         <button
           onClick={() => setActiveTab('database')}
-          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black transition-all shrink-0 cursor-pointer ${
-            activeTab === 'database'
+          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black transition-all shrink-0 cursor-pointer ${activeTab === 'database'
               ? 'bg-blue-900 text-white shadow-md'
               : 'text-slate-700 hover:bg-slate-100'
-          }`}
+            }`}
         >
           <Database className="w-4 h-4 text-amber-400 shrink-0" /> 🗄️ Candidate Database ({allCandidates.length})
         </button>
 
         <button
           onClick={() => setActiveTab('applicants')}
-          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black transition-all shrink-0 cursor-pointer ${
-            activeTab === 'applicants'
+          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black transition-all shrink-0 cursor-pointer ${activeTab === 'applicants'
               ? 'bg-blue-900 text-white shadow-md'
               : 'text-slate-700 hover:bg-slate-100'
-          }`}
+            }`}
         >
           <Users className="w-4 h-4 text-emerald-400 shrink-0" /> 📥 Applied Candidates Feed ({allCompanyApplicants.length})
         </button>
@@ -818,7 +832,7 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
       {activeReqApplicants && (
         <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fadeIn overflow-y-auto">
           <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 max-w-4xl w-full shadow-2xl overflow-hidden my-8 text-slate-900 dark:text-slate-100">
-            
+
             {/* Modal Header */}
             <div className="bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 p-6 text-white flex items-center justify-between">
               <div>
@@ -947,7 +961,7 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
       {showPostModal && (
         <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fadeIn overflow-y-auto">
           <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 max-w-2xl w-full shadow-2xl overflow-hidden my-8 text-slate-900 dark:text-slate-100">
-            
+
             {/* Modal Header */}
             <div className="bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 p-6 text-white flex items-center justify-between">
               <div>
@@ -967,16 +981,15 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
 
             {/* Modal Form */}
             <form onSubmit={handlePostRequirement} className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
-              
+
               {/* Highlighted Status Notification Banner (No top browser alerts) */}
               {postStatus && (
-                <div className={`p-4 rounded-2xl border font-bold text-xs flex items-center justify-between gap-3 shadow-lg ${
-                  postStatus.type === 'pending'
+                <div className={`p-4 rounded-2xl border font-bold text-xs flex items-center justify-between gap-3 shadow-lg ${postStatus.type === 'pending'
                     ? 'bg-amber-500/20 border-amber-500/40 text-amber-900 dark:text-amber-300'
                     : postStatus.type === 'success'
-                    ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-900 dark:text-emerald-300'
-                    : 'bg-rose-500/20 border-rose-500/40 text-rose-900 dark:text-rose-300'
-                }`}>
+                      ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-900 dark:text-emerald-300'
+                      : 'bg-rose-500/20 border-rose-500/40 text-rose-900 dark:text-rose-300'
+                  }`}>
                   <div className="flex items-center gap-2">
                     {postStatus.type === 'pending' && <Sparkles className="w-4 h-4 text-amber-500 shrink-0 animate-pulse" />}
                     {postStatus.type === 'success' && <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0" />}
@@ -1001,6 +1014,88 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
                 />
               </div>
 
+              {/* COMPULSORY CORPORATE IDENTITY & CONTACT DETAILS */}
+              <div className="p-4 bg-amber-500/10 dark:bg-amber-950/30 rounded-2xl border border-amber-400/40 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5 text-xs font-black text-amber-700 dark:text-amber-300 uppercase tracking-wider">
+                    <Building className="w-4 h-4 text-amber-600" /> Corporate Profile & Contact Information (Compulsory)
+                  </div>
+                  <span className="px-2 py-0.5 bg-amber-500 text-slate-950 text-[10px] font-black rounded-md">Required</span>
+                </div>
+
+                {/* Logo Upload Box */}
+                <div>
+                  <label className="block text-xs font-black text-slate-900 dark:text-slate-100 mb-1">Company Official Logo * (Upload Logo File or Image URL)</label>
+                  <div className="flex items-center gap-3">
+                    <img
+                      src={postForm.company_logo_url || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=100'}
+                      alt="Company Logo Preview"
+                      className="w-12 h-12 rounded-xl object-contain bg-white p-1 border border-slate-300 dark:border-slate-700 shrink-0 shadow-sm"
+                    />
+                    <div className="flex-1 space-y-1.5">
+                      <label className="cursor-pointer py-1.5 px-3 bg-blue-900 hover:bg-blue-800 text-white rounded-xl text-xs font-black inline-flex items-center gap-1.5 shadow-sm transition-all">
+                        <Upload className="w-3.5 h-3.5" /> Upload Logo File
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleLogoFileUpload}
+                          className="hidden"
+                        />
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="Or paste Company Logo Image URL (https://...)"
+                        value={postForm.company_logo_url}
+                        onChange={(e) => setPostForm({ ...postForm, company_logo_url: e.target.value })}
+                        className="w-full px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-bold focus:outline-none focus:border-blue-900"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {/* Company Website URL */}
+                  <div>
+                    <label className="block text-[11px] font-black text-slate-800 dark:text-slate-200 mb-1">Company Website *</label>
+                    <input
+                      type="url"
+                      required
+                      placeholder="https://company.com"
+                      value={postForm.company_website}
+                      onChange={(e) => setPostForm({ ...postForm, company_website: e.target.value })}
+                      className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-bold focus:outline-none focus:border-blue-900"
+                    />
+                  </div>
+
+                  {/* Corporate Contact Email */}
+                  <div>
+                    <label className="block text-[11px] font-black text-slate-800 dark:text-slate-200 mb-1">Corporate Email *</label>
+                    <input
+                      type="email"
+                      required
+                      placeholder="hr@company.com"
+                      value={postForm.company_email}
+                      onChange={(e) => setPostForm({ ...postForm, company_email: e.target.value })}
+                      className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-bold focus:outline-none focus:border-blue-900"
+                    />
+                  </div>
+
+                  {/* Corporate Phone Number */}
+                  <div>
+                    <label className="block text-[11px] font-black text-slate-800 dark:text-slate-200 mb-1">Corporate Phone *</label>
+                    <input
+                      type="tel"
+                      required
+                      placeholder="+91 98765 43210"
+                      value={postForm.company_phone}
+                      onChange={(e) => setPostForm({ ...postForm, company_phone: e.target.value })}
+                      className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-bold focus:outline-none focus:border-blue-900"
+                    />
+                  </div>
+                </div>
+              </div>
+
               {/* Application Method Toggle (Addendum Spec) */}
               <div className="p-4 bg-slate-100 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-700 space-y-2">
                 <label className="block text-xs font-black text-slate-900 dark:text-slate-100">Application Method *</label>
@@ -1008,11 +1103,10 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
                   <button
                     type="button"
                     onClick={() => setPostForm({ ...postForm, application_type: 'internal' })}
-                    className={`p-3 rounded-xl border text-left font-bold text-xs transition-all ${
-                      postForm.application_type === 'internal'
+                    className={`p-3 rounded-xl border text-left font-bold text-xs transition-all ${postForm.application_type === 'internal'
                         ? 'bg-blue-900 text-white border-blue-900 shadow-md'
                         : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700'
-                    }`}
+                      }`}
                   >
                     <div className="font-black text-xs">Internal CampusHire AI</div>
                     <div className="text-[10px] opacity-80 mt-0.5">Students apply inside platform with auto-filled resume</div>
@@ -1021,11 +1115,10 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
                   <button
                     type="button"
                     onClick={() => setPostForm({ ...postForm, application_type: 'external' })}
-                    className={`p-3 rounded-xl border text-left font-bold text-xs transition-all ${
-                      postForm.application_type === 'external'
+                    className={`p-3 rounded-xl border text-left font-bold text-xs transition-all ${postForm.application_type === 'external'
                         ? 'bg-blue-900 text-white border-blue-900 shadow-md'
                         : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700'
-                    }`}
+                      }`}
                   >
                     <div className="font-black text-xs">External Careers Portal</div>
                     <div className="text-[10px] opacity-80 mt-0.5">Redirect students to company external website</div>
@@ -1181,11 +1274,10 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
                   type="submit"
                   disabled={loading || (postForm.question_bank || []).length < 5}
                   title={(postForm.question_bank || []).length < 5 ? "Add at least 5 interview questions to publish this drive" : ""}
-                  className={`px-6 py-2.5 font-black text-xs rounded-xl shadow-xl flex items-center gap-2 transition-all ${
-                    (postForm.question_bank || []).length >= 5
+                  className={`px-6 py-2.5 font-black text-xs rounded-xl shadow-xl flex items-center gap-2 transition-all ${(postForm.question_bank || []).length >= 5
                       ? 'bg-gradient-to-r from-blue-900 via-indigo-900 to-amber-600 hover:from-blue-800 hover:to-amber-500 text-white cursor-pointer'
                       : 'bg-slate-300 text-slate-500 cursor-not-allowed'
-                  }`}
+                    }`}
                 >
                   <Plus className="w-4 h-4" />
                   {loading ? 'Saving Requirement...' : editingReqId ? 'Update Requirement Drive' : 'Publish Job Requirement'}
