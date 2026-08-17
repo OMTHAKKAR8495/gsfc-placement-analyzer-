@@ -174,62 +174,39 @@ router.get('/export-report', (req, res) => {
   }
 });
 
-// Global TPC Admin Search Endpoint (Section 2 Requirement)
+// Global Search across Candidates, Companies, Requirements
 router.get('/global-search', (req, res) => {
   try {
-    const q = req.query.q || '';
-    let students, companies, requirements;
+    const { q } = req.query;
     if (!q || !q.trim()) {
-      students = db.prepare(`
-        SELECT s.*, u.email
-        FROM student_profiles s
-        JOIN users u ON s.user_id = u.id
-        ORDER BY s.cgpa DESC
-        LIMIT 10
-      `).all();
-
-      companies = db.prepare(`
-        SELECT c.*, u.email
-        FROM company_profiles c
-        JOIN users u ON c.user_id = u.id
-        ORDER BY c.created_at DESC
-        LIMIT 10
-      `).all();
-
-      requirements = db.prepare(`
-        SELECT r.*, c.company_name
-        FROM requirements r
-        JOIN company_profiles c ON r.company_id = c.id
-        ORDER BY r.created_at DESC
-        LIMIT 10
-      `).all();
-    } else {
-      const searchTerm = `%${q.trim().toLowerCase()}%`;
-
-      students = db.prepare(`
-        SELECT s.*, u.email
-        FROM student_profiles s
-        JOIN users u ON s.user_id = u.id
-        WHERE LOWER(s.name) LIKE ? OR LOWER(s.roll_number) LIKE ? OR LOWER(s.program) LIKE ?
-        LIMIT 10
-      `).all(searchTerm, searchTerm, searchTerm);
-
-      companies = db.prepare(`
-        SELECT c.*, u.email
-        FROM company_profiles c
-        JOIN users u ON c.user_id = u.id
-        WHERE LOWER(c.company_name) LIKE ? OR LOWER(c.industry) LIKE ?
-        LIMIT 10
-      `).all(searchTerm, searchTerm);
-
-      requirements = db.prepare(`
-        SELECT r.*, c.company_name
-        FROM requirements r
-        JOIN company_profiles c ON r.company_id = c.id
-        WHERE LOWER(r.title) LIKE ? OR LOWER(c.company_name) LIKE ?
-        LIMIT 10
-      `).all(searchTerm, searchTerm);
+      return res.json({ students: [], companies: [], requirements: [] });
     }
+
+    const searchTerm = `%${q.trim().toLowerCase()}%`;
+
+    const students = db.prepare(`
+      SELECT s.*, u.email
+      FROM student_profiles s
+      JOIN users u ON s.user_id = u.id
+      WHERE LOWER(s.name) LIKE ? OR LOWER(s.roll_number) LIKE ? OR LOWER(s.program) LIKE ?
+      LIMIT 10
+    `).all(searchTerm, searchTerm, searchTerm);
+
+    const companies = db.prepare(`
+      SELECT c.*, u.email
+      FROM company_profiles c
+      JOIN users u ON c.user_id = u.id
+      WHERE LOWER(c.company_name) LIKE ? OR LOWER(c.industry) LIKE ?
+      LIMIT 10
+    `).all(searchTerm, searchTerm);
+
+    const requirements = db.prepare(`
+      SELECT r.*, c.company_name
+      FROM requirements r
+      JOIN company_profiles c ON r.company_id = c.id
+      WHERE LOWER(r.title) LIKE ? OR LOWER(c.company_name) LIKE ?
+      LIMIT 10
+    `).all(searchTerm, searchTerm);
 
     res.json({ students, companies, requirements });
   } catch (err) {

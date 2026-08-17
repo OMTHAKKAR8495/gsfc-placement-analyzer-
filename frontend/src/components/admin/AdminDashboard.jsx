@@ -91,8 +91,7 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
       await Promise.all([
         fetchAdminDataSilently(),
         fetchCandidateDatabase(),
-        fetchMasterData(),
-        fetchGlobalSearch('')
+        fetchMasterData()
       ]);
     } catch (err) {
       console.error('Error fetching admin data:', err);
