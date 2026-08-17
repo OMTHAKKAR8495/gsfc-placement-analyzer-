@@ -45,6 +45,8 @@ export default function StudentDashboard({ student, onUpdateStudent, onOpenAuthM
   const [isEditingName, setIsEditingName] = useState(false);
   const [isEditingEmail, setIsEditingEmail] = useState(false);
 
+  // Selected Match Breakdown Modal State
+  const [selectedMatchBreakdown, setSelectedMatchBreakdown] = useState(null);
   // Mail Modal & PDF Report Modal State
   const [mailModalOpen, setMailModalOpen] = useState(false);
   const [pdfReportModalOpen, setPdfReportModalOpen] = useState(false);
@@ -516,16 +518,39 @@ export default function StudentDashboard({ student, onUpdateStudent, onOpenAuthM
                           </div>
                         </div>
 
-                        <div className={`px-2.5 py-1 rounded-2xl border text-center font-black text-xs shrink-0 shadow-sm ${
-                          !req.eligible
-                            ? 'bg-red-50 border-red-200 text-red-700'
-                            : req.matchScore >= 85
-                            ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
-                            : 'bg-blue-50 border-blue-200 text-blue-900'
-                        }`}>
-                          <div className="text-[9px] uppercase font-black tracking-wider opacity-80">NLP Match</div>
-                          {req.eligible ? `${req.matchScore}% Match` : 'Ineligible'}
-                        </div>
+                        {req.matchScore !== null ? (
+                          <div 
+                            onClick={() => setSelectedMatchBreakdown(req)}
+                            className={`px-3 py-1.5 rounded-2xl border text-center font-black text-xs shrink-0 shadow-sm cursor-pointer hover:scale-105 transition-all ${
+                              !req.eligible
+                                ? 'bg-red-50 border-red-200 text-red-700'
+                                : req.matchScore >= 85
+                                ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                                : req.matchScore >= 70
+                                ? 'bg-blue-50 border-blue-200 text-blue-900'
+                                : 'bg-amber-50 border-amber-200 text-amber-900'
+                            }`}
+                            title="Click to view AI Match Breakdown & Skill Analysis"
+                          >
+                            <div className="text-[9px] uppercase font-black tracking-wider opacity-80 flex items-center gap-1 justify-center">
+                              <Sparkles className="w-2.5 h-2.5" /> NLP Match
+                            </div>
+                            <div className="text-xs font-black">
+                              {req.eligible ? `${req.matchScore}% Match` : 'Ineligible'}
+                            </div>
+                          </div>
+                        ) : (
+                          <button 
+                            onClick={() => {
+                              if (onOpenAuthModal) onOpenAuthModal();
+                              else alert('Please upload your resume in the Student Workspace to calculate your personalized NLP match score.');
+                            }}
+                            className="px-3 py-1.5 rounded-2xl border border-amber-400/50 bg-amber-50 text-amber-900 font-black text-[11px] shrink-0 shadow-sm hover:bg-amber-100 flex items-center gap-1.5 cursor-pointer transition-all"
+                          >
+                            <Sparkles className="w-3.5 h-3.5 text-amber-600 animate-pulse" />
+                            <span>Upload Resume for Match %</span>
+                          </button>
+                        )}
                       </div>
 
                       <p className="text-xs text-slate-700 leading-relaxed font-semibold line-clamp-2">{req.job_description}</p>
@@ -1062,6 +1087,138 @@ export default function StudentDashboard({ student, onUpdateStudent, onOpenAuthM
               <p className="text-xs text-slate-800 font-bold leading-relaxed">
                 {placementTips[currentTipIndex]}
               </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* AI MATCH BREAKDOWN & SKILL ANALYSIS MODAL */}
+      {selectedMatchBreakdown && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-md animate-fadeIn overflow-y-auto">
+          <div className="relative w-full max-w-2xl bg-white rounded-3xl border border-slate-200 shadow-2xl overflow-hidden text-slate-900 my-8">
+            <div className="bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 p-6 text-white flex items-center justify-between">
+              <div className="space-y-1">
+                <span className="px-2.5 py-0.5 bg-amber-500/20 text-amber-300 text-[10px] font-black uppercase rounded-lg border border-amber-500/30 flex items-center gap-1 w-fit">
+                  <Sparkles className="w-3 h-3 text-amber-400" /> GSFC AI Domain Match Breakdown
+                </span>
+                <h2 className="text-xl font-black">{selectedMatchBreakdown.title}</h2>
+                <p className="text-xs text-slate-300 font-bold">{selectedMatchBreakdown.company_name} • CTC: {selectedMatchBreakdown.ctc_range}</p>
+              </div>
+              <button
+                onClick={() => setSelectedMatchBreakdown(null)}
+                className="p-2 bg-white/10 hover:bg-white/20 rounded-xl text-white transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-5 max-h-[80vh] overflow-y-auto">
+              {/* Score Meter Banner */}
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="flex items-center gap-4">
+                  <div className={`w-16 h-16 rounded-2xl flex flex-col items-center justify-center font-black shadow-inner border ${
+                    !selectedMatchBreakdown.eligible
+                      ? 'bg-red-100 text-red-700 border-red-300'
+                      : selectedMatchBreakdown.matchScore >= 85
+                      ? 'bg-emerald-100 text-emerald-900 border-emerald-300'
+                      : 'bg-blue-100 text-blue-900 border-blue-300'
+                  }`}>
+                    <span className="text-xl leading-none">{selectedMatchBreakdown.eligible ? `${selectedMatchBreakdown.matchScore}%` : '0%'}</span>
+                    <span className="text-[9px] uppercase font-bold mt-1">Match</span>
+                  </div>
+                  <div>
+                    <h3 className="font-black text-sm text-slate-900">
+                      {selectedMatchBreakdown.eligible ? 'Academic & Domain Fit Evaluated' : 'Eligibility Criteria Mismatch'}
+                    </h3>
+                    <p className="text-xs text-slate-600 font-semibold mt-0.5">
+                      {selectedMatchBreakdown.eligibilityReason || 'Candidate satisfies initial program cutoff.'}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2 text-center text-[10px] font-black shrink-0 w-full sm:w-auto">
+                  <div className="p-2 bg-white rounded-xl border border-slate-200">
+                    <span className="text-slate-400 block uppercase">Skill Fit</span>
+                    <span className="text-blue-900 text-sm">{selectedMatchBreakdown.breakdown?.skillFitScore || 0}%</span>
+                  </div>
+                  <div className="p-2 bg-white rounded-xl border border-slate-200">
+                    <span className="text-slate-400 block uppercase">Experience</span>
+                    <span className="text-indigo-900 text-sm">{selectedMatchBreakdown.breakdown?.experienceScore || 0}%</span>
+                  </div>
+                  <div className="p-2 bg-white rounded-xl border border-slate-200">
+                    <span className="text-slate-400 block uppercase">Academic</span>
+                    <span className="text-emerald-900 text-sm">{selectedMatchBreakdown.breakdown?.academicScore || 0}%</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Matched Skills */}
+              <div className="space-y-2">
+                <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600" /> ✅ Matched Skills ({selectedMatchBreakdown.matchedSkills?.length || 0})
+                </h4>
+                <div className="flex flex-wrap gap-1.5 p-3 bg-emerald-50/50 rounded-2xl border border-emerald-200/60">
+                  {selectedMatchBreakdown.matchedSkills && selectedMatchBreakdown.matchedSkills.length > 0 ? (
+                    selectedMatchBreakdown.matchedSkills.map((sk, idx) => (
+                      <span key={idx} className="px-2.5 py-1 bg-emerald-100 text-emerald-900 border border-emerald-300 text-xs font-black rounded-lg flex items-center gap-1">
+                        <Check className="w-3 h-3 text-emerald-600" /> {sk}
+                      </span>
+                    ))
+                  ) : (
+                    <span className="text-xs text-slate-500 font-bold italic">No exact skill overlap detected.</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Missing Skills */}
+              <div className="space-y-2">
+                <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
+                  <AlertCircle className="w-4 h-4 text-amber-600" /> ⚠️ Missing / Implied Skills ({selectedMatchBreakdown.missingSkills?.length || 0})
+                </h4>
+                <div className="flex flex-wrap gap-1.5 p-3 bg-amber-50/50 rounded-2xl border border-amber-200/60">
+                  {selectedMatchBreakdown.missingSkills && selectedMatchBreakdown.missingSkills.length > 0 ? (
+                    selectedMatchBreakdown.missingSkills.map((sk, idx) => (
+                      <span key={idx} className="px-2.5 py-1 bg-amber-100 text-amber-900 border border-amber-300 text-xs font-black rounded-lg flex items-center gap-1">
+                        <X className="w-3 h-3 text-amber-600" /> {sk}
+                      </span>
+                    ))
+                  ) : (
+                    <span className="text-xs text-emerald-700 font-bold">Candidate possesses all required skills!</span>
+                  )}
+                </div>
+              </div>
+
+              {/* AI Strength Rationale */}
+              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-1">
+                <span className="text-[10px] font-black text-blue-900 uppercase tracking-wider block">AI Match Rationale</span>
+                <p className="text-xs text-slate-700 font-semibold leading-relaxed">
+                  {selectedMatchBreakdown.strengthSummary || 'Candidate demonstrates valid domain preparation for this role.'}
+                </p>
+              </div>
+
+              {/* Actionable Improvement Tips */}
+              <div className="space-y-2">
+                <span className="text-xs font-black text-slate-900 uppercase tracking-wider block flex items-center gap-1.5">
+                  <TrendingUp className="w-4 h-4 text-blue-900" /> 🎯 Actionable Improvement Tips
+                </span>
+                <div className="space-y-2">
+                  {(selectedMatchBreakdown.improvementTips || []).map((tip, idx) => (
+                    <div key={idx} className="p-3 bg-blue-50/60 border border-blue-200/70 rounded-xl text-xs font-bold text-blue-950 flex items-start gap-2">
+                      <span className="w-5 h-5 rounded-full bg-blue-900 text-white font-black text-[10px] flex items-center justify-center shrink-0 mt-0.5">{idx + 1}</span>
+                      <span>{tip}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="p-4 bg-slate-100 border-t border-slate-200 flex items-center justify-end">
+              <button
+                onClick={() => setSelectedMatchBreakdown(null)}
+                className="py-2.5 px-5 bg-blue-900 text-white font-black text-xs rounded-xl shadow-md cursor-pointer"
+              >
+                Close Analysis
+              </button>
             </div>
           </div>
         </div>

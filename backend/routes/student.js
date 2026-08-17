@@ -198,7 +198,15 @@ router.get('/requirements', (req, res) => {
     `).all();
 
     const requirementsWithScores = requirements.map(reqItem => {
-      let matchInfo = { matchScore: 75, eligible: true, reason: 'Upload resume to see exact match score' };
+      let matchInfo = {
+        matchScore: null,
+        eligible: true,
+        reason: 'Upload resume to calculate exact NLP match score',
+        matchedSkills: [],
+        missingSkills: [],
+        strengthSummary: 'Upload resume to generate AI domain match analysis.',
+        improvementTips: ['Upload resume in Student Workspace to analyze match.']
+      };
 
       if (student && student.parsed_resume_json) {
         matchInfo = calculateMatchScore(student, reqItem);
@@ -209,7 +217,11 @@ router.get('/requirements', (req, res) => {
         matchScore: matchInfo.matchScore,
         eligible: matchInfo.eligible,
         eligibilityReason: matchInfo.reason,
-        breakdown: matchInfo.breakdown
+        matchedSkills: matchInfo.matchedSkills || [],
+        missingSkills: matchInfo.missingSkills || [],
+        strengthSummary: matchInfo.strengthSummary || '',
+        improvementTips: matchInfo.improvementTips || [],
+        breakdown: matchInfo.breakdown || {}
       };
     });
 

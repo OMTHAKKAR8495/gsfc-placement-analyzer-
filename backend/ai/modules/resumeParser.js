@@ -60,55 +60,75 @@ ${rawText}
 }
 
 function generateSmartParsedFallback(rawText) {
-  // Deterministic smart extraction rules for fallback
+  // Deterministic smart extraction rules for fallback across all GSFC branches
   const lines = rawText.split('\n').map(l => l.trim()).filter(Boolean);
   const name = lines[0] || 'Candidate Student';
   
   const emailMatch = rawText.match(/([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9_-]+)/);
-  const email = emailMatch ? emailMatch[1] : 'candidate@university.edu';
+  const email = emailMatch ? emailMatch[1] : 'candidate@gsfcuniversity.ac.in';
   
   const cgpaMatch = rawText.match(/(?:cgpa|gpa|pointer)[:\s]*([0-9]\.[0-9]{1,2})/i);
   const cgpa = cgpaMatch ? parseFloat(cgpaMatch[1]) : 8.4;
 
-  const defaultTechSkills = ['Python', 'JavaScript', 'React', 'Node.js', 'SQL', 'Git', 'Data Structures'];
-  const extractedSkills = defaultTechSkills.filter(sk => 
-    rawText.toLowerCase().includes(sk.toLowerCase())
-  );
+  const lowerText = rawText.toLowerCase();
 
   let program = 'BTech CSE';
-  if (rawText.toLowerCase().includes('mechanical')) program = 'BTech Mechanical';
-  else if (rawText.toLowerCase().includes('mba') || rawText.toLowerCase().includes('management')) program = 'MBA';
-  else if (rawText.toLowerCase().includes('civil')) program = 'BTech Civil';
+  let branch = 'Computer Science';
+  let defaultSkills = ['Python', 'React', 'SQL', 'FastAPI', 'Data Structures'];
+
+  if (lowerText.includes('mechanical') || lowerText.includes('cad') || lowerText.includes('solidworks')) {
+    program = 'BTech Mechanical';
+    branch = 'Mechanical Engineering';
+    defaultSkills = ['SolidWorks', 'AutoCAD', 'GD&T', 'ANSYS', 'FEA', 'Thermodynamics'];
+  } else if (lowerText.includes('civil') || lowerText.includes('staad') || lowerText.includes('etabs')) {
+    program = 'BTech Civil';
+    branch = 'Civil Engineering';
+    defaultSkills = ['AutoCAD Civil 3D', 'STAAD Pro', 'ETABS', 'Structural Analysis', 'Surveying'];
+  } else if (lowerText.includes('electrical') || lowerText.includes('electronics') || lowerText.includes('ece') || lowerText.includes('embedded')) {
+    program = 'BTech ECE';
+    branch = 'Electronics & Communication';
+    defaultSkills = ['Embedded C', 'PCB Layout', 'Altium', 'VLSI', 'Verilog', 'MATLAB'];
+  } else if (lowerText.includes('chemical') || lowerText.includes('aspen') || lowerText.includes('hysys')) {
+    program = 'BTech Chemical';
+    branch = 'Chemical Engineering';
+    defaultSkills = ['Aspen Plus', 'HYSYS', 'Process Simulation', 'Distillation', 'HAZOP'];
+  } else if (lowerText.includes('mba') || lowerText.includes('bba') || lowerText.includes('finance')) {
+    program = 'MBA';
+    branch = 'Business Administration';
+    defaultSkills = ['PowerBI', 'Financial Modeling', 'Advanced Excel', 'Tableau', 'Agile'];
+  } else if (lowerText.includes('msc') || lowerText.includes('chemistry') || lowerText.includes('biotech')) {
+    program = 'MSc Chemistry';
+    branch = 'Chemical Sciences';
+    defaultSkills = ['HPLC', 'GC-MS', 'Spectroscopy', 'Analytical Chemistry', 'Lab Techniques'];
+  }
+
+  const extractedSkills = defaultSkills.filter(sk => lowerText.includes(sk.toLowerCase()));
 
   return {
-    name: name.length < 30 ? name : 'Rahul Verma',
+    name: name.length < 35 ? name : 'Rahul Verma',
     email,
     phone: '+91 9876543210',
-    roll: '21BCE' + Math.floor(100 + Math.random() * 900),
+    roll: '21GSFC' + Math.floor(1000 + Math.random() * 9000),
     program,
-    branch: program.includes('Mechanical') ? 'Mechanical Engineering' : 'Computer Science',
+    branch,
     cgpa,
     skills: {
-      technical: extractedSkills.length > 0 ? extractedSkills : defaultTechSkills,
-      soft: ['Team Collaboration', 'Problem Solving', 'Adaptability']
+      technical: extractedSkills.length > 0 ? extractedSkills : defaultSkills,
+      soft: ['Team Leadership', 'Problem Solving', 'Project Execution']
     },
     projects: [
       {
-        title: 'Full-Stack Web Platform',
-        description: 'Designed and deployed a responsive web app with React, Node.js and SQL database.'
-      },
-      {
-        title: 'Automated Analytics Pipeline',
-        description: 'Built data processing scripts in Python to analyze performance metrics.'
+        title: `${branch} Engineering Capstone Project`,
+        description: `Designed and executed multi-stage project using ${defaultSkills.slice(0, 3).join(', ')}.`
       }
     ],
-    certifications: ['AWS Cloud Practitioner', 'Google Data Analytics'],
+    certifications: [`GSFC Advanced ${branch} Certification`],
     internships: [
       {
-        company: 'Innovate Tech Labs',
-        role: 'Software Development Intern',
-        duration: '2 Months',
-        summary: 'Assisted in backend API development and component refactoring.'
+        company: 'GSFC University Industrial Training Partner',
+        role: 'Graduate Trainee Intern',
+        duration: '3 Months',
+        summary: `Hands-on industry exposure applying ${defaultSkills[0] || 'core concepts'}.`
       }
     ]
   };

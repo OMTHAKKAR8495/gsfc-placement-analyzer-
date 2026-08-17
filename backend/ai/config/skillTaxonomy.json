@@ -1,0 +1,79 @@
+{
+  "domains": {
+    "cse": {
+      "name": "Computer Science & Information Technology",
+      "branches": ["BTech CSE", "BTech IT", "MSc CS", "BCA", "MCA"],
+      "skills": {
+        "Python": ["python", "py", "python3", "django", "flask", "fastapi"],
+        "JavaScript / React": ["javascript", "js", "react", "react.js", "reactjs", "typescript", "ts", "next.js", "vue"],
+        "Node.js": ["node", "node.js", "nodejs", "express", "express.js"],
+        "Data Structures & Algorithms": ["dsa", "data structures", "algorithms", "problem solving", "leetcode"],
+        "Database Management": ["sql", "postgresql", "postgres", "mysql", "sqlite", "mongodb", "nosql", "redis"],
+        "Cloud & DevOps": ["aws", "azure", "google cloud", "gcp", "docker", "kubernetes", "k8s", "ci/cd", "linux", "git", "github"],
+        "Artificial Intelligence & ML": ["machine learning", "ml", "artificial intelligence", "ai", "deep learning", "nlp", "pytorch", "tensorflow", "scikit-learn", "opencv"]
+      }
+    },
+    "mechanical": {
+      "name": "Mechanical & Mechatronics Engineering",
+      "branches": ["BTech Mechanical", "MTech Mechanical", "Mechatronics"],
+      "skills": {
+        "CAD / CAM Design": ["solidworks", "autocad", "catia", "creo", "pro-e", "fusion 360", "inventor", "cad", "cam", "3d modeling", "computer aided design"],
+        "FEA & CFD Simulation": ["ansys", "fea", "cfd", "finite element analysis", "computational fluid dynamics", "hypermesh", "ls-dyna", "abaqus"],
+        "Manufacturing & Machining": ["cnc", "cnc programming", "lathe", "milling", "casting", "welding", "injection molding", "additive manufacturing", "3d printing"],
+        "GD&T & Quality Standards": ["gd&t", "geometric dimensioning", "tolerancing", "six sigma", "lean manufacturing", "tqm", "iso 9001", "quality control", "spc"],
+        "Thermodynamics & Heat Transfer": ["thermodynamics", "heat transfer", "fluid mechanics", "hvac", "power plant", "refrigeration", "ic engines", "automotive engineering"],
+        "Robotics & Automation": ["robotics", "plc", "scada", "hydraulics", "pneumatics", "mechatronics", "automation"]
+      }
+    },
+    "electrical_electronics": {
+      "name": "Electrical & Electronics Engineering",
+      "branches": ["BTech Electrical", "BTech Electronics", "BTech ECE", "BTech EEE"],
+      "skills": {
+        "Embedded Systems": ["embedded c", "c++", "microcontrollers", "arduino", "raspberry pi", "arm cortex", "stm32", "rtos", "esp32"],
+        "PCB & Circuit Design": ["pcb design", "altium", "eagle", "ki-cad", "circuit design", "proteus", "schematic design", "multisim"],
+        "VLSI & Digital Electronics": ["vlsi", "verilog", "vhdl", "fpga", "systemverilog", "cadence", "digital electronics", "cmos"],
+        "Power Systems & Control": ["power electronics", "matlab", "simulink", "plc", "scada", "control systems", "power distribution", "switchgear", "smart grid"],
+        "Signal Processing & Communications": ["dsp", "digital signal processing", "rf design", "wireless communication", "5g", "iot", "internet of things"]
+      }
+    },
+    "civil": {
+      "name": "Civil & Structural Engineering",
+      "branches": ["BTech Civil", "MTech Civil", "Structural Engineering"],
+      "skills": {
+        "Structural Analysis & Design": ["staad pro", "etabs", "sap2000", "revit structure", "structural analysis", "rcc design", "steel structures"],
+        "CAD & Drafting": ["autocad civil 3d", "autocad", "revit", "sketchup", "bim", "building information modeling", "3ds max"],
+        "Project & Construction Management": ["primavera", "ms project", "construction management", "estimation and costing", "quantity surveying", "site supervision", "contracts management"],
+        "Surveying & Geotechnical": ["total station", "gis", "arcgis", "gps surveying", "geotechnical engineering", "soil mechanics", "foundation engineering"]
+      }
+    },
+    "chemical": {
+      "name": "Chemical & Process Engineering",
+      "branches": ["BTech Chemical", "MTech Chemical", "Polymer Technology"],
+      "skills": {
+        "Process Simulation & Design": ["aspen plus", "aspen hysys", "chemcad", "process simulation", "pfd", "p&id", "plant design"],
+        "Unit Operations & Reactions": ["distillation", "heat exchangers", "mass transfer", "heat transfer", "chemical reaction engineering", "fluid flow", "crystallization"],
+        "Process Safety & Quality": ["hazop", "process safety management", "psm", "industrial safety", "effluent treatment", "etp", "iso 14001"],
+        "Instrumentation & Analytical": ["hplc", "gc", "spectroscopy", "analytical chemistry", "process control", "dcs"]
+      }
+    },
+    "science": {
+      "name": "MSc & Applied Sciences / Biotechnology",
+      "branches": ["BSc Chemistry", "MSc Chemistry", "BSc Biotechnology", "MSc Biotechnology", "BSc Physics", "MSc Physics"],
+      "skills": {
+        "Laboratory & Analytical Techniques": ["hplc", "gc-ms", "uv-vis", "ftir", "nmr", "titration", "chromatography", "spectroscopy", "wet chemistry"],
+        "Biotech & Molecular Biology": ["pcr", "gel electrophoresis", "dna extraction", "cell culture", "microbiology", "enzyme assay", "bioinformatics"],
+        "Research & Data Analysis": ["r programming", "python", "statistical analysis", "graphpad prism", "originlab", "research methodology", "paper publication"]
+      }
+    },
+    "business": {
+      "name": "BBA / MBA / Business Analytics",
+      "branches": ["BBA", "MBA", "PGDM"],
+      "skills": {
+        "Business Analytics & BI": ["powerbi", "tableau", "excel vba", "advanced excel", "sql", "data visualization", "google analytics"],
+        "Finance & Accounting": ["financial modeling", "tally", "sap fico", "corporate finance", "valuation", "equity research", "gst"],
+        "Marketing & Sales": ["digital marketing", "seo", "sem", "social media marketing", "crm", "salesforce", "lead generation", "brand management"],
+        "Operations & Supply Chain": ["supply chain management", "scm", "inventory management", "logistics", "six sigma", "operations management"]
+      }
+    }
+  }
+}
