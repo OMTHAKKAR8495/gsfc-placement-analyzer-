@@ -502,7 +502,7 @@ export default function StudentDashboard({ student, onUpdateStudent, onOpenAuthM
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex items-center gap-3">
                           <img
-                            src={req.logo_url || 'https://images.unsplash.com/photo-1542744094-3a31b272c490?w=100&auto=format&fit=crop&q=60'}
+                            src={req.company_logo_url || req.logo_url || 'https://images.unsplash.com/photo-1542744094-3a31b272c490?w=100&auto=format&fit=crop&q=60'}
                             alt={req.company_name}
                             className="w-12 h-12 rounded-2xl object-contain bg-slate-50 p-1.5 border border-slate-200 shadow-sm shrink-0"
                           />

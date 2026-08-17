@@ -286,6 +286,7 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
         setPostStatus(null);
         setEditingReqId(null);
         fetchCompanyRequirements();
+        if (onRefreshCompany) onRefreshCompany();
       }, 2000);
     } catch (err) {
       setPostStatus({ type: 'error', message: err.message });
@@ -413,9 +414,9 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
       <div className="glass-panel p-4 sm:p-8 rounded-3xl border border-slate-200/90 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 sm:gap-6 relative overflow-hidden">
         <div className="flex items-center gap-3 sm:gap-4 z-10">
           <img
-            src={company?.logo_url || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=100&auto=format&fit=crop&q=60'}
+            src={company?.logo_url || (requirements.find(r => r.company_logo_url)?.company_logo_url) || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=100&auto=format&fit=crop&q=60'}
             alt={company?.company_name}
-            className="w-12 h-12 sm:w-16 sm:h-16 rounded-2xl object-contain bg-slate-50 p-2 border border-slate-200 shadow-md shrink-0"
+            className="w-12 h-12 sm:w-16 sm:h-16 rounded-2xl object-contain bg-white p-1.5 border border-slate-200 shadow-md shrink-0"
           />
           <div>
             <div className="flex flex-wrap items-center gap-2">
@@ -482,7 +483,7 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
               : 'text-slate-700 hover:bg-slate-100'
             }`}
         >
-          <Database className="w-4 h-4 text-amber-400 shrink-0" /> 🗄️ Candidate Database ({allCandidates.length})
+          <Database className="w-4 h-4 shrink-0" /> 🗄️ Candidate Database ({allCandidates.length})
         </button>
 
         <button
@@ -492,20 +493,20 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
               : 'text-slate-700 hover:bg-slate-100'
             }`}
         >
-          <Users className="w-4 h-4 text-emerald-400 shrink-0" /> 📥 Applied Candidates Feed ({allCompanyApplicants.length})
+          <Users className="w-4 h-4 text-emerald-400 shrink-0" />
+          <span>📥 Applied Candidates Feed ({allCompanyApplicants.length})</span>
         </button>
       </div>
 
-      {/* VIEW 0: POSTED HIRING APPLICATIONS COLUMN VIEW */}
+      {/* VIEW: POSTED HIRING APPLICATIONS (1ST COLUMN TAB) */}
       {activeTab === 'my_applications' && (
         <div className="space-y-4">
-          <div className="p-4 sm:p-6 rounded-3xl glass-panel border border-slate-200 shadow-md flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 glass-panel p-4 sm:p-5 rounded-3xl border border-slate-200 shadow-md">
             <div>
-              <div className="flex items-center gap-2 mb-1">
-                <FileText className="w-4 h-4 text-amber-500" />
-                <span className="text-xs font-black text-blue-900 uppercase tracking-wider">Recruiter Application Vault</span>
+              <div className="flex items-center gap-1.5 text-xs font-black text-amber-600 uppercase tracking-wider mb-0.5">
+                <FileText className="w-3.5 h-3.5" /> Recruiter Application Vault
               </div>
-              <h3 className="text-lg font-black text-slate-900">Your Submitted Hiring Drive Applications</h3>
+              <h3 className="text-base font-black text-slate-900">Your Submitted Hiring Drive Applications</h3>
               <p className="text-xs text-slate-600 font-bold mt-0.5">
                 Track status of your submitted corporate placement requirements, edit drive parameters, or publish new hiring drives for GSFC University.
               </p>
@@ -541,9 +542,16 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
               {requirements.map((req) => (
                 <div key={req.id} className="glass-card p-5 sm:p-6 rounded-3xl border border-slate-200/90 space-y-4 shadow-lg hover:shadow-xl transition-all">
                   <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <h4 className="font-black text-base text-slate-900">{req.title}</h4>
-                      <div className="text-xs text-blue-900 font-black mt-0.5">{req.job_type} • CTC: {req.ctc_range}</div>
+                    <div className="flex items-center gap-3">
+                      <img
+                        src={req.company_logo_url || company?.logo_url || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=100&auto=format&fit=crop&q=60'}
+                        alt={req.title}
+                        className="w-12 h-12 rounded-2xl object-contain bg-white p-1.5 border border-slate-200 shadow-md shrink-0"
+                      />
+                      <div>
+                        <h4 className="font-black text-base text-slate-900">{req.title}</h4>
+                        <div className="text-xs text-blue-900 font-black mt-0.5">{req.job_type} • CTC: {req.ctc_range}</div>
+                      </div>
                     </div>
                     {company?.approved ? (
                       <span className="px-3 py-1 bg-emerald-100 text-emerald-900 border border-emerald-300 text-xs font-black rounded-xl flex items-center gap-1.5 shrink-0 shadow-sm">
@@ -773,19 +781,26 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
             {requirements.map((req) => (
               <div key={req.id} className="glass-card p-4 sm:p-6 rounded-3xl border border-slate-200/90 space-y-4">
                 <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <h3 className="font-black text-base text-slate-900">{req.title}</h3>
-                    <div className="flex items-center gap-2 mt-0.5">
-                      <span className="text-xs text-blue-900 font-black">{req.job_type} • CTC: {req.ctc_range}</span>
-                      {company?.approved ? (
-                        <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 border border-emerald-300 text-[10px] font-black rounded-md flex items-center gap-1">
-                          <CheckCircle className="w-3 h-3 text-emerald-600 shrink-0" /> Active Drive
-                        </span>
-                      ) : (
-                        <span className="px-2 py-0.5 bg-amber-100 text-amber-900 border border-amber-300 text-[10px] font-black rounded-md flex items-center gap-1">
-                          <Sparkles className="w-3 h-3 text-amber-600 shrink-0 animate-pulse" /> Pending Approval
-                        </span>
-                      )}
+                  <div className="flex items-center gap-3">
+                    <img
+                      src={req.company_logo_url || company?.logo_url || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=100&auto=format&fit=crop&q=60'}
+                      alt={req.title}
+                      className="w-12 h-12 rounded-2xl object-contain bg-white p-1.5 border border-slate-200 shadow-md shrink-0"
+                    />
+                    <div>
+                      <h3 className="font-black text-base text-slate-900">{req.title}</h3>
+                      <div className="flex flex-wrap items-center gap-2 mt-0.5">
+                        <span className="text-xs text-blue-900 font-black">{req.job_type} • CTC: {req.ctc_range}</span>
+                        {company?.approved ? (
+                          <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 border border-emerald-300 text-[10px] font-black rounded-md flex items-center gap-1">
+                            <CheckCircle className="w-3 h-3 text-emerald-600 shrink-0" /> Active Drive
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 bg-amber-100 text-amber-900 border border-amber-300 text-[10px] font-black rounded-md flex items-center gap-1">
+                            <Sparkles className="w-3 h-3 text-amber-600 shrink-0 animate-pulse" /> Pending Approval
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
                   <span className="px-3 py-1 bg-slate-100 border border-slate-200 text-slate-800 text-xs font-black rounded-xl flex items-center gap-1.5 shrink-0">
