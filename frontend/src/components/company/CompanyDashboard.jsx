@@ -7,7 +7,7 @@ import RequirementQuestionBankForm from './RequirementQuestionBankForm';
 import { getCompanyUploadedQuestions, saveCompanyUploadedQuestion, bulkUploadCompanyQuestions, deleteCompanyUploadedQuestion } from '../../utils/companyQuestionStorage';
 
 export default function CompanyDashboard({ currentUser, company, onCompanyAuthSuccess, onRefreshCompany }) {
-  const [activeTab, setActiveTab] = useState('requirements'); // 'requirements', 'database'
+  const [activeTab, setActiveTab] = useState('my_applications'); // 'my_applications', 'requirements', 'database', 'applicants'
   const [requirements, setRequirements] = useState([]);
   const [activeReqApplicants, setActiveReqApplicants] = useState(null);
   const [applicantsData, setApplicantsData] = useState([]);
@@ -432,38 +432,164 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
         </div>
       </div>
 
-      {/* Recruiter Navigation Bar: Active Requirements vs Candidate Database */}
+      {/* Recruiter Navigation Bar: Posted Applications, Active Requirements, Candidate Database */}
       <div className="flex items-center gap-3 bg-white/90 p-2 rounded-2xl border border-slate-200 shadow-sm max-w-full overflow-x-auto">
         <button
+          onClick={() => setActiveTab('my_applications')}
+          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black transition-all shrink-0 cursor-pointer ${
+            activeTab === 'my_applications'
+              ? 'bg-gradient-to-r from-blue-900 via-indigo-900 to-amber-600 text-white shadow-md'
+              : 'text-slate-700 hover:bg-slate-100'
+          }`}
+        >
+          <FileText className="w-4 h-4 text-amber-400 shrink-0" />
+          <span>📋 Posted Hiring Applications ({requirements.length})</span>
+        </button>
+
+        <button
           onClick={() => setActiveTab('requirements')}
-          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black transition-all shrink-0 ${activeTab === 'requirements'
+          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black transition-all shrink-0 cursor-pointer ${
+            activeTab === 'requirements'
               ? 'bg-blue-900 text-white shadow-md'
               : 'text-slate-700 hover:bg-slate-100'
-            }`}
+          }`}
         >
-          <Briefcase className="w-4 h-4" /> Active Hiring Requirements ({requirements.length})
+          <Briefcase className="w-4 h-4 shrink-0" /> Active Hiring Drives ({requirements.length})
         </button>
 
         <button
           onClick={() => setActiveTab('database')}
-          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black transition-all shrink-0 ${activeTab === 'database'
+          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black transition-all shrink-0 cursor-pointer ${
+            activeTab === 'database'
               ? 'bg-blue-900 text-white shadow-md'
               : 'text-slate-700 hover:bg-slate-100'
-            }`}
+          }`}
         >
-          <Database className="w-4 h-4 text-amber-400" /> 🗄️ Candidate Database ({allCandidates.length})
+          <Database className="w-4 h-4 text-amber-400 shrink-0" /> 🗄️ Candidate Database ({allCandidates.length})
         </button>
 
         <button
           onClick={() => setActiveTab('applicants')}
-          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black transition-all shrink-0 ${activeTab === 'applicants'
+          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black transition-all shrink-0 cursor-pointer ${
+            activeTab === 'applicants'
               ? 'bg-blue-900 text-white shadow-md'
               : 'text-slate-700 hover:bg-slate-100'
-            }`}
+          }`}
         >
-          <Users className="w-4 h-4 text-emerald-400" /> 📥 Applied Candidates Entry Feed ({allCompanyApplicants.length})
+          <Users className="w-4 h-4 text-emerald-400 shrink-0" /> 📥 Applied Candidates Feed ({allCompanyApplicants.length})
         </button>
       </div>
+
+      {/* VIEW 0: POSTED HIRING APPLICATIONS COLUMN VIEW */}
+      {activeTab === 'my_applications' && (
+        <div className="space-y-4">
+          <div className="p-4 sm:p-6 rounded-3xl glass-panel border border-slate-200 shadow-md flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <FileText className="w-4 h-4 text-amber-500" />
+                <span className="text-xs font-black text-blue-900 uppercase tracking-wider">Recruiter Application Vault</span>
+              </div>
+              <h3 className="text-lg font-black text-slate-900">Your Submitted Hiring Drive Applications</h3>
+              <p className="text-xs text-slate-600 font-bold mt-0.5">
+                Track status of your submitted corporate placement requirements, edit drive parameters, or publish new hiring drives for GSFC University.
+              </p>
+            </div>
+            <button
+              onClick={handleOpenNewPostModal}
+              className="py-2.5 px-4 bg-gradient-to-r from-blue-900 to-indigo-900 hover:from-blue-800 hover:to-indigo-800 text-white font-black text-xs rounded-xl shadow-lg flex items-center gap-2 transition-all shrink-0 cursor-pointer"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Submit New Hiring Application</span>
+            </button>
+          </div>
+
+          {requirements.length === 0 ? (
+            <div className="glass-card p-12 rounded-3xl border border-slate-200 text-center space-y-4">
+              <div className="w-16 h-16 rounded-full bg-blue-50 text-blue-900 flex items-center justify-center mx-auto border border-blue-200">
+                <FileText className="w-8 h-8 text-blue-900" />
+              </div>
+              <h3 className="font-black text-base text-slate-900">No Hiring Applications Submitted Yet</h3>
+              <p className="text-xs text-slate-600 max-w-md mx-auto font-bold">
+                Submit your company hiring requirement application for TPC Admin approval and student placement matching.
+              </p>
+              <button
+                onClick={handleOpenNewPostModal}
+                className="py-3 px-6 bg-gradient-to-r from-blue-900 via-indigo-900 to-amber-600 text-white font-black text-xs rounded-xl shadow-lg inline-flex items-center gap-2 cursor-pointer"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Submit First Hiring Requirement</span>
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {requirements.map((req) => (
+                <div key={req.id} className="glass-card p-5 sm:p-6 rounded-3xl border border-slate-200/90 space-y-4 shadow-lg hover:shadow-xl transition-all">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <h4 className="font-black text-base text-slate-900">{req.title}</h4>
+                      <div className="text-xs text-blue-900 font-black mt-0.5">{req.job_type} • CTC: {req.ctc_range}</div>
+                    </div>
+                    {company?.approved ? (
+                      <span className="px-3 py-1 bg-emerald-100 text-emerald-900 border border-emerald-300 text-xs font-black rounded-xl flex items-center gap-1.5 shrink-0 shadow-sm">
+                        <CheckCircle className="w-3.5 h-3.5 text-emerald-600 shrink-0" /> Approved & Live
+                      </span>
+                    ) : (
+                      <span className="px-3 py-1 bg-amber-100 text-amber-900 border border-amber-300 text-xs font-black rounded-xl flex items-center gap-1.5 shrink-0 shadow-sm">
+                        <Sparkles className="w-3.5 h-3.5 text-amber-600 shrink-0 animate-pulse" /> Pending TPC Approval
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 p-3 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 text-xs font-bold text-slate-700 dark:text-slate-300">
+                    <div>
+                      <span className="text-[10px] text-slate-400 block uppercase font-black">Min Cutoff</span>
+                      <span className="font-black text-slate-900 dark:text-slate-100">{req.min_cgpa || '7.5'} CGPA</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-slate-400 block uppercase font-black">Openings</span>
+                      <span className="font-black text-slate-900 dark:text-slate-100">{req.openings || '3'} Vacancies</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-slate-400 block uppercase font-black">Applicants</span>
+                      <span className="font-black text-blue-900 dark:text-blue-400">{req.applicant_count || 0} Candidates</span>
+                    </div>
+                  </div>
+
+                  <p className="text-xs text-slate-700 dark:text-slate-300 line-clamp-2 leading-relaxed font-bold">{req.job_description}</p>
+
+                  <div className="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
+                    <button
+                      onClick={() => handleOpenEditModal(req)}
+                      className="w-full py-2.5 px-4 bg-amber-500 hover:bg-amber-600 text-slate-950 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 shadow-md transition-all shrink-0 cursor-pointer min-h-[42px]"
+                      title="Edit submitted application parameters"
+                    >
+                      <Pencil className="w-4 h-4 shrink-0" />
+                      <span>Edit Application</span>
+                    </button>
+
+                    <button
+                      onClick={() => viewApplicants(req)}
+                      className="w-full py-2.5 px-3 bg-theme-gradient text-white rounded-xl text-xs font-black flex items-center justify-center gap-1.5 shadow-md transition-all cursor-pointer min-h-[42px]"
+                    >
+                      <Users className="w-4 h-4 shrink-0" />
+                      <span>View Applicants ({req.applicant_count || 0})</span>
+                    </button>
+
+                    <button
+                      onClick={() => handleDeleteRequirement(req.id)}
+                      className="py-2.5 px-3 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-black flex items-center justify-center gap-1.5 shadow-md transition-all shrink-0 cursor-pointer min-h-[42px]"
+                      title="Delete submitted hiring application"
+                    >
+                      <Trash2 className="w-4 h-4 shrink-0" />
+                      <span>Delete</span>
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* VIEW 1: CANDIDATE DATABASE VIEW */}
       {activeTab === 'database' && (
