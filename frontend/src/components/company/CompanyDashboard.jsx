@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Building2, Plus, Users, Sparkles, AlertCircle, ArrowLeft, CheckCircle, ExternalLink, Download, FileText, Search, Tag, ShieldCheck, Database, Printer, Eye, Briefcase, XCircle, Trash2 } from 'lucide-react';
+import { Building2, Plus, Users, Sparkles, AlertCircle, ArrowLeft, CheckCircle, ExternalLink, Download, FileText, Search, Tag, ShieldCheck, Database, Printer, Eye, Briefcase, XCircle, Trash2, Pencil } from 'lucide-react';
 import InterviewQuestionGeneratorModal from './InterviewQuestionGeneratorModal';
 import ReportPDFModal from '../common/ReportPDFModal';
 import CompanyQuestionUploadModal from '../common/CompanyQuestionUploadModal';
@@ -163,26 +163,82 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
   };
 
   const [postStatus, setPostStatus] = useState(null);
+  const [editingReqId, setEditingReqId] = useState(null);
+
+  const handleOpenEditModal = (req) => {
+    setEditingReqId(req.id);
+    let elProg = ['BTech CSE', 'BTech IT'];
+    let reqSkills = 'Python, React, SQL';
+    let prefSkills = 'Docker, FastAPI';
+    let qBank = [];
+
+    try { elProg = typeof req.eligible_programs_json === 'string' ? JSON.parse(req.eligible_programs_json) : (req.eligible_programs_json || elProg); } catch(e) {}
+    try { reqSkills = typeof req.required_skills_json === 'string' ? JSON.parse(req.required_skills_json).join(', ') : (Array.isArray(req.required_skills_json) ? req.required_skills_json.join(', ') : reqSkills); } catch(e) {}
+    try { prefSkills = typeof req.preferred_skills_json === 'string' ? JSON.parse(req.preferred_skills_json).join(', ') : (Array.isArray(req.preferred_skills_json) ? req.preferred_skills_json.join(', ') : prefSkills); } catch(e) {}
+    try { qBank = typeof req.question_bank_json === 'string' ? JSON.parse(req.question_bank_json) : (req.question_bank_json || []); } catch(e) {}
+
+    setPostForm({
+      title: req.title || '',
+      eligible_programs: elProg,
+      min_cgpa: String(req.min_cgpa || '7.5'),
+      required_skills: reqSkills,
+      preferred_skills: prefSkills,
+      job_type: req.job_type || 'Full-time',
+      ctc_range: req.ctc_range || '₹18,00,000 - ₹24,00,000 PA',
+      openings: String(req.openings || '3'),
+      deadline: req.deadline || '2026-10-30',
+      job_description: req.job_description || '',
+      application_type: req.application_type || 'internal',
+      external_apply_url: req.external_apply_url || '',
+      application_instructions: req.application_instructions || '',
+      question_bank: qBank.length > 0 ? qBank : postForm.question_bank
+    });
+    setPostStatus(null);
+    setShowPostModal(true);
+  };
+
+  const handleOpenNewPostModal = () => {
+    setEditingReqId(null);
+    setPostForm({
+      title: '',
+      eligible_programs: ['BTech CSE', 'BTech IT'],
+      min_cgpa: '7.5',
+      required_skills: 'Python, React, SQL',
+      preferred_skills: 'Docker, FastAPI',
+      job_type: 'Full-time',
+      ctc_range: '₹18,00,000 - ₹24,00,000 PA',
+      openings: '3',
+      deadline: '2026-10-30',
+      job_description: 'We are seeking talented software engineers to build enterprise web services, cloud microservices, and AI integrations.',
+      application_type: 'internal',
+      external_apply_url: '',
+      application_instructions: '',
+      question_bank: [
+        { id: 'q_default_1', text: 'How do you optimize SQL queries and indexes under high database load?', category: 'Technical', difficulty: 'Medium', skillTags: ['SQL', 'Database'], source: 'recruiter' },
+        { id: 'q_default_2', text: 'Walk through your experience building asynchronous web services with FastAPI or Node.', category: 'Technical', difficulty: 'Medium', skillTags: ['FastAPI', 'Node.js'], source: 'recruiter' },
+        { id: 'q_default_3', text: 'How do you approach designing a rate limiter for microservices?', category: 'System Design', difficulty: 'Hard', skillTags: ['System Design'], source: 'recruiter' },
+        { id: 'q_default_4', text: 'Describe a situation where a technical project fell behind schedule. How did you resolve it?', category: 'Behavioral', difficulty: 'Medium', skillTags: ['Agile'], source: 'recruiter' },
+        { id: 'q_default_5', text: 'Why are you passionate about joining our engineering team?', category: 'HR', difficulty: 'Easy', skillTags: ['Communication'], source: 'recruiter' }
+      ]
+    });
+    setPostStatus(null);
+    setShowPostModal(true);
+  };
 
   const handlePostRequirement = async (e) => {
     e.preventDefault();
     setPostStatus(null);
-
-    if (!company?.approved) {
-      setPostStatus({
-        type: 'pending',
-        message: '⏳ Your recruiter account is pending TPC Admin approval. Your hiring drive application is under review — please wait for verification.'
-      });
-      return;
-    }
 
     setLoading(true);
     try {
       const reqSkillsArr = postForm.required_skills.split(',').map(s => s.trim()).filter(Boolean);
       const prefSkillsArr = postForm.preferred_skills.split(',').map(s => s.trim()).filter(Boolean);
 
-      const res = await fetch('/api/company/requirements', {
-        method: 'POST',
+      const endpoint = editingReqId ? `/api/company/requirements/${editingReqId}` : '/api/company/requirements';
+      const method = editingReqId ? 'PUT' : 'POST';
+
+      const res = await fetch(endpoint, {
+        method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...postForm,
@@ -193,18 +249,24 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to post requirement');
+      if (!res.ok) throw new Error(data.error || 'Failed to save requirement drive application');
 
+      const isPending = !company?.approved;
       setPostStatus({
         type: 'success',
-        message: '🎉 Your new hiring requirement application has been submitted and is under TPC Admin approval!'
+        message: isPending
+          ? '🎉 Your hiring requirement application has been submitted and is currently under TPC Admin review & approval!'
+          : editingReqId
+          ? '✅ Placement hiring requirement drive updated successfully!'
+          : '🎉 Placement hiring requirement drive published successfully!'
       });
 
       setTimeout(() => {
         setShowPostModal(false);
         setPostStatus(null);
+        setEditingReqId(null);
         fetchCompanyRequirements();
-      }, 2200);
+      }, 2000);
     } catch (err) {
       setPostStatus({ type: 'error', message: err.message });
     } finally {
@@ -360,9 +422,8 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
             <Building2 className="w-4 h-4 text-blue-900 shrink-0" />
             <span>Upload Company Questions</span>
           </button>
-
           <button
-            onClick={() => setShowPostModal(true)}
+            onClick={handleOpenNewPostModal}
             className="py-3 px-5 bg-gradient-to-r from-blue-900 via-indigo-900 to-amber-600 hover:from-blue-800 hover:to-amber-500 text-white font-black text-xs rounded-xl shadow-lg shadow-blue-900/20 flex items-center justify-center gap-2 transition-all min-h-[44px]"
           >
             <Plus className="w-4 h-4 shrink-0" />
@@ -447,12 +508,6 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
                       <td className="py-4 px-4 sm:px-5">
                         <div className="text-slate-900 font-black">{cand.program}</div>
                         <div className="text-[11px] text-emerald-800 font-black">{cand.cgpa} CGPA</div>
-                      </td>
-
-                      <td className="py-4 px-4 sm:px-5">
-                        <span className="px-3 py-1 bg-blue-50 border border-blue-200 text-blue-900 font-black text-xs rounded-xl">
-                          {cand.ats_score || 92} / 100
-                        </span>
                       </td>
 
                       <td className="py-4 px-4 sm:px-5">
@@ -578,7 +633,18 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <h3 className="font-black text-base text-slate-900">{req.title}</h3>
-                    <div className="text-xs text-blue-900 font-black mt-0.5">{req.job_type} • CTC: {req.ctc_range}</div>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span className="text-xs text-blue-900 font-black">{req.job_type} • CTC: {req.ctc_range}</span>
+                      {company?.approved ? (
+                        <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 border border-emerald-300 text-[10px] font-black rounded-md flex items-center gap-1">
+                          <CheckCircle className="w-3 h-3 text-emerald-600 shrink-0" /> Active Drive
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 bg-amber-100 text-amber-900 border border-amber-300 text-[10px] font-black rounded-md flex items-center gap-1">
+                          <Sparkles className="w-3 h-3 text-amber-600 shrink-0 animate-pulse" /> Pending Approval
+                        </span>
+                      )}
+                    </div>
                   </div>
                   <span className="px-3 py-1 bg-slate-100 border border-slate-200 text-slate-800 text-xs font-black rounded-xl flex items-center gap-1.5 shrink-0">
                     <Users className="w-3.5 h-3.5 text-blue-900 shrink-0" /> {req.applicant_count} Applicants
@@ -594,6 +660,15 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
                   >
                     <Users className="w-3.5 h-3.5 shrink-0" />
                     <span>View Applicants ({req.applicant_count})</span>
+                  </button>
+
+                  <button
+                    onClick={() => handleOpenEditModal(req)}
+                    className="py-2.5 px-4 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-black flex items-center justify-center gap-1.5 shadow-md transition-all shrink-0 min-h-[42px] cursor-pointer"
+                    title="Edit placement requirement drive details"
+                  >
+                    <Pencil className="w-3.5 h-3.5 shrink-0" />
+                    <span>Edit Drive</span>
                   </button>
 
                   <button
@@ -751,7 +826,7 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
                 <span className="px-2.5 py-0.5 bg-amber-500/20 text-amber-300 text-[10px] font-black uppercase rounded-lg border border-amber-500/30 flex items-center gap-1 w-fit mb-1">
                   <Sparkles className="w-3 h-3" /> Campus Placement Drive Setup
                 </span>
-                <h2 className="text-xl font-black">Post New Hiring Requirement</h2>
+                <h2 className="text-xl font-black">{editingReqId ? 'Edit Hiring Requirement Drive' : 'Post New Hiring Requirement'}</h2>
                 <p className="text-xs text-slate-300 font-bold">{company?.company_name || 'GSFC Partner'}</p>
               </div>
               <button
@@ -985,7 +1060,7 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
                   }`}
                 >
                   <Plus className="w-4 h-4" />
-                  {loading ? 'Posting Requirement...' : 'Publish Job Requirement'}
+                  {loading ? 'Saving Requirement...' : editingReqId ? 'Update Requirement Drive' : 'Publish Job Requirement'}
                 </button>
               </div>
             </form>

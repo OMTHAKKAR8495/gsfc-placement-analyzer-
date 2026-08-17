@@ -45,12 +45,6 @@ router.post('/requirements', (req, res) => {
       return res.status(404).json({ error: 'Company profile not found.' });
     }
 
-    if (!company.approved) {
-      return res.status(403).json({ 
-        error: 'Your recruiter account is pending verification by TPC Admin. You cannot post job requirements until approved.' 
-      });
-    }
-
     const qBank = Array.isArray(question_bank) ? question_bank : [];
     if (qBank.length < 5) {
       return res.status(400).json({ error: 'Publishing Gated: Minimum 5 interview questions are required to publish a job drive.' });
@@ -108,7 +102,58 @@ router.put('/requirements/:id/question-bank', (req, res) => {
 
     db.prepare('UPDATE requirements SET question_bank_json = ?, question_bank_status = ? WHERE id = ?').run(qBankJson, qBankStatus, id);
 
-    res.json({ message: 'Interview question bank updated successfully', questionBankCount: qBank.length, status: qBankStatus });
+// Edit / Update Existing Requirement Drive (Recruiter Authority)
+router.put('/requirements/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+    const { 
+      title, eligible_programs, min_cgpa, 
+      required_skills, preferred_skills, job_type, ctc_range, openings, deadline, job_description,
+      application_type, external_apply_url, application_instructions,
+      question_bank
+    } = req.body;
+
+    const existingReq = db.prepare('SELECT * FROM requirements WHERE id = ?').get(id);
+    if (!existingReq) {
+      return res.status(404).json({ error: 'Job requirement not found.' });
+    }
+
+    const qBank = Array.isArray(question_bank) ? question_bank : [];
+    if (qBank.length < 5) {
+      return res.status(400).json({ error: 'Minimum 5 interview questions are required to update a job drive.' });
+    }
+
+    const appType = application_type === 'external' ? 'external' : 'internal';
+    let extUrl = external_apply_url ? String(external_apply_url).trim() : null;
+
+    if (appType === 'external') {
+      if (!extUrl || !extUrl.toLowerCase().startsWith('https://')) {
+        return res.status(400).json({ error: 'External Application URL must start with https://' });
+      }
+    }
+
+    const eligibleProgramsJson = JSON.stringify(Array.isArray(eligible_programs) ? eligible_programs : [eligible_programs]);
+    const reqSkillsJson = JSON.stringify(Array.isArray(required_skills) ? required_skills : String(required_skills).split(',').map(s=>s.trim()));
+    const prefSkillsJson = JSON.stringify(Array.isArray(preferred_skills) ? preferred_skills : String(preferred_skills || '').split(',').map(s=>s.trim()).filter(Boolean));
+    const qBankJson = JSON.stringify(qBank);
+    const qBankStatus = qBank.length >= 5 ? 'complete' : 'pending';
+
+    db.prepare(`
+      UPDATE requirements
+      SET title = ?, eligible_programs_json = ?, min_cgpa = ?, required_skills_json = ?, preferred_skills_json = ?,
+          job_type = ?, ctc_range = ?, openings = ?, deadline = ?, job_description = ?,
+          application_type = ?, external_apply_url = ?, application_instructions = ?,
+          question_bank_json = ?, question_bank_status = ?
+      WHERE id = ?
+    `).run(
+      title, eligibleProgramsJson, parseFloat(min_cgpa || 0),
+      reqSkillsJson, prefSkillsJson, job_type, ctc_range, parseInt(openings || 1),
+      deadline, job_description, appType, extUrl, application_instructions || '',
+      qBankJson, qBankStatus, id
+    );
+
+    const updated = db.prepare('SELECT * FROM requirements WHERE id = ?').get(id);
+    res.json({ message: 'Requirement drive updated successfully!', requirement: updated });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
