@@ -80,6 +80,17 @@ function applyMigrations() {
       CREATE INDEX IF NOT EXISTS idx_applications_student_id ON applications(student_id);
     `);
 
+    // Auto-repair any hotlink-blocked or missing company logo URLs in SQLite database
+    db.exec(`
+      UPDATE company_profiles 
+      SET logo_url = 'https://images.unsplash.com/photo-1560179707-f14e90ef3623?w=120&auto=format&fit=crop&q=80' 
+      WHERE logo_url IS NULL OR logo_url = '' OR logo_url LIKE '%wikimedia%';
+
+      UPDATE requirements 
+      SET company_logo_url = 'https://images.unsplash.com/photo-1560179707-f14e90ef3623?w=120&auto=format&fit=crop&q=80' 
+      WHERE company_logo_url IS NULL OR company_logo_url = '' OR company_logo_url LIKE '%wikimedia%';
+    `);
+
     db.exec(`
       CREATE TABLE IF NOT EXISTS interview_evaluations (
         id TEXT PRIMARY KEY,
@@ -136,7 +147,7 @@ function seedInitialData() {
       userId: 'u_comp_google',
       profileId: 'c_google',
       name: 'Google Cloud India',
-      logo: 'https://upload.wikimedia.org/wikipedia/commons/2/2f/Google_2015_logo.svg',
+      logo: 'https://images.unsplash.com/photo-1573804633927-bfcbcd909acd?w=120&auto=format&fit=crop&q=80',
       industry: 'Cloud & Artificial Intelligence',
       website: 'https://cloud.google.com',
       approved: 1
@@ -145,7 +156,7 @@ function seedInitialData() {
       userId: 'u_comp_microsoft',
       profileId: 'c_microsoft',
       name: 'Microsoft Azure Systems',
-      logo: 'https://upload.wikimedia.org/wikipedia/commons/9/96/Microsoft_logo_%282012%29.svg',
+      logo: 'https://images.unsplash.com/photo-1642132652859-3ef5a1048fd1?w=120&auto=format&fit=crop&q=80',
       industry: 'Software & Cloud Services',
       website: 'https://microsoft.com',
       approved: 1
@@ -154,7 +165,7 @@ function seedInitialData() {
       userId: 'u_comp_tcs',
       profileId: 'c_tcs',
       name: 'Tata Consultancy Services',
-      logo: 'https://upload.wikimedia.org/wikipedia/commons/b/b1/Tata_Consultancy_Services_Logo.svg',
+      logo: 'https://images.unsplash.com/photo-1560179707-f14e90ef3623?w=120&auto=format&fit=crop&q=80',
       industry: 'IT Services & Consulting',
       website: 'https://tcs.com',
       approved: 1
@@ -163,7 +174,7 @@ function seedInitialData() {
       userId: 'u_comp_pending',
       profileId: 'c_nexus',
       name: 'Nexus Quantum Labs (Startup)',
-      logo: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=100&auto=format&fit=crop&q=60',
+      logo: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=120&auto=format&fit=crop&q=80',
       industry: 'Quantum Tech / AI',
       website: 'https://nexusquantum.ai',
       approved: 1 // Official Verified Partner

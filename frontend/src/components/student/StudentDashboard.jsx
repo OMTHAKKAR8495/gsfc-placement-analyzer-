@@ -505,6 +505,10 @@ export default function StudentDashboard({ student, onUpdateStudent, onOpenAuthM
                             src={req.company_logo_url || req.logo_url || 'https://images.unsplash.com/photo-1542744094-3a31b272c490?w=100&auto=format&fit=crop&q=60'}
                             alt={req.company_name}
                             className="w-12 h-12 rounded-2xl object-contain bg-slate-50 p-1.5 border border-slate-200 shadow-sm shrink-0"
+                            onError={(e) => {
+                              e.target.onerror = null;
+                              e.target.src = 'https://images.unsplash.com/photo-1542744094-3a31b272c490?w=100&auto=format&fit=crop&q=60';
+                            }}
                           />
                           <div>
                             <h3 className="font-black text-sm text-slate-900 group-hover:text-blue-900 transition-colors leading-tight">{req.title}</h3>

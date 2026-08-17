@@ -195,6 +195,10 @@ export default function CompanyTrackerSidebar({ onSelectCompany, onApplyClick })
                   src={comp.logo}
                   alt={comp.name}
                   className="w-9 h-9 rounded-xl object-contain bg-slate-50 p-1 border border-slate-200 shrink-0"
+                  onError={(e) => {
+                    e.target.onerror = null;
+                    e.target.src = 'https://images.unsplash.com/photo-1560179707-f14e90ef3623?w=100&auto=format&fit=crop&q=60';
+                  }}
                 />
                 <div>
                   <h4 className="font-black text-xs text-slate-900 leading-tight">{comp.name}</h4>

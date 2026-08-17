@@ -417,6 +417,10 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
             src={company?.logo_url || (requirements.find(r => r.company_logo_url)?.company_logo_url) || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=100&auto=format&fit=crop&q=60'}
             alt={company?.company_name}
             className="w-12 h-12 sm:w-16 sm:h-16 rounded-2xl object-contain bg-white p-1.5 border border-slate-200 shadow-md shrink-0"
+            onError={(e) => {
+              e.target.onerror = null;
+              e.target.src = 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=100&auto=format&fit=crop&q=60';
+            }}
           />
           <div>
             <div className="flex flex-wrap items-center gap-2">
