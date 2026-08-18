@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Upload, FileText, CheckCircle, AlertTriangle, Sparkles, Briefcase, Award, TrendingUp, Search, SlidersHorizontal, ArrowRight, Play, Cpu, Check, Layers, ChevronRight, Compass, ShieldCheck, PieChart, BarChart2, RefreshCw, Zap, Database, X, Star, CheckCircle2, AlertCircle, Edit3, Mail, Download, Paperclip, Printer, Trash2, User } from 'lucide-react';
+import { Upload, FileText, CheckCircle, AlertTriangle, Sparkles, Briefcase, Award, TrendingUp, Search, SlidersHorizontal, ArrowRight, Play, Cpu, Check, Layers, ChevronRight, Compass, ShieldCheck, PieChart, BarChart2, RefreshCw, Zap, Database, X, Star, CheckCircle2, AlertCircle, Edit3, Mail, Download, Paperclip, Printer, Trash2, User, Plus, Building2 } from 'lucide-react';
 import MockInterviewChat from './MockInterviewChat';
 import CompanyTrackerSidebar from '../common/CompanyTrackerSidebar';
 import ReportPDFModal from '../common/ReportPDFModal';
 import InternalAutoFillApplyModal from './InternalAutoFillApplyModal';
 import ExternalApplyConfirmModal from './ExternalApplyConfirmModal';
 
-export default function StudentDashboard({ student, onUpdateStudent, onOpenAuthModal }) {
+export default function StudentDashboard({ student, currentUser, onUpdateStudent, onOpenAuthModal, onOpenJobPost }) {
   const [activeTab, setActiveTab] = useState('feed'); // 'feed', 'profile', 'applications'
   const [requirementsFeed, setRequirementsFeed] = useState([]);
   const [applications, setApplications] = useState([]);
@@ -350,6 +350,44 @@ export default function StudentDashboard({ student, onUpdateStudent, onOpenAuthM
 
   return (
     <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8 space-y-6 sm:space-y-8">
+      {/* Recruiter Fast Action Banner for Logged-In Companies */}
+      {currentUser?.role === 'company' && (
+        <div className="bg-gradient-to-r from-blue-900 via-indigo-900 to-amber-600 p-4 sm:p-5 rounded-3xl text-white shadow-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border border-amber-400/30 animate-in fade-in">
+          <div className="flex items-center gap-3.5">
+            <div className="w-12 h-12 rounded-2xl bg-white/10 flex items-center justify-center font-black shrink-0 border border-white/20 shadow-md">
+              <Building2 className="w-6 h-6 text-amber-300" />
+            </div>
+            <div>
+              <div className="text-[11px] font-black uppercase tracking-wider text-amber-300 flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5" /> Corporate Recruiter Workspace Active
+              </div>
+              <div className="text-sm sm:text-base font-black text-white">
+                Logged in as {currentUser.profile?.company_name || currentUser.email}
+              </div>
+              <p className="text-xs text-slate-200 font-bold mt-0.5">
+                Ready to recruit top talent from GSFC University? Click below to fill hiring requirements.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto shrink-0">
+            <button
+              onClick={onOpenJobPost || (() => { window.location.hash = '#company'; })}
+              className="py-2.5 px-4 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 font-black text-xs rounded-xl shadow-lg flex items-center gap-1.5 transition-all cursor-pointer hover:scale-105"
+            >
+              <Plus className="w-4 h-4 stroke-[3]" />
+              <span>Post / Upload Job Requirement</span>
+            </button>
+            <button
+              onClick={() => { window.location.hash = '#company'; }}
+              className="py-2.5 px-3.5 bg-white/10 hover:bg-white/20 text-white font-black text-xs rounded-xl border border-white/20 transition-all cursor-pointer"
+            >
+              <span>Recruiter Portal ➔</span>
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Hero Header Section */}
       <div className="relative overflow-hidden rounded-3xl glass-panel p-4 sm:p-8 border border-slate-200/90 shadow-xl">
         <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">

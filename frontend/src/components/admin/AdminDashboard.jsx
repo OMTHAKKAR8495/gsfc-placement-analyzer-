@@ -3,9 +3,10 @@ import {
   ShieldCheck, CheckCircle2, XCircle, BarChart3, Download, Building, Users, 
   Briefcase, FileSpreadsheet, Sparkles, TrendingUp, PieChart, Database, Search, 
   Printer, CheckCircle, Trash2, Calendar, Filter, SlidersHorizontal, Layers, 
-  CheckSquare, Square, RefreshCw, Eye, GraduationCap, Award, Check
+  CheckSquare, Square, RefreshCw, Eye, GraduationCap, Award, Check, FileText
 } from 'lucide-react';
 import ReportPDFModal from '../common/ReportPDFModal';
+import BatchPDFReportModal from './BatchPDFReportModal';
 import ApprovalNotificationModal from '../common/ApprovalNotificationModal';
 
 export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
@@ -29,6 +30,8 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCandidateReport, setSelectedCandidateReport] = useState(null);
   const [pdfReportModalOpen, setPdfReportModalOpen] = useState(false);
+  const [batchPdfModalOpen, setBatchPdfModalOpen] = useState(false);
+  const [selectedStudentIds, setSelectedStudentIds] = useState(new Set());
 
   // GSFC University Discipline & Company Filter States
   const [selectedGsfcField, setSelectedGsfcField] = useState('All');
@@ -357,21 +360,47 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
     });
   }, [safeCandidates, searchQuery, candidateProgramFilter, selectAllYears, selectedYears]);
 
+  const toggleStudentSelection = (id) => {
+    setSelectedStudentIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const toggleSelectAllVisibleStudents = () => {
+    if (selectedStudentIds.size === filteredCandidates.length) {
+      setSelectedStudentIds(new Set());
+    } else {
+      setSelectedStudentIds(new Set(filteredCandidates.map(c => c.id)));
+    }
+  };
+
+  const selectedStudentsList = useMemo(() => {
+    if (selectedStudentIds.size === 0) return filteredCandidates;
+    return filteredCandidates.filter(c => selectedStudentIds.has(c.id));
+  }, [filteredCandidates, selectedStudentIds]);
+
   const batchStats = useMemo(() => {
-    if (filteredCandidates.length === 0) {
+    const activeList = selectedStudentsList.length > 0 ? selectedStudentsList : filteredCandidates;
+    if (activeList.length === 0) {
       return { count: 0, avgCgpa: '0.00', avgAts: '0', placedCount: 0 };
     }
-    const totalCgpa = filteredCandidates.reduce((acc, c) => acc + parseFloat(c.cgpa || 0), 0);
-    const totalAts = filteredCandidates.reduce((acc, c) => acc + parseInt(c.ats_score || 0, 10), 0);
-    const avgCgpa = (totalCgpa / filteredCandidates.length).toFixed(2);
-    const avgAts = Math.round(totalAts / filteredCandidates.length);
+    const totalCgpa = activeList.reduce((acc, c) => acc + parseFloat(c.cgpa || 0), 0);
+    const totalAts = activeList.reduce((acc, c) => acc + parseInt(c.ats_score || 0, 10), 0);
+    const avgCgpa = (totalCgpa / activeList.length).toFixed(2);
+    const avgAts = Math.round(totalAts / activeList.length);
     return {
-      count: filteredCandidates.length,
+      count: activeList.length,
       avgCgpa,
       avgAts,
-      placedCount: filteredCandidates.filter(c => c.cgpa >= 8.5).length
+      placedCount: activeList.filter(c => c.cgpa >= 8.5).length
     };
-  }, [filteredCandidates]);
+  }, [selectedStudentsList, filteredCandidates]);
 
   if (!currentUser || currentUser.role !== 'admin') {
     return (
@@ -492,7 +521,7 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
               : 'text-slate-700 hover:bg-slate-100'
           }`}
         >
-          <Database className="w-4 h-4 text-amber-400" /> 🗄️ Candidate Database ({allCandidates.length})
+          <Database className="w-4 h-4 text-amber-400" /> 🗄️ Candidate Database ({filteredCandidates.length})
         </button>
 
         <button
@@ -953,34 +982,35 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
         </div>
       )}
 
-      {/* VIEW 1: CANDIDATE DATABASE VIEW WITH YEAR RANGE & MULTI-YEAR SELECTOR */}
+      {/* VIEW 1: CANDIDATE DATABASE VIEW WITH REAL-TIME SELECTED STUDENT LIST & DUAL CSV/PDF DOWNLOADS */}
       {activeTab === 'database' && (
         <div className="space-y-6">
           {/* MASTER YEAR RANGE & ACADEMIC BATCH CONTROLS CARD */}
           <div className="glass-panel p-5 sm:p-6 rounded-3xl border border-slate-200/90 shadow-xl bg-white/95 dark:bg-slate-900/95 space-y-5">
             {/* Control Header */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-4 border-b border-slate-200 dark:border-slate-800">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-slate-200 dark:border-slate-800">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-blue-900 text-amber-300 flex items-center justify-center shadow-md font-black">
-                  <GraduationCap className="w-6 h-6 text-amber-300" />
+                <div className="w-12 h-12 rounded-2xl bg-blue-900 text-amber-300 flex items-center justify-center shadow-md font-black shrink-0">
+                  <GraduationCap className="w-7 h-7 text-amber-300" />
                 </div>
                 <div>
-                  <h2 className="text-base font-black text-slate-900 dark:text-white flex items-center gap-2">
+                  <h2 className="text-base font-black text-slate-900 dark:text-white flex items-center gap-2 flex-wrap">
                     <span>Academic Year & Batch Range Selector</span>
                     <span className="px-2.5 py-0.5 bg-blue-50 text-blue-900 border border-blue-200 rounded-full text-[10px] font-black uppercase">
                       TPC Master Filter
                     </span>
                   </h2>
                   <p className="text-xs text-slate-500 dark:text-slate-400 font-bold">
-                    Filter and inspect student records across every academic batch from 2020 to 2030.
+                    Filter and export student records across every academic batch from 2020 to 2030 in real time.
                   </p>
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
+              {/* DUAL DOWNLOAD & ACTION BUTTONS */}
+              <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
                 <button
                   onClick={toggleSelectAllYears}
-                  className={`px-3.5 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 shadow-sm ${
+                  className={`px-3.5 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 shadow-sm cursor-pointer ${
                     selectAllYears
                       ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
                       : 'bg-slate-100 hover:bg-slate-200 text-slate-800 dark:bg-slate-800 dark:text-slate-200'
@@ -990,13 +1020,24 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
                   <span>{selectAllYears ? '✅ All Years Selected' : 'Select All Years'}</span>
                 </button>
 
+                {/* CSV DOWNLOAD BUTTON */}
                 <button
                   onClick={downloadReport}
-                  className="px-3.5 py-2 bg-blue-900 hover:bg-blue-800 text-white rounded-xl text-xs font-black transition-all flex items-center gap-1.5 shadow-md"
-                  title="Download CSV report of currently selected year range"
+                  className="px-3.5 py-2 bg-emerald-700 hover:bg-emerald-600 text-white rounded-xl text-xs font-black transition-all flex items-center gap-1.5 shadow-md hover:scale-105 cursor-pointer"
+                  title="Download CSV Spreadsheet for all currently selected students"
                 >
-                  <Download className="w-4 h-4 text-amber-300" />
-                  <span>Export Batch CSV</span>
+                  <FileSpreadsheet className="w-4 h-4 text-emerald-200" />
+                  <span>📥 Download CSV ({selectedStudentsList.length})</span>
+                </button>
+
+                {/* PDF DOWNLOAD BUTTON */}
+                <button
+                  onClick={() => setBatchPdfModalOpen(true)}
+                  className="px-3.5 py-2 bg-gradient-to-r from-blue-900 via-indigo-900 to-amber-600 hover:from-blue-800 hover:to-amber-500 text-white rounded-xl text-xs font-black transition-all flex items-center gap-1.5 shadow-md hover:scale-105 cursor-pointer"
+                  title="Download Official GSFC Accreditation Batch PDF Report"
+                >
+                  <Printer className="w-4 h-4 text-amber-300" />
+                  <span>📄 Download PDF ({selectedStudentsList.length})</span>
                 </button>
               </div>
             </div>
@@ -1015,7 +1056,7 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
               <div className="flex flex-wrap gap-2">
                 <button
                   onClick={() => applyBatchPreset('ALL')}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all ${
+                  className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
                     selectedBatchPreset === 'ALL'
                       ? 'bg-blue-900 text-white shadow-md'
                       : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200'
@@ -1026,7 +1067,7 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
 
                 <button
                   onClick={() => applyBatchPreset('2026')}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all ${
+                  className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
                     selectedBatchPreset === '2026'
                       ? 'bg-emerald-600 text-white shadow-md'
                       : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200'
@@ -1037,7 +1078,7 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
 
                 <button
                   onClick={() => applyBatchPreset('2025')}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all ${
+                  className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
                     selectedBatchPreset === '2025'
                       ? 'bg-indigo-600 text-white shadow-md'
                       : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200'
@@ -1048,7 +1089,7 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
 
                 <button
                   onClick={() => applyBatchPreset('2024')}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all ${
+                  className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
                     selectedBatchPreset === '2024'
                       ? 'bg-amber-600 text-white shadow-md'
                       : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200'
@@ -1059,7 +1100,7 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
 
                 <button
                   onClick={() => applyBatchPreset('2027')}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all ${
+                  className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
                     selectedBatchPreset === '2027'
                       ? 'bg-cyan-700 text-white shadow-md'
                       : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200'
@@ -1070,7 +1111,7 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
 
                 <button
                   onClick={() => applyBatchPreset('2028')}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all ${
+                  className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
                     selectedBatchPreset === '2028'
                       ? 'bg-purple-700 text-white shadow-md'
                       : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200'
@@ -1081,7 +1122,7 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
 
                 <button
                   onClick={() => applyBatchPreset('2029-2030')}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all ${
+                  className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
                     selectedBatchPreset === '2029-2030'
                       ? 'bg-rose-700 text-white shadow-md'
                       : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200'
@@ -1136,7 +1177,7 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
 
                 <button
                   onClick={() => applyBatchPreset('ALL')}
-                  className="px-3 py-1.5 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 text-slate-700 dark:text-slate-200 text-xs font-bold rounded-xl transition-all"
+                  className="px-3 py-1.5 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 text-slate-700 dark:text-slate-200 text-xs font-bold rounded-xl transition-all cursor-pointer"
                 >
                   Reset
                 </button>
@@ -1162,7 +1203,7 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
                     <button
                       key={year}
                       onClick={() => toggleYear(year)}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 border ${
+                      className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 border cursor-pointer ${
                         isSelected
                           ? 'bg-blue-900/10 border-blue-900 text-blue-900 dark:bg-blue-900/30 dark:border-blue-400 dark:text-blue-300 shadow-sm'
                           : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-400 dark:text-slate-500 opacity-60'
@@ -1205,51 +1246,99 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
             </div>
           </div>
 
-          {/* SECONDARY SEARCH & PROGRAM FILTER BAR */}
-          <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 glass-panel p-4 rounded-2xl border border-slate-200 dark:border-slate-800">
-            <div className="relative w-full md:w-80">
-              <Search className="w-4 h-4 absolute left-3.5 top-3 text-slate-400" />
-              <input
-                type="text"
-                placeholder="Search candidate name, roll number, or program..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white font-bold focus:outline-none focus:border-blue-900"
-              />
+          {/* DEDICATED REAL-TIME SELECTED STUDENTS ROSTER HEADER & TOOLBAR */}
+          <div className="glass-panel p-4 sm:p-5 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-md space-y-4">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+              <div>
+                <h3 className="text-sm sm:text-base font-black text-slate-900 dark:text-white flex items-center gap-2">
+                  <Users className="w-5 h-5 text-blue-900 dark:text-blue-400" />
+                  <span>Selected Students List ({selectedStudentsList.length} Active Records)</span>
+                </h3>
+                <p className="text-xs text-slate-500 font-bold mt-0.5">
+                  Live real-time student selection updated instantly when year filters or search change.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2 flex-wrap">
+                <button
+                  onClick={toggleSelectAllVisibleStudents}
+                  className="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-800 dark:text-slate-200 rounded-xl text-xs font-black transition-all flex items-center gap-1 border border-slate-200 dark:border-slate-700 cursor-pointer"
+                >
+                  <CheckSquare className="w-3.5 h-3.5" />
+                  <span>
+                    {selectedStudentIds.size === filteredCandidates.length ? 'Deselect All' : 'Select All Visible'}
+                  </span>
+                </button>
+
+                <button
+                  onClick={downloadReport}
+                  className="px-3.5 py-1.5 bg-emerald-700 hover:bg-emerald-600 text-white rounded-xl text-xs font-black transition-all flex items-center gap-1.5 shadow-sm cursor-pointer"
+                >
+                  <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-200" />
+                  <span>Download CSV</span>
+                </button>
+
+                <button
+                  onClick={() => setBatchPdfModalOpen(true)}
+                  className="px-3.5 py-1.5 bg-blue-900 hover:bg-blue-800 text-white rounded-xl text-xs font-black transition-all flex items-center gap-1.5 shadow-sm cursor-pointer"
+                >
+                  <Printer className="w-3.5 h-3.5 text-amber-300" />
+                  <span>Download PDF</span>
+                </button>
+              </div>
             </div>
 
-            {/* Discipline Dropdown Filter */}
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-xs font-bold text-slate-500">Program:</span>
-              <select
-                value={candidateProgramFilter}
-                onChange={(e) => setCandidateProgramFilter(e.target.value)}
-                className="px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white focus:outline-none"
-              >
-                <option value="All">All GSFC Programs</option>
-                <option value="BTech CSE">BTech CSE</option>
-                <option value="BTech IT">BTech IT</option>
-                <option value="BTech Mechanical">BTech Mechanical</option>
-                <option value="BTech Chemical">BTech Chemical</option>
-                <option value="BTech Civil">BTech Civil</option>
-                <option value="BTech ECE">BTech ECE</option>
-                <option value="BTech Fire & Safety">BTech Fire & Safety</option>
-                <option value="MBA">BBA / MBA</option>
-                <option value="Biotechnology">Biotechnology</option>
-              </select>
+            {/* Secondary Search & Program Filters */}
+            <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 pt-3 border-t border-slate-200 dark:border-slate-700">
+              <div className="relative w-full md:w-80">
+                <Search className="w-4 h-4 absolute left-3.5 top-3 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Search candidate name, roll number, or program..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-10 pr-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white font-bold focus:outline-none focus:border-blue-900"
+                />
+              </div>
 
-              <div className="text-xs text-blue-900 dark:text-blue-300 font-black pl-2">
-                Showing {filteredCandidates.length} of {safeCandidates.length} Candidates
+              {/* Discipline Dropdown Filter */}
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-xs font-bold text-slate-500">Program Filter:</span>
+                <select
+                  value={candidateProgramFilter}
+                  onChange={(e) => setCandidateProgramFilter(e.target.value)}
+                  className="px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white focus:outline-none cursor-pointer"
+                >
+                  <option value="All">All GSFC Programs</option>
+                  <option value="BTech CSE">BTech CSE</option>
+                  <option value="BTech IT">BTech IT</option>
+                  <option value="BTech Mechanical">BTech Mechanical</option>
+                  <option value="BTech Chemical">BTech Chemical</option>
+                  <option value="BTech Civil">BTech Civil</option>
+                  <option value="BTech ECE">BTech ECE</option>
+                  <option value="BTech Fire & Safety">BTech Fire & Safety</option>
+                  <option value="MBA">BBA / MBA</option>
+                  <option value="Biotechnology">Biotechnology</option>
+                </select>
               </div>
             </div>
           </div>
 
-          {/* CANDIDATE DATABASE TABLE WITH BATCH COLUMN */}
+          {/* CANDIDATE DATABASE TABLE WITH INTERACTIVE SELECTION CHECKBOXES */}
           <div className="glass-panel rounded-3xl border border-slate-200/90 dark:border-slate-800 overflow-hidden shadow-xl">
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
                   <tr className="bg-slate-100/90 dark:bg-slate-800/90 text-slate-700 dark:text-slate-300 border-b border-slate-200 dark:border-slate-700 text-[10px] uppercase tracking-wider font-black">
+                    <th className="py-4 px-4 text-center w-12">
+                      <input
+                        type="checkbox"
+                        checked={selectedStudentsList.length > 0 && selectedStudentsList.length === filteredCandidates.length}
+                        onChange={toggleSelectAllVisibleStudents}
+                        className="w-4 h-4 rounded text-blue-900 focus:ring-blue-900 cursor-pointer"
+                        title="Select/Deselect All Visible"
+                      />
+                    </th>
                     <th className="py-4 px-4 sm:px-5">Candidate Name & Roll</th>
                     <th className="py-4 px-4 sm:px-5">Academic Batch & Year</th>
                     <th className="py-4 px-4 sm:px-5">Program & CGPA</th>
@@ -1263,9 +1352,26 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
                     filteredCandidates.map((cand) => {
                       const passingYear = cand.passing_year || (cand.admission_year ? cand.admission_year + 4 : 2026);
                       const batchStr = cand.batch_year || `${passingYear - 4}-${passingYear}`;
+                      const isSelected = selectedStudentIds.size === 0 || selectedStudentIds.has(cand.id);
 
                       return (
-                        <tr key={cand.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-all">
+                        <tr 
+                          key={cand.id} 
+                          className={`transition-all ${
+                            isSelected 
+                              ? 'bg-blue-50/40 dark:bg-blue-950/20 hover:bg-blue-50/70 dark:hover:bg-blue-950/30' 
+                              : 'hover:bg-slate-50/80 dark:hover:bg-slate-800/50 opacity-60'
+                          }`}
+                        >
+                          <td className="py-4 px-4 text-center">
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => toggleStudentSelection(cand.id)}
+                              className="w-4 h-4 rounded text-blue-900 focus:ring-blue-900 cursor-pointer"
+                            />
+                          </td>
+
                           <td className="py-4 px-4 sm:px-5 font-black text-slate-900 dark:text-white">
                             <div className="text-sm font-black">{cand.name}</div>
                             <div className="text-[10px] text-slate-500 dark:text-slate-400 font-bold">{cand.roll_number || 'GSFC Student'}</div>
@@ -1309,7 +1415,7 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
                     })
                   ) : (
                     <tr>
-                      <td colSpan={6} className="py-12 text-center text-slate-500 font-bold text-xs">
+                      <td colSpan={7} className="py-12 text-center text-slate-500 font-bold text-xs">
                         No student candidate records match the selected year range and filters.
                       </td>
                     </tr>

@@ -6,13 +6,21 @@ import CompanyQuestionUploadModal from '../common/CompanyQuestionUploadModal';
 import RequirementQuestionBankForm from './RequirementQuestionBankForm';
 import { getCompanyUploadedQuestions, saveCompanyUploadedQuestion, bulkUploadCompanyQuestions, deleteCompanyUploadedQuestion } from '../../utils/companyQuestionStorage';
 
-export default function CompanyDashboard({ currentUser, company, onCompanyAuthSuccess, onRefreshCompany }) {
+export default function CompanyDashboard({ currentUser, company, onCompanyAuthSuccess, onRefreshCompany, openPostModalSignal }) {
   const [activeTab, setActiveTab] = useState('my_applications'); // 'my_applications', 'requirements', 'database', 'applicants'
   const [requirements, setRequirements] = useState([]);
   const [activeReqApplicants, setActiveReqApplicants] = useState(null);
   const [applicantsData, setApplicantsData] = useState([]);
   const [showPostModal, setShowPostModal] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  // Auto-open post modal when triggered from Navbar or Homepage
+  useEffect(() => {
+    if (openPostModalSignal) {
+      handleOpenNewPostModal();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [openPostModalSignal]);
 
   // Recrit uiter Authentication Lock Screen State
   const [recruiterEmail, setRecruiterEmail] = useState('');
@@ -459,6 +467,14 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
 
       {/* Recruiter Navigation Bar: Posted Applications, Active Requirements, Candidate Database */}
       <div className="flex items-center gap-3 bg-white/90 p-2 rounded-2xl border border-slate-200 shadow-sm max-w-full overflow-x-auto">
+        <button
+          onClick={handleOpenNewPostModal}
+          className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black transition-all shrink-0 cursor-pointer bg-gradient-to-r from-amber-500 via-amber-600 to-emerald-600 hover:from-amber-400 hover:to-emerald-500 text-slate-950 shadow-md hover:scale-105"
+        >
+          <Plus className="w-4 h-4 stroke-[3] shrink-0" />
+          <span>➕ Post / Upload Job Requirement</span>
+        </button>
+
         <button
           onClick={() => setActiveTab('my_applications')}
           className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black transition-all shrink-0 cursor-pointer ${activeTab === 'my_applications'

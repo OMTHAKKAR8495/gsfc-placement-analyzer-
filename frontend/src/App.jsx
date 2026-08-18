@@ -176,6 +176,15 @@ export default function App() {
     checkCurrentUser();
   };
 
+  const [openPostModalSignal, setOpenPostModalSignal] = useState(0);
+
+  const handleOpenJobPost = () => {
+    setActiveRole('company');
+    window.location.hash = '#company';
+    setOpenPostModalSignal(prev => prev + 1);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   return (
     <div className="min-h-screen text-slate-900 dark:text-slate-100 flex flex-col font-sans relative selection:bg-blue-600 selection:text-white transition-colors duration-300">
       {/* 100% Crystal Clear GSFC Background Image Layer */}
@@ -191,6 +200,7 @@ export default function App() {
         onLogout={handleLogout}
         theme={theme}
         onToggleTheme={toggleTheme}
+        onOpenJobPost={handleOpenJobPost}
       />
 
       {isOffline && (
@@ -225,10 +235,12 @@ export default function App() {
           {activeRole === 'student' && (
             <StudentDashboard
               student={currentUser?.role === 'student' ? currentUser.profile : null}
+              currentUser={currentUser}
               onUpdateStudent={(updatedProfile) => {
                 setCurrentUser(prev => prev ? { ...prev, profile: updatedProfile } : prev);
               }}
               onOpenAuthModal={() => setAuthModalOpen(true)}
+              onOpenJobPost={handleOpenJobPost}
             />
           )}
 
@@ -238,6 +250,7 @@ export default function App() {
               company={currentUser?.role === 'company' ? currentUser.profile : null}
               onCompanyAuthSuccess={handleAuthSuccess}
               onRefreshCompany={checkCurrentUser}
+              openPostModalSignal={openPostModalSignal}
             />
           )}
 

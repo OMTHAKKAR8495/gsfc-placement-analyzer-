@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { User, Building2, ShieldCheck, LogOut, LogIn, Sun, Moon, HelpCircle, Smartphone, Download, Sparkles, Menu, X } from 'lucide-react';
+import { User, Building2, ShieldCheck, LogOut, LogIn, Sun, Moon, HelpCircle, Smartphone, Download, Sparkles, Menu, X, Plus } from 'lucide-react';
 import AppDownloadModal from './AppDownloadModal';
 
-export default function Navbar({ currentUser, activeRole, onRoleSwitch, onOpenAuth, onLogout, theme, onToggleTheme }) {
+export default function Navbar({ currentUser, activeRole, onRoleSwitch, onOpenAuth, onLogout, theme, onToggleTheme, onOpenJobPost }) {
   const [downloadModalOpen, setDownloadModalOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -80,6 +80,18 @@ export default function Navbar({ currentUser, activeRole, onRoleSwitch, onOpenAu
             >
               <Building2 className="w-3.5 h-3.5" />
               <span>Recruiter Portal</span>
+            </button>
+          )}
+
+          {/* Quick Upload / Post Job Button for Logged-In Company Recruiters */}
+          {currentUser?.role === 'company' && (
+            <button
+              onClick={onOpenJobPost || (() => onRoleSwitch('company'))}
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-black transition-all shrink-0 whitespace-nowrap bg-gradient-to-r from-amber-500 via-amber-600 to-emerald-600 hover:from-amber-400 hover:to-emerald-500 text-slate-950 shadow-md hover:scale-105 ml-1 cursor-pointer"
+              title="Click to open Job Requirement Information Filling Form"
+            >
+              <Plus className="w-3.5 h-3.5 stroke-[3]" />
+              <span>Post / Upload Job</span>
             </button>
           )}
 
@@ -221,6 +233,20 @@ export default function Navbar({ currentUser, activeRole, onRoleSwitch, onOpenAu
                   <span>Recruiter Portal</span>
                 </div>
                 {activeRole === 'company' && <Sparkles className="w-4 h-4 text-amber-300" />}
+              </button>
+            )}
+
+            {currentUser?.role === 'company' && (
+              <button
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  if (onOpenJobPost) onOpenJobPost();
+                  else handleMobileNavClick('company');
+                }}
+                className="w-full p-3 rounded-2xl bg-gradient-to-r from-amber-500 via-amber-600 to-emerald-600 text-slate-950 font-black text-xs flex items-center justify-center gap-2 shadow-md cursor-pointer"
+              >
+                <Plus className="w-4 h-4 stroke-[3]" />
+                <span>➕ Post / Upload Job Requirement</span>
               </button>
             )}
 
