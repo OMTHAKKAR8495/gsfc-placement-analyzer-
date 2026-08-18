@@ -1,5 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import { ShieldCheck, CheckCircle2, XCircle, BarChart3, Download, Building, Users, Briefcase, FileSpreadsheet, Sparkles, TrendingUp, PieChart, Database, Search, Printer, CheckCircle, Trash2 } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { 
+  ShieldCheck, CheckCircle2, XCircle, BarChart3, Download, Building, Users, 
+  Briefcase, FileSpreadsheet, Sparkles, TrendingUp, PieChart, Database, Search, 
+  Printer, CheckCircle, Trash2, Calendar, Filter, SlidersHorizontal, Layers, 
+  CheckSquare, Square, RefreshCw, Eye, GraduationCap, Award, Check
+} from 'lucide-react';
 import ReportPDFModal from '../common/ReportPDFModal';
 import ApprovalNotificationModal from '../common/ApprovalNotificationModal';
 
@@ -30,6 +35,15 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
   const [selectedIndustry, setSelectedIndustry] = useState('All');
   const [companySearchQuery, setCompanySearchQuery] = useState('');
   const [companyStatusFilter, setCompanyStatusFilter] = useState('All');
+
+  // Academic Batch & Year Range Filter States
+  const availableYears = [2020, 2021, 2022, 2023, 2024, 2025, 2026, 2027, 2028, 2029, 2030];
+  const [startYear, setStartYear] = useState(2020);
+  const [endYear, setEndYear] = useState(2030);
+  const [selectedYears, setSelectedYears] = useState(availableYears);
+  const [selectAllYears, setSelectAllYears] = useState(true);
+  const [selectedBatchPreset, setSelectedBatchPreset] = useState('ALL');
+  const [candidateProgramFilter, setCandidateProgramFilter] = useState('All');
 
   const filteredCompanies = allCompaniesList.filter(comp => {
     const matchesSearch = !companySearchQuery || 
@@ -215,8 +229,92 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
     }
   };
 
+  const toggleYear = (year) => {
+    setSelectAllYears(false);
+    setSelectedBatchPreset('CUSTOM');
+    setSelectedYears(prev => {
+      if (prev.includes(year)) {
+        const next = prev.filter(y => y !== year);
+        return next.length === 0 ? [year] : next;
+      } else {
+        return [...prev, year].sort((a, b) => a - b);
+      }
+    });
+  };
+
+  const toggleSelectAllYears = () => {
+    if (selectAllYears) {
+      setSelectAllYears(false);
+      setSelectedYears([2026]);
+      setSelectedBatchPreset('2026');
+    } else {
+      setSelectAllYears(true);
+      setSelectedYears(availableYears);
+      setSelectedBatchPreset('ALL');
+      setStartYear(2020);
+      setEndYear(2030);
+    }
+  };
+
+  const applyBatchPreset = (preset) => {
+    setSelectedBatchPreset(preset);
+    if (preset === 'ALL') {
+      setSelectAllYears(true);
+      setSelectedYears(availableYears);
+      setStartYear(2020);
+      setEndYear(2030);
+    } else if (preset === '2026') {
+      setSelectAllYears(false);
+      setSelectedYears([2026]);
+      setStartYear(2022);
+      setEndYear(2026);
+    } else if (preset === '2025') {
+      setSelectAllYears(false);
+      setSelectedYears([2025]);
+      setStartYear(2021);
+      setEndYear(2025);
+    } else if (preset === '2024') {
+      setSelectAllYears(false);
+      setSelectedYears([2024]);
+      setStartYear(2020);
+      setEndYear(2024);
+    } else if (preset === '2027') {
+      setSelectAllYears(false);
+      setSelectedYears([2027]);
+      setStartYear(2023);
+      setEndYear(2027);
+    } else if (preset === '2028') {
+      setSelectAllYears(false);
+      setSelectedYears([2028]);
+      setStartYear(2024);
+      setEndYear(2028);
+    } else if (preset === '2029-2030') {
+      setSelectAllYears(false);
+      setSelectedYears([2029, 2030]);
+      setStartYear(2025);
+      setEndYear(2030);
+    }
+  };
+
+  const handleRangeChange = (from, to) => {
+    const f = parseInt(from, 10);
+    const t = parseInt(to, 10);
+    const validFrom = Math.min(f, t);
+    const validTo = Math.max(f, t);
+    setStartYear(validFrom);
+    setEndYear(validTo);
+    setSelectAllYears(false);
+    setSelectedBatchPreset('RANGE');
+    const rangeArr = availableYears.filter(y => y >= validFrom && y <= validTo);
+    setSelectedYears(rangeArr);
+  };
+
   const downloadReport = () => {
-    window.open('/api/admin/export-report', '_blank');
+    let url = '/api/admin/export-report';
+    if (!selectAllYears && selectedYears.length > 0) {
+      url += `?years=${selectedYears.join(',')}`;
+    }
+    window.open(url, '_blank');
   };
 
   const openCandidatePdfReport = (candidate) => {
@@ -230,10 +328,50 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
   };
 
   const safeCandidates = Array.isArray(allCandidates) ? allCandidates : [];
-  const filteredCandidates = safeCandidates.filter(c => 
-    (c.name || '').toLowerCase().includes((searchQuery || '').toLowerCase()) ||
-    (c.program || '').toLowerCase().includes((searchQuery || '').toLowerCase())
-  );
+  
+  const filteredCandidates = useMemo(() => {
+    return safeCandidates.filter(c => {
+      // 1. Text Search match
+      const q = (searchQuery || '').toLowerCase();
+      const matchesSearch = !q || 
+        (c.name || '').toLowerCase().includes(q) ||
+        (c.roll_number || '').toLowerCase().includes(q) ||
+        (c.program || '').toLowerCase().includes(q) ||
+        (c.branch || '').toLowerCase().includes(q);
+
+      // 2. Program Filter match
+      const matchesProgram = candidateProgramFilter === 'All' ||
+        (c.program || '').toLowerCase().includes(candidateProgramFilter.toLowerCase()) ||
+        (c.branch || '').toLowerCase().includes(candidateProgramFilter.toLowerCase());
+
+      // 3. Year / Batch match
+      const candPassingYear = c.passing_year ? parseInt(c.passing_year, 10) : (c.admission_year ? parseInt(c.admission_year, 10) + 4 : 2026);
+      const candAdmissionYear = c.admission_year ? parseInt(c.admission_year, 10) : (candPassingYear - 4);
+
+      let matchesYear = true;
+      if (!selectAllYears) {
+        matchesYear = selectedYears.includes(candPassingYear) || selectedYears.includes(candAdmissionYear);
+      }
+
+      return matchesSearch && matchesProgram && matchesYear;
+    });
+  }, [safeCandidates, searchQuery, candidateProgramFilter, selectAllYears, selectedYears]);
+
+  const batchStats = useMemo(() => {
+    if (filteredCandidates.length === 0) {
+      return { count: 0, avgCgpa: '0.00', avgAts: '0', placedCount: 0 };
+    }
+    const totalCgpa = filteredCandidates.reduce((acc, c) => acc + parseFloat(c.cgpa || 0), 0);
+    const totalAts = filteredCandidates.reduce((acc, c) => acc + parseInt(c.ats_score || 0, 10), 0);
+    const avgCgpa = (totalCgpa / filteredCandidates.length).toFixed(2);
+    const avgAts = Math.round(totalAts / filteredCandidates.length);
+    return {
+      count: filteredCandidates.length,
+      avgCgpa,
+      avgAts,
+      placedCount: filteredCandidates.filter(c => c.cgpa >= 8.5).length
+    };
+  }, [filteredCandidates]);
 
   if (!currentUser || currentUser.role !== 'admin') {
     return (
@@ -815,74 +953,367 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
         </div>
       )}
 
-      {/* VIEW 1: CANDIDATE DATABASE VIEW */}
+      {/* VIEW 1: CANDIDATE DATABASE VIEW WITH YEAR RANGE & MULTI-YEAR SELECTOR */}
       {activeTab === 'database' && (
-        <div className="space-y-4">
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 glass-panel p-4 rounded-2xl border border-slate-200">
-            <div className="relative w-full sm:w-72">
-              <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
-              <input
-                type="text"
-                placeholder="Search candidate database..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-900 font-bold focus:outline-none focus:border-blue-900"
-              />
+        <div className="space-y-6">
+          {/* MASTER YEAR RANGE & ACADEMIC BATCH CONTROLS CARD */}
+          <div className="glass-panel p-5 sm:p-6 rounded-3xl border border-slate-200/90 shadow-xl bg-white/95 dark:bg-slate-900/95 space-y-5">
+            {/* Control Header */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-4 border-b border-slate-200 dark:border-slate-800">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-blue-900 text-amber-300 flex items-center justify-center shadow-md font-black">
+                  <GraduationCap className="w-6 h-6 text-amber-300" />
+                </div>
+                <div>
+                  <h2 className="text-base font-black text-slate-900 dark:text-white flex items-center gap-2">
+                    <span>Academic Year & Batch Range Selector</span>
+                    <span className="px-2.5 py-0.5 bg-blue-50 text-blue-900 border border-blue-200 rounded-full text-[10px] font-black uppercase">
+                      TPC Master Filter
+                    </span>
+                  </h2>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 font-bold">
+                    Filter and inspect student records across every academic batch from 2020 to 2030.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={toggleSelectAllYears}
+                  className={`px-3.5 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 shadow-sm ${
+                    selectAllYears
+                      ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                      : 'bg-slate-100 hover:bg-slate-200 text-slate-800 dark:bg-slate-800 dark:text-slate-200'
+                  }`}
+                >
+                  <CheckSquare className="w-4 h-4" />
+                  <span>{selectAllYears ? '✅ All Years Selected' : 'Select All Years'}</span>
+                </button>
+
+                <button
+                  onClick={downloadReport}
+                  className="px-3.5 py-2 bg-blue-900 hover:bg-blue-800 text-white rounded-xl text-xs font-black transition-all flex items-center gap-1.5 shadow-md"
+                  title="Download CSV report of currently selected year range"
+                >
+                  <Download className="w-4 h-4 text-amber-300" />
+                  <span>Export Batch CSV</span>
+                </button>
+              </div>
             </div>
 
-            <div className="text-xs text-blue-900 font-black">
-              Showing {filteredCandidates.length} Saved GSFC Candidate Profiles
+            {/* Quick Batch Presets */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-[11px] font-black uppercase tracking-wider text-slate-600 dark:text-slate-400 flex items-center gap-1.5">
+                  <SlidersHorizontal className="w-3.5 h-3.5 text-blue-900" /> Quick Batch Presets:
+                </label>
+                <span className="text-[10px] font-bold text-slate-500">
+                  Click to quickly isolate a graduation cohort
+                </span>
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={() => applyBatchPreset('ALL')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all ${
+                    selectedBatchPreset === 'ALL'
+                      ? 'bg-blue-900 text-white shadow-md'
+                      : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200'
+                  }`}
+                >
+                  🌟 All Academic Batches (2020-2030)
+                </button>
+
+                <button
+                  onClick={() => applyBatchPreset('2026')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all ${
+                    selectedBatchPreset === '2026'
+                      ? 'bg-emerald-600 text-white shadow-md'
+                      : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200'
+                  }`}
+                >
+                  🎓 Class of 2026 (Final Year / Passing 2026)
+                </button>
+
+                <button
+                  onClick={() => applyBatchPreset('2025')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all ${
+                    selectedBatchPreset === '2025'
+                      ? 'bg-indigo-600 text-white shadow-md'
+                      : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200'
+                  }`}
+                >
+                  🎓 Class of 2025 (Recent Batch / Passing 2025)
+                </button>
+
+                <button
+                  onClick={() => applyBatchPreset('2024')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all ${
+                    selectedBatchPreset === '2024'
+                      ? 'bg-amber-600 text-white shadow-md'
+                      : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200'
+                  }`}
+                >
+                  🎓 Class of 2024 (Alumni / Passing 2024)
+                </button>
+
+                <button
+                  onClick={() => applyBatchPreset('2027')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all ${
+                    selectedBatchPreset === '2027'
+                      ? 'bg-cyan-700 text-white shadow-md'
+                      : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200'
+                  }`}
+                >
+                  🎓 Class of 2027 (Pre-Final Year)
+                </button>
+
+                <button
+                  onClick={() => applyBatchPreset('2028')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all ${
+                    selectedBatchPreset === '2028'
+                      ? 'bg-purple-700 text-white shadow-md'
+                      : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200'
+                  }`}
+                >
+                  🎓 Class of 2028 (2nd Year Sophomore)
+                </button>
+
+                <button
+                  onClick={() => applyBatchPreset('2029-2030')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all ${
+                    selectedBatchPreset === '2029-2030'
+                      ? 'bg-rose-700 text-white shadow-md'
+                      : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200'
+                  }`}
+                >
+                  🎓 Class of 2029-2030 (Freshmen & Incoming)
+                </button>
+              </div>
+            </div>
+
+            {/* Custom Range Dropdown Selectors */}
+            <div className="p-4 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <Calendar className="w-5 h-5 text-blue-900 dark:text-blue-400 shrink-0" />
+                <span className="text-xs font-black text-slate-800 dark:text-slate-200">
+                  Select Custom Year Range:
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+                <div className="flex items-center gap-1.5 bg-white dark:bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700">
+                  <span className="text-[11px] font-bold text-slate-500">From Year:</span>
+                  <select
+                    value={startYear}
+                    onChange={(e) => handleRangeChange(e.target.value, endYear)}
+                    className="bg-transparent text-xs font-black text-slate-900 dark:text-white focus:outline-none cursor-pointer"
+                  >
+                    {availableYears.map(y => (
+                      <option key={y} value={y} className="text-slate-900 dark:text-white bg-white dark:bg-slate-900">
+                        {y}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <span className="text-xs font-black text-slate-400">➔</span>
+
+                <div className="flex items-center gap-1.5 bg-white dark:bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700">
+                  <span className="text-[11px] font-bold text-slate-500">To Year:</span>
+                  <select
+                    value={endYear}
+                    onChange={(e) => handleRangeChange(startYear, e.target.value)}
+                    className="bg-transparent text-xs font-black text-slate-900 dark:text-white focus:outline-none cursor-pointer"
+                  >
+                    {availableYears.map(y => (
+                      <option key={y} value={y} className="text-slate-900 dark:text-white bg-white dark:bg-slate-900">
+                        {y}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <button
+                  onClick={() => applyBatchPreset('ALL')}
+                  className="px-3 py-1.5 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 text-slate-700 dark:text-slate-200 text-xs font-bold rounded-xl transition-all"
+                >
+                  Reset
+                </button>
+              </div>
+            </div>
+
+            {/* Individual Year Multi-Select Checkbox Pills */}
+            <div className="space-y-2">
+              <label className="text-[11px] font-black uppercase tracking-wider text-slate-600 dark:text-slate-400 flex items-center gap-1.5">
+                <CheckSquare className="w-3.5 h-3.5 text-blue-900" /> Individual Year Checkboxes (Click to include/exclude specific years):
+              </label>
+
+              <div className="flex flex-wrap gap-2">
+                {availableYears.map(year => {
+                  const isSelected = selectAllYears || selectedYears.includes(year);
+                  const countForYear = safeCandidates.filter(c => {
+                    const py = c.passing_year ? parseInt(c.passing_year, 10) : (c.admission_year ? parseInt(c.admission_year, 10) + 4 : 2026);
+                    const ay = c.admission_year ? parseInt(c.admission_year, 10) : (py - 4);
+                    return py === year || ay === year;
+                  }).length;
+
+                  return (
+                    <button
+                      key={year}
+                      onClick={() => toggleYear(year)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 border ${
+                        isSelected
+                          ? 'bg-blue-900/10 border-blue-900 text-blue-900 dark:bg-blue-900/30 dark:border-blue-400 dark:text-blue-300 shadow-sm'
+                          : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-400 dark:text-slate-500 opacity-60'
+                      }`}
+                    >
+                      <span>{isSelected ? '☑' : '☐'}</span>
+                      <span>Year {year}</span>
+                      <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                        isSelected ? 'bg-blue-900 text-white dark:bg-blue-400 dark:text-slate-900' : 'bg-slate-200 text-slate-600'
+                      }`}>
+                        {countForYear}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Live Batch Analytics Stat Strip */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-3 border-t border-slate-200 dark:border-slate-800">
+              <div className="p-3 bg-blue-50 dark:bg-blue-950/40 rounded-2xl border border-blue-200 dark:border-blue-800">
+                <div className="text-[10px] font-black uppercase tracking-wider text-blue-900 dark:text-blue-300">Selected Students</div>
+                <div className="text-xl font-black text-blue-900 dark:text-white mt-0.5">{batchStats.count} Candidates</div>
+              </div>
+
+              <div className="p-3 bg-emerald-50 dark:bg-emerald-950/40 rounded-2xl border border-emerald-200 dark:border-emerald-800">
+                <div className="text-[10px] font-black uppercase tracking-wider text-emerald-900 dark:text-emerald-300">Batch Avg CGPA</div>
+                <div className="text-xl font-black text-emerald-900 dark:text-emerald-300 mt-0.5">{batchStats.avgCgpa} / 10.0</div>
+              </div>
+
+              <div className="p-3 bg-indigo-50 dark:bg-indigo-950/40 rounded-2xl border border-indigo-200 dark:border-indigo-800">
+                <div className="text-[10px] font-black uppercase tracking-wider text-indigo-900 dark:text-indigo-300">Avg ATS Score</div>
+                <div className="text-xl font-black text-indigo-900 dark:text-indigo-300 mt-0.5">{batchStats.avgAts} / 100</div>
+              </div>
+
+              <div className="p-3 bg-amber-50 dark:bg-amber-950/40 rounded-2xl border border-amber-200 dark:border-amber-800">
+                <div className="text-[10px] font-black uppercase tracking-wider text-amber-900 dark:text-amber-300">High Tier CGPA ≥ 8.5</div>
+                <div className="text-xl font-black text-amber-900 dark:text-amber-300 mt-0.5">{batchStats.placedCount} Students</div>
+              </div>
             </div>
           </div>
 
-          <div className="glass-panel rounded-3xl border border-slate-200/90 overflow-hidden shadow-xl">
+          {/* SECONDARY SEARCH & PROGRAM FILTER BAR */}
+          <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 glass-panel p-4 rounded-2xl border border-slate-200 dark:border-slate-800">
+            <div className="relative w-full md:w-80">
+              <Search className="w-4 h-4 absolute left-3.5 top-3 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Search candidate name, roll number, or program..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white font-bold focus:outline-none focus:border-blue-900"
+              />
+            </div>
+
+            {/* Discipline Dropdown Filter */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-xs font-bold text-slate-500">Program:</span>
+              <select
+                value={candidateProgramFilter}
+                onChange={(e) => setCandidateProgramFilter(e.target.value)}
+                className="px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white focus:outline-none"
+              >
+                <option value="All">All GSFC Programs</option>
+                <option value="BTech CSE">BTech CSE</option>
+                <option value="BTech IT">BTech IT</option>
+                <option value="BTech Mechanical">BTech Mechanical</option>
+                <option value="BTech Chemical">BTech Chemical</option>
+                <option value="BTech Civil">BTech Civil</option>
+                <option value="BTech ECE">BTech ECE</option>
+                <option value="BTech Fire & Safety">BTech Fire & Safety</option>
+                <option value="MBA">BBA / MBA</option>
+                <option value="Biotechnology">Biotechnology</option>
+              </select>
+
+              <div className="text-xs text-blue-900 dark:text-blue-300 font-black pl-2">
+                Showing {filteredCandidates.length} of {safeCandidates.length} Candidates
+              </div>
+            </div>
+          </div>
+
+          {/* CANDIDATE DATABASE TABLE WITH BATCH COLUMN */}
+          <div className="glass-panel rounded-3xl border border-slate-200/90 dark:border-slate-800 overflow-hidden shadow-xl">
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
-                  <tr className="bg-slate-100/90 text-slate-700 border-b border-slate-200 text-[10px] uppercase tracking-wider font-black">
-                    <th className="py-4 px-4 sm:px-5">Candidate Name</th>
-                    <th className="py-4 px-4 sm:px-5">Degree & CGPA</th>
+                  <tr className="bg-slate-100/90 dark:bg-slate-800/90 text-slate-700 dark:text-slate-300 border-b border-slate-200 dark:border-slate-700 text-[10px] uppercase tracking-wider font-black">
+                    <th className="py-4 px-4 sm:px-5">Candidate Name & Roll</th>
+                    <th className="py-4 px-4 sm:px-5">Academic Batch & Year</th>
+                    <th className="py-4 px-4 sm:px-5">Program & CGPA</th>
                     <th className="py-4 px-4 sm:px-5">ATS Score</th>
-                    <th className="py-4 px-4 sm:px-5">Shortlist Status</th>
+                    <th className="py-4 px-4 sm:px-5">Placement Status</th>
                     <th className="py-4 px-4 sm:px-5 text-right">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-200">
-                  {filteredCandidates.map((cand) => (
-                    <tr key={cand.id} className="hover:bg-slate-50/80 transition-all">
-                      <td className="py-4 px-4 sm:px-5 font-black text-slate-900">
-                        <div className="text-sm">{cand.name}</div>
-                        <div className="text-[10px] text-slate-500 font-bold">{cand.roll_number}</div>
-                      </td>
+                <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+                  {filteredCandidates.length > 0 ? (
+                    filteredCandidates.map((cand) => {
+                      const passingYear = cand.passing_year || (cand.admission_year ? cand.admission_year + 4 : 2026);
+                      const batchStr = cand.batch_year || `${passingYear - 4}-${passingYear}`;
 
-                      <td className="py-4 px-4 sm:px-5">
-                        <div className="text-slate-900 font-black">{cand.program}</div>
-                        <div className="text-[11px] text-emerald-800 font-black">{cand.cgpa} CGPA</div>
-                      </td>
+                      return (
+                        <tr key={cand.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-all">
+                          <td className="py-4 px-4 sm:px-5 font-black text-slate-900 dark:text-white">
+                            <div className="text-sm font-black">{cand.name}</div>
+                            <div className="text-[10px] text-slate-500 dark:text-slate-400 font-bold">{cand.roll_number || 'GSFC Student'}</div>
+                          </td>
 
-                      <td className="py-4 px-4 sm:px-5">
-                        <span className="px-3 py-1 bg-blue-50 border border-blue-200 text-blue-900 font-black text-xs rounded-xl">
-                          {cand.ats_score || 92} / 100
-                        </span>
-                      </td>
+                          <td className="py-4 px-4 sm:px-5">
+                            <span className="px-2.5 py-1 bg-indigo-50 dark:bg-indigo-950 text-indigo-900 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 text-xs font-black rounded-xl inline-flex items-center gap-1">
+                              🎓 Batch: {batchStr}
+                            </span>
+                            <div className="text-[10px] text-slate-500 font-bold mt-0.5">Passing Year: {passingYear}</div>
+                          </td>
 
-                      <td className="py-4 px-4 sm:px-5">
-                        <span className="px-3 py-1 bg-emerald-50 border border-emerald-200 text-emerald-900 font-black text-xs rounded-xl flex items-center gap-1 w-fit">
-                          <CheckCircle className="w-3.5 h-3.5 text-emerald-600" /> PASS (ELIGIBLE)
-                        </span>
-                      </td>
+                          <td className="py-4 px-4 sm:px-5">
+                            <div className="text-slate-900 dark:text-white font-black">{cand.program}</div>
+                            <div className="text-[11px] text-emerald-700 dark:text-emerald-400 font-black">{cand.cgpa} CGPA</div>
+                          </td>
 
-                      <td className="py-4 px-4 sm:px-5 text-right">
-                        <button
-                          onClick={() => openCandidatePdfReport(cand)}
-                          className="py-2 px-3.5 bg-blue-900 hover:bg-blue-800 text-white rounded-xl text-xs font-black inline-flex items-center gap-1.5 transition-all shadow-md shrink-0"
-                        >
-                          <Printer className="w-3.5 h-3.5 text-amber-300" />
-                          <span>PDF Report</span>
-                        </button>
+                          <td className="py-4 px-4 sm:px-5">
+                            <span className="px-3 py-1 bg-blue-50 dark:bg-blue-950 text-blue-900 dark:text-blue-300 border border-blue-200 dark:border-blue-800 font-black text-xs rounded-xl">
+                              {cand.ats_score || 92} / 100
+                            </span>
+                          </td>
+
+                          <td className="py-4 px-4 sm:px-5">
+                            <span className="px-3 py-1 bg-emerald-50 dark:bg-emerald-950 text-emerald-900 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 text-xs font-black rounded-xl flex items-center gap-1 w-fit">
+                              <CheckCircle className="w-3.5 h-3.5 text-emerald-600" /> ELIGIBLE
+                            </span>
+                          </td>
+
+                          <td className="py-4 px-4 sm:px-5 text-right">
+                            <button
+                              onClick={() => openCandidatePdfReport(cand)}
+                              className="py-2 px-3.5 bg-blue-900 hover:bg-blue-800 text-white rounded-xl text-xs font-black inline-flex items-center gap-1.5 transition-all shadow-md shrink-0 cursor-pointer"
+                            >
+                              <Printer className="w-3.5 h-3.5 text-amber-300" />
+                              <span>PDF Report</span>
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  ) : (
+                    <tr>
+                      <td colSpan={6} className="py-12 text-center text-slate-500 font-bold text-xs">
+                        No student candidate records match the selected year range and filters.
                       </td>
                     </tr>
-                  ))}
+                  )}
                 </tbody>
               </table>
             </div>
@@ -948,6 +1379,70 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
                 </div>
                 <div className="text-3xl font-black text-slate-900">{analytics.totalStudents}</div>
                 <div className="text-[10px] text-slate-600 font-bold">Registered profiles (Click to view)</div>
+              </div>
+            </div>
+          )}
+
+          {/* ACADEMIC YEAR-WISE BATCH PLACEMENT ANALYTICS CARD */}
+          {analytics?.yearStats && analytics.yearStats.length > 0 && (
+            <div className="glass-panel p-6 rounded-3xl border border-slate-200/90 dark:border-slate-800 space-y-4 bg-white/95 dark:bg-slate-900/95 shadow-lg">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-blue-900 text-amber-300 flex items-center justify-center font-black">
+                    <GraduationCap className="w-5 h-5 text-amber-300" />
+                  </div>
+                  <div>
+                    <h2 className="text-base font-black text-slate-900 dark:text-white">
+                      Academic Year-Wise Batch Distribution & Placement Metrics
+                    </h2>
+                    <p className="text-xs text-slate-500 font-bold">
+                      NIRF & NAAC Audit cohort tracking across every graduation batch (2024 to 2030)
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => {
+                    setActiveTab('database');
+                    applyBatchPreset('ALL');
+                  }}
+                  className="px-3.5 py-1.5 bg-blue-50 text-blue-900 border border-blue-200 rounded-xl text-xs font-black hover:bg-blue-100 transition-all w-fit"
+                >
+                  Inspect In Candidate Database ➔
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-2">
+                {analytics.yearStats.map((ys) => (
+                  <div
+                    key={ys.passing_year}
+                    onClick={() => {
+                      setActiveTab('database');
+                      setSelectAllYears(false);
+                      setSelectedYears([parseInt(ys.passing_year, 10)]);
+                      setSelectedBatchPreset(String(ys.passing_year));
+                    }}
+                    className="p-4 bg-slate-50 dark:bg-slate-800/80 rounded-2xl border border-slate-200 dark:border-slate-700 hover:border-blue-900 hover:shadow-md transition-all cursor-pointer space-y-2"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="px-2 py-0.5 bg-blue-900 text-white rounded-lg text-[10px] font-black">
+                        Class of {ys.passing_year}
+                      </span>
+                      <span className="text-[10px] text-slate-500 font-bold">
+                        Batch {ys.batch_year}
+                      </span>
+                    </div>
+
+                    <div className="text-2xl font-black text-slate-900 dark:text-white">
+                      {ys.total_students} Students
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 text-[11px] pt-1 border-t border-slate-200 dark:border-slate-700 font-bold text-slate-600 dark:text-slate-300">
+                      <div>Avg CGPA: <span className="font-black text-emerald-700 dark:text-emerald-400">{ys.avg_cgpa}</span></div>
+                      <div>Avg ATS: <span className="font-black text-blue-900 dark:text-blue-400">{ys.avg_ats_score}%</span></div>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           )}

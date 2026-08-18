@@ -72,12 +72,53 @@ function applyMigrations() {
       db.exec("ALTER TABLE applications ADD COLUMN applied_via TEXT CHECK(applied_via IN ('internal', 'external')) DEFAULT 'internal'");
     }
 
+    const studColumns = db.prepare("PRAGMA table_info(student_profiles)").all().map(c => c.name);
+    if (!studColumns.includes('admission_year')) {
+      db.exec("ALTER TABLE student_profiles ADD COLUMN admission_year INTEGER");
+    }
+    if (!studColumns.includes('passing_year')) {
+      db.exec("ALTER TABLE student_profiles ADD COLUMN passing_year INTEGER");
+    }
+    if (!studColumns.includes('batch_year')) {
+      db.exec("ALTER TABLE student_profiles ADD COLUMN batch_year TEXT");
+    }
+
+    // Auto-compute admission_year, passing_year, and batch_year for any records missing them
+    const allStuds = db.prepare("SELECT id, roll_number, program, created_at FROM student_profiles").all();
+    const updateBatchStmt = db.prepare(`
+      UPDATE student_profiles 
+      SET admission_year = ?, passing_year = ?, batch_year = ? 
+      WHERE id = ?
+    `);
+
+    for (const st of allStuds) {
+      let admYear = 2022;
+      const rollMatch = (st.roll_number || '').match(/^(\d{2})/);
+      if (rollMatch) {
+        admYear = 2000 + parseInt(rollMatch[1], 10);
+      } else if (st.created_at) {
+        const d = new Date(st.created_at);
+        if (!isNaN(d.getFullYear())) admYear = d.getFullYear() - 2;
+      }
+      
+      const duration = (st.program || '').toLowerCase().includes('mba') || (st.program || '').toLowerCase().includes('msc') ? 2 : 4;
+      const passYear = admYear + duration;
+      const batchStr = `${admYear}-${passYear}`;
+
+      updateBatchStmt.run(admYear, passYear, batchStr, st.id);
+    }
+
+    // Ensure multi-year diverse students exist across every batch (2020 through 2026)
+    seedMultiYearStudents();
+
     // High-Performance Database Indexes for Instant TPC Admin Login & Queries
     db.exec(`
       CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
       CREATE INDEX IF NOT EXISTS idx_company_profiles_user_id ON company_profiles(user_id);
       CREATE INDEX IF NOT EXISTS idx_company_profiles_approved ON company_profiles(approved);
       CREATE INDEX IF NOT EXISTS idx_student_profiles_user_id ON student_profiles(user_id);
+      CREATE INDEX IF NOT EXISTS idx_student_profiles_passing_year ON student_profiles(passing_year);
+      CREATE INDEX IF NOT EXISTS idx_student_profiles_admission_year ON student_profiles(admission_year);
       CREATE INDEX IF NOT EXISTS idx_requirements_company_id ON requirements(company_id);
       CREATE INDEX IF NOT EXISTS idx_applications_req_id ON applications(requirement_id);
       CREATE INDEX IF NOT EXISTS idx_applications_student_id ON applications(student_id);
@@ -119,6 +160,265 @@ function applyMigrations() {
   } catch (err) {
     console.error('Migration notice:', err.message);
   }
+}
+
+function seedMultiYearStudents() {
+  const existingCount = db.prepare("SELECT COUNT(*) as c FROM student_profiles WHERE id LIKE 's_batch_%'").get().c;
+  if (existingCount >= 14) return;
+
+  const passwordHash = bcrypt.hashSync('password123', 6);
+
+  const multiYearDataset = [
+    // 2020 Batch (Passing 2024 - Alumni)
+    {
+      userId: 'u_batch_2020_01',
+      profileId: 's_batch_2020_01',
+      roll: '20BCE015',
+      name: 'Tanvi Joshi',
+      program: 'BTech CSE',
+      branch: 'Computer Science & Engineering',
+      cgpa: 9.1,
+      atsScore: 95,
+      admYear: 2020,
+      passYear: 2024,
+      batch: '2020-2024',
+      skills: ['Python', 'Django', 'React', 'PostgreSQL', 'AWS'],
+      appStatus: 'selected'
+    },
+    {
+      userId: 'u_batch_2020_02',
+      profileId: 's_batch_2020_02',
+      roll: '20BCH008',
+      name: 'Dhruv Solanki',
+      program: 'BTech Chemical',
+      branch: 'Chemical Engineering',
+      cgpa: 8.4,
+      atsScore: 88,
+      admYear: 2020,
+      passYear: 2024,
+      batch: '2020-2024',
+      skills: ['Aspen Plus', 'MATLAB', 'Process Simulation', 'HAZOP'],
+      appStatus: 'selected'
+    },
+
+    // 2021 Batch (Passing 2025 - Recent Grad)
+    {
+      userId: 'u_batch_2021_01',
+      profileId: 's_batch_2021_01',
+      roll: '21BCV019',
+      name: 'Manish Varma',
+      program: 'BTech Civil',
+      branch: 'Civil Engineering',
+      cgpa: 8.7,
+      atsScore: 91,
+      admYear: 2021,
+      passYear: 2025,
+      batch: '2021-2025',
+      skills: ['STAAD Pro', 'AutoCAD', 'ETABS', 'Revit Structure', 'Primavera'],
+      appStatus: 'interview'
+    },
+    {
+      userId: 'u_batch_2021_02',
+      profileId: 's_batch_2021_02',
+      roll: '21BIT024',
+      name: 'Sneha Dave',
+      program: 'BTech IT',
+      branch: 'Information Technology',
+      cgpa: 8.8,
+      atsScore: 89,
+      admYear: 2021,
+      passYear: 2025,
+      batch: '2021-2025',
+      skills: ['Java', 'Spring Boot', 'MySQL', 'Angular', 'Docker'],
+      appStatus: 'selected'
+    },
+
+    // 2022 Batch (Passing 2026 - Current Final Year)
+    {
+      userId: 'u_batch_2022_01',
+      profileId: 's_batch_2022_01',
+      roll: '22BCE077',
+      name: 'Kavya Trivedi',
+      program: 'BTech CSE',
+      branch: 'Computer Science & AI',
+      cgpa: 9.3,
+      atsScore: 96,
+      admYear: 2022,
+      passYear: 2026,
+      batch: '2022-2026',
+      skills: ['Python', 'PyTorch', 'FastAPI', 'React', 'Docker', 'NLP'],
+      appStatus: 'interview'
+    },
+    {
+      userId: 'u_batch_2022_02',
+      profileId: 's_batch_2022_02',
+      roll: '22BME031',
+      name: 'Harshil Shah',
+      program: 'BTech Mechanical',
+      branch: 'Mechanical & Automation',
+      cgpa: 8.5,
+      atsScore: 84,
+      admYear: 2022,
+      passYear: 2026,
+      batch: '2022-2026',
+      skills: ['SolidWorks', 'ANSYS', 'AutoCAD', 'Robotics', 'C++'],
+      appStatus: 'applied'
+    },
+
+    // 2023 Batch (Passing 2027 - Pre-Final Year / Internships)
+    {
+      userId: 'u_batch_2023_01',
+      profileId: 's_batch_2023_01',
+      roll: '23BCE094',
+      name: 'Aditya Rajput',
+      program: 'BTech CSE',
+      branch: 'Computer Science & Engineering',
+      cgpa: 8.8,
+      atsScore: 90,
+      admYear: 2023,
+      passYear: 2027,
+      batch: '2023-2027',
+      skills: ['JavaScript', 'Node.js', 'React', 'MongoDB', 'Python'],
+      appStatus: 'applied'
+    },
+    {
+      userId: 'u_batch_2023_02',
+      profileId: 's_batch_2023_02',
+      roll: '23BEC012',
+      name: 'Riya Parmar',
+      program: 'BTech ECE',
+      branch: 'Electronics & Communication',
+      cgpa: 8.6,
+      atsScore: 87,
+      admYear: 2023,
+      passYear: 2027,
+      batch: '2023-2027',
+      skills: ['Embedded C', 'MATLAB', 'VLSI', 'Verilog', 'IoT', 'PCB Design'],
+      appStatus: 'applied'
+    },
+
+    // 2024 Batch (Passing 2028 - 2nd Year Sophomore)
+    {
+      userId: 'u_batch_2024_01',
+      profileId: 's_batch_2024_01',
+      roll: '24BT04171',
+      name: 'Om Thakkar',
+      program: 'BTech CSE',
+      branch: 'Computer Science & Engineering',
+      cgpa: 9.4,
+      atsScore: 98,
+      admYear: 2024,
+      passYear: 2028,
+      batch: '2024-2028',
+      skills: ['React', 'Node.js', 'Python', 'FastAPI', 'SQLite', 'Capacitor', 'AI Systems'],
+      appStatus: 'selected'
+    },
+    {
+      userId: 'u_batch_2024_02',
+      profileId: 's_batch_2024_02',
+      roll: '24BFS005',
+      name: 'Vikas Choudhary',
+      program: 'BTech Fire & Safety',
+      branch: 'Fire & Safety Engineering',
+      cgpa: 8.3,
+      atsScore: 82,
+      admYear: 2024,
+      passYear: 2028,
+      batch: '2024-2028',
+      skills: ['Industrial Safety', 'Risk Assessment', 'Hazard Control', 'NFPA Standards', 'AutoCAD'],
+      appStatus: 'applied'
+    },
+
+    // 2025 Batch (Passing 2029 - 1st Year Freshmen)
+    {
+      userId: 'u_batch_2025_01',
+      profileId: 's_batch_2025_01',
+      roll: '25BCE003',
+      name: 'Ananya Iyer',
+      program: 'BTech CSE',
+      branch: 'Artificial Intelligence & Data Science',
+      cgpa: 8.9,
+      atsScore: 89,
+      admYear: 2025,
+      passYear: 2029,
+      batch: '2025-2029',
+      skills: ['Python', 'C Programming', 'Data Structures', 'Git', 'Machine Learning Basics'],
+      appStatus: 'applied'
+    },
+    {
+      userId: 'u_batch_2025_02',
+      profileId: 's_batch_2025_02',
+      roll: '25MBT011',
+      name: 'Parth Shukla',
+      program: 'BSc Biotechnology',
+      branch: 'Biotechnology & Bioinformatics',
+      cgpa: 8.5,
+      atsScore: 86,
+      admYear: 2025,
+      passYear: 2029,
+      batch: '2025-2029',
+      skills: ['PCR', 'Bioinformatics', 'Python for Biology', 'Gel Electrophoresis', 'Microbiology'],
+      appStatus: 'applied'
+    },
+
+    // 2026 Batch (Passing 2030 - Incoming Batch)
+    {
+      userId: 'u_batch_2026_01',
+      profileId: 's_batch_2026_01',
+      roll: '26BCE001',
+      name: 'Siddharth Rao',
+      program: 'BTech CSE',
+      branch: 'Computer Science & Engineering',
+      cgpa: 8.7,
+      atsScore: 85,
+      admYear: 2026,
+      passYear: 2030,
+      batch: '2026-2030',
+      skills: ['C++', 'Python', 'Algorithms', 'Web Development Basics'],
+      appStatus: 'applied'
+    }
+  ];
+
+  for (const st of multiYearDataset) {
+    db.prepare(`INSERT OR REPLACE INTO users (id, email, password_hash, role) VALUES (?, ?, ?, 'student')`)
+      .run(st.userId, `${st.roll.toLowerCase()}@gsfcuniversity.ac.in`, passwordHash);
+
+    const parsedJson = JSON.stringify({
+      name: st.name,
+      email: `${st.roll.toLowerCase()}@gsfcuniversity.ac.in`,
+      phone: '+91 98' + Math.floor(10000000 + Math.random() * 90000000),
+      roll: st.roll,
+      program: st.program,
+      branch: st.branch,
+      cgpa: st.cgpa,
+      admission_year: st.admYear,
+      passing_year: st.passYear,
+      batch_year: st.batch,
+      skills: { technical: st.skills, soft: ['Communication', 'Teamwork', 'Critical Thinking'] },
+      projects: [{ title: `${st.branch} Innovation Project`, description: `Developed practical applications using ${st.skills.slice(0, 3).join(', ')}.` }]
+    });
+
+    db.prepare(`
+      INSERT OR REPLACE INTO student_profiles 
+      (id, user_id, roll_number, name, program, branch, cgpa, resume_url, parsed_resume_json, ats_score, ats_feedback_json, admission_year, passing_year, batch_year)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      st.profileId, st.userId, st.roll, st.name, st.program, st.branch, st.cgpa,
+      '/uploads/sample_resume.pdf', parsedJson, st.atsScore,
+      JSON.stringify(["Well structured profile.", "Strong alignment with core domain competencies."]),
+      st.admYear, st.passYear, st.batch
+    );
+
+    // Also link application
+    const req = db.prepare("SELECT id FROM requirements LIMIT 1").get();
+    if (req) {
+      db.prepare(`
+        INSERT OR IGNORE INTO applications (id, student_id, requirement_id, match_score, status)
+        VALUES (?, ?, ?, ?, ?)
+      `).run(`app_${st.profileId}`, st.profileId, req.id, Math.round(75 + Math.random() * 20), st.appStatus);
+    }
+  }
+  console.log('✅ Seeded multi-year student dataset across all academic batches (2020-2030)!');
 }
 
 function seedInitialData() {

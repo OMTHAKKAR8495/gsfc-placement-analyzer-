@@ -20,16 +20,59 @@ router.get('/pending-companies', (req, res) => {
   }
 });
 
-// All Student Candidate Profiles Database
+// All Student Candidate Profiles Database (Supports Year Range & Multi-Year Selection)
 router.get('/students', (req, res) => {
   try {
-    const students = db.prepare(`
+    const { startYear, endYear, years, passingYear, admissionYear, program, search } = req.query;
+
+    let query = `
       SELECT s.*, u.email
       FROM student_profiles s
       JOIN users u ON s.user_id = u.id
-      ORDER BY s.cgpa DESC
-    `).all();
+      WHERE 1=1
+    `;
+    const params = [];
 
+    if (years) {
+      const yearArr = years.split(',').map(y => parseInt(y.trim(), 10)).filter(y => !isNaN(y));
+      if (yearArr.length > 0) {
+        const placeholders = yearArr.map(() => '?').join(',');
+        query += ` AND (s.passing_year IN (${placeholders}) OR s.admission_year IN (${placeholders}))`;
+        params.push(...yearArr, ...yearArr);
+      }
+    } else {
+      if (startYear) {
+        query += ` AND (COALESCE(s.passing_year, 2026) >= ? OR COALESCE(s.admission_year, 2022) >= ?)`;
+        params.push(parseInt(startYear, 10), parseInt(startYear, 10));
+      }
+      if (endYear) {
+        query += ` AND (COALESCE(s.passing_year, 2026) <= ? OR COALESCE(s.admission_year, 2022) <= ?)`;
+        params.push(parseInt(endYear, 10), parseInt(endYear, 10));
+      }
+      if (passingYear) {
+        query += ` AND s.passing_year = ?`;
+        params.push(parseInt(passingYear, 10));
+      }
+      if (admissionYear) {
+        query += ` AND s.admission_year = ?`;
+        params.push(parseInt(admissionYear, 10));
+      }
+    }
+
+    if (program && program !== 'All') {
+      query += ` AND s.program LIKE ?`;
+      params.push(`%${program}%`);
+    }
+
+    if (search && search.trim()) {
+      const sTerm = `%${search.trim().toLowerCase()}%`;
+      query += ` AND (LOWER(s.name) LIKE ? OR LOWER(s.roll_number) LIKE ? OR LOWER(s.program) LIKE ? OR LOWER(s.branch) LIKE ?)`;
+      params.push(sTerm, sTerm, sTerm, sTerm);
+    }
+
+    query += ` ORDER BY s.passing_year DESC, s.cgpa DESC`;
+
+    const students = db.prepare(query).all(...params);
     res.json(students);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -55,6 +98,11 @@ router.post('/approve-company', (req, res) => {
       }
       return res.json({ message: 'Company registration rejected and removed.' });
     }
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Remove / Delete Company Profile & Associated Drives (Admin Manager Authority)
 router.delete('/companies/:id', (req, res) => {
   try {
@@ -81,7 +129,7 @@ router.delete('/companies/:id', (req, res) => {
   }
 });
 
-// Comprehensive TPC Placement Dashboard Analytics
+// Comprehensive TPC Placement Dashboard Analytics (With Year-Wise Batch Distribution)
 router.get('/analytics', (req, res) => {
   try {
     const totalRequirements = db.prepare('SELECT COUNT(*) as count FROM requirements').get().count;
@@ -113,6 +161,22 @@ router.get('/analytics', (req, res) => {
       GROUP BY s.program
     `).all();
 
+    // Year-wise / Batch Placement Analytics Breakdown
+    const yearStats = db.prepare(`
+      SELECT 
+        COALESCE(s.passing_year, 2026) as passing_year,
+        COALESCE(s.batch_year, '2022-2026') as batch_year,
+        COUNT(DISTINCT s.id) as total_students,
+        ROUND(AVG(s.cgpa), 2) as avg_cgpa,
+        ROUND(AVG(s.ats_score), 1) as avg_ats_score,
+        COUNT(DISTINCT a.id) as total_applications,
+        SUM(CASE WHEN a.status IN ('interview', 'selected') THEN 1 ELSE 0 END) as placed_or_interviewed
+      FROM student_profiles s
+      LEFT JOIN applications a ON s.id = a.student_id
+      GROUP BY s.passing_year
+      ORDER BY s.passing_year ASC
+    `).all();
+
     // Top In-Demand Skills across postings
     const requirements = db.prepare('SELECT required_skills_json FROM requirements').all();
     const skillCounts = {};
@@ -141,6 +205,7 @@ router.get('/analytics', (req, res) => {
       sectorStats,
       funnelStats,
       programStats,
+      yearStats,
       topSkills
     });
   } catch (err) {
@@ -148,26 +213,53 @@ router.get('/analytics', (req, res) => {
   }
 });
 
-// CSV Export for Placement Accreditation
+// CSV Export for Placement Accreditation (Supports Year Range Filtering)
 router.get('/export-report', (req, res) => {
   try {
-    const apps = db.prepare(`
+    const { startYear, endYear, years } = req.query;
+
+    let query = `
       SELECT a.id as application_id, s.roll_number, s.name as student_name, s.program, s.branch, s.cgpa,
+             s.admission_year, s.passing_year, s.batch_year,
              c.company_name, r.title as job_title, r.ctc_range, a.match_score, a.status, a.applied_at
       FROM applications a
       JOIN student_profiles s ON a.student_id = s.id
       JOIN requirements r ON a.requirement_id = r.id
       JOIN company_profiles c ON r.company_id = c.id
-      ORDER BY a.applied_at DESC
-    `).all();
+      WHERE 1=1
+    `;
+    const params = [];
 
-    let csvContent = 'Application ID,Roll Number,Student Name,Program,Branch,CGPA,Company,Job Title,CTC,AI Match Score %,Status,Applied At\n';
+    if (years) {
+      const yearArr = years.split(',').map(y => parseInt(y.trim(), 10)).filter(y => !isNaN(y));
+      if (yearArr.length > 0) {
+        const placeholders = yearArr.map(() => '?').join(',');
+        query += ` AND (s.passing_year IN (${placeholders}) OR s.admission_year IN (${placeholders}))`;
+        params.push(...yearArr, ...yearArr);
+      }
+    } else {
+      if (startYear) {
+        query += ` AND (COALESCE(s.passing_year, 2026) >= ? OR COALESCE(s.admission_year, 2022) >= ?)`;
+        params.push(parseInt(startYear, 10), parseInt(startYear, 10));
+      }
+      if (endYear) {
+        query += ` AND (COALESCE(s.passing_year, 2026) <= ? OR COALESCE(s.admission_year, 2022) <= ?)`;
+        params.push(parseInt(endYear, 10), parseInt(endYear, 10));
+      }
+    }
+
+    query += ` ORDER BY s.passing_year DESC, a.applied_at DESC`;
+
+    const apps = db.prepare(query).all(...params);
+
+    let csvContent = 'Application ID,Roll Number,Student Name,Batch,Passing Year,Program,Branch,CGPA,Company,Job Title,CTC,AI Match Score %,Status,Applied At\n';
     apps.forEach(a => {
-      csvContent += `"${a.application_id}","${a.roll_number}","${a.student_name}","${a.program}","${a.branch}",${a.cgpa},"${a.company_name}","${a.job_title}","${a.ctc_range}",${a.match_score},"${a.status}","${a.applied_at}"\n`;
+      csvContent += `"${a.application_id}","${a.roll_number}","${a.student_name}","${a.batch_year || ''}",${a.passing_year || ''},"${a.program}","${a.branch}",${a.cgpa},"${a.company_name}","${a.job_title}","${a.ctc_range}",${a.match_score},"${a.status}","${a.applied_at}"\n`;
     });
 
+    const fileSuffix = startYear && endYear ? `${startYear}_${endYear}` : 'All_Years';
     res.setHeader('Content-Type', 'text/csv');
-    res.setHeader('Content-Disposition', 'attachment; filename="CampusHire_Placement_Report_2026.csv"');
+    res.setHeader('Content-Disposition', `attachment; filename="GSFC_Placement_Report_${fileSuffix}.csv"`);
     res.status(200).send(csvContent);
   } catch (err) {
     res.status(500).json({ error: err.message });
