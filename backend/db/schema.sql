@@ -67,8 +67,23 @@ CREATE TABLE IF NOT EXISTS applications (
     attendance_status TEXT DEFAULT 'pending' CHECK(attendance_status IN ('present', 'absent', 'pending')),
     evaluation_notes TEXT DEFAULT '',
     evaluation_score REAL DEFAULT 0.0,
+    offer_letter_data_json TEXT,
     applied_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(student_id, requirement_id)
+);
+
+CREATE TABLE IF NOT EXISTS notifications_log (
+    id TEXT PRIMARY KEY,
+    recipient_name TEXT NOT NULL,
+    recipient_email TEXT,
+    recipient_phone TEXT,
+    channel TEXT CHECK(channel IN ('whatsapp', 'email', 'in_app')) NOT NULL,
+    notification_type TEXT CHECK(notification_type IN ('drive_alert', 'interview_reminder', 'offer_letter', 'general')) NOT NULL,
+    title TEXT NOT NULL,
+    message TEXT NOT NULL,
+    metadata_json TEXT DEFAULT '{}',
+    status TEXT DEFAULT 'sent',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS interview_question_sets (

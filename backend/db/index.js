@@ -81,10 +81,27 @@ function applyMigrations() {
     if (!appColumns.includes('evaluation_notes')) {
       db.exec("ALTER TABLE applications ADD COLUMN evaluation_notes TEXT DEFAULT ''");
     }
-    if (!appColumns.includes('evaluation_score')) {
-      db.exec("ALTER TABLE applications ADD COLUMN evaluation_score REAL DEFAULT 0.0");
+    if (!appColumns.includes('offer_letter_data_json')) {
+      db.exec("ALTER TABLE applications ADD COLUMN offer_letter_data_json TEXT");
     }
     db.exec("UPDATE applications SET attendance_status = 'pending' WHERE attendance_status IS NULL");
+
+    // Notifications and Communications Audit Log Table
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS notifications_log (
+        id TEXT PRIMARY KEY,
+        recipient_name TEXT NOT NULL,
+        recipient_email TEXT,
+        recipient_phone TEXT,
+        channel TEXT CHECK(channel IN ('whatsapp', 'email', 'in_app')) NOT NULL,
+        notification_type TEXT CHECK(notification_type IN ('drive_alert', 'interview_reminder', 'offer_letter', 'general')) NOT NULL,
+        title TEXT NOT NULL,
+        message TEXT NOT NULL,
+        metadata_json TEXT DEFAULT '{}',
+        status TEXT DEFAULT 'sent',
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
 
     const studColumns = db.prepare("PRAGMA table_info(student_profiles)").all().map(c => c.name);
     if (!studColumns.includes('admission_year')) {

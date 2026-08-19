@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Building2, Building, Plus, Users, Sparkles, AlertCircle, ArrowLeft, CheckCircle, ExternalLink, Download, Upload, FileText, Search, Tag, ShieldCheck, Database, Printer, Eye, Briefcase, XCircle, Trash2, Pencil, Clock, Ban, Check, RefreshCw, Save, Calendar } from 'lucide-react';
+import { Building2, Building, Plus, Users, Sparkles, AlertCircle, ArrowLeft, CheckCircle, ExternalLink, Download, Upload, FileText, Search, Tag, ShieldCheck, Database, Printer, Eye, Briefcase, XCircle, Trash2, Pencil, Clock, Ban, Check, RefreshCw, Save, Calendar, Phone, Bell, Send, Award, MessageSquare } from 'lucide-react';
 import InterviewQuestionGeneratorModal from './InterviewQuestionGeneratorModal';
 import ReportPDFModal from '../common/ReportPDFModal';
 import CompanyQuestionUploadModal from '../common/CompanyQuestionUploadModal';
 import CompanyAttendanceReportModal from './CompanyAttendanceReportModal';
 import CompanyCandidateEvaluationModal from './CompanyCandidateEvaluationModal';
+import OfferLetterModal from '../common/OfferLetterModal';
+import NotificationLogsModal from '../common/NotificationLogsModal';
 import RequirementQuestionBankForm from './RequirementQuestionBankForm';
 import { getCompanyUploadedQuestions, saveCompanyUploadedQuestion, bulkUploadCompanyQuestions, deleteCompanyUploadedQuestion } from '../../utils/companyQuestionStorage';
 
@@ -139,6 +141,87 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
           : a
       ));
     }
+  };
+
+  // Offer Letter & Notification Modals State
+  const [offerLetterModalOpen, setOfferLetterModalOpen] = useState(false);
+  const [selectedOfferCandidate, setSelectedOfferCandidate] = useState(null);
+  const [notificationLogsModalOpen, setNotificationLogsModalOpen] = useState(false);
+  const [broadcastingDriveId, setBroadcastingDriveId] = useState(null);
+  const [broadcastSuccessMsg, setBroadcastSuccessMsg] = useState('');
+
+  // 1-Click WhatsApp & Email Placement Drive Alert Broadcast
+  const handleBroadcastDriveAlert = async (reqItem) => {
+    if (!reqItem) return;
+    setBroadcastingDriveId(reqItem.id);
+    try {
+      const res = await fetch('/api/notifications/broadcast-drive', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          requirementId: reqItem.id,
+          jobTitle: reqItem.title,
+          companyName: reqItem.company_name || company?.company_name || 'Corporate Partner',
+          ctcRange: reqItem.ctc_range,
+          minCgpa: reqItem.min_cgpa,
+          deadline: reqItem.deadline
+        })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setBroadcastSuccessMsg(data.message);
+        setTimeout(() => setBroadcastSuccessMsg(''), 5000);
+        if (data.whatsapp_preview_url) {
+          window.open(data.whatsapp_preview_url, '_blank');
+        }
+      } else {
+        alert(data.error || 'Failed to broadcast drive alert');
+      }
+    } catch (err) {
+      console.error('Error broadcasting drive alert:', err);
+      alert('Error broadcasting: ' + err.message);
+    } finally {
+      setBroadcastingDriveId(null);
+    }
+  };
+
+  // 1-Click WhatsApp & Email Interview Reminder Dispatch
+  const handleSendCandidateInterviewReminder = async (candidateApp) => {
+    if (!candidateApp) return;
+    try {
+      const res = await fetch('/api/notifications/send-interview-reminder', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          applicationId: candidateApp.application_id || candidateApp.id,
+          candidateName: candidateApp.candidate_name || candidateApp.name,
+          candidateEmail: candidateApp.candidate_email || candidateApp.email,
+          candidatePhone: candidateApp.phone || candidateApp.candidate_phone || '9876543210',
+          jobTitle: candidateApp.job_title || 'Campus Placement Drive',
+          companyName: candidateApp.company_name || company?.company_name || 'gsfc limited',
+          interviewTime: 'Tomorrow at 10:30 AM',
+          venue: 'Vigyan Bhavan TPC Interview Suites / Online Google Meet'
+        })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        alert(`✅ ${data.message}`);
+        if (data.whatsapp_url) {
+          window.open(data.whatsapp_url, '_blank');
+        }
+      } else {
+        alert(data.error || 'Failed to send interview reminder');
+      }
+    } catch (err) {
+      console.error('Error sending interview reminder:', err);
+      alert('Error sending reminder: ' + err.message);
+    }
+  };
+
+  // Open 1-Click Stamped Offer Letter Generator
+  const handleOpenOfferLetter = (candidateApp) => {
+    setSelectedOfferCandidate(candidateApp);
+    setOfferLetterModalOpen(true);
   };
 
   const handleBulkSaveAttendance = async () => {
@@ -884,6 +967,14 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
 
         <div className="z-10 w-full md:w-auto flex flex-wrap items-center gap-3">
           <button
+            onClick={() => setNotificationLogsModalOpen(true)}
+            className="py-3 px-4 bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-300 font-black text-xs rounded-xl shadow-md flex items-center justify-center gap-2 transition-all min-h-[44px] cursor-pointer"
+            title="View Real-Time WhatsApp & Email Communication Logs"
+          >
+            <Phone className="w-4 h-4 text-emerald-600 shrink-0" />
+            <span>📲 WhatsApp & Logs</span>
+          </button>
+          <button
             onClick={() => setUploadQuestionsModalOpen(true)}
             className="py-3 px-4 bg-slate-100 hover:bg-slate-200 text-blue-900 border border-blue-900/20 font-black text-xs rounded-xl shadow-md flex items-center justify-center gap-2 transition-all min-h-[44px]"
           >
@@ -1153,7 +1244,18 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
                     </button>
                   </div>
 
-                  <div className="pt-1 grid grid-cols-1 sm:grid-cols-3 gap-2 w-full">
+                  {/* 1-Click WhatsApp Broadcast Alert & Action Controls */}
+                  <div className="pt-1 grid grid-cols-1 sm:grid-cols-4 gap-2 w-full">
+                    <button
+                      onClick={() => handleBroadcastDriveAlert(req)}
+                      disabled={broadcastingDriveId === req.id}
+                      className="w-full py-2 px-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-black flex items-center justify-center gap-1.5 shadow-md transition-all cursor-pointer min-h-[38px] hover:scale-102 disabled:opacity-50"
+                      title="Broadcast Placement Drive Alert to all eligible students via WhatsApp & Email"
+                    >
+                      <Send className="w-3.5 h-3.5 text-emerald-200" />
+                      <span>{broadcastingDriveId === req.id ? 'Broadcasting...' : '📢 WhatsApp Alert'}</span>
+                    </button>
+
                     <button
                       onClick={() => handleOpenEditModal(req)}
                       className="w-full py-2 px-3 bg-amber-500 hover:bg-amber-600 text-slate-950 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 shadow-md transition-all cursor-pointer min-h-[38px]"
@@ -1431,6 +1533,24 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
                             </td>
 
                             <td className="py-4 px-4 text-right space-x-1.5 whitespace-nowrap">
+                              <button
+                                onClick={() => handleSendCandidateInterviewReminder(cand)}
+                                className="py-1.5 px-2.5 bg-green-50 hover:bg-green-100 text-green-900 border border-green-300 rounded-xl text-[11px] font-black inline-flex items-center gap-1 transition-all cursor-pointer"
+                                title="Send Interview Schedule / Reminder via WhatsApp & Email"
+                              >
+                                <Phone className="w-3 h-3 text-green-600" />
+                                <span>WhatsApp</span>
+                              </button>
+
+                              <button
+                                onClick={() => handleOpenOfferLetter(cand)}
+                                className="py-1.5 px-2.5 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 rounded-xl text-[11px] font-black inline-flex items-center gap-1 transition-all cursor-pointer"
+                                title="1-Click Official Stamped Offer Letter Generator"
+                              >
+                                <Award className="w-3 h-3 text-amber-600" />
+                                <span>Offer Letter</span>
+                              </button>
+
                               <button
                                 onClick={() => handleOpenEvaluationModal(cand)}
                                 className="py-1.5 px-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 rounded-xl text-[11px] font-black inline-flex items-center gap-1 transition-all cursor-pointer"
@@ -1819,6 +1939,26 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
                             </td>
 
                             <td className="py-4 px-4 text-right space-x-1.5 whitespace-nowrap">
+                              <button
+                                type="button"
+                                onClick={() => handleSendCandidateInterviewReminder(app)}
+                                className="py-1.5 px-2.5 bg-green-50 hover:bg-green-100 text-green-900 border border-green-300 rounded-xl text-xs font-black inline-flex items-center gap-1 transition-all cursor-pointer hover:scale-105"
+                                title="Send Interview Schedule / Reminder via WhatsApp & Email"
+                              >
+                                <Phone className="w-3.5 h-3.5 text-green-600" />
+                                <span>WhatsApp</span>
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => handleOpenOfferLetter(app)}
+                                className="py-1.5 px-2.5 bg-amber-50 hover:bg-amber-100 text-amber-950 border border-amber-300 rounded-xl text-xs font-black inline-flex items-center gap-1 transition-all cursor-pointer hover:scale-105"
+                                title="1-Click Official Stamped Offer Letter Generator"
+                              >
+                                <Award className="w-3.5 h-3.5 text-amber-600" />
+                                <span>Offer</span>
+                              </button>
+
                               <button
                                 type="button"
                                 onClick={() => openCandidatePdfReport({ name: app.candidate_name || app.name, email: app.candidate_email || app.email, ats_score: app.ats_score, skills: app.skillsSummary })}
@@ -2659,6 +2799,35 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
             </form>
           </div>
         </div>
+      )}
+
+      {/* 1-Click Official Stamped Offer Letter Generator & Auto-Dispatcher Modal */}
+      {offerLetterModalOpen && selectedOfferCandidate && (
+        <OfferLetterModal
+          isOpen={offerLetterModalOpen}
+          onClose={() => {
+            setOfferLetterModalOpen(false);
+            setSelectedOfferCandidate(null);
+          }}
+          candidate={selectedOfferCandidate}
+          requirement={requirements.find(r => r.id === selectedOfferCandidate.requirement_id)}
+          company={company}
+          onOfferDispatched={(offerData) => {
+            setAllCompanyApplicants(prev => prev.map(a => 
+              (a.application_id === selectedOfferCandidate.application_id || a.id === selectedOfferCandidate.application_id)
+                ? { ...a, status: 'selected' }
+                : a
+            ));
+          }}
+        />
+      )}
+
+      {/* WhatsApp & Email Communication Audit Log Modal */}
+      {notificationLogsModalOpen && (
+        <NotificationLogsModal
+          isOpen={notificationLogsModalOpen}
+          onClose={() => setNotificationLogsModalOpen(false)}
+        />
       )}
     </div>
   );

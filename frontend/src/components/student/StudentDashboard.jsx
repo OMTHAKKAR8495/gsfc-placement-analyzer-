@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Upload, FileText, CheckCircle, AlertTriangle, Sparkles, Briefcase, Award, TrendingUp, Search, SlidersHorizontal, ArrowRight, Play, Cpu, Check, Layers, ChevronRight, Compass, ShieldCheck, PieChart, BarChart2, RefreshCw, Zap, Database, X, Star, CheckCircle2, AlertCircle, Edit3, Mail, Download, Paperclip, Printer, Trash2, User, Plus, Building2 } from 'lucide-react';
+import { Upload, FileText, CheckCircle, AlertTriangle, Sparkles, Briefcase, Award, TrendingUp, Search, SlidersHorizontal, ArrowRight, Play, Cpu, Check, Layers, ChevronRight, Compass, ShieldCheck, PieChart, BarChart2, RefreshCw, Zap, Database, X, Star, CheckCircle2, AlertCircle, Edit3, Mail, Download, Paperclip, Printer, Trash2, User, Plus, Building2, Bell, Phone } from 'lucide-react';
 import MockInterviewChat from './MockInterviewChat';
 import CompanyTrackerSidebar from '../common/CompanyTrackerSidebar';
 import ReportPDFModal from '../common/ReportPDFModal';
 import InternalAutoFillApplyModal from './InternalAutoFillApplyModal';
 import ExternalApplyConfirmModal from './ExternalApplyConfirmModal';
+import OfferLetterModal from '../common/OfferLetterModal';
+import NotificationLogsModal from '../common/NotificationLogsModal';
 
 export default function StudentDashboard({ student, currentUser, onUpdateStudent, onOpenAuthModal, onOpenJobPost }) {
   const [activeTab, setActiveTab] = useState('feed'); // 'feed', 'profile', 'applications'
@@ -60,6 +62,11 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
   // AI Mock Interview state
   const [mockSessionActive, setMockSessionActive] = useState(false);
   const [mockTargetRequirement, setMockTargetRequirement] = useState(null);
+
+  // Stamped Offer Letter & Notification Modal State
+  const [studentOfferLetterOpen, setStudentOfferLetterOpen] = useState(false);
+  const [selectedStudentOffer, setSelectedStudentOffer] = useState(null);
+  const [studentNotificationsOpen, setStudentNotificationsOpen] = useState(false);
 
   const placementTips = [
     '💡 Tip 1: Quantifiable metrics like "Boosted database speed by 35%" increase ATS score by 40%!',
@@ -510,6 +517,15 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
             }`}
           >
             <Award className="w-4 h-4" /> My Applications ({applications.length})
+          </button>
+
+          <button
+            onClick={() => setStudentNotificationsOpen(true)}
+            className="flex items-center gap-2 px-3.5 sm:px-5 py-2.5 rounded-xl text-xs font-black transition-all shrink-0 whitespace-nowrap text-emerald-900 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 shadow-sm cursor-pointer ml-auto"
+            title="View WhatsApp & Email Placement Alerts"
+          >
+            <Bell className="w-4 h-4 text-emerald-600" />
+            <span>📲 Placement Alerts & Logs</span>
           </button>
         </div>
       </div>
@@ -1092,6 +1108,29 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
                           </span>
                         </div>
 
+                        {(app.status === 'selected' || app.offer_letter_data_json) && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedStudentOffer({
+                                candidate_name: student?.name || candidateName,
+                                candidate_email: student?.email || candidateEmail,
+                                candidate_roll: student?.roll_number || 'GSFC/2026/CSE/001',
+                                job_title: app.job_title,
+                                company_name: app.company_name,
+                                ctc_range: app.ctc_range,
+                                ...app
+                              });
+                              setStudentOfferLetterOpen(true);
+                            }}
+                            className="py-2.5 px-4 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 rounded-xl text-xs font-black flex items-center gap-1.5 shadow-lg transition-all shrink-0 min-h-[42px] cursor-pointer hover:scale-105"
+                            title="View Official GSFC TPC Stamped Placement Offer Letter"
+                          >
+                            <Award className="w-4 h-4 text-slate-950 stroke-[2.5]" />
+                            <span>View Offer Letter</span>
+                          </button>
+                        )}
+
                         <button
                           onClick={() => startMockInterview({ id: app.requirement_id, title: app.job_title, company_name: app.company_name })}
                           className="py-2.5 px-4 bg-theme-gradient text-white rounded-xl text-xs font-black flex items-center gap-1.5 shadow-md transition-all shrink-0 min-h-[42px]"
@@ -1373,6 +1412,28 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
         requirement={selectedReqForApply}
         onConfirmApplied={(reqId) => handleConfirmExternalApply(reqId)}
       />
+
+      {/* STUDENT VIEW OFFICIAL STAMPED OFFER LETTER MODAL */}
+      {studentOfferLetterOpen && selectedStudentOffer && (
+        <OfferLetterModal
+          isOpen={studentOfferLetterOpen}
+          onClose={() => {
+            setStudentOfferLetterOpen(false);
+            setSelectedStudentOffer(null);
+          }}
+          candidate={selectedStudentOffer}
+          requirement={{ title: selectedStudentOffer.job_title, ctc_range: selectedStudentOffer.ctc_range }}
+          company={{ company_name: selectedStudentOffer.company_name }}
+        />
+      )}
+
+      {/* STUDENT NOTIFICATIONS & PLACEMENT ALERTS MODAL */}
+      {studentNotificationsOpen && (
+        <NotificationLogsModal
+          isOpen={studentNotificationsOpen}
+          onClose={() => setStudentNotificationsOpen(false)}
+        />
+      )}
     </div>
   );
 }

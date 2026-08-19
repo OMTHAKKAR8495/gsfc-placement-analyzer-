@@ -13,6 +13,7 @@ import companyRoutes from './routes/company.js';
 import studentRoutes from './routes/student.js';
 import interviewRoutes from './routes/interview.js';
 import adminRoutes from './routes/admin.js';
+import notificationRoutes from './routes/notifications.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -65,6 +66,7 @@ app.use('/api/company', companyRoutes);
 app.use('/api/student', studentRoutes);
 app.use('/api/interview', interviewRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
