@@ -129,6 +129,25 @@ router.delete('/companies/:id', (req, res) => {
   }
 });
 
+// Remove / Delete Single Placement Drive Requirement (Admin Authority)
+router.delete('/requirements/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+    const reqItem = db.prepare('SELECT title, company_id FROM requirements WHERE id = ?').get(id);
+    if (!reqItem) {
+      return res.status(404).json({ error: 'Placement drive requirement not found.' });
+    }
+
+    // Cascade delete applications for this drive
+    db.prepare('DELETE FROM applications WHERE requirement_id = ?').run(id);
+    db.prepare('DELETE FROM requirements WHERE id = ?').run(id);
+
+    res.json({ message: `Placement drive "${reqItem.title}" deleted successfully.` });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Comprehensive TPC Placement Dashboard Analytics (With Year-Wise Batch Distribution)
 router.get('/analytics', (req, res) => {
   try {

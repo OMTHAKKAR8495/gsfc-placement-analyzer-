@@ -3,7 +3,7 @@ import {
   ShieldCheck, CheckCircle2, XCircle, BarChart3, Download, Building, Users, 
   Briefcase, FileSpreadsheet, Sparkles, TrendingUp, PieChart, Database, Search, 
   Printer, CheckCircle, Trash2, Calendar, Filter, SlidersHorizontal, Layers, 
-  CheckSquare, Square, RefreshCw, Eye, GraduationCap, Award, Check, FileText
+  CheckSquare, Square, RefreshCw, Eye, GraduationCap, Award, Check, FileText, X
 } from 'lucide-react';
 import ReportPDFModal from '../common/ReportPDFModal';
 import BatchPDFReportModal from './BatchPDFReportModal';
@@ -15,6 +15,8 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
   const [analytics, setAnalytics] = useState(null);
   const [loading, setLoading] = useState(false);
   const [approvalModal, setApprovalModal] = useState({ isOpen: false, title: '', message: '', entityName: '' });
+  const [manageDrivesModalOpen, setManageDrivesModalOpen] = useState(false);
+  const [selectedCompanyForDrives, setSelectedCompanyForDrives] = useState(null);
 
   // Admin Authentication Lock Screen State
   const [adminEmail, setAdminEmail] = useState('');
@@ -230,6 +232,29 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
     } catch (err) {
       console.error('Error removing company:', err);
     }
+  };
+
+  const handleDeleteDrive = async (driveId, driveTitle, companyName) => {
+    if (!window.confirm(`⚠️ ARE YOU SURE YOU WANT TO DELETE THIS DRIVE?\n\nDrive Name: "${driveTitle}"\nCompany: ${companyName || 'Recruiter'}\n\nThis will remove ONLY this specific drive while keeping other drives for ${companyName || 'this company'} intact.`)) return;
+
+    try {
+      const res = await fetch(`/api/admin/requirements/${driveId}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (res.ok) {
+        alert(`🎉 Drive "${driveTitle}" deleted successfully.`);
+        fetchMasterData();
+        fetchAdminDataSilently();
+      } else {
+        alert(data.error || 'Failed to delete drive');
+      }
+    } catch (err) {
+      console.error('Error deleting drive:', err);
+    }
+  };
+
+  const handleOpenCompanyDrivesManager = (company) => {
+    setSelectedCompanyForDrives(company);
+    setManageDrivesModalOpen(true);
   };
 
   const toggleYear = (year) => {
@@ -702,9 +727,15 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
                       </td>
 
                       <td className="py-4 px-5">
-                        <span className="px-3 py-1 bg-indigo-50 border border-indigo-200 text-indigo-900 font-black text-xs rounded-xl">
-                          💼 {comp.posted_drives_count || 0} Posted Drives
-                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleOpenCompanyDrivesManager(comp)}
+                          className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-900 font-black text-xs rounded-xl cursor-pointer transition-all hover:scale-105 inline-flex items-center gap-1.5 shadow-sm"
+                          title="Click to view & delete specific individual drives for this company"
+                        >
+                          <span>💼 {comp.posted_drives_count || 0} Posted Drives</span>
+                          <span className="text-[10px] text-indigo-600 font-mono">Manage ▾</span>
+                        </button>
                       </td>
 
                       <td className="py-4 px-5">
@@ -723,19 +754,29 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
                         {!comp.approved && (
                           <button
                             onClick={() => handleApproveRejectCompany(comp.id, 'approve')}
-                            className="py-1.5 px-3 bg-emerald-700 hover:bg-emerald-600 text-white rounded-xl text-xs font-black transition-all shadow-sm"
+                            className="py-1.5 px-3 bg-emerald-700 hover:bg-emerald-600 text-white rounded-xl text-xs font-black transition-all shadow-sm cursor-pointer"
                           >
                             Approve
                           </button>
                         )}
 
                         <button
-                          onClick={() => handleDeleteCompany(comp.id, comp.company_name)}
-                          className="py-1.5 px-3 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-black inline-flex items-center gap-1 transition-all shadow-sm cursor-pointer"
-                          title="Remove company account and all associated hiring drives"
+                          onClick={() => {
+                            const compDrives = allDrivesList.filter(d => 
+                              d.company_id === comp.id || 
+                              d.company_name?.toLowerCase() === comp.company_name?.toLowerCase()
+                            );
+                            if (compDrives.length > 0) {
+                              handleOpenCompanyDrivesManager(comp);
+                            } else {
+                              handleDeleteCompany(comp.id, comp.company_name);
+                            }
+                          }}
+                          className="py-1.5 px-3 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-black inline-flex items-center gap-1 transition-all shadow-sm cursor-pointer hover:scale-105"
+                          title="Selectively delete drives or remove whole company account"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
-                          <span>Remove</span>
+                          <span>Delete / Remove</span>
                         </button>
                       </td>
                     </tr>
@@ -769,6 +810,7 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
                     <th className="py-4 px-5">CTC Package & Cutoff</th>
                     <th className="py-4 px-5">Applicants</th>
                     <th className="py-4 px-5">Visibility Status</th>
+                    <th className="py-4 px-5 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200">
@@ -804,6 +846,18 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
                             GATED (UNAPPROVED RECRUITER) 🔒
                           </span>
                         )}
+                      </td>
+
+                      <td className="py-4 px-5 text-right whitespace-nowrap">
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteDrive(reqItem.id, reqItem.title, reqItem.company_name)}
+                          className="py-1.5 px-3 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-black inline-flex items-center gap-1 transition-all shadow-sm cursor-pointer hover:scale-105"
+                          title={`Delete only this drive ("${reqItem.title}")`}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          <span>Delete Drive</span>
+                        </button>
                       </td>
                     </tr>
                   ))}
@@ -1617,6 +1671,105 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
         message={approvalModal.message}
         entityName={approvalModal.entityName}
       />
+
+      {/* MANAGE & SELECTIVELY DELETE DRIVES MODAL */}
+      {manageDrivesModalOpen && selectedCompanyForDrives && (() => {
+        const companyDrives = allDrivesList.filter(d => 
+          d.company_id === selectedCompanyForDrives.id || 
+          d.company_name?.toLowerCase() === selectedCompanyForDrives.company_name?.toLowerCase()
+        );
+
+        return (
+          <div className="fixed inset-0 z-[999999] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fadeIn overflow-y-auto">
+            <div className="bg-white rounded-3xl border border-slate-200 max-w-2xl w-full shadow-2xl overflow-hidden my-8 text-slate-900">
+              <div className="bg-gradient-to-r from-blue-900 via-indigo-950 to-slate-900 p-6 text-white flex items-center justify-between">
+                <div>
+                  <span className="px-2.5 py-0.5 bg-amber-500/20 text-amber-300 text-[10px] font-black uppercase rounded-lg border border-amber-500/30">
+                    Granular Placement Drive Manager
+                  </span>
+                  <h2 className="text-xl font-black mt-1">Manage & Delete Drives: {selectedCompanyForDrives.company_name}</h2>
+                  <p className="text-xs text-slate-300 font-bold">
+                    Select a specific drive to delete individually while preserving all other drives, or remove the entire corporate account.
+                  </p>
+                </div>
+                <button 
+                  onClick={() => {
+                    setManageDrivesModalOpen(false);
+                    setSelectedCompanyForDrives(null);
+                  }}
+                  className="p-2 bg-white/10 hover:bg-white/20 rounded-xl text-white cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
+                <div className="text-xs font-black text-slate-700 uppercase tracking-wider">
+                  Active Hiring Drives for this Recruiter ({companyDrives.length})
+                </div>
+
+                {companyDrives.length === 0 ? (
+                  <div className="p-6 bg-slate-50 border border-slate-200 rounded-2xl text-center text-xs text-slate-500 font-bold">
+                    No active hiring drives found for {selectedCompanyForDrives.company_name}.
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {companyDrives.map((d, idx) => (
+                      <div key={d.id} className="p-4 bg-slate-50 border border-slate-200 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm hover:border-blue-300 transition-all">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className="w-6 h-6 rounded-lg bg-blue-900 text-amber-300 flex items-center justify-center text-[10px] font-black shrink-0">
+                              Drive {idx + 1}
+                            </span>
+                            <h4 className="font-black text-slate-900 text-sm">{d.title}</h4>
+                          </div>
+                          <div className="text-xs text-slate-600 font-bold">
+                            CTC: <strong className="text-blue-900">{d.ctc_range}</strong> • Min CGPA: {d.min_cgpa || 'None'} • {d.job_type}
+                          </div>
+                          <div className="text-[10px] text-slate-400 font-mono">ID: {d.id} • Deadline: {d.deadline || 'Ongoing'}</div>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteDrive(d.id, d.title, selectedCompanyForDrives.company_name)}
+                          className="py-2 px-3.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-black flex items-center gap-1.5 shadow-md transition-all cursor-pointer shrink-0 hover:scale-105"
+                          title={`Delete only Drive ${idx + 1} ("${d.title}")`}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          <span>Delete Drive {idx + 1} ("{d.title}")</span>
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Full Recruiter Deletion Option */}
+                <div className="pt-4 border-t border-slate-200">
+                  <div className="p-4 bg-rose-50 border border-rose-200 rounded-2xl space-y-2">
+                    <div className="text-xs font-black text-rose-900 uppercase">
+                      ⚠️ Delete Entire Corporate Profile & All Drives
+                    </div>
+                    <p className="text-[11px] text-rose-700 font-medium">
+                      If you want to permanently delete the company "{selectedCompanyForDrives.company_name}" and wipe all its {companyDrives.length} drives at once:
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setManageDrivesModalOpen(false);
+                        handleDeleteCompany(selectedCompanyForDrives.id, selectedCompanyForDrives.company_name);
+                      }}
+                      className="py-2.5 px-4 bg-rose-700 hover:bg-rose-800 text-white rounded-xl text-xs font-black flex items-center gap-2 transition-all cursor-pointer shadow-md"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      <span>Delete Complete Recruiter Account ({selectedCompanyForDrives.company_name})</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
