@@ -8,11 +8,13 @@ import CompanyCandidateEvaluationModal from './CompanyCandidateEvaluationModal';
 import OfferLetterModal from '../common/OfferLetterModal';
 import NotificationLogsModal from '../common/NotificationLogsModal';
 import DocumentAuthenticityModal from '../common/DocumentAuthenticityModal';
+import AccreditationNirfModal from '../admin/AccreditationNirfModal';
 import RequirementQuestionBankForm from './RequirementQuestionBankForm';
 import { getCompanyUploadedQuestions, saveCompanyUploadedQuestion, bulkUploadCompanyQuestions, deleteCompanyUploadedQuestion } from '../../utils/companyQuestionStorage';
 
 export default function CompanyDashboard({ currentUser, company, onCompanyAuthSuccess, onRefreshCompany, openPostModalSignal, openApplicantsFeedSignal }) {
   const [activeTab, setActiveTab] = useState('my_applications'); // 'my_applications', 'requirements', 'database', 'applicants'
+  const [accreditationModalOpen, setAccreditationModalOpen] = useState(false);
   const [requirements, setRequirements] = useState([]);
   const [activeReqApplicants, setActiveReqApplicants] = useState(null);
   const [applicantsData, setApplicantsData] = useState([]);
@@ -1345,6 +1347,15 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
                 </div>
 
                 <div className="flex items-center gap-2 flex-wrap">
+                  <button
+                    onClick={() => setAccreditationModalOpen(true)}
+                    className="py-2.5 px-4 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 rounded-xl text-xs font-black flex items-center gap-1.5 shadow-md transition-all cursor-pointer hover:scale-105"
+                    title="1-Click NAAC & NIRF Official Accreditation Report & Branch Comparison"
+                  >
+                    <Award className="w-4 h-4 text-slate-950 stroke-[2.5]" />
+                    <span>📊 NIRF / NAAC Report</span>
+                  </button>
+
                   <button
                     onClick={() => handleDownloadApplicantsCSV({ title: 'Saved Candidate Database' }, savedDatabaseList)}
                     className="py-2.5 px-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-black flex items-center gap-1.5 shadow-md transition-all cursor-pointer"
@@ -2970,6 +2981,12 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
           company={company}
         />
       )}
+
+      {/* Official NAAC & NIRF Accreditation 1-Click Intelligence Modal */}
+      <AccreditationNirfModal
+        isOpen={accreditationModalOpen}
+        onClose={() => setAccreditationModalOpen(false)}
+      />
     </div>
   );
 }

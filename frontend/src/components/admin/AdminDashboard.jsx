@@ -8,9 +8,11 @@ import {
 import ReportPDFModal from '../common/ReportPDFModal';
 import BatchPDFReportModal from './BatchPDFReportModal';
 import ApprovalNotificationModal from '../common/ApprovalNotificationModal';
+import AccreditationNirfModal from './AccreditationNirfModal';
 
 export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
   const [activeTab, setActiveTab] = useState('overview'); // 'overview', 'database'
+  const [accreditationModalOpen, setAccreditationModalOpen] = useState(false);
   const [pendingCompanies, setPendingCompanies] = useState([]);
   const [analytics, setAnalytics] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -515,12 +517,21 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
           </p>
         </div>
 
-        <div>
+        <div className="flex items-center gap-2.5 flex-wrap">
+          <button
+            onClick={() => setAccreditationModalOpen(true)}
+            className="py-3 px-5 bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:from-amber-400 hover:to-orange-400 text-slate-950 font-black text-xs rounded-xl shadow-lg shadow-amber-500/20 flex items-center gap-2 transition-all cursor-pointer hover:scale-105"
+          >
+            <Award className="w-4 h-4 text-slate-950 stroke-[2.5]" /> 
+            <span>📊 NAAC & NIRF Accreditation Hub</span>
+          </button>
+
           <button
             onClick={downloadReport}
-            className="py-3 px-6 bg-gradient-to-r from-blue-900 via-indigo-900 to-amber-600 hover:from-blue-800 hover:to-amber-500 text-white font-black text-xs rounded-xl shadow-lg shadow-blue-900/20 flex items-center gap-2 transition-all"
+            className="py-3 px-5 bg-gradient-to-r from-blue-900 via-indigo-900 to-amber-600 hover:from-blue-800 hover:to-amber-500 text-white font-black text-xs rounded-xl shadow-lg shadow-blue-900/20 flex items-center gap-2 transition-all cursor-pointer"
           >
-            <Download className="w-4 h-4" /> Export NAAC/NIRF CSV Report
+            <Download className="w-4 h-4" /> 
+            <span>Export CSV</span>
           </button>
         </div>
       </div>
@@ -594,6 +605,13 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
           }`}
         >
           <Search className="w-4 h-4 text-cyan-400" /> 🔍 Cross-Tenant Global Search
+        </button>
+
+        <button
+          onClick={() => setAccreditationModalOpen(true)}
+          className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black transition-all shrink-0 bg-amber-50 text-amber-950 border border-amber-300 hover:bg-amber-100 cursor-pointer shadow-xs"
+        >
+          <Award className="w-4 h-4 text-amber-600 stroke-[2.5]" /> 🏆 NAAC & NIRF Reports
         </button>
       </div>
 
@@ -1770,6 +1788,12 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
           </div>
         );
       })()}
+
+      {/* Official NAAC & NIRF Accreditation 1-Click Intelligence Modal */}
+      <AccreditationNirfModal 
+        isOpen={accreditationModalOpen} 
+        onClose={() => setAccreditationModalOpen(false)} 
+      />
     </div>
   );
 }
