@@ -1,7 +1,20 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Download, Printer, X, CheckCircle, XCircle, Clock, Building2, FileText, Sparkles, ShieldCheck, Users, Calendar, Award } from 'lucide-react';
 
 export default function CompanyAttendanceReportModal({ isOpen, onClose, requirement, applicants = [], company }) {
+  // ESC key listener to close modal
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && isOpen) {
+        onClose();
+      }
+    };
+    if (isOpen) {
+      window.addEventListener('keydown', handleKeyDown);
+    }
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   const totalApplicants = applicants.length;
@@ -65,8 +78,16 @@ export default function CompanyAttendanceReportModal({ isOpen, onClose, requirem
   };
 
   return (
-    <div className="fixed inset-0 z-[99999] flex items-center justify-center p-2 sm:p-4 bg-slate-950/80 backdrop-blur-md overflow-y-auto print:p-0 print:bg-white animate-fadeIn">
-      <div className="bg-white rounded-3xl border border-slate-200 max-w-5xl w-full shadow-2xl overflow-hidden my-4 sm:my-8 text-slate-900 print:border-none print:shadow-none print:m-0 print:max-w-none print:rounded-none">
+    <div 
+      className="fixed inset-0 z-[99999] flex items-center justify-center p-2 sm:p-4 bg-slate-950/80 backdrop-blur-md overflow-y-auto print:p-0 print:bg-white animate-fadeIn"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div 
+        className="bg-white rounded-3xl border border-slate-200 max-w-5xl w-full shadow-2xl overflow-hidden my-4 sm:my-8 text-slate-900 print:border-none print:shadow-none print:m-0 print:max-w-none print:rounded-none"
+        onClick={(e) => e.stopPropagation()}
+      >
         
         {/* ACTION BAR (Hidden in print) */}
         <div className="bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 p-4 sm:p-5 text-white flex flex-wrap items-center justify-between gap-3 print:hidden">

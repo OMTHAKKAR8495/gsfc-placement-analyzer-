@@ -57,6 +57,22 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
   const [uploadedCompanyQuestions, setUploadedCompanyQuestions] = useState(() => getCompanyUploadedQuestions());
   const [selectedCandidate, setSelectedCandidate] = useState(null);
 
+  // Global ESC key listener to close active modals
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        if (attendanceReportModalOpen) setAttendanceReportModalOpen(false);
+        if (pdfReportModalOpen) setPdfReportModalOpen(false);
+        if (showPostModal) setShowPostModal(false);
+        if (activeReqApplicants) setActiveReqApplicants(null);
+        if (questionModalOpen) setQuestionModalOpen(false);
+        if (uploadQuestionsModalOpen) setUploadQuestionsModalOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [attendanceReportModalOpen, pdfReportModalOpen, showPostModal, activeReqApplicants, questionModalOpen, uploadQuestionsModalOpen]);
+
   // Toggle Accepting Applications on a Placement Drive (Stop / Reopen)
   const handleToggleApplications = async (reqId) => {
     try {
