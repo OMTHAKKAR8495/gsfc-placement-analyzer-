@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Building2, Building, Plus, Users, Sparkles, AlertCircle, ArrowLeft, CheckCircle, ExternalLink, Download, Upload, FileText, Search, Tag, ShieldCheck, Database, Printer, Eye, Briefcase, XCircle, Trash2, Pencil, Clock, Ban, Check, RefreshCw, Save } from 'lucide-react';
+import { Building2, Building, Plus, Users, Sparkles, AlertCircle, ArrowLeft, CheckCircle, ExternalLink, Download, Upload, FileText, Search, Tag, ShieldCheck, Database, Printer, Eye, Briefcase, XCircle, Trash2, Pencil, Clock, Ban, Check, RefreshCw, Save, Calendar } from 'lucide-react';
 import InterviewQuestionGeneratorModal from './InterviewQuestionGeneratorModal';
 import ReportPDFModal from '../common/ReportPDFModal';
 import CompanyQuestionUploadModal from '../common/CompanyQuestionUploadModal';
@@ -22,6 +22,63 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
   const [reportTargetApplicants, setReportTargetApplicants] = useState([]);
   const [applicantFilterReqId, setApplicantFilterReqId] = useState('ALL');
   const [applicantFilterAttendance, setApplicantFilterAttendance] = useState('ALL'); // 'ALL', 'present', 'absent', 'pending'
+  const [applicantFilterDate, setApplicantFilterDate] = useState('ALL'); // 'ALL', 'TODAY', 'YESTERDAY', '7DAYS', '30DAYS', 'CUSTOM'
+  const [applicantFilterCustomDate, setApplicantFilterCustomDate] = useState('');
+
+  // Saved Candidate Database Filter States
+  const [databaseFilterDate, setDatabaseFilterDate] = useState('ALL');
+  const [databaseFilterCustomDate, setDatabaseFilterCustomDate] = useState('');
+  const [databaseFilterDrive, setDatabaseFilterDrive] = useState('ALL');
+  const [databaseFilterStatus, setDatabaseFilterStatus] = useState('ALL');
+
+  // Date Filter Matcher
+  const checkDateMatch = (dateVal, filterType, customVal) => {
+    if (!filterType || filterType === 'ALL') return true;
+    if (!dateVal) return true;
+    const d = new Date(dateVal);
+    if (isNaN(d.getTime())) return true;
+    
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    
+    if (filterType === 'TODAY') {
+      const itemDay = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+      return itemDay.getTime() === todayStart.getTime();
+    }
+    if (filterType === 'YESTERDAY') {
+      const yesterday = new Date(todayStart);
+      yesterday.setDate(yesterday.getDate() - 1);
+      const itemDay = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+      return itemDay.getTime() === yesterday.getTime();
+    }
+    if (filterType === '7DAYS') {
+      const sevenDaysAgo = new Date(todayStart);
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      return d >= sevenDaysAgo;
+    }
+    if (filterType === '30DAYS') {
+      const thirtyDaysAgo = new Date(todayStart);
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      return d >= thirtyDaysAgo;
+    }
+    if (filterType === 'CUSTOM' && customVal) {
+      const parts = customVal.split('-');
+      if (parts.length === 3) {
+        const targetYear = parseInt(parts[0], 10);
+        const targetMonth = parseInt(parts[1], 10) - 1;
+        const targetDay = parseInt(parts[2], 10);
+        return d.getFullYear() === targetYear && d.getMonth() === targetMonth && d.getDate() === targetDay;
+      }
+    }
+    return true;
+  };
+
+  const formatSavedDate = (dateVal) => {
+    if (!dateVal) return '19 Aug 2026';
+    const d = new Date(dateVal);
+    if (isNaN(d.getTime())) return String(dateVal);
+    return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) + ' • ' + d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+  };
 
   // Auto-open post modal when triggered from Navbar or Homepage
   useEffect(() => {
@@ -1130,74 +1187,279 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
         </div>
       )}
 
-      {/* VIEW 1: CANDIDATE DATABASE VIEW */}
-      {activeTab === 'database' && (
-        <div className="space-y-4">
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 glass-panel p-4 rounded-2xl border border-slate-200">
-            <div className="relative w-full sm:w-72">
-              <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
-              <input
-                type="text"
-                placeholder="Search candidate database..."
-                value={searchCandidateQuery}
-                onChange={(e) => setSearchCandidateQuery(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-900 font-bold focus:outline-none focus:border-blue-900"
-              />
+      {/* VIEW 1: SAVED CANDIDATE DATABASE & HISTORICAL AUDIT VAULT */}
+      {activeTab === 'database' && (() => {
+        const savedDatabaseList = allCompanyApplicants.filter(app => {
+          const matchesSearch = !searchCandidateQuery || 
+            (app.candidate_name && app.candidate_name.toLowerCase().includes(searchCandidateQuery.toLowerCase())) ||
+            (app.roll_number && app.roll_number.toLowerCase().includes(searchCandidateQuery.toLowerCase())) ||
+            (app.program && app.program.toLowerCase().includes(searchCandidateQuery.toLowerCase())) ||
+            (app.job_title && app.job_title.toLowerCase().includes(searchCandidateQuery.toLowerCase()));
+
+          const matchesDrive = databaseFilterDrive === 'ALL' || app.requirement_id === databaseFilterDrive;
+          const att = app.attendance_status || 'pending';
+          const matchesStatus = databaseFilterStatus === 'ALL' || att === databaseFilterStatus || app.status === databaseFilterStatus;
+          const matchesDate = checkDateMatch(app.applied_at, databaseFilterDate, databaseFilterCustomDate);
+
+          return matchesSearch && matchesDrive && matchesStatus && matchesDate;
+        });
+
+        const totalSaved = allCompanyApplicants.length;
+        const presentSaved = allCompanyApplicants.filter(a => a.attendance_status === 'present').length;
+        const absentSaved = allCompanyApplicants.filter(a => a.attendance_status === 'absent').length;
+        const selectedSaved = allCompanyApplicants.filter(a => a.status === 'selected').length;
+
+        return (
+          <div className="space-y-5">
+            {/* Header & Controls Panel */}
+            <div className="glass-panel p-5 sm:p-6 rounded-3xl border border-slate-200 shadow-xl space-y-4">
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-slate-200">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-2xl bg-sky-700 text-white flex items-center justify-center font-black shadow-md shrink-0">
+                    <Database className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h2 className="text-base font-black text-slate-900 flex items-center gap-2 flex-wrap">
+                      <span>Saved Candidate Database & Audit Vault</span>
+                      <span className="px-2.5 py-0.5 bg-sky-100 text-sky-800 border border-sky-300 rounded-full text-[10px] font-black uppercase">
+                        Historical Archives
+                      </span>
+                    </h2>
+                    <p className="text-xs text-slate-600 font-bold">
+                      View all archived student applications, filter by exact registration/attendance dates, and download saved dossiers.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 flex-wrap">
+                  <button
+                    onClick={() => handleDownloadApplicantsCSV({ title: 'Saved Candidate Database' }, savedDatabaseList)}
+                    className="py-2.5 px-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-black flex items-center gap-1.5 shadow-md transition-all cursor-pointer"
+                    title="Export filtered saved candidate database as CSV"
+                  >
+                    <Download className="w-4 h-4" />
+                    <span>Download CSV ({savedDatabaseList.length})</span>
+                  </button>
+
+                  <button
+                    onClick={() => handleOpenAttendanceReportModal({ title: 'Saved Candidate Database Summary' }, savedDatabaseList)}
+                    className="py-2.5 px-4 bg-sky-800 hover:bg-sky-700 text-white rounded-xl text-xs font-black flex items-center gap-1.5 shadow-md transition-all cursor-pointer"
+                    title="Print saved database PDF report"
+                  >
+                    <Printer className="w-4 h-4 text-amber-300 stroke-[2.5]" />
+                    <span>Export Database PDF</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* DATE, DRIVE & STATUS FILTER CONTROLS */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-1">
+                {/* Search Bar */}
+                <div className="relative">
+                  <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
+                  <input
+                    type="text"
+                    placeholder="Search name, roll, program..."
+                    value={searchCandidateQuery}
+                    onChange={(e) => setSearchCandidateQuery(e.target.value)}
+                    className="w-full pl-9 pr-3 py-2 bg-white border border-slate-300 rounded-xl text-xs text-slate-900 font-black focus:outline-none focus:border-blue-900 shadow-sm"
+                  />
+                </div>
+
+                {/* Date Filter Dropdown */}
+                <div className="flex items-center gap-1.5">
+                  <select
+                    value={databaseFilterDate}
+                    onChange={(e) => setDatabaseFilterDate(e.target.value)}
+                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-black text-slate-900 focus:outline-none focus:border-blue-900 cursor-pointer shadow-sm"
+                  >
+                    <option value="ALL">📅 All Saved Dates</option>
+                    <option value="TODAY">📅 Today ({new Date().toLocaleDateString('en-IN')})</option>
+                    <option value="YESTERDAY">📅 Yesterday</option>
+                    <option value="7DAYS">📅 Last 7 Days</option>
+                    <option value="30DAYS">📅 Last 30 Days</option>
+                    <option value="CUSTOM">📅 Custom Date...</option>
+                  </select>
+
+                  {databaseFilterDate === 'CUSTOM' && (
+                    <input
+                      type="date"
+                      value={databaseFilterCustomDate}
+                      onChange={(e) => setDatabaseFilterCustomDate(e.target.value)}
+                      className="px-2 py-1.5 bg-white border border-slate-300 rounded-xl text-xs font-black text-slate-900 focus:outline-none focus:border-blue-900 shadow-sm"
+                    />
+                  )}
+                </div>
+
+                {/* Drive Filter Dropdown */}
+                <div>
+                  <select
+                    value={databaseFilterDrive}
+                    onChange={(e) => setDatabaseFilterDrive(e.target.value)}
+                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-black text-slate-900 focus:outline-none focus:border-blue-900 cursor-pointer shadow-sm"
+                  >
+                    <option value="ALL">🏢 All Placement Drives ({requirements.length})</option>
+                    {requirements.map((r) => (
+                      <option key={r.id} value={r.id}>
+                        {r.title} ({r.applicant_count || 0})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Status Filter Dropdown */}
+                <div>
+                  <select
+                    value={databaseFilterStatus}
+                    onChange={(e) => setDatabaseFilterStatus(e.target.value)}
+                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-black text-slate-900 focus:outline-none focus:border-blue-900 cursor-pointer shadow-sm"
+                  >
+                    <option value="ALL">🎯 All Attendance & Statuses</option>
+                    <option value="present">✅ Present in Interview</option>
+                    <option value="absent">❌ Absent</option>
+                    <option value="pending">⏳ Pending Attendance</option>
+                    <option value="selected">🏆 Offer Selected</option>
+                    <option value="interview">📅 Interview Scheduled</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Summary Stats Strip */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
+                <div className="p-3 bg-slate-50 border border-slate-200 rounded-2xl">
+                  <div className="text-[10px] font-black uppercase text-slate-500">Saved in Database</div>
+                  <div className="text-lg font-black text-slate-900 mt-0.5">{totalSaved} Records</div>
+                </div>
+                <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-2xl">
+                  <div className="text-[10px] font-black uppercase text-emerald-700">Present Candidates</div>
+                  <div className="text-lg font-black text-emerald-900 mt-0.5">{presentSaved} Students</div>
+                </div>
+                <div className="p-3 bg-rose-50 border border-rose-200 rounded-2xl">
+                  <div className="text-[10px] font-black uppercase text-rose-700">Absent Records</div>
+                  <div className="text-lg font-black text-rose-900 mt-0.5">{absentSaved} Students</div>
+                </div>
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-2xl">
+                  <div className="text-[10px] font-black uppercase text-amber-700">Offers Extended</div>
+                  <div className="text-lg font-black text-amber-900 mt-0.5">{selectedSaved} Selected</div>
+                </div>
+              </div>
             </div>
 
-            <div className="text-xs text-blue-900 font-black">
-              Showing {filteredCandidates.length} Saved GSFC Candidate Profiles
-            </div>
-          </div>
-
-          <div className="glass-panel rounded-3xl border border-slate-200/90 overflow-hidden shadow-xl">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse text-xs">
-                <thead>
-                  <tr className="bg-slate-100/90 text-slate-700 border-b border-slate-200 text-[10px] uppercase tracking-wider font-black">
-                    <th className="py-4 px-4 sm:px-5">Candidate Name</th>
-                    <th className="py-4 px-4 sm:px-5">Degree & CGPA</th>
-                    <th className="py-4 px-4 sm:px-5">ATS Score</th>
-                    <th className="py-4 px-4 sm:px-5">Shortlist Status</th>
-                    <th className="py-4 px-4 sm:px-5 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-200">
-                  {filteredCandidates.map((cand) => (
-                    <tr key={cand.id} className="hover:bg-slate-50/80 transition-all">
-                      <td className="py-4 px-4 sm:px-5 font-black text-slate-900">
-                        <div className="text-sm">{cand.name}</div>
-                        <div className="text-[10px] text-slate-500 font-bold">{cand.roll_number}</div>
-                      </td>
-
-                      <td className="py-4 px-4 sm:px-5">
-                        <div className="text-slate-900 font-black">{cand.program}</div>
-                        <div className="text-[11px] text-emerald-800 font-black">{cand.cgpa} CGPA</div>
-                      </td>
-
-                      <td className="py-4 px-4 sm:px-5">
-                        <span className="px-3 py-1 bg-emerald-50 border border-emerald-200 text-emerald-900 font-black text-xs rounded-xl flex items-center gap-1 w-fit">
-                          <CheckCircle className="w-3.5 h-3.5 text-emerald-600" /> PASS (ELIGIBLE)
-                        </span>
-                      </td>
-
-                      <td className="py-4 px-4 sm:px-5 text-right">
-                        <button
-                          onClick={() => openCandidatePdfReport(cand)}
-                          className="py-2 px-3.5 bg-blue-900 hover:bg-blue-800 text-white rounded-xl text-xs font-black inline-flex items-center gap-1.5 transition-all shadow-md shrink-0"
-                        >
-                          <Printer className="w-3.5 h-3.5 text-amber-300" />
-                          <span>PDF Report</span>
-                        </button>
-                      </td>
+            {/* SAVED CANDIDATE DATABASE TABLE */}
+            <div className="glass-panel rounded-3xl border border-slate-200/90 overflow-hidden shadow-xl">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="bg-slate-100/90 text-slate-700 border-b border-slate-200 text-[10px] uppercase tracking-wider font-black">
+                      <th className="py-4 px-4 w-12 text-center">S.No</th>
+                      <th className="py-4 px-4">Candidate Profile</th>
+                      <th className="py-4 px-4">Applied Placement Drive</th>
+                      <th className="py-4 px-4 text-center">Attendance Record</th>
+                      <th className="py-4 px-4 text-center">Application Status</th>
+                      <th className="py-4 px-4">Evaluation Notes</th>
+                      <th className="py-4 px-4">Saved / Applied Date</th>
+                      <th className="py-4 px-4 text-right">Actions</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200">
+                    {savedDatabaseList.length === 0 ? (
+                      <tr>
+                        <td colSpan="8" className="py-12 text-center text-slate-500 font-bold">
+                          No candidate records match the selected date or filter criteria.
+                        </td>
+                      </tr>
+                    ) : (
+                      savedDatabaseList.map((cand, idx) => {
+                        const att = cand.attendance_status || 'pending';
+                        return (
+                          <tr key={cand.application_id || cand.id || idx} className="hover:bg-slate-50/80 transition-all">
+                            <td className="py-4 px-4 text-center font-bold text-slate-500">{idx + 1}</td>
+                            
+                            <td className="py-4 px-4 font-black text-slate-900">
+                              <div className="text-sm">{cand.candidate_name || cand.name}</div>
+                              <div className="text-[10px] text-blue-900 font-mono font-black">{cand.roll_number || 'N/A'} • {cand.program || 'BTech CSE'} ({cand.cgpa} CGPA)</div>
+                              <div className="text-[10px] text-slate-500 font-medium">{cand.candidate_email || cand.email}</div>
+                            </td>
+
+                            <td className="py-4 px-4">
+                              <div className="font-black text-slate-900">{cand.job_title || 'Campus Placement Drive'}</div>
+                              <div className="text-[10px] text-emerald-700 font-black">{cand.ctc_range || 'Competitive'}</div>
+                            </td>
+
+                            <td className="py-4 px-4 text-center">
+                              {att === 'present' ? (
+                                <span className="px-2.5 py-1 bg-emerald-100 text-emerald-900 border border-emerald-300 rounded-lg text-[10px] font-black inline-flex items-center gap-1">
+                                  <CheckCircle className="w-3 h-3 text-emerald-600 shrink-0" /> PRESENT
+                                </span>
+                              ) : att === 'absent' ? (
+                                <span className="px-2.5 py-1 bg-rose-100 text-rose-900 border border-rose-300 rounded-lg text-[10px] font-black inline-flex items-center gap-1">
+                                  <XCircle className="w-3 h-3 text-rose-600 shrink-0" /> ABSENT
+                                </span>
+                              ) : (
+                                <span className="px-2.5 py-1 bg-amber-100 text-amber-900 border border-amber-300 rounded-lg text-[10px] font-black inline-flex items-center gap-1">
+                                  <Clock className="w-3 h-3 text-amber-600 shrink-0" /> PENDING
+                                </span>
+                              )}
+                            </td>
+
+                            <td className="py-4 px-4 text-center font-black uppercase text-[10px]">
+                              <span className={`px-2.5 py-1 rounded-lg border ${
+                                cand.status === 'selected'
+                                  ? 'bg-amber-100 text-amber-950 border-amber-300'
+                                  : cand.status === 'interview'
+                                    ? 'bg-blue-100 text-blue-950 border-blue-300'
+                                    : 'bg-slate-100 text-slate-800 border-slate-300'
+                              }`}>
+                                {cand.status || 'applied'}
+                              </span>
+                            </td>
+
+                            <td className="py-4 px-4 max-w-[200px]">
+                              <div className="text-[11px] text-slate-700 font-medium truncate">
+                                {cand.evaluation_notes ? `"${cand.evaluation_notes}"` : <span className="text-slate-400 italic">No notes recorded</span>}
+                              </div>
+                              {cand.evaluation_score > 0 && (
+                                <div className="text-[10px] font-black text-blue-900">Score: {cand.evaluation_score}/100</div>
+                              )}
+                            </td>
+
+                            <td className="py-4 px-4 whitespace-nowrap">
+                              <span className="px-2.5 py-1 bg-slate-100 text-slate-800 border border-slate-200 rounded-lg text-[10px] font-black inline-flex items-center gap-1">
+                                <Calendar className="w-3 h-3 text-slate-500" />
+                                <span>{formatSavedDate(cand.applied_at)}</span>
+                              </span>
+                            </td>
+
+                            <td className="py-4 px-4 text-right space-x-1.5 whitespace-nowrap">
+                              <button
+                                onClick={() => handleOpenEvaluationModal(cand)}
+                                className="py-1.5 px-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 rounded-xl text-[11px] font-black inline-flex items-center gap-1 transition-all cursor-pointer"
+                                title="View / Edit Candidate Attendance & Evaluation Notes"
+                              >
+                                <FileText className="w-3 h-3 text-blue-900" />
+                                <span>Evaluate</span>
+                              </button>
+
+                              <button
+                                onClick={() => openCandidatePdfReport(cand)}
+                                className="py-1.5 px-2.5 bg-blue-900 hover:bg-blue-800 text-white rounded-xl text-[11px] font-black inline-flex items-center gap-1 transition-all shadow-md cursor-pointer"
+                                title="Open Candidate Evaluation PDF Report"
+                              >
+                                <Printer className="w-3 h-3 text-amber-300" />
+                                <span>PDF</span>
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* VIEW 3: MASTER APPLIED CANDIDATES & ATTENDANCE MANAGEMENT FEED */}
       {activeTab === 'applicants' && (() => {
@@ -1205,7 +1467,8 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
           const matchesReq = applicantFilterReqId === 'ALL' || app.requirement_id === applicantFilterReqId;
           const att = app.attendance_status || 'pending';
           const matchesAtt = applicantFilterAttendance === 'ALL' || att === applicantFilterAttendance;
-          return matchesReq && matchesAtt;
+          const matchesDate = checkDateMatch(app.applied_at, applicantFilterDate, applicantFilterCustomDate);
+          return matchesReq && matchesAtt && matchesDate;
         });
 
         const totalCnt = allCompanyApplicants.length;
@@ -1276,23 +1539,51 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
                   </div>
                 )}
 
-              {/* FILTER CONTROLS (BY DRIVE & ATTENDANCE STATUS) */}
-              <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 pt-1">
-                {/* Placement Drive Selector Dropdown */}
-                <div className="flex items-center gap-2 flex-1 max-w-md">
-                  <span className="text-xs font-black text-slate-700 whitespace-nowrap">Filter by Drive:</span>
-                  <select
-                    value={applicantFilterReqId}
-                    onChange={(e) => setApplicantFilterReqId(e.target.value)}
-                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-black text-slate-900 focus:outline-none focus:border-blue-900 cursor-pointer shadow-sm"
-                  >
-                    <option value="ALL">🏢 All Placement Drives ({requirements.length})</option>
-                    {requirements.map((r) => (
-                      <option key={r.id} value={r.id}>
-                        {r.title} ({r.applicant_count || 0} applicants) {r.applications_open === 0 ? '• [Closed]' : ''}
-                      </option>
-                    ))}
-                  </select>
+              {/* FILTER CONTROLS (BY DRIVE, DATE & ATTENDANCE STATUS) */}
+              <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3 pt-1">
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 flex-1">
+                  {/* Placement Drive Selector Dropdown */}
+                  <div className="flex items-center gap-2 flex-1 max-w-sm">
+                    <span className="text-xs font-black text-slate-700 whitespace-nowrap">Drive:</span>
+                    <select
+                      value={applicantFilterReqId}
+                      onChange={(e) => setApplicantFilterReqId(e.target.value)}
+                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-black text-slate-900 focus:outline-none focus:border-blue-900 cursor-pointer shadow-sm"
+                    >
+                      <option value="ALL">🏢 All Placement Drives ({requirements.length})</option>
+                      {requirements.map((r) => (
+                        <option key={r.id} value={r.id}>
+                          {r.title} ({r.applicant_count || 0}) {r.applications_open === 0 ? '• [Closed]' : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Date Filter Dropdown */}
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-black text-slate-700 whitespace-nowrap">📅 Date:</span>
+                    <select
+                      value={applicantFilterDate}
+                      onChange={(e) => setApplicantFilterDate(e.target.value)}
+                      className="px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-black text-slate-900 focus:outline-none focus:border-blue-900 cursor-pointer shadow-sm"
+                    >
+                      <option value="ALL">📅 All Dates</option>
+                      <option value="TODAY">📅 Today ({new Date().toLocaleDateString('en-IN')})</option>
+                      <option value="YESTERDAY">📅 Yesterday</option>
+                      <option value="7DAYS">📅 Last 7 Days</option>
+                      <option value="30DAYS">📅 Last 30 Days</option>
+                      <option value="CUSTOM">📅 Custom Date...</option>
+                    </select>
+
+                    {applicantFilterDate === 'CUSTOM' && (
+                      <input
+                        type="date"
+                        value={applicantFilterCustomDate}
+                        onChange={(e) => setApplicantFilterCustomDate(e.target.value)}
+                        className="px-2 py-1.5 bg-white border border-slate-300 rounded-xl text-xs font-black text-slate-900 focus:outline-none focus:border-blue-900 shadow-sm"
+                      />
+                    )}
+                  </div>
                 </div>
 
                 {/* Attendance Status Filter Chips */}
