@@ -74,6 +74,16 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
 
   // Mark Candidate Attendance Status (Present / Absent / Pending)
   const handleMarkAttendance = async (appId, status) => {
+    if (!appId) {
+      console.warn('handleMarkAttendance: missing appId');
+      return;
+    }
+    // Optimistic UI state update so button states switch color immediately
+    setAllCompanyApplicants(prev => prev.map(a => (a.application_id === appId || a.id === appId) ? { ...a, attendance_status: status } : a));
+    if (applicantsData) {
+      setApplicantsData(prev => prev.map(a => (a.application_id === appId || a.id === appId) ? { ...a, attendance_status: status } : a));
+    }
+
     try {
       const res = await fetch(`/api/company/applications/${appId}/attendance`, {
         method: 'POST',
@@ -81,13 +91,8 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
         body: JSON.stringify({ attendance_status: status })
       });
       const data = await res.json();
-      if (res.ok) {
-        setAllCompanyApplicants(prev => prev.map(a => a.application_id === appId ? { ...a, attendance_status: status } : a));
-        if (applicantsData) {
-          setApplicantsData(prev => prev.map(a => a.application_id === appId ? { ...a, attendance_status: status } : a));
-        }
-      } else {
-        alert(data.error || 'Failed to update attendance status');
+      if (!res.ok) {
+        alert(data.error || 'Failed to update attendance status on server');
       }
     } catch (err) {
       console.error('Error marking attendance:', err);
@@ -167,15 +172,18 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
   };
 
   const handleDeleteApplication = async (appId) => {
+    if (!appId) return;
     if (!window.confirm('Are you sure you want to delete this applicant entry?')) return;
+    // Optimistically remove from state immediately
+    setAllCompanyApplicants(prev => prev.filter(a => a.application_id !== appId && a.id !== appId));
+    if (applicantsData) {
+      setApplicantsData(prev => prev.filter(a => a.application_id !== appId && a.id !== appId));
+    }
     try {
       const res = await fetch(`/api/company/applications/${appId}`, { method: 'DELETE' });
       const data = await res.json();
-      if (res.ok) {
-        setAllCompanyApplicants(prev => prev.filter(a => a.application_id !== appId));
-        alert('Applicant entry deleted successfully.');
-      } else {
-        alert(data.error || 'Failed to delete application');
+      if (!res.ok) {
+        alert(data.error || 'Failed to delete application from server');
       }
     } catch (err) {
       console.error('Error deleting application:', err);
@@ -413,15 +421,20 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
   };
 
   const handleUpdateApplicationStatus = async (appId, newStatus) => {
+    if (!appId) return;
+    // Optimistic UI state update so dropdown reflects selection immediately
+    setApplicantsData(prev => prev ? prev.map(a => (a.application_id === appId || a.id === appId) ? { ...a, status: newStatus } : a) : []);
+    setAllCompanyApplicants(prev => prev ? prev.map(a => (a.application_id === appId || a.id === appId) ? { ...a, status: newStatus } : a) : []);
+
     try {
       const res = await fetch('/api/company/update-application-status', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ application_id: appId, status: newStatus })
       });
-      if (res.ok) {
-        setApplicantsData(prev => prev.map(a => a.application_id === appId ? { ...a, status: newStatus } : a));
-        setAllCompanyApplicants(prev => prev.map(a => a.application_id === appId ? { ...a, status: newStatus } : a));
+      if (!res.ok) {
+        const data = await res.json();
+        alert(data.error || 'Failed to update application status on server');
       }
     } catch (err) {
       console.error('Error updating status:', err);
@@ -440,11 +453,14 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
   };
 
   const openCandidatePdfReport = (candidate) => {
+    if (!candidate) return;
     setSelectedCandidateReport({
-      name: candidate.name,
-      email: candidate.email || `${candidate.name.toLowerCase().replace(/\s+/g, '_')}@student.edu`,
-      atsScore: candidate.ats_score || 92,
-      skills: ['Python', 'React', 'SQL', 'FastAPI', 'Docker', 'Machine Learning']
+      name: candidate.name || candidate.candidate_name || 'Tanvi Joshi',
+      email: candidate.email || candidate.candidate_email || `${(candidate.name || candidate.candidate_name || 'student').toLowerCase().replace(/\s+/g, '_')}@gsfcuniversity.ac.in`,
+      atsScore: candidate.ats_score || candidate.atsScore || 92,
+      skills: Array.isArray(candidate.skills) && candidate.skills.length > 0
+        ? candidate.skills
+        : ['Python', 'React', 'SQL', 'FastAPI', 'Docker', 'Machine Learning']
     });
     setPdfReportModalOpen(true);
   };
@@ -1075,55 +1091,60 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
 
                             {/* INTERACTIVE ATTENDANCE MARKING TOGGLE BUTTONS */}
                             <td className="py-4 px-4 text-center">
-                              <div className="inline-flex items-center p-1 bg-slate-100 rounded-xl border border-slate-200 gap-1 shadow-inner">
-                                <button
-                                  type="button"
-                                  onClick={() => handleMarkAttendance(app.application_id, 'present')}
-                                  className={`px-2.5 py-1 rounded-lg text-[10px] font-black transition-all cursor-pointer flex items-center gap-1 ${
-                                    att === 'present'
-                                      ? 'bg-emerald-600 text-white shadow-md scale-105'
-                                      : 'text-slate-600 hover:text-emerald-700 hover:bg-emerald-50'
-                                  }`}
-                                  title="Mark student as Present"
-                                >
-                                  <CheckCircle className="w-3 h-3" />
-                                  <span>Present</span>
-                                </button>
+                              {(() => {
+                                const targetAppId = app.application_id || app.id;
+                                return (
+                                  <div className="inline-flex items-center p-1 bg-slate-100 rounded-xl border border-slate-200 gap-1 shadow-inner">
+                                    <button
+                                      type="button"
+                                      onClick={() => handleMarkAttendance(targetAppId, 'present')}
+                                      className={`px-2.5 py-1 rounded-lg text-[10px] font-black transition-all cursor-pointer flex items-center gap-1 ${
+                                        att === 'present'
+                                          ? 'bg-emerald-600 text-white shadow-md scale-105'
+                                          : 'text-slate-600 hover:text-emerald-700 hover:bg-emerald-50'
+                                      }`}
+                                      title="Mark student as Present"
+                                    >
+                                      <CheckCircle className="w-3 h-3" />
+                                      <span>Present</span>
+                                    </button>
 
-                                <button
-                                  type="button"
-                                  onClick={() => handleMarkAttendance(app.application_id, 'absent')}
-                                  className={`px-2.5 py-1 rounded-lg text-[10px] font-black transition-all cursor-pointer flex items-center gap-1 ${
-                                    att === 'absent'
-                                      ? 'bg-rose-600 text-white shadow-md scale-105'
-                                      : 'text-slate-600 hover:text-rose-700 hover:bg-rose-50'
-                                  }`}
-                                  title="Mark student as Absent"
-                                >
-                                  <XCircle className="w-3 h-3" />
-                                  <span>Absent</span>
-                                </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleMarkAttendance(targetAppId, 'absent')}
+                                      className={`px-2.5 py-1 rounded-lg text-[10px] font-black transition-all cursor-pointer flex items-center gap-1 ${
+                                        att === 'absent'
+                                          ? 'bg-rose-600 text-white shadow-md scale-105'
+                                          : 'text-slate-600 hover:text-rose-700 hover:bg-rose-50'
+                                      }`}
+                                      title="Mark student as Absent"
+                                    >
+                                      <XCircle className="w-3 h-3" />
+                                      <span>Absent</span>
+                                    </button>
 
-                                <button
-                                  type="button"
-                                  onClick={() => handleMarkAttendance(app.application_id, 'pending')}
-                                  className={`px-2 py-1 rounded-lg text-[10px] font-black transition-all cursor-pointer flex items-center gap-1 ${
-                                    att === 'pending'
-                                      ? 'bg-amber-400 text-slate-950 shadow-md font-black'
-                                      : 'text-slate-500 hover:text-amber-700 hover:bg-amber-50'
-                                  }`}
-                                  title="Reset attendance to Pending"
-                                >
-                                  <Clock className="w-3 h-3" />
-                                  <span>Pending</span>
-                                </button>
-                              </div>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleMarkAttendance(targetAppId, 'pending')}
+                                      className={`px-2.5 py-1 rounded-lg text-[10px] font-black transition-all cursor-pointer flex items-center gap-1 ${
+                                        att === 'pending'
+                                          ? 'bg-amber-400 text-slate-950 shadow-md font-black'
+                                          : 'text-slate-500 hover:text-amber-700 hover:bg-amber-50'
+                                      }`}
+                                      title="Reset attendance to Pending"
+                                    >
+                                      <Clock className="w-3 h-3" />
+                                      <span>Pending</span>
+                                    </button>
+                                  </div>
+                                );
+                              })()}
                             </td>
 
                             <td className="py-4 px-4">
                               <select
                                 value={app.status || 'applied'}
-                                onChange={(e) => handleUpdateApplicationStatus(app.application_id, e.target.value)}
+                                onChange={(e) => handleUpdateApplicationStatus(app.application_id || app.id, e.target.value)}
                                 className="px-2.5 py-1.5 bg-white border border-slate-300 rounded-xl text-xs font-black text-slate-900 focus:outline-none focus:border-blue-900 cursor-pointer shadow-sm"
                               >
                                 <option value="applied">Applied</option>
@@ -1136,7 +1157,8 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
 
                             <td className="py-4 px-4 text-right space-x-1.5 whitespace-nowrap">
                               <button
-                                onClick={() => openCandidatePdfReport({ name: app.candidate_name, email: app.candidate_email, ats_score: app.ats_score || 92 })}
+                                type="button"
+                                onClick={() => openCandidatePdfReport({ name: app.candidate_name || app.name, email: app.candidate_email || app.email, ats_score: app.ats_score, skills: app.skillsSummary })}
                                 className="py-1.5 px-3 bg-blue-900 hover:bg-blue-800 text-white rounded-xl text-xs font-black inline-flex items-center gap-1 transition-all shadow-md cursor-pointer"
                                 title="View Candidate Placement Report"
                               >
@@ -1145,7 +1167,8 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
                               </button>
 
                               <button
-                                onClick={() => handleDeleteApplication(app.application_id)}
+                                type="button"
+                                onClick={() => handleDeleteApplication(app.application_id || app.id)}
                                 className="py-1.5 px-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-300 rounded-xl text-xs font-black inline-flex items-center gap-1 transition-all shadow-sm cursor-pointer"
                                 title="Delete candidate application entry"
                               >
@@ -1421,53 +1444,58 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
 
                           <div className="flex flex-wrap items-center gap-2 w-full md:w-auto justify-end">
                             {/* Attendance Marking Toggle Buttons */}
-                            <div className="inline-flex items-center p-1 bg-white dark:bg-slate-900 rounded-xl border border-slate-300 dark:border-slate-700 gap-1 shadow-inner">
-                              <button
-                                type="button"
-                                onClick={() => handleMarkAttendance(app.application_id, 'present')}
-                                className={`px-2.5 py-1 rounded-lg text-[10px] font-black transition-all cursor-pointer flex items-center gap-1 ${
-                                  att === 'present'
-                                    ? 'bg-emerald-600 text-white shadow-md'
-                                    : 'text-slate-600 hover:text-emerald-700 hover:bg-emerald-50 dark:text-slate-300'
-                                }`}
-                                title="Mark Present"
-                              >
-                                <CheckCircle className="w-3 h-3" />
-                                <span>Present</span>
-                              </button>
+                            {(() => {
+                              const targetAppId = app.application_id || app.id;
+                              return (
+                                <div className="inline-flex items-center p-1 bg-white dark:bg-slate-900 rounded-xl border border-slate-300 dark:border-slate-700 gap-1 shadow-inner">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleMarkAttendance(targetAppId, 'present')}
+                                    className={`px-2.5 py-1 rounded-lg text-[10px] font-black transition-all cursor-pointer flex items-center gap-1 ${
+                                      att === 'present'
+                                        ? 'bg-emerald-600 text-white shadow-md'
+                                        : 'text-slate-600 hover:text-emerald-700 hover:bg-emerald-50 dark:text-slate-300'
+                                    }`}
+                                    title="Mark Present"
+                                  >
+                                    <CheckCircle className="w-3 h-3" />
+                                    <span>Present</span>
+                                  </button>
 
-                              <button
-                                type="button"
-                                onClick={() => handleMarkAttendance(app.application_id, 'absent')}
-                                className={`px-2.5 py-1 rounded-lg text-[10px] font-black transition-all cursor-pointer flex items-center gap-1 ${
-                                  att === 'absent'
-                                    ? 'bg-rose-600 text-white shadow-md'
-                                    : 'text-slate-600 hover:text-rose-700 hover:bg-rose-50 dark:text-slate-300'
-                                }`}
-                                title="Mark Absent"
-                              >
-                                <XCircle className="w-3 h-3" />
-                                <span>Absent</span>
-                              </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleMarkAttendance(targetAppId, 'absent')}
+                                    className={`px-2.5 py-1 rounded-lg text-[10px] font-black transition-all cursor-pointer flex items-center gap-1 ${
+                                      att === 'absent'
+                                        ? 'bg-rose-600 text-white shadow-md'
+                                        : 'text-slate-600 hover:text-rose-700 hover:bg-rose-50 dark:text-slate-300'
+                                    }`}
+                                    title="Mark Absent"
+                                  >
+                                    <XCircle className="w-3 h-3" />
+                                    <span>Absent</span>
+                                  </button>
 
-                              <button
-                                type="button"
-                                onClick={() => handleMarkAttendance(app.application_id, 'pending')}
-                                className={`px-2.5 py-1 rounded-lg text-[10px] font-black transition-all cursor-pointer flex items-center gap-1 ${
-                                  att === 'pending'
-                                    ? 'bg-amber-400 text-slate-950 shadow-md'
-                                    : 'text-slate-500 hover:text-amber-700 hover:bg-amber-50 dark:text-slate-400'
-                                }`}
-                                title="Reset to Pending"
-                              >
-                                <Clock className="w-3 h-3" />
-                                <span>Pending</span>
-                              </button>
-                            </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleMarkAttendance(targetAppId, 'pending')}
+                                    className={`px-2.5 py-1 rounded-lg text-[10px] font-black transition-all cursor-pointer flex items-center gap-1 ${
+                                      att === 'pending'
+                                        ? 'bg-amber-400 text-slate-950 shadow-md'
+                                        : 'text-slate-500 hover:text-amber-700 hover:bg-amber-50 dark:text-slate-400'
+                                    }`}
+                                    title="Reset to Pending"
+                                  >
+                                    <Clock className="w-3 h-3" />
+                                    <span>Pending</span>
+                                  </button>
+                                </div>
+                              );
+                            })()}
 
                             <select
                               value={app.status || 'applied'}
-                              onChange={(e) => handleUpdateApplicationStatus(app.application_id, e.target.value)}
+                              onChange={(e) => handleUpdateApplicationStatus(app.application_id || app.id, e.target.value)}
                               className="px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-black text-slate-900 dark:text-slate-100 focus:outline-none focus:border-blue-900 cursor-pointer"
                             >
                               <option value="applied">Applied</option>
@@ -1478,7 +1506,8 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
                             </select>
 
                             <button
-                              onClick={() => openCandidatePdfReport({ name: app.name, email: app.email || `${app.name.toLowerCase().replace(/\s+/g, '_')}@student.edu`, ats_score: app.ats_score || 92 })}
+                              type="button"
+                              onClick={() => openCandidatePdfReport({ name: app.name || app.candidate_name, email: app.email || app.candidate_email, ats_score: app.ats_score, skills: app.skillsSummary })}
                               className="py-1.5 px-3 bg-blue-900 hover:bg-blue-800 text-white rounded-xl text-xs font-black inline-flex items-center gap-1 transition-all shadow-md cursor-pointer"
                               title="View PDF Report"
                             >
@@ -1487,7 +1516,8 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
                             </button>
 
                             <button
-                              onClick={() => handleDeleteApplication(app.application_id)}
+                              type="button"
+                              onClick={() => handleDeleteApplication(app.application_id || app.id)}
                               className="py-1.5 px-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-300 rounded-xl text-xs font-black inline-flex items-center gap-1 transition-all shadow-sm cursor-pointer"
                               title="Delete candidate application entry"
                             >
