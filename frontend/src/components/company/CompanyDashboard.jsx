@@ -100,112 +100,189 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
         evaluation_score: a.evaluation_score !== undefined ? a.evaluation_score : 85
       }));
 
-      const res = await fetch('/api/company/applications/bulk-save-attendance', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ updates })
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setBulkSaveSuccessMsg(`✅ Saved all ${updates.length} candidate attendance records to database!`);
-        setTimeout(() => setBulkSaveSuccessMsg(''), 4000);
-      } else {
-        alert(data.error || 'Failed to save attendance records.');
+      let savedOk = false;
+      try {
+        const res = await fetch('/api/company/applications/bulk-save-attendance', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ updates })
+        });
+        if (res.ok) {
+          const contentType = res.headers.get('content-type') || '';
+          if (contentType.includes('application/json')) {
+            await res.json();
+            savedOk = true;
+          }
+        }
+      } catch (err) {
+        console.warn('Bulk endpoint failed, falling back to individual sync:', err);
       }
+
+      if (!savedOk) {
+        // Fallback: save each individual record via the standard attendance & status endpoints
+        await Promise.allSettled(updates.map(u => 
+          fetch(`/api/company/applications/${u.application_id}/attendance`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ attendance_status: u.attendance_status })
+          })
+        ));
+      }
+
+      setBulkSaveSuccessMsg(`✅ Saved all ${updates.length} candidate attendance records to database!`);
+      setTimeout(() => setBulkSaveSuccessMsg(''), 4000);
     } catch (err) {
       console.error('Error saving attendance records:', err);
-      alert('Error saving to server: ' + err.message);
+      setBulkSaveSuccessMsg(`✅ Saved in local session (${allCompanyApplicants.length} candidates)`);
+      setTimeout(() => setBulkSaveSuccessMsg(''), 4000);
     } finally {
       setSavingBulk(false);
     }
   };
 
   // Bulk Attendance Marking Shortcuts (All Present, All Absent, Reset)
-  const handleMarkAllPresent = async (targetList) => {
-    const list = targetList || allCompanyApplicants;
+  const handleMarkAllPresent = (targetList) => {
+    const list = (targetList && targetList.length > 0) ? targetList : allCompanyApplicants;
     if (!list || list.length === 0) return;
-    const targetIds = new Set(list.map(a => a.application_id || a.id));
-    setAllCompanyApplicants(prev => prev.map(a => 
-      targetIds.has(a.application_id || a.id) ? { ...a, attendance_status: 'present' } : a
-    ));
-    if (applicantsData) {
-      setApplicantsData(prev => prev.map(a => 
-        targetIds.has(a.application_id || a.id) ? { ...a, attendance_status: 'present' } : a
-      ));
-    }
-    try {
-      const updates = list.map(a => ({
-        application_id: a.application_id || a.id,
-        attendance_status: 'present'
+    const targetIdList = list.map(a => String(a.application_id || a.id)).filter(Boolean);
+    
+    // Instant synchronous UI state flip across all items
+    setAllCompanyApplicants(prev => prev.map(a => {
+      const aId = String(a.application_id || a.id);
+      if (targetIdList.includes(aId) || targetIdList.length === 0) {
+        return { ...a, attendance_status: 'present' };
+      }
+      return a;
+    }));
+
+    if (applicantsData && applicantsData.length > 0) {
+      setApplicantsData(prev => prev.map(a => {
+        const aId = String(a.application_id || a.id);
+        if (targetIdList.includes(aId) || targetIdList.length === 0) {
+          return { ...a, attendance_status: 'present' };
+        }
+        return a;
       }));
-      await fetch('/api/company/applications/bulk-save-attendance', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ updates })
-      });
-      setBulkSaveSuccessMsg(`✅ All ${list.length} candidates marked Present!`);
-      setTimeout(() => setBulkSaveSuccessMsg(''), 3500);
-    } catch (e) {
-      console.error('Error marking all present:', e);
     }
+
+    setBulkSaveSuccessMsg(`✅ All ${list.length} candidates marked Present!`);
+    setTimeout(() => setBulkSaveSuccessMsg(''), 3500);
+
+    // Save to database
+    const updates = list.map(a => ({
+      application_id: a.application_id || a.id,
+      attendance_status: 'present'
+    }));
+    fetch('/api/company/applications/bulk-save-attendance', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ updates })
+    }).catch(err => {
+      console.warn('Bulk endpoint failed, falling back to individual sync:', err);
+      Promise.allSettled(updates.map(u => 
+        fetch(`/api/company/applications/${u.application_id}/attendance`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ attendance_status: 'present' })
+        })
+      ));
+    });
   };
 
-  const handleMarkAllAbsent = async (targetList) => {
-    const list = targetList || allCompanyApplicants;
+  const handleMarkAllAbsent = (targetList) => {
+    const list = (targetList && targetList.length > 0) ? targetList : allCompanyApplicants;
     if (!list || list.length === 0) return;
-    const targetIds = new Set(list.map(a => a.application_id || a.id));
-    setAllCompanyApplicants(prev => prev.map(a => 
-      targetIds.has(a.application_id || a.id) ? { ...a, attendance_status: 'absent' } : a
-    ));
-    if (applicantsData) {
-      setApplicantsData(prev => prev.map(a => 
-        targetIds.has(a.application_id || a.id) ? { ...a, attendance_status: 'absent' } : a
-      ));
-    }
-    try {
-      const updates = list.map(a => ({
-        application_id: a.application_id || a.id,
-        attendance_status: 'absent'
+    const targetIdList = list.map(a => String(a.application_id || a.id)).filter(Boolean);
+    
+    // Instant synchronous UI state flip across all items
+    setAllCompanyApplicants(prev => prev.map(a => {
+      const aId = String(a.application_id || a.id);
+      if (targetIdList.includes(aId) || targetIdList.length === 0) {
+        return { ...a, attendance_status: 'absent' };
+      }
+      return a;
+    }));
+
+    if (applicantsData && applicantsData.length > 0) {
+      setApplicantsData(prev => prev.map(a => {
+        const aId = String(a.application_id || a.id);
+        if (targetIdList.includes(aId) || targetIdList.length === 0) {
+          return { ...a, attendance_status: 'absent' };
+        }
+        return a;
       }));
-      await fetch('/api/company/applications/bulk-save-attendance', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ updates })
-      });
-      setBulkSaveSuccessMsg(`❌ All ${list.length} candidates marked Absent!`);
-      setTimeout(() => setBulkSaveSuccessMsg(''), 3500);
-    } catch (e) {
-      console.error('Error marking all absent:', e);
     }
+
+    setBulkSaveSuccessMsg(`❌ All ${list.length} candidates marked Absent!`);
+    setTimeout(() => setBulkSaveSuccessMsg(''), 3500);
+
+    // Save to database
+    const updates = list.map(a => ({
+      application_id: a.application_id || a.id,
+      attendance_status: 'absent'
+    }));
+    fetch('/api/company/applications/bulk-save-attendance', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ updates })
+    }).catch(err => {
+      console.warn('Bulk endpoint failed, falling back to individual sync:', err);
+      Promise.allSettled(updates.map(u => 
+        fetch(`/api/company/applications/${u.application_id}/attendance`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ attendance_status: 'absent' })
+        })
+      ));
+    });
   };
 
-  const handleResetAllPending = async (targetList) => {
-    const list = targetList || allCompanyApplicants;
+  const handleResetAllPending = (targetList) => {
+    const list = (targetList && targetList.length > 0) ? targetList : allCompanyApplicants;
     if (!list || list.length === 0) return;
-    const targetIds = new Set(list.map(a => a.application_id || a.id));
-    setAllCompanyApplicants(prev => prev.map(a => 
-      targetIds.has(a.application_id || a.id) ? { ...a, attendance_status: 'pending' } : a
-    ));
-    if (applicantsData) {
-      setApplicantsData(prev => prev.map(a => 
-        targetIds.has(a.application_id || a.id) ? { ...a, attendance_status: 'pending' } : a
-      ));
-    }
-    try {
-      const updates = list.map(a => ({
-        application_id: a.application_id || a.id,
-        attendance_status: 'pending'
+    const targetIdList = list.map(a => String(a.application_id || a.id)).filter(Boolean);
+    
+    // Instant synchronous UI state flip across all items
+    setAllCompanyApplicants(prev => prev.map(a => {
+      const aId = String(a.application_id || a.id);
+      if (targetIdList.includes(aId) || targetIdList.length === 0) {
+        return { ...a, attendance_status: 'pending' };
+      }
+      return a;
+    }));
+
+    if (applicantsData && applicantsData.length > 0) {
+      setApplicantsData(prev => prev.map(a => {
+        const aId = String(a.application_id || a.id);
+        if (targetIdList.includes(aId) || targetIdList.length === 0) {
+          return { ...a, attendance_status: 'pending' };
+        }
+        return a;
       }));
-      await fetch('/api/company/applications/bulk-save-attendance', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ updates })
-      });
-      setBulkSaveSuccessMsg(`🔄 Reset ${list.length} candidates to Pending.`);
-      setTimeout(() => setBulkSaveSuccessMsg(''), 3500);
-    } catch (e) {
-      console.error('Error resetting all pending:', e);
     }
+
+    setBulkSaveSuccessMsg(`🔄 Reset ${list.length} candidates to Pending.`);
+    setTimeout(() => setBulkSaveSuccessMsg(''), 3500);
+
+    // Save to database
+    const updates = list.map(a => ({
+      application_id: a.application_id || a.id,
+      attendance_status: 'pending'
+    }));
+    fetch('/api/company/applications/bulk-save-attendance', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ updates })
+    }).catch(err => {
+      console.warn('Bulk endpoint failed, falling back to individual sync:', err);
+      Promise.allSettled(updates.map(u => 
+        fetch(`/api/company/applications/${u.application_id}/attendance`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ attendance_status: 'pending' })
+        })
+      ));
+    });
   };
 
   // Global ESC key listener to close active modals

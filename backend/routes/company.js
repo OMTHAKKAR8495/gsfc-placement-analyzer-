@@ -293,9 +293,9 @@ router.all('/applications/:id/attendance', (req, res) => {
 });
 
 // Bulk Save All Candidate Attendance & Status Records
-router.post('/applications/bulk-save-attendance', (req, res) => {
+router.all(['/applications/bulk-save-attendance', '/bulk-save-attendance'], (req, res) => {
   try {
-    const { updates } = req.body;
+    const { updates } = req.body || {};
     if (!Array.isArray(updates) || updates.length === 0) {
       return res.status(400).json({ error: 'Updates array is required.' });
     }
