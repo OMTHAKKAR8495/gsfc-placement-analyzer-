@@ -36,8 +36,8 @@ export function cleanJsonOutput(rawText) {
 export async function callLLM({ prompt, schemaDescription, fallbackGenerator }) {
   const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
 
-  // Only attempt Gemini call if key format starts with valid AIza...
-  if (apiKey && apiKey.startsWith('AIza')) {
+  // Attempt Gemini API call if key is provided
+  if (apiKey && apiKey.length > 10 && !apiKey.includes('YOUR_')) {
     try {
       const { GoogleGenerativeAI } = await import('@google/generative-ai');
       const ai = new GoogleGenerativeAI(apiKey);
@@ -45,9 +45,9 @@ export async function callLLM({ prompt, schemaDescription, fallbackGenerator }) 
       
       const fullPrompt = `${prompt}\n\nIMPORTANT INSTRUCTION: Respond strictly with valid JSON. Do not include markdown headers or commentary outside JSON.\nSchema requirement:\n${schemaDescription}`;
       
-      // Fast 1.5s timeout promise race
+      // 3.0s timeout promise race
       const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('LLM call timed out after 1500ms')), 1500)
+        setTimeout(() => reject(new Error('LLM call timed out after 3000ms')), 3000)
       );
 
       const apiPromise = model.generateContent(fullPrompt);
@@ -55,7 +55,7 @@ export async function callLLM({ prompt, schemaDescription, fallbackGenerator }) 
       const text = response.response.text() || '';
       return cleanJsonOutput(text);
     } catch (err) {
-      // Quietly failover instantly without blocking the server thread
+      console.warn(`[AI Engine] Gemini API returned error: ${err.message}. Falling back to deterministic local engine.`);
     }
   }
 
