@@ -1,6 +1,8 @@
 import express from 'express';
 import db from '../db/index.js';
 import { calculateMatchScore } from '../ai/modules/matchingEngine.js';
+import NotificationService from '../services/notificationService.js';
+import appCache from '../services/cacheService.js';
 
 const router = express.Router();
 
@@ -505,6 +507,28 @@ router.post('/update-application-status', (req, res) => {
     }
 
     db.prepare('UPDATE applications SET status = ? WHERE id = ?').run(status, application_id);
+
+    // Invalidate caches
+    appCache.invalidate('accreditation');
+    appCache.invalidate('analytics');
+
+    // Fetch context for automated notification
+    const appInfo = db.prepare(`
+      SELECT r.title as job_title, c.company_name
+      FROM applications a
+      JOIN requirements r ON a.requirement_id = r.id
+      JOIN company_profiles c ON r.company_id = c.id
+      WHERE a.id = ?
+    `).get(application_id);
+
+    // Trigger Automated Email / WhatsApp Notification
+    NotificationService.notifyApplicationStatusChange(
+      application_id,
+      status,
+      appInfo?.company_name || 'Hiring Partner',
+      appInfo?.job_title || 'Placement Drive'
+    ).catch(err => console.error('Notification dispatch error:', err));
+
     res.json({ message: `Application status updated to '${status}' successfully!`, application_id, status });
   } catch (err) {
     res.status(500).json({ error: err.message });

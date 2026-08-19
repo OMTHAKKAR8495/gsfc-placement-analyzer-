@@ -133,3 +133,9 @@ function generateSmartParsedFallback(rawText) {
     ]
   };
 }
+
+export async function parseResumeText(text) {
+  const res = await parseResume(text);
+  return res.parsedJson;
+}
+

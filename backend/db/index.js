@@ -22,6 +22,13 @@ export function initDatabase() {
   db.exec(schema);
 
   applyMigrations();
+
+  const indexesPath = path.join(__dirname, 'indexes.sql');
+  if (fs.existsSync(indexesPath)) {
+    const indexes = fs.readFileSync(indexesPath, 'utf8');
+    db.exec(indexes);
+  }
+
   seedInitialData();
 }
 
