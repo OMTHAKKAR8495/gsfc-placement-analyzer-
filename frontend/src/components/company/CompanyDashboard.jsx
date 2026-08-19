@@ -1263,18 +1263,8 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
                             <td className="py-4 px-4 text-right space-x-1.5 whitespace-nowrap">
                               <button
                                 type="button"
-                                onClick={() => handleOpenEvaluationModal(app)}
-                                className="py-1.5 px-2.5 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 rounded-xl text-xs font-black inline-flex items-center gap-1 transition-all shadow-sm cursor-pointer hover:scale-105"
-                                title="View & Edit Candidate Evaluation, Score, & Remarks (Save Back)"
-                              >
-                                <Pencil className="w-3.5 h-3.5 text-amber-700" />
-                                <span>Edit & Save</span>
-                              </button>
-
-                              <button
-                                type="button"
                                 onClick={() => openCandidatePdfReport({ name: app.candidate_name || app.name, email: app.candidate_email || app.email, ats_score: app.ats_score, skills: app.skillsSummary })}
-                                className="py-1.5 px-3 bg-blue-900 hover:bg-blue-800 text-white rounded-xl text-xs font-black inline-flex items-center gap-1 transition-all shadow-md cursor-pointer"
+                                className="py-1.5 px-3 bg-blue-900 hover:bg-blue-800 text-white rounded-xl text-xs font-black inline-flex items-center gap-1 transition-all shadow-md cursor-pointer hover:scale-105"
                                 title="View Candidate Placement Report"
                               >
                                 <Printer className="w-3.5 h-3.5 text-amber-300" />
@@ -1284,7 +1274,7 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
                               <button
                                 type="button"
                                 onClick={() => handleDeleteApplication(app.application_id || app.id)}
-                                className="py-1.5 px-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-300 rounded-xl text-xs font-black inline-flex items-center gap-1 transition-all shadow-sm cursor-pointer"
+                                className="py-1.5 px-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-300 rounded-xl text-xs font-black inline-flex items-center gap-1 transition-all shadow-sm cursor-pointer hover:scale-105"
                                 title="Delete candidate application entry"
                               >
                                 <Trash2 className="w-3.5 h-3.5 text-rose-600" />
@@ -1296,6 +1286,34 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
                     )}
                   </tbody>
                 </table>
+              </div>
+
+              {/* TABLE FOOTER / LIST FINISHED SAVE & COMMIT BAR */}
+              <div className="p-4 sm:p-5 bg-gradient-to-r from-slate-50 via-blue-50/50 to-slate-50 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="flex items-center gap-2.5 text-xs text-slate-700 font-bold">
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                  <span>End of List • Total {filteredList.length} candidate applications registered in this roster.</span>
+                </div>
+
+                <div className="flex items-center gap-3 w-full sm:w-auto justify-end flex-wrap">
+                  {bulkSaveSuccessMsg && (
+                    <span className="text-xs font-black text-emerald-800 bg-emerald-100 border border-emerald-300 px-3.5 py-2 rounded-xl flex items-center gap-1.5 animate-fadeIn">
+                      <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
+                      {bulkSaveSuccessMsg}
+                    </span>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={handleBulkSaveAttendance}
+                    disabled={savingBulk || filteredList.length === 0}
+                    className="w-full sm:w-auto py-3 px-6 bg-gradient-to-r from-emerald-600 via-teal-600 to-blue-900 hover:from-emerald-500 hover:to-blue-800 text-white rounded-2xl text-xs font-black flex items-center justify-center gap-2 shadow-xl hover:shadow-2xl transition-all cursor-pointer hover:scale-105 disabled:opacity-50"
+                    title="Save and commit all attendance and recruitment status changes to the database"
+                  >
+                    <Save className="w-4 h-4 text-amber-300 stroke-[2.5]" />
+                    <span>{savingBulk ? 'Saving to Database...' : `💾 Save Attendance Data (${filteredList.length} Candidates)`}</span>
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -1622,18 +1640,8 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
 
                             <button
                               type="button"
-                              onClick={() => handleOpenEvaluationModal(app)}
-                              className="py-1.5 px-2.5 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 rounded-xl text-xs font-black inline-flex items-center gap-1 transition-all shadow-sm cursor-pointer hover:scale-105"
-                              title="View & Edit Candidate Evaluation, Score, & Remarks (Save Back)"
-                            >
-                              <Pencil className="w-3.5 h-3.5 text-amber-700" />
-                              <span>Edit & Save</span>
-                            </button>
-
-                            <button
-                              type="button"
                               onClick={() => openCandidatePdfReport({ name: app.name || app.candidate_name, email: app.email || app.candidate_email, ats_score: app.ats_score, skills: app.skillsSummary })}
-                              className="py-1.5 px-3 bg-blue-900 hover:bg-blue-800 text-white rounded-xl text-xs font-black inline-flex items-center gap-1 transition-all shadow-md cursor-pointer"
+                              className="py-1.5 px-3 bg-blue-900 hover:bg-blue-800 text-white rounded-xl text-xs font-black inline-flex items-center gap-1 transition-all shadow-md cursor-pointer hover:scale-105"
                               title="View PDF Report"
                             >
                               <Printer className="w-3.5 h-3.5 text-amber-300" />
@@ -1643,7 +1651,7 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
                             <button
                               type="button"
                               onClick={() => handleDeleteApplication(app.application_id || app.id)}
-                              className="py-1.5 px-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-300 rounded-xl text-xs font-black inline-flex items-center gap-1 transition-all shadow-sm cursor-pointer"
+                              className="py-1.5 px-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-300 rounded-xl text-xs font-black inline-flex items-center gap-1 transition-all shadow-sm cursor-pointer hover:scale-105"
                               title="Delete candidate application entry"
                             >
                               <Trash2 className="w-3.5 h-3.5 text-rose-600" />
@@ -1658,7 +1666,16 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
 
               {/* Modal Footer */}
               <div className="bg-slate-100 dark:bg-slate-800/80 p-4 border-t border-slate-200 dark:border-slate-700 flex flex-wrap items-center justify-between gap-3">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <button
+                    onClick={handleBulkSaveAttendance}
+                    disabled={savingBulk || driveApps.length === 0}
+                    className="py-2 px-3.5 bg-blue-900 hover:bg-blue-800 text-white font-black text-xs rounded-xl shadow-md flex items-center gap-1.5 cursor-pointer hover:scale-105 transition-all disabled:opacity-50"
+                  >
+                    <Save className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>{savingBulk ? 'Saving...' : '💾 Save Attendance Data'}</span>
+                  </button>
+
                   <button
                     onClick={() => handleDownloadApplicantsCSV(activeReqApplicants, driveApps)}
                     className="py-2 px-3.5 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs rounded-xl shadow-md flex items-center gap-1.5 cursor-pointer"
@@ -1669,7 +1686,7 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
 
                   <button
                     onClick={() => handleOpenAttendanceReportModal(activeReqApplicants, driveApps)}
-                    className="py-2 px-3.5 bg-blue-900 hover:bg-blue-800 text-white font-black text-xs rounded-xl shadow-md flex items-center gap-1.5 cursor-pointer"
+                    className="py-2 px-3.5 bg-gradient-to-r from-blue-900 via-indigo-900 to-amber-600 hover:from-blue-800 hover:to-amber-500 text-white font-black text-xs rounded-xl shadow-md flex items-center gap-1.5 cursor-pointer"
                   >
                     <Printer className="w-3.5 h-3.5 text-amber-300" />
                     <span>Download TPC PDF Report</span>
