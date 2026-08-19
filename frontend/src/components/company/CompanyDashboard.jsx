@@ -1316,6 +1316,11 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
           const matchesDate = checkDateMatch(app.applied_at, databaseFilterDate, databaseFilterCustomDate);
 
           return matchesSearch && matchesDrive && matchesStatus && matchesDate;
+        }).sort((a, b) => {
+          const aIsNew = (a.status === 'applied' || a.status === 'newly_applied' || !a.status) ? 1 : 0;
+          const bIsNew = (b.status === 'applied' || b.status === 'newly_applied' || !b.status) ? 1 : 0;
+          if (aIsNew !== bIsNew) return bIsNew - aIsNew; // Newly applied first!
+          return new Date(b.applied_at || 0) - new Date(a.applied_at || 0);
         });
 
         const totalSaved = allCompanyApplicants.length;
@@ -1691,6 +1696,11 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
           const matchesAtt = applicantFilterAttendance === 'ALL' || att === applicantFilterAttendance;
           const matchesDate = checkDateMatch(app.applied_at, applicantFilterDate, applicantFilterCustomDate);
           return matchesReq && matchesAtt && matchesDate;
+        }).sort((a, b) => {
+          const aIsNew = (a.status === 'applied' || a.status === 'newly_applied' || !a.status) ? 1 : 0;
+          const bIsNew = (b.status === 'applied' || b.status === 'newly_applied' || !b.status) ? 1 : 0;
+          if (aIsNew !== bIsNew) return bIsNew - aIsNew; // Newly applied first!
+          return new Date(b.applied_at || 0) - new Date(a.applied_at || 0);
         });
 
         const totalCnt = allCompanyApplicants.length;
