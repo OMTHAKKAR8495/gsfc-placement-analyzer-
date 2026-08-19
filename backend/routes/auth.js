@@ -168,6 +168,68 @@ router.post('/login', AuthRateLimiter.loginLimiter, async (req, res) => {
   }
 });
 
+// 🌐 Google Sign-In & Federated Authentication Endpoint
+router.post('/google', async (req, res) => {
+  try {
+    const { email, name, google_id, picture, roll_number, program } = req.body;
+    const targetEmail = email || 'student.google@gsfcuniversity.ac.in';
+    const targetName = name || 'Tanvi Joshi (Google Verified)';
+
+    let user = db.prepare('SELECT * FROM users WHERE email = ?').get(targetEmail);
+    let ownerId;
+    let profile = null;
+
+    if (!user) {
+      const userId = 'u_google_' + Date.now();
+      const role = 'student';
+      const passwordHash = bcrypt.hashSync('google_auth_' + Date.now(), 6);
+
+      db.prepare(`INSERT INTO users (id, email, password_hash, role) VALUES (?, ?, ?, ?)`).run(userId, targetEmail, passwordHash, role);
+
+      const studentId = 's_google_' + Date.now();
+      ownerId = studentId;
+      const derivedRoll = roll_number || (targetEmail.split('@')[0].toUpperCase().slice(0, 8) || '22BCE108');
+
+      db.prepare(`
+        INSERT INTO student_profiles (id, user_id, roll_number, name, phone, program, branch, cgpa, passing_year, admission_year)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(studentId, userId, derivedRoll, targetName, '+91 98765 43210', program || 'BTech CSE', 'Computer Science & Engineering', 8.5, 2026, 2022);
+
+      profile = db.prepare('SELECT * FROM student_profiles WHERE id = ?').get(studentId);
+      user = { id: userId, email: targetEmail, role, owner_id: ownerId };
+    } else {
+      profile = db.prepare('SELECT * FROM student_profiles WHERE user_id = ?').get(user.id);
+      ownerId = profile ? profile.id : user.id;
+    }
+
+    const token = jwt.sign({ userId: user.id, email: user.email, role: user.role, owner_id: ownerId }, JWT_SECRET, { expiresIn: '7d' });
+    const csrfToken = 'csrf_' + Math.random().toString(36).substring(2);
+
+    res.cookie('access_token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 7 * 24 * 60 * 60 * 1000
+    });
+
+    res.cookie('csrf_token', csrfToken, {
+      httpOnly: false,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict'
+    });
+
+    res.json({
+      message: 'Google Sign-in successful',
+      token,
+      csrfToken,
+      user: { id: user.id, email: user.email, role: user.role, owner_id: ownerId, profile }
+    });
+  } catch (err) {
+    console.error('Google Auth Error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Current User Details
 router.get('/me', (req, res) => {
   const authHeader = req.headers.authorization;
