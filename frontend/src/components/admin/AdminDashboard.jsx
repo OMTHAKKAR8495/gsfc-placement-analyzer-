@@ -963,6 +963,7 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
                       key={r.id}
                       onClick={() => {
                         fetch('/api/admin/audit-log', {
+                          
                           method: 'POST',
                           headers: { 'Content-Type': 'application/json' },
                           body: JSON.stringify({ admin_id: 'u_admin_01', viewed_entity_type: 'requirement', viewed_entity_id: r.id })
