@@ -843,57 +843,124 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
         </div>
       </div>
 
-      {/* Recruiter Navigation Bar: Posted Applications, Active Requirements, Candidate Database */}
-      <div className="flex items-center gap-3 bg-white/90 p-2 rounded-2xl border border-slate-200 shadow-sm max-w-full overflow-x-auto">
-        <button
-          onClick={handleOpenNewPostModal}
-          className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black transition-all shrink-0 cursor-pointer bg-gradient-to-r from-amber-500 via-amber-600 to-emerald-600 hover:from-amber-400 hover:to-emerald-500 text-slate-950 shadow-md hover:scale-105"
-        >
-          <Plus className="w-4 h-4 stroke-[3] shrink-0" />
-          <span>➕ Post / Upload Job Requirement</span>
-        </button>
+      {/* Recruiter Navigation Bar: Distinct Pages & Clear Visual Differentiation */}
+      <div className="space-y-2">
+        <div className="flex items-center gap-2.5 bg-slate-100/90 dark:bg-slate-800/80 p-2.5 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm max-w-full overflow-x-auto">
+          <button
+            onClick={handleOpenNewPostModal}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-black transition-all shrink-0 cursor-pointer bg-gradient-to-r from-amber-500 via-amber-600 to-emerald-600 hover:from-amber-400 hover:to-emerald-500 text-slate-950 shadow-md hover:scale-105"
+          >
+            <Plus className="w-4 h-4 stroke-[3] shrink-0" />
+            <span>➕ Post / Upload Job</span>
+          </button>
 
-        <button
-          onClick={() => setActiveTab('my_applications')}
-          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black transition-all shrink-0 cursor-pointer ${activeTab === 'my_applications'
-              ? 'bg-gradient-to-r from-blue-900 via-indigo-900 to-amber-600 text-white shadow-md'
-              : 'text-slate-700 hover:bg-slate-100'
-            }`}
-        >
-          <FileText className="w-4 h-4 text-amber-400 shrink-0" />
-          <span>📋 Posted Hiring Applications ({requirements.length})</span>
-        </button>
+          <div className="h-6 w-[1px] bg-slate-300 dark:bg-slate-600 shrink-0" />
 
-        <button
-          onClick={() => setActiveTab('requirements')}
-          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black transition-all shrink-0 cursor-pointer ${activeTab === 'requirements'
-              ? 'bg-blue-900 text-white shadow-md'
-              : 'text-slate-700 hover:bg-slate-100'
+          {/* PAGE 1: POSTED APPLICATIONS */}
+          <button
+            onClick={() => setActiveTab('my_applications')}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-black transition-all shrink-0 cursor-pointer border ${
+              activeTab === 'my_applications'
+                ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-lg ring-2 ring-amber-400/30 scale-105'
+                : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-amber-50 dark:hover:bg-slate-800'
             }`}
-        >
-          <Briefcase className="w-4 h-4 shrink-0" /> Active Hiring Drives ({requirements.length})
-        </button>
+          >
+            <FileText className={`w-4 h-4 shrink-0 ${activeTab === 'my_applications' ? 'text-slate-950' : 'text-amber-500'}`} />
+            <span>📋 Posted Applications</span>
+            <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+              activeTab === 'my_applications' ? 'bg-slate-950 text-amber-300' : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300'
+            }`}>
+              {requirements.length}
+            </span>
+          </button>
 
-        <button
-          onClick={() => setActiveTab('database')}
-          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black transition-all shrink-0 cursor-pointer ${activeTab === 'database'
-              ? 'bg-blue-900 text-white shadow-md'
-              : 'text-slate-700 hover:bg-slate-100'
+          {/* PAGE 2: ACTIVE HIRING DRIVES */}
+          <button
+            onClick={() => setActiveTab('requirements')}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-black transition-all shrink-0 cursor-pointer border ${
+              activeTab === 'requirements'
+                ? 'bg-indigo-900 text-white border-indigo-700 shadow-lg ring-2 ring-indigo-500/30 scale-105'
+                : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-indigo-50 dark:hover:bg-slate-800'
             }`}
-        >
-          <Database className="w-4 h-4 shrink-0" /> 🗄️ Candidate Database ({allCandidates.length})
-        </button>
+          >
+            <Briefcase className={`w-4 h-4 shrink-0 ${activeTab === 'requirements' ? 'text-indigo-300' : 'text-indigo-600'}`} />
+            <span>💼 Active Drives</span>
+            <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+              activeTab === 'requirements' ? 'bg-indigo-700 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300'
+            }`}>
+              {requirements.length} Drives
+            </span>
+          </button>
 
-        <button
-          onClick={() => setActiveTab('applicants')}
-          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black transition-all shrink-0 cursor-pointer ${activeTab === 'applicants'
-              ? 'bg-blue-900 text-white shadow-md'
-              : 'text-slate-700 hover:bg-slate-100'
+          {/* PAGE 3: STUDENT DATABASE */}
+          <button
+            onClick={() => setActiveTab('database')}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-black transition-all shrink-0 cursor-pointer border ${
+              activeTab === 'database'
+                ? 'bg-sky-700 text-white border-sky-600 shadow-lg ring-2 ring-sky-500/30 scale-105'
+                : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-sky-50 dark:hover:bg-slate-800'
             }`}
-        >
-          <Users className="w-4 h-4 text-emerald-400 shrink-0" />
-          <span>📥 Applied Candidates Feed ({allCompanyApplicants.length})</span>
-        </button>
+          >
+            <Database className={`w-4 h-4 shrink-0 ${activeTab === 'database' ? 'text-sky-200' : 'text-sky-600'}`} />
+            <span>🗄️ Candidate Database</span>
+            <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+              activeTab === 'database' ? 'bg-sky-900 text-sky-200' : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300'
+            }`}>
+              {allCandidates.length}
+            </span>
+          </button>
+
+          {/* PAGE 4: APPLIED CANDIDATES & ATTENDANCE FEED */}
+          <button
+            onClick={() => setActiveTab('applicants')}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-black transition-all shrink-0 cursor-pointer border ${
+              activeTab === 'applicants'
+                ? 'bg-gradient-to-r from-emerald-600 via-teal-700 to-blue-900 text-white border-emerald-500 shadow-lg ring-2 ring-emerald-500/30 scale-105'
+                : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-emerald-50 dark:hover:bg-slate-800'
+            }`}
+          >
+            <Users className={`w-4 h-4 shrink-0 ${activeTab === 'applicants' ? 'text-emerald-300' : 'text-emerald-600'}`} />
+            <span>📥 Applied Candidates & Attendance</span>
+            <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+              activeTab === 'applicants' ? 'bg-emerald-500 text-slate-950' : 'bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800'
+            }`}>
+              {allCompanyApplicants.length} Candidates
+            </span>
+          </button>
+        </div>
+
+        {/* Dynamic Page Context Banner to easily differentiate between pages */}
+        <div className="px-4 py-2 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 flex items-center justify-between text-xs">
+          <div className="flex items-center gap-2 text-slate-600 dark:text-slate-400 font-bold">
+            <span className="font-black text-slate-900 dark:text-slate-100 flex items-center gap-1">
+              <span>📍 Current View:</span>
+            </span>
+            {activeTab === 'my_applications' && (
+              <span className="text-amber-700 dark:text-amber-400 font-black">
+                📋 Posted Applications Vault ({requirements.length} Listings)
+              </span>
+            )}
+            {activeTab === 'requirements' && (
+              <span className="text-indigo-700 dark:text-indigo-400 font-black">
+                💼 Active Hiring Drives Grid ({requirements.length} Active Placement Drives)
+              </span>
+            )}
+            {activeTab === 'database' && (
+              <span className="text-sky-700 dark:text-sky-400 font-black">
+                🗄️ University Master Candidate Database ({allCandidates.length} Student Profiles)
+              </span>
+            )}
+            {activeTab === 'applicants' && (
+              <span className="text-emerald-700 dark:text-emerald-400 font-black">
+                📥 Applied Candidates Feed & Attendance Register ({allCompanyApplicants.length} Registered Students)
+              </span>
+            )}
+          </div>
+
+          <div className="text-[11px] text-slate-500 font-black hidden sm:block uppercase tracking-wider">
+            GSFC Placement Portal • Recruiter Console
+          </div>
+        </div>
       </div>
 
       {/* VIEW: POSTED HIRING APPLICATIONS (1ST COLUMN TAB) */}
