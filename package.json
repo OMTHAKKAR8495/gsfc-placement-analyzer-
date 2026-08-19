@@ -4,10 +4,12 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
+    "start": "node backend/index.js",
     "dev": "concurrently \"npm --prefix backend run dev\" \"npm --prefix frontend run dev\"",
     "dev:frontend": "npm --prefix frontend run dev",
     "dev:backend": "npm --prefix backend run dev",
     "build": "npm --prefix frontend run build",
+    "build:all": "npm --prefix frontend install && npm --prefix frontend run build && npm --prefix backend install",
     "test": "npm --prefix backend test",
     "mobile:build": "npm --prefix frontend run mobile:build",
     "mobile:android": "npm --prefix frontend run mobile:android",
