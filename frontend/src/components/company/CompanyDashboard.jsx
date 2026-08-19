@@ -1518,20 +1518,29 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
                               )}
                             </td>
 
-                            <td className="py-4 px-4 text-center font-black uppercase text-[10px]">
-                              <span className={`px-2.5 py-1 rounded-lg border font-black text-[10px] uppercase shadow-xs ${
-                                cand.status === 'newly_applied' || cand.status === 'applied'
-                                  ? 'bg-emerald-100 text-emerald-950 border-emerald-300'
-                                  : cand.status === 'selected'
-                                  ? 'bg-amber-100 text-amber-950 border-amber-300'
-                                  : cand.status === 'interview'
-                                  ? 'bg-blue-100 text-blue-950 border-blue-300'
-                                  : cand.status === 'shortlisted'
-                                  ? 'bg-purple-100 text-purple-950 border-purple-300'
-                                  : 'bg-rose-100 text-rose-800 border-rose-300'
-                              }`}>
-                                {cand.status === 'newly_applied' ? '🟢 Newly Applied' : (cand.status === 'applied' ? '🟢 Newly Applied' : cand.status)}
-                              </span>
+                            <td className="py-4 px-4 text-center">
+                              <select
+                                value={cand.status || 'newly_applied'}
+                                onChange={(e) => handleUpdateApplicationStatus(cand.application_id || cand.id, e.target.value)}
+                                className={`px-2.5 py-1.5 rounded-xl text-xs font-black focus:outline-none cursor-pointer shadow-sm border transition-all ${
+                                  (cand.status === 'newly_applied' || cand.status === 'applied' || !cand.status)
+                                    ? 'bg-emerald-50 text-emerald-950 border-emerald-400 font-black'
+                                    : cand.status === 'selected'
+                                    ? 'bg-amber-50 text-amber-950 border-amber-400 font-black'
+                                    : cand.status === 'interview'
+                                    ? 'bg-blue-50 text-blue-950 border-blue-400 font-black'
+                                    : cand.status === 'shortlisted'
+                                    ? 'bg-purple-50 text-purple-950 border-purple-400 font-black'
+                                    : 'bg-rose-50 text-rose-950 border-rose-400 font-black'
+                                }`}
+                              >
+                                <option value="newly_applied">🟢 Newly Applied</option>
+                                <option value="applied">Applied (Under Review)</option>
+                                <option value="shortlisted">⚡ Shortlisted</option>
+                                <option value="interview">🗓️ Interview Scheduled</option>
+                                <option value="selected">🏆 Selected (Offer)</option>
+                                <option value="rejected">❌ Rejected</option>
+                              </select>
                             </td>
 
                             <td className="py-4 px-4 max-w-[200px]">
