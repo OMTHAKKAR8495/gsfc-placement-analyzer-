@@ -1450,7 +1450,7 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
                   <div className="text-[10px] font-black uppercase text-rose-700">Absent Records</div>
                   <div className="text-lg font-black text-rose-900 mt-0.5">{absentSaved} Students</div>
                 </div>
-                <div className="p-3 bg-amber-50 border border-amber-200 rounded-2xl">
+                <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-2xl shadow-xs">
                   <div className="text-[10px] font-black uppercase text-amber-700">Offers Extended</div>
                   <div className="text-lg font-black text-amber-900 mt-0.5">{selectedSaved} Selected</div>
                 </div>
@@ -1458,19 +1458,19 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
             </div>
 
             {/* SAVED CANDIDATE DATABASE TABLE */}
-            <div className="glass-panel rounded-3xl border border-slate-200/90 overflow-hidden shadow-xl">
+            <div className="glass-panel rounded-3xl border border-slate-200/90 overflow-hidden shadow-xl p-1 sm:p-2 bg-white/95">
               <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse text-xs">
+                <table className="w-full text-left border-collapse text-xs min-w-[1300px]">
                   <thead>
                     <tr className="bg-slate-100/90 text-slate-700 border-b border-slate-200 text-[10px] uppercase tracking-wider font-black">
-                      <th className="py-4 px-4 w-12 text-center">S.No</th>
-                      <th className="py-4 px-4">Candidate Profile</th>
-                      <th className="py-4 px-4">Applied Placement Drive</th>
-                      <th className="py-4 px-4 text-center">Attendance Record</th>
-                      <th className="py-4 px-4 text-center">Application Status</th>
-                      <th className="py-4 px-4">Evaluation Notes</th>
-                      <th className="py-4 px-4">Saved / Applied Date</th>
-                      <th className="py-4 px-4 text-right">Actions</th>
+                      <th className="py-4 px-4 w-14 text-center">S.No</th>
+                      <th className="py-4 px-5 min-w-[240px]">Candidate Profile</th>
+                      <th className="py-4 px-4 min-w-[180px]">Applied Placement Drive</th>
+                      <th className="py-4 px-4 text-center min-w-[140px]">Attendance Record</th>
+                      <th className="py-4 px-4 text-center min-w-[140px]">Application Status</th>
+                      <th className="py-4 px-4 min-w-[180px]">Evaluation Notes</th>
+                      <th className="py-4 px-4 min-w-[140px]">Saved / Applied Date</th>
+                      <th className="py-4 px-5 text-right min-w-[360px]">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200">
@@ -1546,51 +1546,53 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
                               </span>
                             </td>
 
-                            <td className="py-4 px-4 text-right space-x-1.5 whitespace-nowrap">
-                              <button
-                                onClick={() => handleOpenAuthenticityCheck(cand)}
-                                className="py-1.5 px-2.5 bg-blue-50 hover:bg-blue-100 text-blue-900 border border-blue-300 rounded-xl text-[11px] font-black inline-flex items-center gap-1 transition-all cursor-pointer hover:scale-105"
-                                title="Inspect Document Authenticity, Metadata Forensics & Risk Signals"
-                              >
-                                <ShieldCheck className="w-3.5 h-3.5 text-blue-700" />
-                                <span>Verify Docs</span>
-                              </button>
+                            <td className="py-4.5 px-5 text-right whitespace-nowrap min-w-[360px]">
+                              <div className="flex items-center justify-end gap-2 flex-wrap">
+                                <button
+                                  onClick={() => handleOpenAuthenticityCheck(cand)}
+                                  className="py-1.5 px-2.5 bg-blue-50 hover:bg-blue-100 text-blue-900 border border-blue-300 rounded-xl text-[11px] font-black inline-flex items-center gap-1 transition-all cursor-pointer hover:scale-105"
+                                  title="Inspect Document Authenticity, Metadata Forensics & Risk Signals"
+                                >
+                                  <ShieldCheck className="w-3.5 h-3.5 text-blue-700" />
+                                  <span>Verify Docs</span>
+                                </button>
 
-                              <button
-                                onClick={() => handleSendCandidateInterviewReminder(cand)}
-                                className="py-1.5 px-2.5 bg-green-50 hover:bg-green-100 text-green-900 border border-green-300 rounded-xl text-[11px] font-black inline-flex items-center gap-1 transition-all cursor-pointer"
-                                title="Send Interview Schedule / Reminder via WhatsApp & Email"
-                              >
-                                <Phone className="w-3 h-3 text-green-600" />
-                                <span>WhatsApp</span>
-                              </button>
+                                <button
+                                  onClick={() => handleSendCandidateInterviewReminder(cand)}
+                                  className="py-1.5 px-2.5 bg-green-50 hover:bg-green-100 text-green-900 border border-green-300 rounded-xl text-[11px] font-black inline-flex items-center gap-1 transition-all cursor-pointer hover:scale-105"
+                                  title="Send Interview Schedule / Reminder via WhatsApp & Email"
+                                >
+                                  <Phone className="w-3.5 h-3.5 text-green-600" />
+                                  <span>WhatsApp</span>
+                                </button>
 
-                              <button
-                                onClick={() => handleOpenOfferLetter(cand)}
-                                className="py-1.5 px-2.5 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 rounded-xl text-[11px] font-black inline-flex items-center gap-1 transition-all cursor-pointer"
-                                title="1-Click Official Stamped Offer Letter Generator"
-                              >
-                                <Award className="w-3 h-3 text-amber-600" />
-                                <span>Offer Letter</span>
-                              </button>
+                                <button
+                                  onClick={() => handleOpenOfferLetter(cand)}
+                                  className="py-1.5 px-2.5 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 rounded-xl text-[11px] font-black inline-flex items-center gap-1 transition-all cursor-pointer hover:scale-105"
+                                  title="1-Click Official Stamped Offer Letter Generator"
+                                >
+                                  <Award className="w-3.5 h-3.5 text-amber-600" />
+                                  <span>Offer Letter</span>
+                                </button>
 
-                              <button
-                                onClick={() => handleOpenEvaluationModal(cand)}
-                                className="py-1.5 px-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 rounded-xl text-[11px] font-black inline-flex items-center gap-1 transition-all cursor-pointer"
-                                title="View / Edit Candidate Attendance & Evaluation Notes"
-                              >
-                                <FileText className="w-3 h-3 text-blue-900" />
-                                <span>Evaluate</span>
-                              </button>
+                                <button
+                                  onClick={() => handleOpenEvaluationModal(cand)}
+                                  className="py-1.5 px-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 rounded-xl text-[11px] font-black inline-flex items-center gap-1 transition-all cursor-pointer hover:scale-105"
+                                  title="View / Edit Candidate Attendance & Evaluation Notes"
+                                >
+                                  <FileText className="w-3.5 h-3.5 text-blue-900" />
+                                  <span>Evaluate</span>
+                                </button>
 
-                              <button
-                                onClick={() => openCandidatePdfReport(cand)}
-                                className="py-1.5 px-2.5 bg-blue-900 hover:bg-blue-800 text-white rounded-xl text-[11px] font-black inline-flex items-center gap-1 transition-all shadow-md cursor-pointer"
-                                title="Open Candidate Evaluation PDF Report"
-                              >
-                                <Printer className="w-3 h-3 text-amber-300" />
-                                <span>PDF</span>
-                              </button>
+                                <button
+                                  onClick={() => openCandidatePdfReport(cand)}
+                                  className="py-1.5 px-2.5 bg-blue-900 hover:bg-blue-800 text-white rounded-xl text-[11px] font-black inline-flex items-center gap-1 transition-all shadow-md cursor-pointer hover:scale-105"
+                                  title="Open Candidate Evaluation PDF Report"
+                                >
+                                  <Printer className="w-3.5 h-3.5 text-amber-300" />
+                                  <span>PDF</span>
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         );
@@ -1782,37 +1784,37 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
               </div>
 
               {/* Executive Attendance Quick Stats Strip */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
-                <div className="p-3 bg-slate-50 border border-slate-200 rounded-2xl">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 pt-2">
+                <div className="p-3.5 sm:p-4 bg-slate-50 border border-slate-200 rounded-2xl shadow-xs">
                   <div className="text-[10px] font-black uppercase text-slate-500">Total Registered</div>
-                  <div className="text-lg font-black text-slate-900 mt-0.5">{totalCnt} Candidates</div>
+                  <div className="text-lg sm:text-xl font-black text-slate-900 mt-0.5">{totalCnt} Candidates</div>
                 </div>
-                <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-2xl">
+                <div className="p-3.5 sm:p-4 bg-emerald-50 border border-emerald-200 rounded-2xl shadow-xs">
                   <div className="text-[10px] font-black uppercase text-emerald-700">Present (Turnout)</div>
-                  <div className="text-lg font-black text-emerald-900 mt-0.5">{presentCnt} ({turnoutRate}%)</div>
+                  <div className="text-lg sm:text-xl font-black text-emerald-900 mt-0.5">{presentCnt} ({turnoutRate}%)</div>
                 </div>
-                <div className="p-3 bg-rose-50 border border-rose-200 rounded-2xl">
+                <div className="p-3.5 sm:p-4 bg-rose-50 border border-rose-200 rounded-2xl shadow-xs">
                   <div className="text-[10px] font-black uppercase text-rose-700">Marked Absent</div>
-                  <div className="text-lg font-black text-rose-900 mt-0.5">{absentCnt} Students</div>
+                  <div className="text-lg sm:text-xl font-black text-rose-900 mt-0.5">{absentCnt} Students</div>
                 </div>
-                <div className="p-3 bg-amber-50 border border-amber-200 rounded-2xl">
+                <div className="p-3.5 sm:p-4 bg-amber-50 border border-amber-200 rounded-2xl shadow-xs">
                   <div className="text-[10px] font-black uppercase text-amber-700">Pending Evaluation</div>
-                  <div className="text-lg font-black text-amber-900 mt-0.5">{pendingCnt} In-Progress</div>
+                  <div className="text-lg sm:text-xl font-black text-amber-900 mt-0.5">{pendingCnt} In-Progress</div>
                 </div>
               </div>
             </div>
 
             {/* CANDIDATE APPLICANTS TABLE WITH ATTENDANCE MARKING */}
-            <div className="glass-panel rounded-3xl border border-slate-200/90 overflow-hidden shadow-xl">
+            <div className="glass-panel rounded-3xl border border-slate-200/90 overflow-hidden shadow-xl p-1 sm:p-2 bg-white/95">
               <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse text-xs">
+                <table className="w-full text-left border-collapse text-xs min-w-[1300px]">
                   <thead>
                     <tr className="bg-slate-100/90 text-slate-700 border-b border-slate-200 text-[10px] uppercase tracking-wider font-black">
-                      <th className="py-3 px-3 sm:px-4 w-12 text-center">S.No</th>
-                      <th className="py-3 px-4">Candidate Details</th>
-                      <th className="py-3 px-4">Applied Drive</th>
-                      <th className="py-3 px-4">AI Match</th>
-                      <th className="py-3 px-4 text-center">
+                      <th className="py-4 px-4 w-14 text-center">S.No</th>
+                      <th className="py-4 px-5 min-w-[240px]">Candidate Details</th>
+                      <th className="py-4 px-4 min-w-[180px]">Applied Drive</th>
+                      <th className="py-4 px-4 min-w-[110px]">AI Match</th>
+                      <th className="py-4 px-4 text-center min-w-[240px]">
                         <div className="flex flex-col items-center justify-center gap-1.5">
                           <span className="text-[10px] uppercase tracking-wider font-black">Attendance Marking</span>
                           <div className="flex items-center gap-1">
@@ -1965,55 +1967,57 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
                               </select>
                             </td>
 
-                            <td className="py-4 px-4 text-right space-x-1.5 whitespace-nowrap">
-                              <button
-                                type="button"
-                                onClick={() => handleOpenAuthenticityCheck(app)}
-                                className="py-1.5 px-2.5 bg-blue-50 hover:bg-blue-100 text-blue-900 border border-blue-300 rounded-xl text-xs font-black inline-flex items-center gap-1 transition-all cursor-pointer hover:scale-105"
-                                title="Inspect Candidate Document Authenticity & Forensic Verification Signals"
-                              >
-                                <ShieldCheck className="w-3.5 h-3.5 text-blue-700" />
-                                <span>Verify Docs</span>
-                              </button>
+                            <td className="py-4.5 px-5 text-right whitespace-nowrap min-w-[360px]">
+                              <div className="flex items-center justify-end gap-2 flex-wrap">
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenAuthenticityCheck(app)}
+                                  className="py-1.5 px-2.5 bg-blue-50 hover:bg-blue-100 text-blue-900 border border-blue-300 rounded-xl text-xs font-black inline-flex items-center gap-1 transition-all cursor-pointer hover:scale-105"
+                                  title="Inspect Candidate Document Authenticity & Forensic Verification Signals"
+                                >
+                                  <ShieldCheck className="w-3.5 h-3.5 text-blue-700" />
+                                  <span>Verify Docs</span>
+                                </button>
 
-                              <button
-                                type="button"
-                                onClick={() => handleSendCandidateInterviewReminder(app)}
-                                className="py-1.5 px-2.5 bg-green-50 hover:bg-green-100 text-green-900 border border-green-300 rounded-xl text-xs font-black inline-flex items-center gap-1 transition-all cursor-pointer hover:scale-105"
-                                title="Send Interview Schedule / Reminder via WhatsApp & Email"
-                              >
-                                <Phone className="w-3.5 h-3.5 text-green-600" />
-                                <span>WhatsApp</span>
-                              </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleSendCandidateInterviewReminder(app)}
+                                  className="py-1.5 px-2.5 bg-green-50 hover:bg-green-100 text-green-900 border border-green-300 rounded-xl text-xs font-black inline-flex items-center gap-1 transition-all cursor-pointer hover:scale-105"
+                                  title="Send Interview Schedule / Reminder via WhatsApp & Email"
+                                >
+                                  <Phone className="w-3.5 h-3.5 text-green-600" />
+                                  <span>WhatsApp</span>
+                                </button>
 
-                              <button
-                                type="button"
-                                onClick={() => handleOpenOfferLetter(app)}
-                                className="py-1.5 px-2.5 bg-amber-50 hover:bg-amber-100 text-amber-950 border border-amber-300 rounded-xl text-xs font-black inline-flex items-center gap-1 transition-all cursor-pointer hover:scale-105"
-                                title="1-Click Official Stamped Offer Letter Generator"
-                              >
-                                <Award className="w-3.5 h-3.5 text-amber-600" />
-                                <span>Offer</span>
-                              </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenOfferLetter(app)}
+                                  className="py-1.5 px-2.5 bg-amber-50 hover:bg-amber-100 text-amber-950 border border-amber-300 rounded-xl text-xs font-black inline-flex items-center gap-1 transition-all cursor-pointer hover:scale-105"
+                                  title="1-Click Official Stamped Offer Letter Generator"
+                                >
+                                  <Award className="w-3.5 h-3.5 text-amber-600" />
+                                  <span>Offer</span>
+                                </button>
 
-                              <button
-                                type="button"
-                                onClick={() => openCandidatePdfReport({ name: app.candidate_name || app.name, email: app.candidate_email || app.email, ats_score: app.ats_score, skills: app.skillsSummary })}
-                                className="py-1.5 px-3 bg-blue-900 hover:bg-blue-800 text-white rounded-xl text-xs font-black inline-flex items-center gap-1 transition-all shadow-md cursor-pointer hover:scale-105"
-                                title="View Candidate Placement Report"
-                              >
-                                <Printer className="w-3.5 h-3.5 text-amber-300" />
-                                <span>PDF</span>
-                              </button>
+                                <button
+                                  type="button"
+                                  onClick={() => openCandidatePdfReport({ name: app.candidate_name || app.name, email: app.candidate_email || app.email, ats_score: app.ats_score, skills: app.skillsSummary })}
+                                  className="py-1.5 px-3 bg-blue-900 hover:bg-blue-800 text-white rounded-xl text-xs font-black inline-flex items-center gap-1 transition-all shadow-md cursor-pointer hover:scale-105"
+                                  title="View Candidate Placement Report"
+                                >
+                                  <Printer className="w-3.5 h-3.5 text-amber-300" />
+                                  <span>PDF</span>
+                                </button>
 
-                              <button
-                                type="button"
-                                onClick={() => handleDeleteApplication(app.application_id || app.id)}
-                                className="py-1.5 px-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-300 rounded-xl text-xs font-black inline-flex items-center gap-1 transition-all shadow-sm cursor-pointer hover:scale-105"
-                                title="Delete candidate application entry"
-                              >
-                                <Trash2 className="w-3.5 h-3.5 text-rose-600" />
-                              </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteApplication(app.application_id || app.id)}
+                                  className="py-1.5 px-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-300 rounded-xl text-xs font-black inline-flex items-center gap-1 transition-all shadow-sm cursor-pointer hover:scale-105"
+                                  title="Delete candidate application entry"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         );
