@@ -95,10 +95,10 @@ export default function CompanyAttendanceReportModal({ isOpen, onClose, requirem
         onClick={(e) => e.stopPropagation()}
       >
         
-        {/* ACTION BAR (Hidden in print) */}
-        <div className="bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 p-4 sm:p-5 text-white flex flex-wrap items-center justify-between gap-3 print:hidden">
+        {/* ACTION BAR & HEADER BANNER */}
+        <div className="bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 p-4 sm:p-5 text-white flex flex-wrap items-center justify-between gap-3 print:rounded-none">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-amber-400 text-slate-950 flex items-center justify-center font-black shadow-md">
+            <div className="w-10 h-10 rounded-2xl bg-amber-400 text-slate-950 flex items-center justify-center font-black shadow-md shrink-0">
               <FileText className="w-5 h-5" />
             </div>
             <div>
@@ -114,7 +114,8 @@ export default function CompanyAttendanceReportModal({ isOpen, onClose, requirem
             </div>
           </div>
 
-          <div className="flex items-center gap-2 flex-wrap">
+          {/* Action buttons hidden only during print */}
+          <div className="flex items-center gap-2 flex-wrap print:hidden">
             <button
               onClick={handleDownloadCSV}
               className="py-2 px-3.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-black flex items-center gap-1.5 shadow-md transition-all cursor-pointer"
