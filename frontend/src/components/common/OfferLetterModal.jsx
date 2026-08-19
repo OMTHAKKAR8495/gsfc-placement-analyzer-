@@ -19,18 +19,41 @@ export default function OfferLetterModal({ isOpen, onClose, candidate, requireme
   const [dispatching, setDispatching] = useState(false);
   const [dispatchSuccess, setDispatchSuccess] = useState('');
   const [whatsappUrl, setWhatsappUrl] = useState('');
+  const [letterRefNo, setLetterRefNo] = useState('');
+  const [issueDate, setIssueDate] = useState('');
 
   useEffect(() => {
     if (candidate) {
-      setCandidateName(candidate.candidate_name || candidate.name || 'Tanvi Joshi');
-      setCandidateEmail(candidate.candidate_email || candidate.email || 'tanvi.j@gsfcuniversity.ac.in');
-      setCandidatePhone(candidate.phone || candidate.candidate_phone || '9876543210');
-      setCandidateRoll(candidate.roll_number || 'GSFC/2026/CSE/001');
-      setJobTitle(candidate.job_title || requirement?.title || 'Software Development Engineer — AI & Full Stack');
-      setCompanyName(candidate.company_name || requirement?.company_name || company?.company_name || 'gsfc limited');
-      setCtc(candidate.ctc_range || requirement?.ctc_range || '₹ 18,00,000 - ₹ 24,00,000 PA');
+      setCandidateName(candidate.candidate_name || candidate.name || 'Candidate');
+      setCandidateEmail(candidate.candidate_email || candidate.email || 'candidate@student.edu');
+      setCandidatePhone(candidate.phone || candidate.candidate_phone || '+91 98765 43210');
+      setCandidateRoll(candidate.roll_number || '21BCE045');
+      setJobTitle(candidate.job_title || requirement?.title || 'Software Development Engineer');
+      setCompanyName(candidate.company_name || requirement?.company_name || company?.company_name || 'GSFC Limited');
+      setCtc(candidate.ctc_range || requirement?.ctc_range || '₹ 18,00,000 PA');
+
+      // Check if existing offer data has a saved permanent ref_no
+      let existingOffer = null;
+      try {
+        if (candidate.offer_letter_data_json) {
+          existingOffer = typeof candidate.offer_letter_data_json === 'string'
+            ? JSON.parse(candidate.offer_letter_data_json)
+            : candidate.offer_letter_data_json;
+        }
+      } catch (e) {}
+
+      if (existingOffer && existingOffer.ref_no) {
+        setLetterRefNo(existingOffer.ref_no);
+        setIssueDate(existingOffer.issue_date || new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }));
+      } else {
+        // Generate a permanent stable reference number based on candidate roll and application id
+        const hashSeed = (candidate.roll_number || candidate.id || candidate.application_id || 'GSFC2026').replace(/\D/g, '');
+        const refSuffix = hashSeed.length >= 6 ? hashSeed.slice(-6) : (hashSeed + '481920').slice(0, 6);
+        setLetterRefNo(`GSFC-TPC-OFFER-${refSuffix}`);
+        setIssueDate(new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }));
+      }
     }
-  }, [candidate, requirement, company]);
+  }, [candidate, requirement, company, isOpen]);
 
   // ESC key listener to close modal
   useEffect(() => {
@@ -44,9 +67,6 @@ export default function OfferLetterModal({ isOpen, onClose, candidate, requireme
   }, [isOpen, onClose]);
 
   if (!isOpen || !candidate) return null;
-
-  const letterRefNo = `GSFC-TPC-OFFER-${Date.now().toString().slice(-6)}`;
-  const issueDate = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
 
   const handlePrint = () => {
     window.scrollTo(0, 0);
