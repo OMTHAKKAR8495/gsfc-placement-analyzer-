@@ -450,19 +450,22 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
                 </div>
               </div>
             ) : isCompanyUser ? (
-              <div className="text-xs text-slate-700 font-semibold space-y-1">
-                <div className="font-black text-slate-900 flex items-center gap-1.5">
-                  <Building2 className="w-3.5 h-3.5 text-blue-900 shrink-0" />
-                  <span className="truncate max-w-[140px]">{currentCompanyName || 'Recruiter'}</span>
+              <div className="text-xs text-slate-700 font-semibold space-y-2.5 min-w-[210px]">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="font-black text-sm text-slate-900 flex items-center gap-1.5 truncate">
+                    <Building2 className="w-4 h-4 text-blue-900 shrink-0" />
+                    <span className="truncate">{currentCompanyName || 'Recruiter'}</span>
+                  </div>
+                  <span className="px-2 py-0.5 bg-blue-100 text-blue-900 border border-blue-200 text-[10px] font-black rounded-md shrink-0 whitespace-nowrap">
+                    🏢 Recruiter
+                  </span>
                 </div>
-                <span className="px-2 py-0.5 bg-blue-100 text-blue-900 border border-blue-200 text-[10px] font-black rounded-md inline-block">
-                  🏢 Recruiter Account
-                </span>
                 <button
                   onClick={() => { window.location.hash = '#company'; }}
-                  className="text-[11px] text-blue-900 hover:underline font-black block pt-0.5 cursor-pointer"
+                  className="w-full py-2 px-3 bg-gradient-to-r from-blue-900 via-indigo-900 to-amber-600 hover:from-blue-800 hover:to-amber-500 text-white rounded-xl text-xs font-black flex items-center justify-center gap-1.5 shadow-md transition-all cursor-pointer whitespace-nowrap"
                 >
-                  Open Recruiter Portal &rarr;
+                  <span>Open Recruiter Portal</span>
+                  <ArrowRight className="w-3.5 h-3.5 shrink-0" />
                 </button>
               </div>
             ) : (
