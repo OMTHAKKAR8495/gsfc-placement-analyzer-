@@ -998,28 +998,11 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
 
                   <div className="flex flex-wrap items-center gap-2">
                     <button
-                      onClick={handleSaveToDatabase}
-                      disabled={savingToDb}
-                      className="py-2 px-3.5 bg-blue-900 hover:bg-blue-800 text-white rounded-xl text-xs font-black flex items-center gap-1.5 shadow-md transition-all min-h-[38px]"
-                    >
-                      <Database className="w-3.5 h-3.5 shrink-0" />
-                      <span>{savingToDb ? 'Saving...' : 'Save Candidate Data'}</span>
-                    </button>
-
-                    <button
                       onClick={handleDownloadPDF}
-                      className="py-2 px-3.5 bg-indigo-900 hover:bg-indigo-800 text-white rounded-xl text-xs font-black flex items-center gap-1.5 shadow-md transition-all min-h-[38px]"
+                      className="py-2 px-4 bg-gradient-to-r from-blue-900 to-indigo-900 hover:from-blue-800 hover:to-indigo-800 text-white rounded-xl text-xs font-black flex items-center gap-2 shadow-md hover:scale-105 transition-all min-h-[38px] cursor-pointer"
                     >
-                      <Printer className="w-3.5 h-3.5 shrink-0" />
-                      <span>Download PDF Report</span>
-                    </button>
-
-                    <button
-                      onClick={() => setMailModalOpen(true)}
-                      className="py-2 px-3.5 bg-amber-600 hover:bg-amber-500 text-white rounded-xl text-xs font-black flex items-center gap-1.5 shadow-md transition-all min-h-[38px]"
-                    >
-                      <Mail className="w-3.5 h-3.5 shrink-0" />
-                      <span>Mail Report</span>
+                      <Printer className="w-4 h-4 text-amber-300 shrink-0" />
+                      <span>Download My ATS PDF Report</span>
                     </button>
                   </div>
                 </div>
