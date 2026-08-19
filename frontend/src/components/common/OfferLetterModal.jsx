@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom';
 import { X, Download, Printer, Mail, Send, Award, CheckCircle, ShieldCheck, Building2, Calendar, MapPin, DollarSign, FileText, Check, Phone } from 'lucide-react';
+import { useToast } from '../../context/ToastContext';
 
 export default function OfferLetterModal({ isOpen, onClose, candidate, requirement, company, onOfferDispatched }) {
+  const { showToast } = useToast();
   const [candidateName, setCandidateName] = useState('');
   const [candidateEmail, setCandidateEmail] = useState('');
   const [candidatePhone, setCandidatePhone] = useState('');
@@ -79,17 +81,33 @@ export default function OfferLetterModal({ isOpen, onClose, candidate, requireme
       setDispatching(false);
       if (res.ok) {
         setDispatchSuccess(`🎉 Official Offer Letter dispatched to ${candidateName} via WhatsApp & Email!`);
+        showToast({
+          type: 'success',
+          title: '🎉 Offer Letter Dispatched!',
+          message: `Official signed employment letter dispatched to ${candidateName} via WhatsApp & Email.`,
+          triggerCrackles: true
+        });
         if (data.whatsapp_url) {
           setWhatsappUrl(data.whatsapp_url);
         }
         if (onOfferDispatched) onOfferDispatched(data.offer_data);
       } else {
-        alert(data.error || 'Failed to dispatch offer letter');
+        showToast({
+          type: 'error',
+          title: 'Dispatch Failed',
+          message: data.error || 'Failed to dispatch offer letter',
+          triggerCrackles: false
+        });
       }
     } catch (err) {
       setDispatching(false);
       console.error('Error dispatching offer letter:', err);
-      alert('Error dispatching offer: ' + err.message);
+      showToast({
+        type: 'error',
+        title: 'Dispatch Error',
+        message: err.message,
+        triggerCrackles: false
+      });
     }
   };
 

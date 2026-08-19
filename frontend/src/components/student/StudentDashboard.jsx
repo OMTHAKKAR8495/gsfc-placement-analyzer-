@@ -7,8 +7,10 @@ import InternalAutoFillApplyModal from './InternalAutoFillApplyModal';
 import ExternalApplyConfirmModal from './ExternalApplyConfirmModal';
 import OfferLetterModal from '../common/OfferLetterModal';
 import NotificationLogsModal from '../common/NotificationLogsModal';
+import { useToast } from '../../context/ToastContext';
 
 export default function StudentDashboard({ student, currentUser, onUpdateStudent, onOpenAuthModal, onOpenJobPost }) {
+  const { showToast, triggerCelebrationCrackles } = useToast();
   const [activeTab, setActiveTab] = useState('feed'); // 'feed', 'profile', 'applications'
   const [requirementsFeed, setRequirementsFeed] = useState([]);
   const [applications, setApplications] = useState([]);
@@ -26,9 +28,19 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
       const data = await res.json();
       if (res.ok) {
         setApplications(prev => prev.filter(a => a.id !== appId));
-        alert('Application withdrawn successfully.');
+        showToast({
+          type: 'info',
+          title: 'Application Withdrawn',
+          message: 'Your placement application was removed from the active register.',
+          triggerCrackles: false
+        });
       } else {
-        alert(data.error || 'Failed to withdraw application');
+        showToast({
+          type: 'error',
+          title: 'Withdrawal Failed',
+          message: data.error || 'Failed to withdraw application',
+          triggerCrackles: false
+        });
       }
     } catch (err) {
       console.error('Error withdrawing application:', err);
@@ -117,7 +129,12 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
     if (!file) return;
 
     if (!student?.id) {
-      alert('Please sign in as a student to save your parsed resume.');
+      showToast({
+        type: 'warning',
+        title: 'Student Sign In Required',
+        message: 'Please sign in with your GSFC student credentials to save your parsed resume.',
+        triggerCrackles: false
+      });
       return;
     }
 
@@ -197,9 +214,19 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
       if (!res.ok) throw new Error(data.error || 'Database save failed');
 
       setDbSaveConfirmation(data);
-      alert('💾 Candidate Data, Extracted Skills & Selection Status saved to GSFC SQLite Database!');
+      showToast({
+        type: 'success',
+        title: '💾 Profile Archived to GSFC Vault',
+        message: 'Candidate Data, Extracted Skills & Selection Status saved to SQLite Database!',
+        triggerCrackles: true
+      });
     } catch (err) {
-      alert(err.message);
+      showToast({
+        type: 'error',
+        title: 'Save Failed',
+        message: err.message,
+        triggerCrackles: false
+      });
     } finally {
       setSavingToDb(false);
     }
@@ -211,7 +238,12 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
     setTimeout(() => {
       setMailModalOpen(false);
       setMailSentSuccess(false);
-      alert(`✉️ Candidate Placement Report mailed successfully to ${mailRecipient}!`);
+      showToast({
+        type: 'success',
+        title: '✉️ Email Dispatched',
+        message: `Candidate Placement Report mailed successfully to ${mailRecipient}!`,
+        triggerCrackles: true
+      });
     }, 1200);
   };
 
@@ -229,7 +261,12 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
 
   const handleApplyClick = async (reqItem) => {
     if (isCompanyUser) {
-      alert('Company / Recruiter accounts cannot apply to job postings. To submit student applications, please sign in with a Student account.');
+      showToast({
+        type: 'warning',
+        title: 'Recruiter Restriction',
+        message: 'Company / Recruiter accounts cannot apply to job postings. Please switch to a Student account.',
+        triggerCrackles: false
+      });
       return;
     }
 
@@ -268,10 +305,20 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to record external application');
 
-      alert('✅ External application marked as applied in your tracker!');
+      showToast({
+        type: 'success',
+        title: '✅ External Application Tracked',
+        message: 'External job application marked as applied in your placement tracker!',
+        triggerCrackles: true
+      });
       fetchApplications();
     } catch (err) {
-      alert(err.message);
+      showToast({
+        type: 'error',
+        title: 'Action Error',
+        message: err.message,
+        triggerCrackles: false
+      });
     }
   };
 
@@ -292,13 +339,21 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to submit application');
 
-      alert(`🎉 Application Submitted Successfully! AI Placement Match Score: ${data.matchScore}%`);
+      const targetReq = requirementsFeed.find(r => r.id === reqId);
+
+      // Trigger Celebration Toast & Crackles Fireworks
+      showToast({
+        type: 'success',
+        title: '🎉 Application Submitted Successfully!',
+        message: `Your verified profile and resume have been dispatched to ${targetReq?.company_name || 'the recruiter'}.`,
+        matchScore: data.matchScore,
+        triggerCrackles: true
+      });
       
       // Fetch updated applications & feed
       if (student?.id) {
         fetchApplications();
       } else {
-        const targetReq = requirementsFeed.find(r => r.id === reqId);
         if (targetReq) {
           const newApp = {
             id: 'app_' + Date.now(),
@@ -314,7 +369,12 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
       }
       fetchFeed();
     } catch (err) {
-      alert(err.message);
+      showToast({
+        type: 'error',
+        title: 'Submission Error',
+        message: err.message,
+        triggerCrackles: false
+      });
     }
   };
 
@@ -631,7 +691,12 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
                           <button 
                             onClick={() => {
                               if (onOpenAuthModal) onOpenAuthModal();
-                              else alert('Please upload your resume in the Student Workspace to calculate your personalized NLP match score.');
+                              else showToast({
+                                type: 'info',
+                                title: 'Resume Needed',
+                                message: 'Please upload your resume in the Student Workspace to calculate your personalized NLP match score.',
+                                triggerCrackles: false
+                              });
                             }}
                             className="px-3 py-1.5 rounded-2xl border border-amber-400/50 bg-amber-50 text-amber-900 font-black text-[11px] shrink-0 shadow-sm hover:bg-amber-100 flex items-center gap-1.5 cursor-pointer transition-all"
                           >
@@ -851,7 +916,12 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
                   <button
                     onClick={() => {
                       if (onOpenAuthModal) onOpenAuthModal();
-                      else alert('Please click "Sign In" at the top right header to log in or register your GSFC student account.');
+                      else showToast({
+                        type: 'info',
+                        title: 'Sign In Required',
+                        message: 'Please click "Sign In" at the top right header to log in or register your GSFC student account.',
+                        triggerCrackles: false
+                      });
                     }}
                     className="py-3 px-6 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs rounded-xl shadow-lg transition-all inline-flex items-center gap-2 cursor-pointer"
                   >
