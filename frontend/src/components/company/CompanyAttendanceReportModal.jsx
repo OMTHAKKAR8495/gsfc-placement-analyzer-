@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import ReactDOM from 'react-dom';
 import { Download, Printer, X, CheckCircle, XCircle, Clock, Building2, FileText, Sparkles, ShieldCheck, Users, Calendar, Award } from 'lucide-react';
 
 export default function CompanyAttendanceReportModal({ isOpen, onClose, requirement, applicants = [], company }) {
@@ -82,7 +83,7 @@ export default function CompanyAttendanceReportModal({ isOpen, onClose, requirem
     document.body.removeChild(link);
   };
 
-  return (
+  const modalContent = (
     <div 
       className="fixed inset-0 z-[99999] flex items-center justify-center p-2 sm:p-4 bg-slate-950/80 backdrop-blur-md overflow-y-auto animate-fadeIn tpc-print-overlay"
       onClick={(e) => {
@@ -378,4 +379,6 @@ export default function CompanyAttendanceReportModal({ isOpen, onClose, requirem
       </div>
     </div>
   );
+
+  return typeof document !== 'undefined' ? ReactDOM.createPortal(modalContent, document.body) : null;
 }
