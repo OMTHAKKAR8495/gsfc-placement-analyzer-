@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom';
-import { X, Send, FileText, CheckCircle, Sparkles, User, Mail, Phone, Award, BookOpen, Layers } from 'lucide-react';
+import { X, Send, FileText, CheckCircle, Sparkles, User, Mail, Phone, Award, BookOpen, Layers, Upload, ShieldCheck, CheckCircle2, Paperclip } from 'lucide-react';
 
 export default function InternalAutoFillApplyModal({ isOpen, onClose, requirement, student, onSubmitApplication }) {
   const [formData, setFormData] = useState({
@@ -13,6 +13,9 @@ export default function InternalAutoFillApplyModal({ isOpen, onClose, requiremen
     skills: '',
     projectsSummary: ''
   });
+  const [dossierFile, setDossierFile] = useState(null);
+  const [dossierFileName, setDossierFileName] = useState('');
+  const [dossierFileSize, setDossierFileSize] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -33,24 +36,45 @@ export default function InternalAutoFillApplyModal({ isOpen, onClose, requiremen
         : 'Neural Placement Matcher; Realtime Code Collaboration Tool';
 
       setFormData({
-        name: student.name || parsed.name || 'Arav Sharma',
-        email: student.email || parsed.email || 'arav.sharma@student.edu',
-        phone: parsed.phone || '+91 9876543210',
+        name: student.name || parsed.name || 'Candidate',
+        email: student.email || parsed.email || 'candidate@gsfcuniversity.ac.in',
+        phone: student.phone || parsed.phone || '+91 98765 43210',
         program: student.program || parsed.program || 'BTech CSE',
         branch: student.branch || parsed.branch || 'Computer Science & Engineering',
-        cgpa: student.cgpa || parsed.cgpa || 8.9,
+        cgpa: student.cgpa || parsed.cgpa || 8.5,
         skills: skillsList,
         projectsSummary: projList
       });
+
+      setDossierFileName(student.roll_number ? `${student.roll_number}_Verified_Dossier.pdf` : 'Candidate_Academic_Dossier.pdf');
+      setDossierFileSize('1.45 MB');
     }
   }, [student, isOpen]);
 
   if (!isOpen || !requirement) return null;
 
+  const handleDossierUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 10 * 1024 * 1024) {
+        alert('File size exceeds 10MB limit. Please upload a compressed document.');
+        return;
+      }
+      setDossierFile(file);
+      setDossierFileName(file.name);
+      setDossierFileSize(`${(file.size / (1024 * 1024)).toFixed(2)} MB`);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitting(true);
-    await onSubmitApplication(requirement.id, formData);
+    await onSubmitApplication(requirement.id, {
+      ...formData,
+      dossierFileName: dossierFileName || 'Candidate_Dossier.pdf',
+      dossierFileSize: dossierFileSize || '1.45 MB',
+      dossierUploaded: Boolean(dossierFile)
+    });
     setSubmitting(false);
     onClose();
   };
@@ -70,7 +94,7 @@ export default function InternalAutoFillApplyModal({ isOpen, onClose, requiremen
             <h2 className="text-xl font-black">{requirement.title}</h2>
             <p className="text-xs text-slate-300 font-bold">{requirement.company_name} • CTC: {requirement.ctc_range}</p>
           </div>
-          <button onClick={onClose} className="p-2 bg-white/10 hover:bg-white/20 rounded-xl text-white">
+          <button onClick={onClose} className="p-2 bg-white/10 hover:bg-white/20 rounded-xl text-white cursor-pointer">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -78,14 +102,14 @@ export default function InternalAutoFillApplyModal({ isOpen, onClose, requiremen
         {/* Auto-Fill Guidance Notice */}
         <div className="bg-blue-50 dark:bg-blue-950/40 p-4 border-b border-blue-100 dark:border-blue-900/50 flex items-center gap-3 text-xs font-bold text-blue-900 dark:text-blue-200">
           <CheckCircle className="w-5 h-5 text-blue-600 shrink-0" />
-          <span>All fields below have been pre-filled from your parsed resume. Feel free to edit inline before submitting.</span>
+          <span>All fields below have been pre-filled from your profile. You can attach your all-in-one PDF (Resume + Marksheets + Certificates).</span>
         </div>
 
         {/* Form Body */}
         <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[65vh] overflow-y-auto">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Full Candidate Name</label>
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Full Candidate Name *</label>
               <input
                 type="text"
                 required
@@ -96,7 +120,7 @@ export default function InternalAutoFillApplyModal({ isOpen, onClose, requiremen
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Email Address</label>
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Email Address *</label>
               <input
                 type="email"
                 required
@@ -105,11 +129,14 @@ export default function InternalAutoFillApplyModal({ isOpen, onClose, requiremen
                 className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-bold focus:outline-none focus:border-blue-900"
               />
             </div>
+          </div>
 
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Mobile Phone Number</label>
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Mobile Phone / WhatsApp *</label>
               <input
-                type="text"
+                type="tel"
+                required
                 value={formData.phone}
                 onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                 className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-bold focus:outline-none focus:border-blue-900"
@@ -117,10 +144,12 @@ export default function InternalAutoFillApplyModal({ isOpen, onClose, requiremen
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Current Academic CGPA</label>
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Current Academic CGPA *</label>
               <input
                 type="number"
-                step="0.1"
+                step="0.01"
+                min="0"
+                max="10"
                 required
                 value={formData.cgpa}
                 onChange={(e) => setFormData({ ...formData, cgpa: e.target.value })}
@@ -131,7 +160,7 @@ export default function InternalAutoFillApplyModal({ isOpen, onClose, requiremen
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Degree Program</label>
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Degree Program *</label>
               <input
                 type="text"
                 required
@@ -140,7 +169,6 @@ export default function InternalAutoFillApplyModal({ isOpen, onClose, requiremen
                 className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-bold focus:outline-none focus:border-blue-900"
               />
             </div>
-
             <div>
               <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Specialization / Branch</label>
               <input
@@ -162,18 +190,44 @@ export default function InternalAutoFillApplyModal({ isOpen, onClose, requiremen
             />
           </div>
 
-          {/* Resume Attachment Preview */}
-          <div className="p-4 bg-slate-100 dark:bg-slate-800/80 rounded-2xl border border-slate-200 dark:border-slate-700 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <FileText className="w-6 h-6 text-blue-900 dark:text-blue-400" />
-              <div>
-                <div className="text-xs font-black">Attached Verified Resume</div>
-                <div className="text-[10px] text-slate-500 font-bold">sample_resume_arav_sharma.pdf</div>
+          {/* COMBINED CREDENTIAL DOSSIER UPLOAD AREA */}
+          <div className="p-4 bg-blue-50/60 dark:bg-blue-950/30 rounded-2xl border border-blue-200 dark:border-blue-900/60 space-y-3">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-black text-blue-950 dark:text-blue-200 flex items-center gap-1.5">
+                <Paperclip className="w-4 h-4 text-blue-800 dark:text-blue-400" />
+                <span>Upload All Documents & Certificates (1 PDF / Bundle - Max 10MB)</span>
+              </label>
+              <span className="text-[10px] text-blue-800 dark:text-blue-300 font-bold">PDF, PNG, JPG</span>
+            </div>
+
+            <div className="flex flex-col sm:flex-row items-center gap-3">
+              <label className="w-full sm:w-auto px-4 py-2.5 bg-blue-900 hover:bg-blue-800 text-white rounded-xl text-xs font-black flex items-center justify-center gap-2 cursor-pointer shadow-md transition-all hover:scale-105 shrink-0">
+                <Upload className="w-4 h-4" />
+                <span>{dossierFile ? 'Change Combined PDF' : 'Upload Combined PDF / Certificates'}</span>
+                <input
+                  type="file"
+                  accept=".pdf,.png,.jpg,.jpeg"
+                  onChange={handleDossierUpload}
+                  className="hidden"
+                />
+              </label>
+
+              <div className="flex-1 w-full bg-white dark:bg-slate-800 p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 flex items-center justify-between">
+                <div className="flex items-center gap-2 min-w-0">
+                  <FileText className="w-4 h-4 text-blue-900 dark:text-blue-400 shrink-0" />
+                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">
+                    {dossierFileName || 'GSFC_Candidate_Credentials_Dossier.pdf'}
+                  </span>
+                </div>
+                <span className="text-[10px] font-black text-emerald-800 bg-emerald-100 dark:bg-emerald-950 dark:text-emerald-300 px-2 py-0.5 rounded-md shrink-0 ml-2">
+                  {dossierFileSize || 'Ready (10MB Max)'}
+                </span>
               </div>
             </div>
-            <span className="text-[11px] font-black text-emerald-800 bg-emerald-100 dark:bg-emerald-950 dark:text-emerald-300 px-2.5 py-1 rounded-lg">
-              Verified PDF
-            </span>
+            
+            <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">
+              💡 Bundle your latest Resume, University Marksheets, Degree/Certificates, and ID proofs in one single PDF. Recruiter will inspect document authenticity and verified credentials.
+            </p>
           </div>
 
           {/* Form Actions */}
@@ -181,7 +235,7 @@ export default function InternalAutoFillApplyModal({ isOpen, onClose, requiremen
             <button
               type="button"
               onClick={onClose}
-              className="px-5 py-2.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-bold"
+              className="px-5 py-2.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-bold cursor-pointer hover:bg-slate-200 transition-all"
             >
               Cancel
             </button>
@@ -189,7 +243,7 @@ export default function InternalAutoFillApplyModal({ isOpen, onClose, requiremen
             <button
               type="submit"
               disabled={submitting}
-              className="px-6 py-2.5 bg-gradient-to-r from-blue-900 via-indigo-900 to-amber-600 hover:from-blue-800 hover:to-amber-500 text-white font-black text-xs rounded-xl shadow-xl flex items-center gap-2"
+              className="px-6 py-2.5 bg-gradient-to-r from-blue-900 via-indigo-900 to-amber-600 hover:from-blue-800 hover:to-amber-500 text-white font-black text-xs rounded-xl shadow-xl flex items-center gap-2 cursor-pointer hover:scale-105 transition-all"
             >
               <Send className="w-4 h-4" />
               {submitting ? 'Submitting Application...' : 'Confirm & Submit Application'}

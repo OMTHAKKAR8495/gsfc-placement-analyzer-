@@ -7,6 +7,7 @@ import CompanyAttendanceReportModal from './CompanyAttendanceReportModal';
 import CompanyCandidateEvaluationModal from './CompanyCandidateEvaluationModal';
 import OfferLetterModal from '../common/OfferLetterModal';
 import NotificationLogsModal from '../common/NotificationLogsModal';
+import DocumentAuthenticityModal from '../common/DocumentAuthenticityModal';
 import RequirementQuestionBankForm from './RequirementQuestionBankForm';
 import { getCompanyUploadedQuestions, saveCompanyUploadedQuestion, bulkUploadCompanyQuestions, deleteCompanyUploadedQuestion } from '../../utils/companyQuestionStorage';
 
@@ -1538,6 +1539,15 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
 
                             <td className="py-4 px-4 text-right space-x-1.5 whitespace-nowrap">
                               <button
+                                onClick={() => handleOpenAuthenticityCheck(cand)}
+                                className="py-1.5 px-2.5 bg-blue-50 hover:bg-blue-100 text-blue-900 border border-blue-300 rounded-xl text-[11px] font-black inline-flex items-center gap-1 transition-all cursor-pointer hover:scale-105"
+                                title="Inspect Document Authenticity, Metadata Forensics & Risk Signals"
+                              >
+                                <ShieldCheck className="w-3.5 h-3.5 text-blue-700" />
+                                <span>Verify Docs</span>
+                              </button>
+
+                              <button
                                 onClick={() => handleSendCandidateInterviewReminder(cand)}
                                 className="py-1.5 px-2.5 bg-green-50 hover:bg-green-100 text-green-900 border border-green-300 rounded-xl text-[11px] font-black inline-flex items-center gap-1 transition-all cursor-pointer"
                                 title="Send Interview Schedule / Reminder via WhatsApp & Email"
@@ -1947,6 +1957,16 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
                             </td>
 
                             <td className="py-4 px-4 text-right space-x-1.5 whitespace-nowrap">
+                              <button
+                                type="button"
+                                onClick={() => handleOpenAuthenticityCheck(app)}
+                                className="py-1.5 px-2.5 bg-blue-50 hover:bg-blue-100 text-blue-900 border border-blue-300 rounded-xl text-xs font-black inline-flex items-center gap-1 transition-all cursor-pointer hover:scale-105"
+                                title="Inspect Candidate Document Authenticity & Forensic Verification Signals"
+                              >
+                                <ShieldCheck className="w-3.5 h-3.5 text-blue-700" />
+                                <span>Verify Docs</span>
+                              </button>
+
                               <button
                                 type="button"
                                 onClick={() => handleSendCandidateInterviewReminder(app)}
@@ -2835,6 +2855,20 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
         <NotificationLogsModal
           isOpen={notificationLogsModalOpen}
           onClose={() => setNotificationLogsModalOpen(false)}
+        />
+      )}
+
+      {/* Candidate Document Authenticity & Forensics Modal */}
+      {authenticityModalOpen && selectedAuthenticityCandidate && (
+        <DocumentAuthenticityModal
+          isOpen={authenticityModalOpen}
+          onClose={() => {
+            setAuthenticityModalOpen(false);
+            setSelectedAuthenticityCandidate(null);
+          }}
+          candidate={selectedAuthenticityCandidate}
+          requirement={requirements.find(r => r.id === selectedAuthenticityCandidate.requirement_id)}
+          company={company}
         />
       )}
     </div>

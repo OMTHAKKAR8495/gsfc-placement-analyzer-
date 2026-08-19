@@ -84,7 +84,35 @@ function applyMigrations() {
     if (!appColumns.includes('offer_letter_data_json')) {
       db.exec("ALTER TABLE applications ADD COLUMN offer_letter_data_json TEXT");
     }
+    if (!appColumns.includes('combined_dossier_url')) {
+      db.exec("ALTER TABLE applications ADD COLUMN combined_dossier_url TEXT");
+    }
+    if (!appColumns.includes('authenticity_report_json')) {
+      db.exec("ALTER TABLE applications ADD COLUMN authenticity_report_json TEXT");
+    }
     db.exec("UPDATE applications SET attendance_status = 'pending' WHERE attendance_status IS NULL");
+
+    // Document Authenticity Checker & Forensics Reports Table
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS document_authenticity_reports (
+        id TEXT PRIMARY KEY,
+        application_id TEXT,
+        student_id TEXT,
+        file_name TEXT,
+        file_type TEXT,
+        file_size INTEGER,
+        risk_level TEXT DEFAULT 'low' CHECK(risk_level IN ('low', 'medium', 'high')),
+        risk_score INTEGER DEFAULT 15,
+        summary_verdict TEXT,
+        metadata_signals_json TEXT DEFAULT '{}',
+        timeline_signals_json TEXT DEFAULT '{}',
+        ai_text_signals_json TEXT DEFAULT '{}',
+        tamper_signals_json TEXT DEFAULT '{}',
+        signals_list_json TEXT DEFAULT '[]',
+        disclaimer TEXT DEFAULT 'This tool surfaces signals for human review. It does not verify document authenticity with certainty.',
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
 
     // Notifications and Communications Audit Log Table
     db.exec(`

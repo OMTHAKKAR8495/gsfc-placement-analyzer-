@@ -69,8 +69,29 @@ CREATE TABLE IF NOT EXISTS applications (
     evaluation_notes TEXT DEFAULT '',
     evaluation_score REAL DEFAULT 0.0,
     offer_letter_data_json TEXT,
+    combined_dossier_url TEXT,
+    authenticity_report_json TEXT,
     applied_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(student_id, requirement_id)
+);
+
+CREATE TABLE IF NOT EXISTS document_authenticity_reports (
+    id TEXT PRIMARY KEY,
+    application_id TEXT,
+    student_id TEXT,
+    file_name TEXT,
+    file_type TEXT,
+    file_size INTEGER,
+    risk_level TEXT DEFAULT 'low' CHECK(risk_level IN ('low', 'medium', 'high')),
+    risk_score INTEGER DEFAULT 15,
+    summary_verdict TEXT,
+    metadata_signals_json TEXT DEFAULT '{}',
+    timeline_signals_json TEXT DEFAULT '{}',
+    ai_text_signals_json TEXT DEFAULT '{}',
+    tamper_signals_json TEXT DEFAULT '{}',
+    signals_list_json TEXT DEFAULT '[]',
+    disclaimer TEXT DEFAULT 'This tool surfaces signals for human review. It does not verify document authenticity with certainty.',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS notifications_log (

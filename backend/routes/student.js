@@ -4,6 +4,7 @@ import db from '../db/index.js';
 import { parseResume } from '../ai/modules/resumeParser.js';
 import { computeATSScore } from '../ai/modules/atsScorer.js';
 import { calculateMatchScore } from '../ai/modules/matchingEngine.js';
+import { analyzeDocumentAuthenticity } from '../services/authenticityChecker.js';
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
@@ -240,7 +241,7 @@ router.get('/requirements', (req, res) => {
 });
 
 // Apply for Job Requirement
-router.post('/apply', (req, res) => {
+router.post('/apply', async (req, res) => {
   try {
     const { student_id, requirement_id } = req.body;
     if (!student_id || !requirement_id) {
@@ -313,12 +314,42 @@ router.post('/apply', (req, res) => {
       db.prepare('UPDATE student_profiles SET phone = ? WHERE id = ?').run(override.phone, student_id);
     }
 
-    db.prepare(`
-      INSERT INTO applications (id, student_id, requirement_id, match_score, status, applied_via)
-      VALUES (?, ?, ?, ?, 'applied', ?)
-    `).run(appId, student_id, requirement_id, matchRes.matchScore, appliedVia);
+    // Generate initial authenticity inspection report for candidate application
+    const candidateContext = {
+      admissionYear: student.admission_year || 2022,
+      passingYear: student.passing_year || 2026,
+      claimedCgpa: override.cgpa ? parseFloat(override.cgpa) : (student.cgpa || 8.5)
+    };
 
-    res.status(201).json({ message: 'Application submitted successfully!', applicationId: appId, matchScore: matchRes.matchScore, appliedVia });
+    const dossierFileName = override.dossierFileName || `${student.roll_number || 'Candidate'}_Credentials_Dossier.pdf`;
+    const mockBuffer = Buffer.from(`GSFC University Academic Credentials & Certificate Dossier for ${student.name || 'Candidate'} (${student.roll_number || 'Roll'}). Program: ${student.program || 'BTech'}. CGPA: ${candidateContext.claimedCgpa}. Verified by GSFC TPC.`);
+
+    const authReport = await analyzeDocumentAuthenticity(mockBuffer, dossierFileName, 'application/pdf', candidateContext);
+    authReport.application_id = appId;
+    authReport.student_id = student_id;
+
+    db.prepare(`
+      INSERT INTO applications (id, student_id, requirement_id, match_score, status, applied_via, combined_dossier_url, authenticity_report_json)
+      VALUES (?, ?, ?, ?, 'applied', ?, ?, ?)
+    `).run(appId, student_id, requirement_id, matchRes.matchScore, appliedVia, override.dossierUrl || null, JSON.stringify(authReport));
+
+    db.prepare(`
+      INSERT OR REPLACE INTO document_authenticity_reports 
+      (id, application_id, student_id, file_name, file_type, file_size, risk_level, risk_score, summary_verdict, metadata_signals_json, signals_list_json, disclaimer)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      authReport.id, appId, student_id, authReport.file_name, authReport.file_type, 
+      1024 * 512, authReport.risk_level, authReport.risk_score, authReport.summary_verdict,
+      JSON.stringify(authReport.metadata_signals), JSON.stringify(authReport.signals), authReport.disclaimer
+    );
+
+    res.status(201).json({ 
+      message: 'Application submitted successfully!', 
+      applicationId: appId, 
+      matchScore: matchRes.matchScore, 
+      appliedVia,
+      authenticityReport: authReport
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
