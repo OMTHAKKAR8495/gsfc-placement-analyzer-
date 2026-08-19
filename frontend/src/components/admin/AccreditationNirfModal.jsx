@@ -2,32 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { 
   X, Award, BarChart3, Download, Printer, ShieldCheck, CheckCircle2, 
   TrendingUp, Building2, Users, FileSpreadsheet, GraduationCap, ChevronRight,
-  PieChart, Sparkles, Layers, BookOpen, ExternalLink, Calendar, Check, Trophy, Filter
+  PieChart, Sparkles, Layers, BookOpen, ExternalLink, Calendar, Check, Trophy, Filter,
+  RefreshCw, Database
 } from 'lucide-react';
-
-const DEFAULT_YEARLY_TRENDS = [
-  { year: 2020, total_hired: 148, avg_package_lpa: 5.80, highest_package_lpa: 14.0, by_field: { ALL: 148, CSE: 56, CHEM: 41, MECH: 27, CIVIL: 15, IT: 9 } },
-  { year: 2021, total_hired: 177, avg_package_lpa: 6.65, highest_package_lpa: 16.0, by_field: { ALL: 177, CSE: 67, CHEM: 50, MECH: 32, CIVIL: 18, IT: 11 } },
-  { year: 2022, total_hired: 206, avg_package_lpa: 7.50, highest_package_lpa: 18.0, by_field: { ALL: 206, CSE: 78, CHEM: 58, MECH: 37, CIVIL: 21, IT: 12 } },
-  { year: 2023, total_hired: 235, avg_package_lpa: 8.35, highest_package_lpa: 20.0, by_field: { ALL: 235, CSE: 89, CHEM: 66, MECH: 42, CIVIL: 24, IT: 14 } },
-  { year: 2024, total_hired: 264, avg_package_lpa: 9.20, highest_package_lpa: 22.0, by_field: { ALL: 264, CSE: 100, CHEM: 74, MECH: 48, CIVIL: 26, IT: 16 } },
-  { year: 2025, total_hired: 293, avg_package_lpa: 10.05, highest_package_lpa: 24.0, by_field: { ALL: 293, CSE: 111, CHEM: 82, MECH: 53, CIVIL: 29, IT: 18 } },
-  { year: 2026, total_hired: 322, avg_package_lpa: 10.90, highest_package_lpa: 26.0, by_field: { ALL: 322, CSE: 122, CHEM: 90, MECH: 58, CIVIL: 32, IT: 19 } }
-];
-
-const DEFAULT_FIELD_SUMMARY = [
-  { field_code: 'CSE', field_name: 'Computer Science & Engineering (CSE)', share_pct: 38.0, total_placed: 485, avg_lpa: 11.2, rank: 1, is_top: true, color: 'from-blue-600 to-indigo-600' },
-  { field_code: 'CHEM', field_name: 'Chemical Engineering', share_pct: 28.0, total_placed: 358, avg_lpa: 9.8, rank: 2, is_top: false, color: 'from-emerald-600 to-teal-600' },
-  { field_code: 'MECH', field_name: 'Mechanical Engineering', share_pct: 18.0, total_placed: 230, avg_lpa: 8.5, rank: 3, is_top: false, color: 'from-amber-500 to-orange-600' },
-  { field_code: 'CIVIL', field_name: 'Civil Engineering', share_pct: 10.0, total_placed: 128, avg_lpa: 7.2, rank: 4, is_top: false, color: 'from-purple-600 to-pink-600' },
-  { field_code: 'IT', field_name: 'Information Technology & AI', share_pct: 6.0, total_placed: 77, avg_lpa: 10.5, rank: 5, is_top: false, color: 'from-cyan-600 to-blue-600' }
-];
 
 export default function AccreditationNirfModal({ isOpen, onClose }) {
   const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('trends'); // 'trends', 'nirf', 'branches', 'naac'
-  const [selectedFieldFilter, setSelectedFieldFilter] = useState('ALL'); // 'ALL', 'CSE', 'CHEM', 'MECH', 'CIVIL', 'IT'
+  const [selectedFieldFilter, setSelectedFieldFilter] = useState('ALL');
 
   useEffect(() => {
     if (isOpen) {
@@ -53,7 +36,7 @@ export default function AccreditationNirfModal({ isOpen, onClose }) {
         setData(json);
       }
     } catch (err) {
-      console.error('Error fetching accreditation data:', err);
+      console.error('Error fetching live accreditation data:', err);
     } finally {
       setLoading(false);
     }
@@ -66,50 +49,52 @@ export default function AccreditationNirfModal({ isOpen, onClose }) {
   if (!isOpen) return null;
 
   const metrics = data?.overall_metrics || {
-    total_students_tracked: 322,
-    overall_placement_percentage: 94.2,
-    overall_median_lpa: 10.50,
-    overall_highest_lpa: 26.00,
-    overall_average_lpa: 10.90,
-    total_companies_participated: 24,
-    total_drives_conducted: 32
+    total_students_tracked: 0,
+    overall_placement_percentage: 0,
+    overall_median_lpa: 0,
+    overall_highest_lpa: 0,
+    overall_average_lpa: 0,
+    total_companies_participated: 0,
+    total_drives_conducted: 0
   };
 
   const nirfCohorts = data?.nirf_cohorts || [];
   const branchAnalytics = data?.branch_analytics || [];
   const naacRoster = data?.naac_placed_roster || [];
-  const yearlyTrends = (data?.yearly_hiring_trends && data.yearly_hiring_trends.length > 0) 
-    ? data.yearly_hiring_trends 
-    : DEFAULT_YEARLY_TRENDS;
-  const fieldSummary = (data?.field_summary && data.field_summary.length > 0)
-    ? data.field_summary
-    : DEFAULT_FIELD_SUMMARY;
+  const yearlyTrends = data?.yearly_hiring_trends || [];
+  const fieldSummary = data?.field_summary || [];
 
-  // Compute chart data with selected discipline
+  // Dynamically extract field options directly from live database field summary
+  const dynamicFieldOptions = [
+    { code: 'ALL', name: '🎓 All GSFC Fields (Live Summary)', icon: '🌟' },
+    ...fieldSummary.map(f => ({
+      code: f.field_code,
+      name: `${f.field_name}`,
+      icon: f.field_code === 'CSE' ? '💻' 
+          : f.field_code === 'CHEM' ? '🧪' 
+          : f.field_code === 'MECH' ? '⚙️' 
+          : f.field_code === 'CIVIL' ? '🏗️' 
+          : f.field_code === 'IT' ? '🌐' 
+          : '📚'
+    }))
+  ];
+
+  // Dynamic Chart calculations based on live database data
   const chartData = yearlyTrends.map(item => {
     const count = (selectedFieldFilter === 'ALL')
-      ? (item.by_field?.ALL || item.total_hired || 200)
-      : (item.by_field?.[selectedFieldFilter] || Math.round((item.total_hired || 200) * 0.3));
+      ? (item.by_field?.ALL ?? item.total_hired ?? 0)
+      : (item.by_field?.[selectedFieldFilter] ?? 0);
     
     return {
       year: item.year,
       hiredCount: count,
-      avgLpa: item.avg_package_lpa || 8.5,
-      highestLpa: item.highest_package_lpa || 18.0
+      avgLpa: item.avg_package_lpa || 0,
+      highestLpa: item.highest_package_lpa || 0
     };
   });
 
   const maxHiredInSelection = Math.max(...chartData.map(d => d.hiredCount), 1);
-  const peakYearItem = chartData.reduce((prev, current) => (prev.hiredCount > current.hiredCount) ? prev : current, chartData[0]);
-
-  const fieldOptions = [
-    { code: 'ALL', name: '🎓 All GSFC Fields & Programs', icon: '🌟', color: 'from-blue-900 to-indigo-900' },
-    { code: 'CSE', name: '💻 B.Tech Computer Science (CSE)', icon: '💻', color: 'from-blue-600 to-indigo-600' },
-    { code: 'CHEM', name: '🧪 B.Tech Chemical Engineering', icon: '🧪', color: 'from-emerald-600 to-teal-600' },
-    { code: 'MECH', name: '⚙️ B.Tech Mechanical Engineering', icon: '⚙️', color: 'from-amber-600 to-orange-600' },
-    { code: 'CIVIL', name: '🏗️ B.Tech Civil Engineering', icon: '🏗️', color: 'from-purple-600 to-pink-600' },
-    { code: 'IT', name: '🌐 B.Tech Information Technology & AI', icon: '🌐', color: 'from-cyan-600 to-blue-600' }
-  ];
+  const peakYearItem = chartData.reduce((prev, current) => (prev.hiredCount > current.hiredCount) ? prev : current, chartData[0] || {});
 
   return (
     <div 
@@ -130,8 +115,9 @@ export default function AccreditationNirfModal({ isOpen, onClose }) {
             </div>
             <div>
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="px-2 py-0.5 bg-amber-400 text-slate-950 rounded-md text-[10px] font-black uppercase tracking-wider">
-                  Official IQAC Module
+                <span className="px-2 py-0.5 bg-emerald-400 text-slate-950 rounded-md text-[10px] font-black uppercase tracking-wider flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-slate-950 animate-ping"></span>
+                  100% Live DB Data
                 </span>
                 <span className="px-2 py-0.5 bg-white/20 text-white rounded-md text-[10px] font-black uppercase tracking-wider">
                   MHRD / NIRF & NAAC Ready
@@ -141,12 +127,22 @@ export default function AccreditationNirfModal({ isOpen, onClose }) {
                 <span>NAAC & NIRF Accreditation 1-Click Report Generator</span>
               </h2>
               <p className="text-xs text-blue-100 font-medium">
-                GSFC University Multi-Year Hiring Trends & Field-Wise Placement Analytics
+                Live Data Stream from GSFC University Placement Database
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
+            <button
+              onClick={fetchAccreditationData}
+              disabled={loading}
+              className="py-2 px-3 bg-white/15 hover:bg-white/25 text-white border border-white/30 rounded-xl text-xs font-black flex items-center gap-1.5 transition-all shadow-sm cursor-pointer"
+              title="Refresh Live Data"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 text-amber-300 ${loading ? 'animate-spin' : ''}`} />
+              <span className="hidden sm:inline">Refresh Live DB</span>
+            </button>
+
             <button
               onClick={handlePrintPdf}
               className="py-2 px-3.5 bg-white/15 hover:bg-white/25 text-white border border-white/30 rounded-xl text-xs font-black flex items-center gap-1.5 transition-all shadow-sm cursor-pointer hover:scale-105"
@@ -241,58 +237,58 @@ export default function AccreditationNirfModal({ isOpen, onClose }) {
 
         {/* Scrollable Content Body */}
         <div className="p-4 sm:p-6 space-y-6 overflow-y-auto flex-1">
-          {/* Executive Accreditation Metric Badges */}
+          {/* Executive Live Metrics Banner */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
             <div className="p-4 bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-950/40 dark:to-teal-950/20 border border-emerald-200 dark:border-emerald-800 rounded-2xl shadow-xs">
               <div className="text-[10px] font-black uppercase text-emerald-800 dark:text-emerald-300 tracking-wider">
-                Overall Placement Ratio
+                Live Placement Ratio
               </div>
               <div className="text-2xl font-black text-emerald-950 dark:text-emerald-100 mt-1">
                 {metrics.overall_placement_percentage}%
               </div>
               <div className="text-[10px] text-emerald-700 dark:text-emerald-400 font-bold mt-0.5">
-                NIRF Accreditation Target: &gt;85%
+                {metrics.total_applications_filed} Live Placed / Applied
               </div>
             </div>
 
             <div className="p-4 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/40 dark:to-indigo-950/20 border border-blue-200 dark:border-blue-800 rounded-2xl shadow-xs">
               <div className="text-[10px] font-black uppercase text-blue-800 dark:text-blue-300 tracking-wider">
-                Median Salary (NIRF Metric)
+                Live Median Salary
               </div>
               <div className="text-2xl font-black text-blue-950 dark:text-blue-100 mt-1">
                 ₹{metrics.overall_median_lpa} LPA
               </div>
               <div className="text-[10px] text-blue-700 dark:text-blue-400 font-bold mt-0.5">
-                MHRD Official Parameter 3
+                Calculated from DB Offers
               </div>
             </div>
 
             <div className="p-4 bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950/40 dark:to-orange-950/20 border border-amber-200 dark:border-amber-800 rounded-2xl shadow-xs">
               <div className="text-[10px] font-black uppercase text-amber-800 dark:text-amber-300 tracking-wider">
-                Highest CTC Recorded
+                Live Highest CTC
               </div>
               <div className="text-2xl font-black text-amber-950 dark:text-amber-100 mt-1">
                 ₹{metrics.overall_highest_lpa} LPA
               </div>
               <div className="text-[10px] text-amber-700 dark:text-amber-400 font-bold mt-0.5">
-                Top Tier Industrial Package
+                Top Active Offer in Database
               </div>
             </div>
 
             <div className="p-4 bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-950/40 dark:to-pink-950/20 border border-purple-200 dark:border-purple-800 rounded-2xl shadow-xs">
               <div className="text-[10px] font-black uppercase text-purple-800 dark:text-purple-300 tracking-wider">
-                Participating Employers
+                Active Corporate Drives
               </div>
               <div className="text-2xl font-black text-purple-950 dark:text-purple-100 mt-1">
-                {metrics.total_companies_participated} Companies
+                {metrics.total_drives_conducted} Drives
               </div>
               <div className="text-[10px] text-purple-700 dark:text-purple-400 font-bold mt-0.5">
-                {metrics.total_drives_conducted} Active Drives Conducted
+                {metrics.total_companies_participated} Approved Recruiters
               </div>
             </div>
           </div>
 
-          {/* TAB 0: YEARLY HIRING BAR CHART & FIELD FILTER */}
+          {/* TAB 0: LIVE MULTI-YEAR HIRING BAR CHART & FIELD FILTER */}
           {activeTab === 'trends' && (
             <div className="space-y-6 animate-fadeIn">
               {/* Field Filter Selection Strip */}
@@ -300,10 +296,10 @@ export default function AccreditationNirfModal({ isOpen, onClose }) {
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                   <div>
                     <div className="text-[10px] font-black uppercase text-amber-600 dark:text-amber-400 flex items-center gap-1">
-                      <Filter className="w-3.5 h-3.5" /> Filter by Academic Field / Department
+                      <Filter className="w-3.5 h-3.5" /> Live Field / Department Selector
                     </div>
                     <h3 className="text-sm font-black text-slate-900 dark:text-slate-100 mt-0.5">
-                      Select Field to Analyze Which Year Had Highest Hiring
+                      Select Department to View Real-Time Batch Hiring Volume
                     </h3>
                   </div>
 
@@ -313,7 +309,7 @@ export default function AccreditationNirfModal({ isOpen, onClose }) {
                       onChange={(e) => setSelectedFieldFilter(e.target.value)}
                       className="w-full py-2.5 px-3 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-black text-slate-900 dark:text-slate-100 focus:outline-none focus:border-blue-900 cursor-pointer shadow-sm"
                     >
-                      {fieldOptions.map(opt => (
+                      {dynamicFieldOptions.map(opt => (
                         <option key={opt.code} value={opt.code}>
                           {opt.name}
                         </option>
@@ -324,14 +320,14 @@ export default function AccreditationNirfModal({ isOpen, onClose }) {
 
                 {/* Quick Toggle Filter Badges */}
                 <div className="flex items-center gap-2 flex-wrap pt-1">
-                  {fieldOptions.map(opt => (
+                  {dynamicFieldOptions.map(opt => (
                     <button
                       key={opt.code}
                       type="button"
                       onClick={() => setSelectedFieldFilter(opt.code)}
                       className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 ${
                         selectedFieldFilter === opt.code
-                          ? 'bg-blue-900 text-white shadow-md scale-105'
+                          ? 'bg-blue-900 text-white shadow-md scale-105 ring-2 ring-amber-400'
                           : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-100'
                       }`}
                     >
@@ -350,38 +346,38 @@ export default function AccreditationNirfModal({ isOpen, onClose }) {
                   </div>
                   <div>
                     <div className="text-[10px] font-black uppercase text-slate-900 tracking-wider">
-                      🏆 Peak Hiring Year Recorded ({selectedFieldFilter === 'ALL' ? 'All GSFC Fields' : selectedFieldFilter})
+                      🏆 Live Highest Placement Year ({selectedFieldFilter === 'ALL' ? 'All GSFC Fields' : selectedFieldFilter})
                     </div>
                     <div className="text-lg font-black text-slate-950">
-                      Batch {peakYearItem?.year} with {peakYearItem?.hiredCount} Placed Graduates
+                      Batch {peakYearItem?.year || '2026'} with {peakYearItem?.hiredCount || 0} Placed Students
                     </div>
                   </div>
                 </div>
                 <div className="text-right bg-black/10 px-4 py-2 rounded-2xl">
-                  <div className="text-[10px] font-black uppercase text-slate-900">Average CTC Recorded</div>
-                  <div className="text-base font-black text-slate-950">₹{peakYearItem?.avgLpa} LPA</div>
+                  <div className="text-[10px] font-black uppercase text-slate-900">Average Live Package</div>
+                  <div className="text-base font-black text-slate-950">₹{peakYearItem?.avgLpa || 0} LPA</div>
                 </div>
               </div>
 
-              {/* INTERACTIVE VERTICAL BAR CHART WITH GUARANTEED RENDERING */}
+              {/* INTERACTIVE VERTICAL BAR CHART WITH GUARANTEED PIXEL HEIGHT RENDERING */}
               <div className="p-5 sm:p-6 bg-white dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 rounded-3xl shadow-sm space-y-6">
                 <div className="flex items-center justify-between">
                   <div>
                     <h4 className="text-sm font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
                       <BarChart3 className="w-4 h-4 text-blue-900 dark:text-blue-400" />
-                      <span>Year-over-Year GSFC Hiring Volume Comparison</span>
+                      <span>Live Year-over-Year GSFC Hiring Volume Bar Chart</span>
                     </h4>
                     <p className="text-xs text-slate-500 font-medium">
-                      Showing student placement volume for: <strong className="text-blue-900 dark:text-blue-300">{fieldOptions.find(f => f.code === selectedFieldFilter)?.name}</strong>
+                      Live placement volume for: <strong className="text-blue-900 dark:text-blue-300">{dynamicFieldOptions.find(f => f.code === selectedFieldFilter)?.name}</strong>
                     </p>
                   </div>
                 </div>
 
                 {/* VISIBLE BAR CHART DISPLAY */}
                 <div className="pt-6 pb-2 px-2 sm:px-4 bg-slate-50 dark:bg-slate-900/60 rounded-2xl border border-slate-200 dark:border-slate-700/80">
-                  <div className="grid grid-cols-7 gap-2 sm:gap-4 items-end h-72 border-b-2 border-slate-300 dark:border-slate-700 pb-3">
+                  <div className="grid grid-cols-4 sm:grid-cols-8 gap-2 sm:gap-4 items-end h-72 border-b-2 border-slate-300 dark:border-slate-700 pb-3">
                     {chartData.map((item, idx) => {
-                      const barHeightPx = Math.max(Math.round((item.hiredCount / maxHiredInSelection) * 190), 28);
+                      const barHeightPx = Math.max(Math.round((item.hiredCount / maxHiredInSelection) * 190), 32);
                       const isPeak = item.year === peakYearItem?.year;
 
                       return (
@@ -404,7 +400,7 @@ export default function AccreditationNirfModal({ isOpen, onClose }) {
 
                           {/* Solid Bar Element */}
                           <div 
-                            className={`w-full max-w-[52px] rounded-2xl transition-all duration-700 shadow-md relative cursor-pointer group-hover:scale-105 ${
+                            className={`w-full max-w-[48px] rounded-2xl transition-all duration-700 shadow-md relative cursor-pointer group-hover:scale-105 ${
                               isPeak 
                                 ? 'bg-gradient-to-t from-amber-600 via-orange-500 to-amber-400 shadow-amber-500/40 border-2 border-amber-300'
                                 : 'bg-gradient-to-t from-blue-950 via-blue-800 to-indigo-500 shadow-blue-900/30 border border-blue-400/40'
@@ -429,27 +425,27 @@ export default function AccreditationNirfModal({ isOpen, onClose }) {
                   </div>
 
                   <div className="flex items-center justify-between text-[11px] text-slate-500 font-bold pt-3 px-2">
-                    <span>📅 Academic Batch Years (2020 – 2026)</span>
-                    <span className="text-emerald-700 dark:text-emerald-400">💡 Amounts in ₹ Lakhs Per Annum (LPA)</span>
+                    <span>📅 Academic Batch Years from Database</span>
+                    <span className="text-emerald-700 dark:text-emerald-400">💡 Packages in ₹ Lakhs Per Annum (LPA)</span>
                   </div>
                 </div>
               </div>
 
-              {/* WHICH FIELD GOT HIRED MORE? BREAKDOWN LEADERBOARD */}
+              {/* WHICH FIELD GOT HIRED MORE? LIVE BREAKDOWN LEADERBOARD */}
               <div className="p-5 sm:p-6 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-3xl space-y-4 shadow-xs">
                 <div className="flex items-center justify-between">
                   <div>
                     <h4 className="text-sm font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
                       <Trophy className="w-4 h-4 text-amber-500" />
-                      <span>Which Academic Field Got Hired More? (Overall Discipline Share)</span>
+                      <span>Which Academic Field Got Hired More? (Live Database Rankings)</span>
                     </h4>
                     <p className="text-xs text-slate-500 font-medium">
-                      Click any discipline to dynamically update the yearly hiring trend chart above.
+                      Live share of placements per engineering and science discipline. Click any card to filter the chart above.
                     </p>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                   {fieldSummary.map((f, idx) => (
                     <div 
                       key={idx}
@@ -515,7 +511,7 @@ export default function AccreditationNirfModal({ isOpen, onClose }) {
                 </div>
 
                 <span className="text-xs font-black text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/50 px-2.5 py-1 rounded-lg border border-emerald-200 dark:border-emerald-800">
-                  ✅ 100% Audit Verified
+                  ✅ Live DB Verified
                 </span>
               </div>
 
@@ -568,7 +564,7 @@ export default function AccreditationNirfModal({ isOpen, onClose }) {
                   <span>Branch-Wise Placement Performance Comparison</span>
                 </h3>
                 <p className="text-xs text-slate-500 font-medium">
-                  Visual performance comparison across B.Tech Computer Science, Chemical, Mechanical, Civil & IT branches.
+                  Live branch comparison across engineering and science departments from database.
                 </p>
               </div>
 
@@ -705,11 +701,11 @@ export default function AccreditationNirfModal({ isOpen, onClose }) {
             <div className="flex items-center gap-2">
               <ShieldCheck className="w-5 h-5 text-blue-700 dark:text-blue-400 shrink-0" />
               <span>
-                Verified and compiled as per <strong>NIRF MHRD Parameter 3</strong> and <strong>NAAC Criterion 5.2.1</strong> quality standards.
+                Verified and compiled dynamically from <strong>Live SQLite Database Records</strong> as per <strong>NIRF MHRD Parameter 3</strong> and <strong>NAAC Criterion 5.2.1</strong> quality standards.
               </span>
             </div>
             <div className="text-[10px] font-mono text-slate-500 font-bold">
-              Doc Ref: GSFC/IQAC/2026/ACCRED-01
+              Doc Ref: GSFC/IQAC/2026/LIVE-SYNC
             </div>
           </div>
         </div>
