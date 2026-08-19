@@ -237,3 +237,100 @@ html.dark ::-webkit-scrollbar-track {
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(37, 99, 235, 1);
 }
+
+/* ==========================================================================
+   OFFICIAL GSFC PRINT & PDF STYLES (A4 Portrait, Full Color, Clean 1-2 Pages)
+   ========================================================================== */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 8mm 10mm 10mm 10mm;
+  }
+
+  *, *::before, *::after {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+
+  html, body {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: auto !important;
+    overflow: visible !important;
+  }
+
+  /* Hide background graphics, navbar, controls, and other UI layers during print */
+  .gsfc-background-wrapper,
+  .gsfc-overlay-layer,
+  header,
+  nav,
+  main,
+  footer,
+  .fixed.bottom-20,
+  button,
+  .print\\:hidden,
+  [data-print-hide="true"] {
+    display: none !important;
+  }
+
+  /* Force Print Modal Overlay to act as a normal flat page document */
+  .tpc-print-overlay {
+    position: static !important;
+    display: block !important;
+    width: 100% !important;
+    height: auto !important;
+    background: transparent !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: visible !important;
+  }
+
+  .tpc-print-card {
+    position: static !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    border: none !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    background: #ffffff !important;
+    overflow: visible !important;
+  }
+
+  .tpc-print-body {
+    max-height: none !important;
+    height: auto !important;
+    overflow: visible !important;
+    padding: 0 !important;
+  }
+
+  .print-keep-together {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    page-break-inside: auto !important;
+  }
+
+  tr {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  thead {
+    display: table-header-group !important;
+  }
+
+  tfoot {
+    display: table-footer-group !important;
+  }
+}

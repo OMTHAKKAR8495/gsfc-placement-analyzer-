@@ -30,7 +30,12 @@ export default function CompanyAttendanceReportModal({ isOpen, onClose, requirem
   const currentTime = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
 
   const handlePrint = () => {
-    window.print();
+    window.scrollTo(0, 0);
+    const canvasElem = document.getElementById('tpc-printable-canvas');
+    if (canvasElem) canvasElem.scrollTop = 0;
+    setTimeout(() => {
+      window.print();
+    }, 80);
   };
 
   const handleDownloadCSV = () => {
@@ -79,13 +84,13 @@ export default function CompanyAttendanceReportModal({ isOpen, onClose, requirem
 
   return (
     <div 
-      className="fixed inset-0 z-[99999] flex items-center justify-center p-2 sm:p-4 bg-slate-950/80 backdrop-blur-md overflow-y-auto print:p-0 print:bg-white animate-fadeIn"
+      className="fixed inset-0 z-[99999] flex items-center justify-center p-2 sm:p-4 bg-slate-950/80 backdrop-blur-md overflow-y-auto animate-fadeIn tpc-print-overlay"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
       <div 
-        className="bg-white rounded-3xl border border-slate-200 max-w-5xl w-full shadow-2xl overflow-hidden my-4 sm:my-8 text-slate-900 print:border-none print:shadow-none print:m-0 print:max-w-none print:rounded-none"
+        className="bg-white rounded-3xl border border-slate-200 max-w-5xl w-full shadow-2xl overflow-hidden my-4 sm:my-8 text-slate-900 tpc-print-card"
         onClick={(e) => e.stopPropagation()}
       >
         
@@ -138,23 +143,26 @@ export default function CompanyAttendanceReportModal({ isOpen, onClose, requirem
         </div>
 
         {/* PRINTABLE OFFICIAL REPORT CANVAS (A4 Format) */}
-        <div className="p-6 sm:p-10 space-y-6 bg-white font-sans max-h-[80vh] overflow-y-auto print:max-h-none print:overflow-visible print:p-8">
+        <div 
+          id="tpc-printable-canvas" 
+          className="p-6 sm:p-10 space-y-5 bg-white font-sans max-h-[80vh] overflow-y-auto tpc-print-body print:p-2 print:space-y-3.5 print:max-h-none print:overflow-visible"
+        >
           
           {/* Official University Header */}
-          <div className="flex items-center justify-between border-b-2 border-blue-900 pb-5 gap-4">
-            <div className="flex items-center gap-4">
+          <div className="flex items-center justify-between border-b-2 border-blue-900 pb-4 gap-4 print-keep-together">
+            <div className="flex items-center gap-3.5">
               <img
                 src="/gsfc-logo-official.png"
                 alt="GSFC University Logo"
-                className="h-16 w-auto object-contain"
+                className="h-14 sm:h-16 w-auto object-contain shrink-0"
                 onError={(e) => {
                   e.target.onerror = null;
                   e.target.src = '/gsfc-logo-official.jpg';
                 }}
               />
               <div>
-                <div className="text-xl font-black text-blue-900 tracking-tight">GSFC UNIVERSITY</div>
-                <div className="text-xs font-black text-slate-600 tracking-wide uppercase">
+                <div className="text-lg sm:text-xl font-black text-blue-900 tracking-tight">GSFC UNIVERSITY</div>
+                <div className="text-[11px] sm:text-xs font-black text-slate-700 tracking-wide uppercase">
                   Training & Placement Cell (TPC) • Corporate Relations
                 </div>
                 <div className="text-[10px] text-slate-500 font-bold">
@@ -164,7 +172,7 @@ export default function CompanyAttendanceReportModal({ isOpen, onClose, requirem
             </div>
 
             <div className="text-right shrink-0">
-              <span className="px-3 py-1 bg-blue-900 text-white text-[10px] font-black uppercase rounded-lg tracking-wider">
+              <span className="px-3 py-1 bg-blue-900 text-white text-[10px] font-black uppercase rounded-lg tracking-wider inline-block">
                 Official Drive Report
               </span>
               <div className="text-xs font-black text-slate-900 mt-1">Date: {currentDate}</div>
@@ -173,37 +181,37 @@ export default function CompanyAttendanceReportModal({ isOpen, onClose, requirem
           </div>
 
           {/* Drive & Company Metadata Card */}
-          <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 sm:p-5 space-y-3">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200">
+          <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3.5 sm:p-4 space-y-2.5 print-keep-together">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2.5 border-b border-slate-200">
               <div>
-                <span className="text-[10px] font-black uppercase text-blue-900 tracking-wider">Campus Placement Drive</span>
-                <h1 className="text-lg sm:text-xl font-black text-slate-900">{jobTitle}</h1>
+                <span className="text-[9px] font-black uppercase text-blue-900 tracking-wider">Campus Placement Drive</span>
+                <h1 className="text-base sm:text-lg font-black text-slate-900 leading-snug">{jobTitle}</h1>
               </div>
               <div className="text-left sm:text-right">
-                <span className="text-[10px] font-black uppercase text-slate-500 tracking-wider">Hiring Partner</span>
-                <div className="text-base font-black text-blue-900 flex items-center gap-1.5 sm:justify-end">
-                  <Building2 className="w-4 h-4 text-amber-500" />
+                <span className="text-[9px] font-black uppercase text-slate-500 tracking-wider">Hiring Partner</span>
+                <div className="text-sm sm:text-base font-black text-blue-900 flex items-center gap-1.5 sm:justify-end">
+                  <Building2 className="w-4 h-4 text-amber-500 shrink-0" />
                   <span>{companyName}</span>
                 </div>
               </div>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs">
               <div>
-                <span className="text-[10px] text-slate-500 block font-bold uppercase">Package (CTC)</span>
-                <span className="font-black text-blue-900">{requirement?.ctc_range || 'Competitive'}</span>
+                <span className="text-[9px] text-slate-500 block font-bold uppercase">Package (CTC)</span>
+                <span className="font-black text-blue-900 text-xs">{requirement?.ctc_range || 'Competitive'}</span>
               </div>
               <div>
-                <span className="text-[10px] text-slate-500 block font-bold uppercase">Job Type</span>
-                <span className="font-black text-slate-900">{requirement?.job_type || 'Full-time'}</span>
+                <span className="text-[9px] text-slate-500 block font-bold uppercase">Job Type</span>
+                <span className="font-black text-slate-900 text-xs">{requirement?.job_type || 'Full-time'}</span>
               </div>
               <div>
-                <span className="text-[10px] text-slate-500 block font-bold uppercase">Min CGPA Cutoff</span>
-                <span className="font-black text-slate-900">{requirement?.min_cgpa || '7.5'} CGPA</span>
+                <span className="text-[9px] text-slate-500 block font-bold uppercase">Min CGPA Cutoff</span>
+                <span className="font-black text-slate-900 text-xs">{requirement?.min_cgpa || '7.5'} CGPA</span>
               </div>
               <div>
-                <span className="text-[10px] text-slate-500 block font-bold uppercase">Applications Status</span>
-                <span className={`font-black ${requirement?.applications_open === 0 ? 'text-rose-700' : 'text-emerald-700'}`}>
+                <span className="text-[9px] text-slate-500 block font-bold uppercase">Applications Status</span>
+                <span className={`font-black text-xs ${requirement?.applications_open === 0 ? 'text-rose-700' : 'text-emerald-700'}`}>
                   {requirement?.applications_open === 0 ? 'Closed' : 'Active / Open'}
                 </span>
               </div>
@@ -211,76 +219,76 @@ export default function CompanyAttendanceReportModal({ isOpen, onClose, requirem
           </div>
 
           {/* Executive Attendance & Assessment Summary Metrics */}
-          <div>
-            <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
-              <Award className="w-4 h-4 text-blue-900" />
+          <div className="print-keep-together">
+            <h3 className="text-[11px] sm:text-xs font-black text-slate-900 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+              <Award className="w-3.5 h-3.5 text-blue-900 shrink-0" />
               <span>Drive Attendance & Evaluation Summary</span>
             </h3>
-            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-              <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl text-center">
-                <div className="text-[10px] font-black uppercase text-blue-800">Total Registered</div>
-                <div className="text-xl font-black text-blue-950 mt-0.5">{totalApplicants}</div>
-                <div className="text-[9px] text-blue-700 font-bold">100% Candidates</div>
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 sm:gap-2.5">
+              <div className="p-2 sm:p-2.5 bg-blue-50 border border-blue-200 rounded-xl text-center">
+                <div className="text-[9px] font-black uppercase text-blue-800">Total Registered</div>
+                <div className="text-lg sm:text-xl font-black text-blue-950 mt-0.5">{totalApplicants}</div>
+                <div className="text-[8px] text-blue-700 font-bold">100% Candidates</div>
               </div>
 
-              <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-center">
-                <div className="text-[10px] font-black uppercase text-emerald-800">Marked Present</div>
-                <div className="text-xl font-black text-emerald-950 mt-0.5">{presentCount}</div>
-                <div className="text-[9px] text-emerald-700 font-bold">{attendanceRate}% Turnout</div>
+              <div className="p-2 sm:p-2.5 bg-emerald-50 border border-emerald-200 rounded-xl text-center">
+                <div className="text-[9px] font-black uppercase text-emerald-800">Marked Present</div>
+                <div className="text-lg sm:text-xl font-black text-emerald-950 mt-0.5">{presentCount}</div>
+                <div className="text-[8px] text-emerald-700 font-bold">{attendanceRate}% Turnout</div>
               </div>
 
-              <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-center">
-                <div className="text-[10px] font-black uppercase text-rose-800">Marked Absent</div>
-                <div className="text-xl font-black text-rose-950 mt-0.5">{absentCount}</div>
-                <div className="text-[9px] text-rose-700 font-bold">
+              <div className="p-2 sm:p-2.5 bg-rose-50 border border-rose-200 rounded-xl text-center">
+                <div className="text-[9px] font-black uppercase text-rose-800">Marked Absent</div>
+                <div className="text-lg sm:text-xl font-black text-rose-950 mt-0.5">{absentCount}</div>
+                <div className="text-[8px] text-rose-700 font-bold">
                   {totalApplicants > 0 ? Math.round((absentCount / totalApplicants) * 100) : 0}% Non-attended
                 </div>
               </div>
 
-              <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-center">
-                <div className="text-[10px] font-black uppercase text-amber-800">Pending Review</div>
-                <div className="text-xl font-black text-amber-950 mt-0.5">{pendingCount}</div>
-                <div className="text-[9px] text-amber-700 font-bold">In-Progress</div>
+              <div className="p-2 sm:p-2.5 bg-amber-50 border border-amber-200 rounded-xl text-center">
+                <div className="text-[9px] font-black uppercase text-amber-800">Pending Review</div>
+                <div className="text-lg sm:text-xl font-black text-amber-950 mt-0.5">{pendingCount}</div>
+                <div className="text-[8px] text-amber-700 font-bold">In-Progress</div>
               </div>
 
-              <div className="p-3 bg-indigo-50 border border-indigo-200 rounded-xl text-center col-span-2 sm:col-span-1">
-                <div className="text-[10px] font-black uppercase text-indigo-800">Avg NLP Match</div>
-                <div className="text-xl font-black text-indigo-950 mt-0.5">{avgMatchScore}%</div>
-                <div className="text-[9px] text-indigo-700 font-bold">Candidate Quality</div>
+              <div className="p-2 sm:p-2.5 bg-indigo-50 border border-indigo-200 rounded-xl text-center col-span-2 sm:col-span-1">
+                <div className="text-[9px] font-black uppercase text-indigo-800">Avg NLP Match</div>
+                <div className="text-lg sm:text-xl font-black text-indigo-950 mt-0.5">{avgMatchScore}%</div>
+                <div className="text-[8px] text-indigo-700 font-bold">Candidate Quality</div>
               </div>
             </div>
           </div>
 
           {/* Student Candidate Roster Table */}
-          <div className="space-y-2">
-            <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center justify-between">
+          <div className="space-y-1.5">
+            <h3 className="text-[11px] sm:text-xs font-black text-slate-900 uppercase tracking-wider flex items-center justify-between">
               <span className="flex items-center gap-1.5">
-                <Users className="w-4 h-4 text-blue-900" />
+                <Users className="w-3.5 h-3.5 text-blue-900 shrink-0" />
                 <span>Candidate Roster & Attendance Register ({totalApplicants} Students)</span>
               </span>
-              <span className="text-[10px] font-bold text-slate-500">
+              <span className="text-[9px] font-bold text-slate-500">
                 Official Roster for GSFC Placement Archives
               </span>
             </h3>
 
             <div className="border border-slate-300 rounded-xl overflow-hidden">
-              <table className="w-full text-left border-collapse text-[11px]">
+              <table className="w-full text-left border-collapse text-[10px] sm:text-[11px] print:text-[9.5px]">
                 <thead>
-                  <tr className="bg-slate-100 text-slate-800 border-b border-slate-300 text-[10px] uppercase font-black">
-                    <th className="py-2.5 px-3 w-10 text-center">S.No</th>
-                    <th className="py-2.5 px-3">Student Name</th>
-                    <th className="py-2.5 px-3">Roll No</th>
-                    <th className="py-2.5 px-3">Program & Branch</th>
-                    <th className="py-2.5 px-3 text-center">CGPA</th>
-                    <th className="py-2.5 px-3 text-center">NLP Match</th>
-                    <th className="py-2.5 px-3 text-center">Attendance</th>
-                    <th className="py-2.5 px-3 text-center">Status</th>
+                  <tr className="bg-slate-100 text-slate-800 border-b border-slate-300 text-[9px] uppercase font-black">
+                    <th className="py-1.5 px-2.5 w-8 text-center">S.No</th>
+                    <th className="py-1.5 px-2.5">Student Name</th>
+                    <th className="py-1.5 px-2.5">Roll No</th>
+                    <th className="py-1.5 px-2.5">Program & Branch</th>
+                    <th className="py-1.5 px-2 text-center">CGPA</th>
+                    <th className="py-1.5 px-2 text-center">NLP Match</th>
+                    <th className="py-1.5 px-2.5 text-center">Attendance</th>
+                    <th className="py-1.5 px-2.5 text-center">Status</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200">
                   {applicants.length === 0 ? (
                     <tr>
-                      <td colSpan="8" className="py-8 text-center text-slate-500 font-bold text-xs">
+                      <td colSpan="8" className="py-6 text-center text-slate-500 font-bold text-xs">
                         No candidate applications recorded for this placement drive yet.
                       </td>
                     </tr>
@@ -289,21 +297,21 @@ export default function CompanyAttendanceReportModal({ isOpen, onClose, requirem
                       const att = app.attendance_status || 'pending';
                       return (
                         <tr key={app.application_id || idx} className="hover:bg-slate-50">
-                          <td className="py-2.5 px-3 text-center font-bold text-slate-600">{idx + 1}</td>
-                          <td className="py-2.5 px-3 font-black text-slate-900">
+                          <td className="py-1.5 px-2.5 text-center font-bold text-slate-600">{idx + 1}</td>
+                          <td className="py-1.5 px-2.5 font-black text-slate-900">
                             {app.name || app.candidate_name || 'N/A'}
                           </td>
-                          <td className="py-2.5 px-3 font-mono font-bold text-slate-700">
+                          <td className="py-1.5 px-2.5 font-mono font-bold text-slate-700">
                             {app.roll_number || `GSFC/2026/CSE/${String(idx + 1).padStart(3, '0')}`}
                           </td>
-                          <td className="py-2.5 px-3 font-bold text-slate-800">
+                          <td className="py-1.5 px-2.5 font-bold text-slate-800">
                             {app.program || 'BTech CSE'}
                           </td>
-                          <td className="py-2.5 px-3 text-center font-black text-slate-900">
+                          <td className="py-1.5 px-2 text-center font-black text-slate-900">
                             {app.cgpa || 8.0}
                           </td>
-                          <td className="py-2.5 px-3 text-center font-black">
-                            <span className={`px-2 py-0.5 rounded text-[10px] font-black ${
+                          <td className="py-1.5 px-2 text-center font-black">
+                            <span className={`px-1.5 py-0.5 rounded text-[9px] font-black inline-block ${
                               (app.matchScore || app.match_score) >= 80 
                                 ? 'bg-emerald-100 text-emerald-900' 
                                 : 'bg-blue-100 text-blue-900'
@@ -311,22 +319,22 @@ export default function CompanyAttendanceReportModal({ isOpen, onClose, requirem
                               {app.matchScore || app.match_score || 85}%
                             </span>
                           </td>
-                          <td className="py-2.5 px-3 text-center font-black">
+                          <td className="py-1.5 px-2.5 text-center font-black">
                             {att === 'present' ? (
-                              <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 border border-emerald-300 rounded font-black text-[10px] inline-flex items-center gap-1">
-                                <CheckCircle className="w-3 h-3 text-emerald-600" /> PRESENT
+                              <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 border border-emerald-300 rounded font-black text-[9px] inline-flex items-center gap-1">
+                                <CheckCircle className="w-2.5 h-2.5 text-emerald-600 shrink-0" /> PRESENT
                               </span>
                             ) : att === 'absent' ? (
-                              <span className="px-2 py-0.5 bg-rose-100 text-rose-800 border border-rose-300 rounded font-black text-[10px] inline-flex items-center gap-1">
-                                <XCircle className="w-3 h-3 text-rose-600" /> ABSENT
+                              <span className="px-2 py-0.5 bg-rose-100 text-rose-800 border border-rose-300 rounded font-black text-[9px] inline-flex items-center gap-1">
+                                <XCircle className="w-2.5 h-2.5 text-rose-600 shrink-0" /> ABSENT
                               </span>
                             ) : (
-                              <span className="px-2 py-0.5 bg-amber-100 text-amber-800 border border-amber-300 rounded font-black text-[10px] inline-flex items-center gap-1">
-                                <Clock className="w-3 h-3 text-amber-600" /> PENDING
+                              <span className="px-2 py-0.5 bg-amber-100 text-amber-800 border border-amber-300 rounded font-black text-[9px] inline-flex items-center gap-1">
+                                <Clock className="w-2.5 h-2.5 text-amber-600 shrink-0" /> PENDING
                               </span>
                             )}
                           </td>
-                          <td className="py-2.5 px-3 text-center font-black uppercase text-[10px]">
+                          <td className="py-1.5 px-2.5 text-center font-black uppercase text-[9px]">
                             <span className="text-slate-800 font-black">{app.status || 'applied'}</span>
                           </td>
                         </tr>
@@ -339,31 +347,31 @@ export default function CompanyAttendanceReportModal({ isOpen, onClose, requirem
           </div>
 
           {/* Official TPC Verification & Sign-off Section */}
-          <div className="pt-6 border-t-2 border-slate-300 grid grid-cols-2 gap-8 text-xs">
-            <div className="space-y-8">
+          <div className="pt-4 sm:pt-5 border-t-2 border-slate-300 grid grid-cols-2 gap-6 text-xs print-keep-together">
+            <div className="space-y-6">
               <div>
-                <div className="text-[10px] font-black uppercase text-slate-500">Corporate Recruiter Sign-off</div>
-                <div className="font-black text-slate-900 mt-1">{companyName} Talent Acquisition Team</div>
+                <div className="text-[9px] font-black uppercase text-slate-500">Corporate Recruiter Sign-off</div>
+                <div className="font-black text-slate-900 mt-0.5 text-xs">{companyName} Talent Acquisition Team</div>
               </div>
-              <div className="border-t border-slate-400 pt-1 text-[10px] text-slate-500 font-bold">
+              <div className="border-t border-slate-400 pt-1 text-[9px] text-slate-500 font-bold">
                 Authorized Recruiter Signature & Date
               </div>
             </div>
 
-            <div className="space-y-8 text-right">
+            <div className="space-y-6 text-right">
               <div>
-                <div className="text-[10px] font-black uppercase text-slate-500">University Verification</div>
-                <div className="font-black text-blue-900 mt-1">Head — Training & Placement Cell (TPC)</div>
-                <div className="text-[10px] text-slate-600 font-bold">GSFC University, Vadodara</div>
+                <div className="text-[9px] font-black uppercase text-slate-500">University Verification</div>
+                <div className="font-black text-blue-900 mt-0.5 text-xs">Head — Training & Placement Cell (TPC)</div>
+                <div className="text-[9px] text-slate-600 font-bold">GSFC University, Vadodara</div>
               </div>
-              <div className="border-t border-slate-400 pt-1 text-[10px] text-slate-500 font-bold">
+              <div className="border-t border-slate-400 pt-1 text-[9px] text-slate-500 font-bold">
                 TPC Faculty Coordinator Signature & University Seal
               </div>
             </div>
           </div>
 
           {/* Footer Accreditation Notice */}
-          <div className="text-center pt-2 text-[9px] text-slate-500 font-bold border-t border-slate-200">
+          <div className="text-center pt-2 text-[8.5px] text-slate-500 font-bold border-t border-slate-200 print-keep-together">
             Official Placement Record generated by GSFC University Placement Portal • Verified by AI Evaluation Core • Confidential Document
           </div>
         </div>
