@@ -240,150 +240,206 @@ router.put('/requirements/:id', (req, res) => {
   }
 });
 
+// Toggle Accepting Applications on a Requirement (Stop / Reopen)
+router.all('/requirements/:id/toggle-applications', (req, res) => {
+  try {
+    const { id } = req.params;
+    const reqItem = db.prepare('SELECT * FROM requirements WHERE id = ?').get(id);
+    if (!reqItem) {
+      return res.status(404).json({ error: 'Requirement drive not found.' });
+    }
+
+    const currentOpen = reqItem.applications_open !== undefined ? reqItem.applications_open : 1;
+    const newStatus = currentOpen === 1 ? 0 : 1;
+
+    db.prepare('UPDATE requirements SET applications_open = ? WHERE id = ?').run(newStatus, id);
+
+    const updated = db.prepare('SELECT * FROM requirements WHERE id = ?').get(id);
+    res.json({
+      message: newStatus === 1 ? 'Applications reopened successfully!' : 'Applications closed successfully! Students can no longer apply.',
+      requirement: updated,
+      applications_open: newStatus
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Update Candidate Attendance Status (Present / Absent / Pending)
+router.all('/applications/:id/attendance', (req, res) => {
+  try {
+    const { id } = req.params;
+    const { attendance_status } = req.body || req.query;
+
+    if (!attendance_status || !['present', 'absent', 'pending'].includes(attendance_status)) {
+      return res.status(400).json({ error: "Invalid attendance_status. Must be 'present', 'absent', or 'pending'." });
+    }
+
+    const app = db.prepare('SELECT * FROM applications WHERE id = ?').get(id);
+    if (!app) {
+      return res.status(404).json({ error: 'Application record not found.' });
+    }
+
+    db.prepare('UPDATE applications SET attendance_status = ? WHERE id = ?').run(attendance_status, id);
+
+    res.json({
+      message: `Attendance marked as '${attendance_status}' successfully!`,
+      application_id: id,
+      attendance_status
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // View Ranked Shortlist of Applicants for a Requirement
 router.get('/requirements/:id/applicants', (req, res) => {
   try {
     const { id } = req.params;
-        const requirement = db.prepare('SELECT * FROM requirements WHERE id = ?').get(id);
-        if (!requirement) {
-          return res.status(404).json({ error: 'Requirement not found.' });
-        }
+    const requirement = db.prepare('SELECT * FROM requirements WHERE id = ?').get(id);
+    if (!requirement) {
+      return res.status(404).json({ error: 'Requirement not found.' });
+    }
 
-        const apps = db.prepare(`
-      SELECT a.id as application_id, a.match_score, a.status, a.applied_at,
-             s.id as student_id, s.name, s.program, s.branch, s.cgpa, s.resume_url, 
+    const apps = db.prepare(`
+      SELECT a.id as application_id, a.match_score, a.status, a.applied_at, a.applied_via,
+             COALESCE(a.attendance_status, 'pending') as attendance_status,
+             s.id as student_id, s.name, s.roll_number, s.program, s.branch, s.cgpa, s.resume_url, 
              s.parsed_resume_json, s.ats_score
       FROM applications a
       JOIN student_profiles s ON a.student_id = s.id
       WHERE a.requirement_id = ?
     `).all(id);
 
-        // Compute live match score & parsed skill summaries
-        const rankedApplicants = apps.map(app => {
-          let parsedData = {};
-          try { parsedData = JSON.parse(app.parsed_resume_json || '{}'); } catch (e) { }
+    // Compute live match score & parsed skill summaries
+    const rankedApplicants = apps.map(app => {
+      let parsedData = {};
+      try { parsedData = JSON.parse(app.parsed_resume_json || '{}'); } catch (e) { }
 
-          const matchRes = calculateMatchScore(
-            { program: app.program, cgpa: app.cgpa, name: app.name, parsed_resume_json: parsedData },
-            requirement
-          );
+      const matchRes = calculateMatchScore(
+        { program: app.program, cgpa: app.cgpa, name: app.name, parsed_resume_json: parsedData },
+        requirement
+      );
 
-          return {
-            ...app,
-            matchScore: matchRes.matchScore,
-            eligible: matchRes.eligible,
-            reason: matchRes.reason,
-            skillsSummary: parsedData.skills?.technical || [],
-            parsedResume: parsedData
-          };
-        }).sort((a, b) => b.matchScore - a.matchScore); // Ranked highest first!
+      return {
+        ...app,
+        matchScore: app.match_score || matchRes.matchScore,
+        eligible: matchRes.eligible,
+        reason: matchRes.reason,
+        skillsSummary: parsedData.skills?.technical || [],
+        parsedResume: parsedData
+      };
+    }).sort((a, b) => b.matchScore - a.matchScore); // Ranked highest first!
 
-        res.json({
-          requirement,
-          totalApplicants: rankedApplicants.length,
-          applicants: rankedApplicants
-        });
-      } catch (err) {
-        res.status(500).json({ error: err.message });
-      }
+    res.json({
+      requirement,
+      totalApplicants: rankedApplicants.length,
+      applicants: rankedApplicants
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Get All Master Applied Candidates for a Company (Across all hiring requirements)
+router.get('/all-applicants', (req, res) => {
+  try {
+    const { companyId } = req.query;
+    if (!companyId) {
+      return res.status(400).json({ error: 'companyId is required.' });
+    }
+
+    const rawApps = db.prepare(`
+      SELECT a.id as application_id, a.match_score, a.status, a.applied_at, a.applied_via,
+             COALESCE(a.attendance_status, 'pending') as attendance_status,
+             r.id as requirement_id, r.title as job_title, r.ctc_range, r.job_type, 
+             r.eligible_programs_json, r.min_cgpa, r.required_skills_json, r.preferred_skills_json, 
+             r.job_description, r.applications_open,
+             s.id as student_id, s.name as candidate_name, s.roll_number, s.program, s.branch, s.cgpa, 
+             s.resume_url, s.parsed_resume_json, s.ats_score, u.email as candidate_email
+      FROM applications a
+      JOIN requirements r ON a.requirement_id = r.id
+      JOIN student_profiles s ON a.student_id = s.id
+      JOIN users u ON s.user_id = u.id
+      WHERE r.company_id = ?
+      ORDER BY a.applied_at DESC
+    `).all(companyId);
+
+    const mappedApps = rawApps.map(app => {
+      const requirement = {
+        title: app.job_title,
+        eligible_programs_json: app.eligible_programs_json,
+        min_cgpa: app.min_cgpa,
+        required_skills_json: app.required_skills_json,
+        preferred_skills_json: app.preferred_skills_json,
+        job_description: app.job_description
+      };
+
+      const student = {
+        name: app.candidate_name,
+        program: app.program,
+        branch: app.branch,
+        cgpa: app.cgpa,
+        parsed_resume_json: app.parsed_resume_json
+      };
+
+      const matchRes = calculateMatchScore(student, requirement);
+
+      return {
+        ...app,
+        matchScore: app.match_score || matchRes.matchScore,
+        eligible: matchRes.eligible,
+        matchedSkills: matchRes.matchedSkills,
+        missingSkills: matchRes.missingSkills,
+        strengthSummary: matchRes.strengthSummary,
+        improvementTips: matchRes.improvementTips
+      };
     });
 
-    // Get All Master Applied Candidates for a Company (Across all hiring requirements)
-    router.get('/all-applicants', (req, res) => {
-      try {
-        const { companyId } = req.query;
-        if (!companyId) {
-          return res.status(400).json({ error: 'companyId is required.' });
-        }
+    res.json(mappedApps);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
-        const rawApps = db.prepare(`
-          SELECT a.id as application_id, a.match_score, a.status, a.applied_at, a.applied_via,
-                 r.id as requirement_id, r.title as job_title, r.ctc_range, r.job_type, r.eligible_programs_json, r.min_cgpa, r.required_skills_json, r.preferred_skills_json, r.job_description,
-                 s.id as student_id, s.name as candidate_name, s.program, s.branch, s.cgpa, 
-                 s.resume_url, s.parsed_resume_json, s.ats_score, u.email as candidate_email
-          FROM applications a
-          JOIN requirements r ON a.requirement_id = r.id
-          JOIN student_profiles s ON a.student_id = s.id
-          JOIN users u ON s.user_id = u.id
-          WHERE r.company_id = ?
-          ORDER BY a.applied_at DESC
-        `).all(companyId);
+// Update Application Status (e.g. 'shortlisted', 'interview', 'selected', 'rejected')
+router.post('/update-application-status', (req, res) => {
+  try {
+    const { application_id, status } = req.body;
+    if (!application_id || !status) {
+      return res.status(400).json({ error: 'application_id and status are required.' });
+    }
 
-        const mappedApps = rawApps.map(app => {
-          const requirement = {
-            title: app.job_title,
-            eligible_programs_json: app.eligible_programs_json,
-            min_cgpa: app.min_cgpa,
-            required_skills_json: app.required_skills_json,
-            preferred_skills_json: app.preferred_skills_json,
-            job_description: app.job_description
-          };
+    db.prepare('UPDATE applications SET status = ? WHERE id = ?').run(status, application_id);
+    res.json({ message: `Application status updated to '${status}' successfully!`, application_id, status });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
-          const student = {
-            name: app.candidate_name,
-            program: app.program,
-            branch: app.branch,
-            cgpa: app.cgpa,
-            parsed_resume_json: app.parsed_resume_json
-          };
+// Delete Requirement Drive
+router.delete('/requirements/:id', (req, res) => {
+  try {
+    const reqId = req.params.id;
+    // Delete associated applications first
+    db.prepare('DELETE FROM applications WHERE requirement_id = ?').run(reqId);
+    // Delete requirement
+    db.prepare('DELETE FROM requirements WHERE id = ?').run(reqId);
+    res.json({ message: 'Placement requirement drive deleted successfully.', id: reqId });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
-          const matchRes = calculateMatchScore(student, requirement);
+// Delete Candidate Application
+router.delete('/applications/:id', (req, res) => {
+  try {
+    const appId = req.params.id;
+    db.prepare('DELETE FROM applications WHERE id = ?').run(appId);
+    res.json({ message: 'Application deleted successfully.', id: appId });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
-          return {
-            ...app,
-            matchScore: app.match_score || matchRes.matchScore,
-            eligible: matchRes.eligible,
-            matchedSkills: matchRes.matchedSkills,
-            missingSkills: matchRes.missingSkills,
-            strengthSummary: matchRes.strengthSummary,
-            improvementTips: matchRes.improvementTips
-          };
-        });
-
-        res.json(mappedApps);
-      } catch (err) {
-        res.status(500).json({ error: err.message });
-      }
-    });
-
-    // Update Application Status (e.g. 'shortlisted', 'interview', 'selected', 'rejected')
-    router.post('/update-application-status', (req, res) => {
-      try {
-        const { application_id, status } = req.body;
-        if (!application_id || !status) {
-          return res.status(400).json({ error: 'application_id and status are required.' });
-        }
-
-        db.prepare('UPDATE applications SET status = ? WHERE id = ?').run(status, application_id);
-        res.json({ message: `Application status updated to '${status}' successfully!`, application_id, status });
-      } catch (err) {
-        res.status(500).json({ error: err.message });
-      }
-    });
-
-    // Delete Requirement Drive
-    router.delete('/requirements/:id', (req, res) => {
-      try {
-        const reqId = req.params.id;
-        // Delete associated applications first
-        db.prepare('DELETE FROM applications WHERE requirement_id = ?').run(reqId);
-        // Delete requirement
-        db.prepare('DELETE FROM requirements WHERE id = ?').run(reqId);
-        res.json({ message: 'Placement requirement drive deleted successfully.', id: reqId });
-      } catch (err) {
-        res.status(500).json({ error: err.message });
-      }
-    });
-
-    // Delete Candidate Application
-    router.delete('/applications/:id', (req, res) => {
-      try {
-        const appId = req.params.id;
-        db.prepare('DELETE FROM applications WHERE id = ?').run(appId);
-        res.json({ message: 'Application deleted successfully.', id: appId });
-      } catch (err) {
-        res.status(500).json({ error: err.message });
-      }
-    });
-
-    export default router;
+export default router;

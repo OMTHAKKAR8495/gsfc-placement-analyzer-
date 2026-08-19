@@ -287,6 +287,12 @@ router.post('/apply', (req, res) => {
       return res.status(404).json({ error: 'Requirement not found.' });
     }
 
+    if (requirement.applications_open === 0) {
+      return res.status(400).json({ 
+        error: 'Applications are closed for this requirement. The recruiter is no longer accepting new submissions.' 
+      });
+    }
+
     const matchRes = calculateMatchScore(student, requirement);
     if (!matchRes.eligible) {
       return res.status(400).json({ 

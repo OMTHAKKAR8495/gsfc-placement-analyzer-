@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Building2, Building, Plus, Users, Sparkles, AlertCircle, ArrowLeft, CheckCircle, ExternalLink, Download, Upload, FileText, Search, Tag, ShieldCheck, Database, Printer, Eye, Briefcase, XCircle, Trash2, Pencil } from 'lucide-react';
+import { Building2, Building, Plus, Users, Sparkles, AlertCircle, ArrowLeft, CheckCircle, ExternalLink, Download, Upload, FileText, Search, Tag, ShieldCheck, Database, Printer, Eye, Briefcase, XCircle, Trash2, Pencil, Clock, Ban, Check, RefreshCw } from 'lucide-react';
 import InterviewQuestionGeneratorModal from './InterviewQuestionGeneratorModal';
 import ReportPDFModal from '../common/ReportPDFModal';
 import CompanyQuestionUploadModal from '../common/CompanyQuestionUploadModal';
+import CompanyAttendanceReportModal from './CompanyAttendanceReportModal';
 import RequirementQuestionBankForm from './RequirementQuestionBankForm';
 import { getCompanyUploadedQuestions, saveCompanyUploadedQuestion, bulkUploadCompanyQuestions, deleteCompanyUploadedQuestion } from '../../utils/companyQuestionStorage';
 
@@ -14,6 +15,13 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
   const [showPostModal, setShowPostModal] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  // Attendance & TPC Official Report State
+  const [attendanceReportModalOpen, setAttendanceReportModalOpen] = useState(false);
+  const [reportTargetReq, setReportTargetReq] = useState(null);
+  const [reportTargetApplicants, setReportTargetApplicants] = useState([]);
+  const [applicantFilterReqId, setApplicantFilterReqId] = useState('ALL');
+  const [applicantFilterAttendance, setApplicantFilterAttendance] = useState('ALL'); // 'ALL', 'present', 'absent', 'pending'
+
   // Auto-open post modal when triggered from Navbar or Homepage
   useEffect(() => {
     if (openPostModalSignal) {
@@ -22,7 +30,7 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
     }
   }, [openPostModalSignal]);
 
-  // Recrit uiter Authentication Lock Screen State
+  // Recruiter Authentication Lock Screen State
   const [recruiterEmail, setRecruiterEmail] = useState('');
   const [recruiterPassword, setRecruiterPassword] = useState('');
   const [loggingIn, setLoggingIn] = useState(false);
@@ -40,6 +48,107 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
   const [uploadQuestionsModalOpen, setUploadQuestionsModalOpen] = useState(false);
   const [uploadedCompanyQuestions, setUploadedCompanyQuestions] = useState(() => getCompanyUploadedQuestions());
   const [selectedCandidate, setSelectedCandidate] = useState(null);
+
+  // Toggle Accepting Applications on a Placement Drive (Stop / Reopen)
+  const handleToggleApplications = async (reqId) => {
+    try {
+      const res = await fetch(`/api/company/requirements/${reqId}/toggle-applications`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setRequirements(prev => prev.map(r => r.id === reqId ? { ...r, applications_open: data.applications_open } : r));
+        if (activeReqApplicants && activeReqApplicants.id === reqId) {
+          setActiveReqApplicants(prev => ({ ...prev, applications_open: data.applications_open }));
+        }
+        alert(data.message || 'Application acceptance status updated.');
+      } else {
+        alert(data.error || 'Failed to update application status');
+      }
+    } catch (err) {
+      console.error('Error toggling applications:', err);
+      alert('Error updating application status: ' + err.message);
+    }
+  };
+
+  // Mark Candidate Attendance Status (Present / Absent / Pending)
+  const handleMarkAttendance = async (appId, status) => {
+    try {
+      const res = await fetch(`/api/company/applications/${appId}/attendance`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ attendance_status: status })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setAllCompanyApplicants(prev => prev.map(a => a.application_id === appId ? { ...a, attendance_status: status } : a));
+        if (applicantsData) {
+          setApplicantsData(prev => prev.map(a => a.application_id === appId ? { ...a, attendance_status: status } : a));
+        }
+      } else {
+        alert(data.error || 'Failed to update attendance status');
+      }
+    } catch (err) {
+      console.error('Error marking attendance:', err);
+    }
+  };
+
+  // Open Official TPC PDF Attendance Report
+  const handleOpenAttendanceReportModal = (reqInfo, appsList) => {
+    setReportTargetReq(reqInfo);
+    setReportTargetApplicants(appsList);
+    setAttendanceReportModalOpen(true);
+  };
+
+  // Quick Direct CSV Download
+  const handleDownloadApplicantsCSV = (reqInfo, appsList) => {
+    const compName = reqInfo?.company_name || company?.company_name || 'GSFC Recruiter';
+    const jobTitle = reqInfo?.title || 'All Placement Drives';
+    const currentDate = new Date().toISOString().split('T')[0];
+
+    const headers = [
+      'S.No',
+      'Student Name',
+      'Roll Number',
+      'Program / Branch',
+      'CGPA',
+      'ATS Score',
+      'NLP Match Score %',
+      'Attendance Status',
+      'Application Status',
+      'Applied Via',
+      'Company Name',
+      'Job Title',
+      'Applied Date'
+    ];
+
+    const rows = appsList.map((app, idx) => [
+      idx + 1,
+      `"${app.name || app.candidate_name || 'N/A'}"`,
+      `"${app.roll_number || 'GSFC/2026/CSE/' + String(idx + 1).padStart(3, '0')}"`,
+      `"${app.program || 'BTech CSE'}"`,
+      app.cgpa || 8.0,
+      app.ats_score || 90,
+      app.matchScore || app.match_score || 85,
+      (app.attendance_status || 'pending').toUpperCase(),
+      (app.status || 'applied').toUpperCase(),
+      app.applied_via === 'external' ? 'External' : 'Internal CampusHire AI',
+      `"${compName}"`,
+      `"${app.job_title || jobTitle}"`,
+      app.applied_at ? String(app.applied_at).split('T')[0] : currentDate
+    ]);
+
+    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    const sanitizedTitle = (jobTitle || 'Drive').replace(/[^a-zA-Z0-9]/g, '_');
+    link.setAttribute('download', `GSFC_TPC_Attendance_Report_${sanitizedTitle}_${currentDate}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   const handleDeleteRequirement = async (reqId) => {
     if (!window.confirm('Are you sure you want to delete this hiring requirement drive and all associated candidate applications?')) return;
@@ -570,7 +679,18 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
                       />
                       <div>
                         <h4 className="font-black text-base text-slate-900">{req.title}</h4>
-                        <div className="text-xs text-blue-900 font-black mt-0.5">{req.job_type} • CTC: {req.ctc_range}</div>
+                        <div className="flex flex-wrap items-center gap-2 mt-0.5">
+                          <span className="text-xs text-blue-900 font-black">{req.job_type} • CTC: {req.ctc_range}</span>
+                          {req.applications_open === 0 ? (
+                            <span className="px-2 py-0.5 bg-rose-100 text-rose-800 border border-rose-300 text-[10px] font-black rounded-md flex items-center gap-1 shadow-sm">
+                              <Ban className="w-3 h-3 text-rose-600" /> Applications Closed
+                            </span>
+                          ) : (
+                            <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 border border-emerald-300 text-[10px] font-black rounded-md flex items-center gap-1 shadow-sm">
+                              <Check className="w-3 h-3 text-emerald-600" /> Applications Open
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
                     {company?.approved ? (
@@ -601,10 +721,49 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
 
                   <p className="text-xs text-slate-700 dark:text-slate-300 line-clamp-2 leading-relaxed font-bold">{req.job_description}</p>
 
-                  <div className="pt-2 grid grid-cols-1 sm:grid-cols-3 gap-2 w-full">
+                  {/* RECRUITER DRIVE CONTROLS & ATTENDANCE ACTIONS */}
+                  <div className="pt-2 grid grid-cols-1 sm:grid-cols-2 gap-2 w-full">
+                    {/* Toggle Stop / Reopen Applications */}
+                    <button
+                      onClick={() => handleToggleApplications(req.id)}
+                      className={`w-full py-2.5 px-3 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 shadow-sm transition-all cursor-pointer min-h-[40px] ${
+                        req.applications_open === 0
+                          ? 'bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300'
+                          : 'bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-300'
+                      }`}
+                      title={req.applications_open === 0 ? "Reopen student applications for this drive" : "Stop receiving applications for this drive"}
+                    >
+                      {req.applications_open === 0 ? (
+                        <>
+                          <Check className="w-3.5 h-3.5 text-emerald-600 stroke-[2.5]" />
+                          <span>Reopen Applications</span>
+                        </>
+                      ) : (
+                        <>
+                          <Ban className="w-3.5 h-3.5 text-rose-600 stroke-[2.5]" />
+                          <span>Stop Accepting Applications</span>
+                        </>
+                      )}
+                    </button>
+
+                    {/* Generate & Download TPC Attendance Report */}
+                    <button
+                      onClick={() => {
+                        const driveApps = allCompanyApplicants.filter(a => a.requirement_id === req.id);
+                        handleOpenAttendanceReportModal(req, driveApps.length > 0 ? driveApps : applicantsData);
+                      }}
+                      className="w-full py-2.5 px-3 bg-blue-50 hover:bg-blue-100 text-blue-900 border border-blue-300 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 shadow-sm transition-all cursor-pointer min-h-[40px]"
+                      title="Generate and export official TPC Attendance Report (CSV / PDF)"
+                    >
+                      <FileText className="w-3.5 h-3.5 text-blue-900" />
+                      <span>Download TPC Report</span>
+                    </button>
+                  </div>
+
+                  <div className="pt-1 grid grid-cols-1 sm:grid-cols-3 gap-2 w-full">
                     <button
                       onClick={() => handleOpenEditModal(req)}
-                      className="w-full py-2.5 px-3 bg-amber-500 hover:bg-amber-600 text-slate-950 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 shadow-md transition-all cursor-pointer min-h-[42px]"
+                      className="w-full py-2 px-3 bg-amber-500 hover:bg-amber-600 text-slate-950 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 shadow-md transition-all cursor-pointer min-h-[38px]"
                       title="Edit application parameters"
                     >
                       <Pencil className="w-3.5 h-3.5 shrink-0" />
@@ -613,7 +772,7 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
 
                     <button
                       onClick={() => viewApplicants(req)}
-                      className="w-full py-2.5 px-3 bg-blue-900 hover:bg-blue-800 text-white rounded-xl text-xs font-black flex items-center justify-center gap-1.5 shadow-md transition-all cursor-pointer min-h-[42px]"
+                      className="w-full py-2 px-3 bg-blue-900 hover:bg-blue-800 text-white rounded-xl text-xs font-black flex items-center justify-center gap-1.5 shadow-md transition-all cursor-pointer min-h-[38px]"
                     >
                       <Users className="w-3.5 h-3.5 shrink-0" />
                       <span>Applicants ({req.applicant_count || 0})</span>
@@ -621,7 +780,7 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
 
                     <button
                       onClick={() => handleDeleteRequirement(req.id)}
-                      className="w-full py-2.5 px-3 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-black flex items-center justify-center gap-1.5 shadow-md transition-all cursor-pointer min-h-[42px]"
+                      className="w-full py-2 px-3 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-black flex items-center justify-center gap-1.5 shadow-md transition-all cursor-pointer min-h-[38px]"
                       title="Delete submitted hiring application"
                     >
                       <Trash2 className="w-3.5 h-3.5 shrink-0" />
@@ -704,95 +863,306 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
         </div>
       )}
 
-      {/* VIEW 3: MASTER APPLIED CANDIDATES FEED */}
-      {activeTab === 'applicants' && (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between glass-panel p-4 rounded-2xl border border-slate-200">
-            <h2 className="text-sm font-black text-slate-900 flex items-center gap-2">
-              <Users className="w-4 h-4 text-blue-900" /> Master Candidate Application Entries for {company?.company_name || 'Your Company'}
-            </h2>
-            <div className="text-xs font-black text-emerald-800">
-              Total Submissions: {allCompanyApplicants.length}
+      {/* VIEW 3: MASTER APPLIED CANDIDATES & ATTENDANCE MANAGEMENT FEED */}
+      {activeTab === 'applicants' && (() => {
+        const filteredList = allCompanyApplicants.filter(app => {
+          const matchesReq = applicantFilterReqId === 'ALL' || app.requirement_id === applicantFilterReqId;
+          const att = app.attendance_status || 'pending';
+          const matchesAtt = applicantFilterAttendance === 'ALL' || att === applicantFilterAttendance;
+          return matchesReq && matchesAtt;
+        });
+
+        const totalCnt = allCompanyApplicants.length;
+        const presentCnt = allCompanyApplicants.filter(a => a.attendance_status === 'present').length;
+        const absentCnt = allCompanyApplicants.filter(a => a.attendance_status === 'absent').length;
+        const pendingCnt = allCompanyApplicants.filter(a => !a.attendance_status || a.attendance_status === 'pending').length;
+        const turnoutRate = totalCnt > 0 ? Math.round((presentCnt / totalCnt) * 100) : 0;
+        const selectedReqObj = applicantFilterReqId === 'ALL' ? null : requirements.find(r => r.id === applicantFilterReqId);
+
+        return (
+          <div className="space-y-5">
+            {/* Header & Controls Panel */}
+            <div className="glass-panel p-5 sm:p-6 rounded-3xl border border-slate-200 shadow-xl space-y-4">
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-slate-200">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-2xl bg-blue-900 text-amber-300 flex items-center justify-center font-black shadow-md shrink-0">
+                    <Users className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h2 className="text-base font-black text-slate-900 flex items-center gap-2 flex-wrap">
+                      <span>Candidate Applications & Attendance Register</span>
+                      <span className="px-2.5 py-0.5 bg-emerald-100 text-emerald-800 border border-emerald-300 rounded-full text-[10px] font-black uppercase">
+                        TPC Attendance Tracking
+                      </span>
+                    </h2>
+                    <p className="text-xs text-slate-600 font-bold">
+                      Manage registered student candidates, record interview attendance (Present/Absent), and generate official TPC placement reports.
+                    </p>
+                  </div>
+                </div>
+
+                {/* DUAL REPORT EXPORT BUTTONS */}
+                <div className="flex items-center gap-2 flex-wrap">
+                  <button
+                    onClick={() => handleDownloadApplicantsCSV(selectedReqObj || { title: 'All Corporate Drives' }, filteredList)}
+                    className="py-2.5 px-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-black flex items-center gap-1.5 shadow-md transition-all cursor-pointer"
+                    title="Export filtered student list as CSV"
+                  >
+                    <Download className="w-4 h-4" />
+                    <span>Download CSV ({filteredList.length})</span>
+                  </button>
+
+                  <button
+                    onClick={() => handleOpenAttendanceReportModal(selectedReqObj || { title: 'All Placement Drives Summary' }, filteredList)}
+                    className="py-2.5 px-4 bg-gradient-to-r from-blue-900 via-indigo-900 to-amber-600 hover:from-blue-800 hover:to-amber-500 text-white rounded-xl text-xs font-black flex items-center gap-1.5 shadow-md transition-all cursor-pointer hover:scale-105"
+                    title="Generate and print official TPC Placement Drive Attendance Report (PDF)"
+                  >
+                    <Printer className="w-4 h-4 text-amber-300 stroke-[2.5]" />
+                    <span>Download TPC PDF Report</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* FILTER CONTROLS (BY DRIVE & ATTENDANCE STATUS) */}
+              <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 pt-1">
+                {/* Placement Drive Selector Dropdown */}
+                <div className="flex items-center gap-2 flex-1 max-w-md">
+                  <span className="text-xs font-black text-slate-700 whitespace-nowrap">Filter by Drive:</span>
+                  <select
+                    value={applicantFilterReqId}
+                    onChange={(e) => setApplicantFilterReqId(e.target.value)}
+                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-black text-slate-900 focus:outline-none focus:border-blue-900 cursor-pointer shadow-sm"
+                  >
+                    <option value="ALL">🏢 All Placement Drives ({requirements.length})</option>
+                    {requirements.map((r) => (
+                      <option key={r.id} value={r.id}>
+                        {r.title} ({r.applicant_count || 0} applicants) {r.applications_open === 0 ? '• [Closed]' : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Attendance Status Filter Chips */}
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="text-xs font-black text-slate-500 mr-1">Status:</span>
+                  <button
+                    onClick={() => setApplicantFilterAttendance('ALL')}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                      applicantFilterAttendance === 'ALL'
+                        ? 'bg-blue-900 text-white shadow-md'
+                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                    }`}
+                  >
+                    All ({totalCnt})
+                  </button>
+
+                  <button
+                    onClick={() => setApplicantFilterAttendance('present')}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1 ${
+                      applicantFilterAttendance === 'present'
+                        ? 'bg-emerald-600 text-white shadow-md'
+                        : 'bg-emerald-50 text-emerald-800 border border-emerald-200 hover:bg-emerald-100'
+                    }`}
+                  >
+                    <CheckCircle className="w-3.5 h-3.5" />
+                    <span>Present ({presentCnt})</span>
+                  </button>
+
+                  <button
+                    onClick={() => setApplicantFilterAttendance('absent')}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1 ${
+                      applicantFilterAttendance === 'absent'
+                        ? 'bg-rose-600 text-white shadow-md'
+                        : 'bg-rose-50 text-rose-800 border border-rose-200 hover:bg-rose-100'
+                    }`}
+                  >
+                    <XCircle className="w-3.5 h-3.5" />
+                    <span>Absent ({absentCnt})</span>
+                  </button>
+
+                  <button
+                    onClick={() => setApplicantFilterAttendance('pending')}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1 ${
+                      applicantFilterAttendance === 'pending'
+                        ? 'bg-amber-500 text-slate-950 shadow-md'
+                        : 'bg-amber-50 text-amber-900 border border-amber-200 hover:bg-amber-100'
+                    }`}
+                  >
+                    <Clock className="w-3.5 h-3.5" />
+                    <span>Pending ({pendingCnt})</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Executive Attendance Quick Stats Strip */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
+                <div className="p-3 bg-slate-50 border border-slate-200 rounded-2xl">
+                  <div className="text-[10px] font-black uppercase text-slate-500">Total Registered</div>
+                  <div className="text-lg font-black text-slate-900 mt-0.5">{totalCnt} Candidates</div>
+                </div>
+                <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-2xl">
+                  <div className="text-[10px] font-black uppercase text-emerald-700">Present (Turnout)</div>
+                  <div className="text-lg font-black text-emerald-900 mt-0.5">{presentCnt} ({turnoutRate}%)</div>
+                </div>
+                <div className="p-3 bg-rose-50 border border-rose-200 rounded-2xl">
+                  <div className="text-[10px] font-black uppercase text-rose-700">Marked Absent</div>
+                  <div className="text-lg font-black text-rose-900 mt-0.5">{absentCnt} Students</div>
+                </div>
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-2xl">
+                  <div className="text-[10px] font-black uppercase text-amber-700">Pending Evaluation</div>
+                  <div className="text-lg font-black text-amber-900 mt-0.5">{pendingCnt} In-Progress</div>
+                </div>
+              </div>
             </div>
-          </div>
 
-          <div className="glass-panel rounded-3xl border border-slate-200/90 overflow-hidden shadow-xl">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse text-xs">
-                <thead>
-                  <tr className="bg-slate-100/90 text-slate-700 border-b border-slate-200 text-[10px] uppercase tracking-wider font-black">
-                    <th className="py-4 px-4 sm:px-5">Candidate Details</th>
-                    <th className="py-4 px-4 sm:px-5">Applied Position</th>
-                    <th className="py-4 px-4 sm:px-5">AI Match Score</th>
-                    <th className="py-4 px-4 sm:px-5">Applied Date & Method</th>
-                    <th className="py-4 px-4 sm:px-5">Current Status</th>
-                    <th className="py-4 px-4 sm:px-5 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-200">
-                  {allCompanyApplicants.map((app) => (
-                    <tr key={app.application_id} className="hover:bg-slate-50/80 transition-all">
-                      <td className="py-4 px-4 sm:px-5 font-black text-slate-900">
-                        <div className="text-sm">{app.candidate_name}</div>
-                        <div className="text-[10px] text-slate-500 font-bold">{app.candidate_email} • {app.program} ({app.cgpa} CGPA)</div>
-                      </td>
-
-                      <td className="py-4 px-4 sm:px-5">
-                        <div className="text-slate-900 font-black">{app.job_title}</div>
-                        <div className="text-[11px] text-blue-900 font-bold">{app.ctc_range}</div>
-                      </td>
-
-                      <td className="py-4 px-4 sm:px-5">
-                        <span className="px-3 py-1 bg-blue-50 border border-blue-200 text-blue-900 font-black text-xs rounded-xl">
-                          {app.match_score}% Match
-                        </span>
-                      </td>
-
-                      <td className="py-4 px-4 sm:px-5">
-                        <div className="text-slate-800 font-bold">{app.applied_at ? String(app.applied_at).split('T')[0] : 'Today'}</div>
-                        <span className={`px-2 py-0.5 text-[9px] font-black rounded ${app.applied_via === 'external' ? 'bg-amber-100 text-amber-900' : 'bg-emerald-100 text-emerald-900'}`}>
-                          {app.applied_via === 'external' ? 'Applied Externally' : 'Internal CampusHire AI'}
-                        </span>
-                      </td>
-
-                      <td className="py-4 px-4 sm:px-5">
-                        <select
-                          value={app.status || 'applied'}
-                          onChange={(e) => handleUpdateApplicationStatus(app.application_id, e.target.value)}
-                          className="px-2.5 py-1.5 bg-white border border-slate-300 rounded-xl text-xs font-black text-slate-900 focus:outline-none focus:border-blue-900 cursor-pointer"
-                        >
-                          <option value="applied">Applied</option>
-                          <option value="shortlisted">Shortlisted</option>
-                          <option value="interview">Interview Scheduled</option>
-                          <option value="selected">Selected (Offer)</option>
-                          <option value="rejected">Rejected</option>
-                        </select>
-                      </td>
-
-                      <td className="py-4 px-4 sm:px-5 text-right space-x-2">
-                        <button
-                          onClick={() => openCandidatePdfReport({ name: app.candidate_name, email: app.candidate_email, ats_score: app.ats_score || 92 })}
-                          className="py-1.5 px-3 bg-blue-900 hover:bg-blue-800 text-white rounded-xl text-xs font-black inline-flex items-center gap-1 transition-all shadow-md"
-                        >
-                          <Printer className="w-3.5 h-3.5 text-amber-300" /> PDF Report
-                        </button>
-
-                        <button
-                          onClick={() => handleDeleteApplication(app.application_id)}
-                          className="py-1.5 px-3 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-black inline-flex items-center gap-1 transition-all shadow-md"
-                          title="Delete candidate application entry"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" /> Delete
-                        </button>
-                      </td>
+            {/* CANDIDATE APPLICANTS TABLE WITH ATTENDANCE MARKING */}
+            <div className="glass-panel rounded-3xl border border-slate-200/90 overflow-hidden shadow-xl">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="bg-slate-100/90 text-slate-700 border-b border-slate-200 text-[10px] uppercase tracking-wider font-black">
+                      <th className="py-4 px-3 sm:px-4 w-12 text-center">S.No</th>
+                      <th className="py-4 px-4">Candidate Details</th>
+                      <th className="py-4 px-4">Applied Drive</th>
+                      <th className="py-4 px-4">AI Match</th>
+                      <th className="py-4 px-4 text-center">Attendance Marking</th>
+                      <th className="py-4 px-4">Application Status</th>
+                      <th className="py-4 px-4 text-right">Actions</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200">
+                    {filteredList.length === 0 ? (
+                      <tr>
+                        <td colSpan="7" className="py-12 text-center text-slate-500 font-bold">
+                          <Users className="w-10 h-10 mx-auto mb-2 text-slate-400" />
+                          No student candidate applications match the selected drive or attendance filter.
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredList.map((app, idx) => {
+                        const att = app.attendance_status || 'pending';
+                        return (
+                          <tr key={app.application_id} className="hover:bg-slate-50/80 transition-all">
+                            <td className="py-4 px-3 sm:px-4 text-center font-bold text-slate-500">
+                              {idx + 1}
+                            </td>
+
+                            <td className="py-4 px-4 font-black text-slate-900">
+                              <div className="text-sm">{app.candidate_name}</div>
+                              <div className="text-[10px] text-slate-500 font-bold mt-0.5">
+                                <span className="font-mono text-blue-900 font-bold">{app.roll_number || 'GSFC/2026/CSE/' + String(idx + 1).padStart(3, '0')}</span> • {app.program} ({app.cgpa} CGPA)
+                              </div>
+                              <div className="text-[10px] text-slate-400 font-bold">{app.candidate_email}</div>
+                            </td>
+
+                            <td className="py-4 px-4">
+                              <div className="text-slate-900 font-black">{app.job_title}</div>
+                              <div className="text-[11px] text-blue-900 font-bold">{app.ctc_range}</div>
+                              <span className={`px-2 py-0.5 text-[9px] font-black rounded inline-block mt-0.5 ${app.applied_via === 'external' ? 'bg-amber-100 text-amber-900' : 'bg-emerald-100 text-emerald-900'}`}>
+                                {app.applied_via === 'external' ? 'Applied Externally' : 'Internal CampusHire AI'}
+                              </span>
+                            </td>
+
+                            <td className="py-4 px-4">
+                              <span className={`px-3 py-1 text-xs font-black rounded-xl border inline-block ${
+                                (app.match_score || app.matchScore || 0) >= 80
+                                  ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                                  : 'bg-blue-50 text-blue-900 border-blue-200'
+                              }`}>
+                                {app.match_score || app.matchScore || 85}% Match
+                              </span>
+                            </td>
+
+                            {/* INTERACTIVE ATTENDANCE MARKING TOGGLE BUTTONS */}
+                            <td className="py-4 px-4 text-center">
+                              <div className="inline-flex items-center p-1 bg-slate-100 rounded-xl border border-slate-200 gap-1 shadow-inner">
+                                <button
+                                  type="button"
+                                  onClick={() => handleMarkAttendance(app.application_id, 'present')}
+                                  className={`px-2.5 py-1 rounded-lg text-[10px] font-black transition-all cursor-pointer flex items-center gap-1 ${
+                                    att === 'present'
+                                      ? 'bg-emerald-600 text-white shadow-md scale-105'
+                                      : 'text-slate-600 hover:text-emerald-700 hover:bg-emerald-50'
+                                  }`}
+                                  title="Mark student as Present"
+                                >
+                                  <CheckCircle className="w-3 h-3" />
+                                  <span>Present</span>
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => handleMarkAttendance(app.application_id, 'absent')}
+                                  className={`px-2.5 py-1 rounded-lg text-[10px] font-black transition-all cursor-pointer flex items-center gap-1 ${
+                                    att === 'absent'
+                                      ? 'bg-rose-600 text-white shadow-md scale-105'
+                                      : 'text-slate-600 hover:text-rose-700 hover:bg-rose-50'
+                                  }`}
+                                  title="Mark student as Absent"
+                                >
+                                  <XCircle className="w-3 h-3" />
+                                  <span>Absent</span>
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => handleMarkAttendance(app.application_id, 'pending')}
+                                  className={`px-2 py-1 rounded-lg text-[10px] font-black transition-all cursor-pointer flex items-center gap-1 ${
+                                    att === 'pending'
+                                      ? 'bg-amber-400 text-slate-950 shadow-md font-black'
+                                      : 'text-slate-500 hover:text-amber-700 hover:bg-amber-50'
+                                  }`}
+                                  title="Reset attendance to Pending"
+                                >
+                                  <Clock className="w-3 h-3" />
+                                  <span>Pending</span>
+                                </button>
+                              </div>
+                            </td>
+
+                            <td className="py-4 px-4">
+                              <select
+                                value={app.status || 'applied'}
+                                onChange={(e) => handleUpdateApplicationStatus(app.application_id, e.target.value)}
+                                className="px-2.5 py-1.5 bg-white border border-slate-300 rounded-xl text-xs font-black text-slate-900 focus:outline-none focus:border-blue-900 cursor-pointer shadow-sm"
+                              >
+                                <option value="applied">Applied</option>
+                                <option value="shortlisted">Shortlisted</option>
+                                <option value="interview">Interview Scheduled</option>
+                                <option value="selected">Selected (Offer)</option>
+                                <option value="rejected">Rejected</option>
+                              </select>
+                            </td>
+
+                            <td className="py-4 px-4 text-right space-x-1.5 whitespace-nowrap">
+                              <button
+                                onClick={() => openCandidatePdfReport({ name: app.candidate_name, email: app.candidate_email, ats_score: app.ats_score || 92 })}
+                                className="py-1.5 px-3 bg-blue-900 hover:bg-blue-800 text-white rounded-xl text-xs font-black inline-flex items-center gap-1 transition-all shadow-md cursor-pointer"
+                                title="View Candidate Placement Report"
+                              >
+                                <Printer className="w-3.5 h-3.5 text-amber-300" />
+                                <span>PDF</span>
+                              </button>
+
+                              <button
+                                onClick={() => handleDeleteApplication(app.application_id)}
+                                className="py-1.5 px-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-300 rounded-xl text-xs font-black inline-flex items-center gap-1 transition-all shadow-sm cursor-pointer"
+                                title="Delete candidate application entry"
+                              >
+                                <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* VIEW 2: ACTIVE REQUIREMENTS GRID */}
       {activeTab === 'requirements' && (
@@ -811,6 +1181,15 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
                       <h3 className="font-black text-base text-slate-900">{req.title}</h3>
                       <div className="flex flex-wrap items-center gap-2 mt-0.5">
                         <span className="text-xs text-blue-900 font-black">{req.job_type} • CTC: {req.ctc_range}</span>
+                        {req.applications_open === 0 ? (
+                          <span className="px-2 py-0.5 bg-rose-100 text-rose-800 border border-rose-300 text-[10px] font-black rounded-md flex items-center gap-1 shadow-sm">
+                            <Ban className="w-3 h-3 text-rose-600" /> Applications Closed
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 border border-emerald-300 text-[10px] font-black rounded-md flex items-center gap-1 shadow-sm">
+                            <Check className="w-3 h-3 text-emerald-600" /> Applications Open
+                          </span>
+                        )}
                         {company?.approved ? (
                           <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 border border-emerald-300 text-[10px] font-black rounded-md flex items-center gap-1">
                             <CheckCircle className="w-3 h-3 text-emerald-600 shrink-0" /> Active Drive
@@ -824,16 +1203,55 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
                     </div>
                   </div>
                   <span className="px-3 py-1 bg-slate-100 border border-slate-200 text-slate-800 text-xs font-black rounded-xl flex items-center gap-1.5 shrink-0">
-                    <Users className="w-3.5 h-3.5 text-blue-900 shrink-0" /> {req.applicant_count} Applicants
+                    <Users className="w-3.5 h-3.5 text-blue-900 shrink-0" /> {req.applicant_count || 0} Applicants
                   </span>
                 </div>
 
                 <p className="text-xs text-slate-700 line-clamp-2 leading-relaxed font-bold">{req.job_description}</p>
 
-                <div className="pt-2 grid grid-cols-1 sm:grid-cols-3 gap-2 w-full">
+                {/* RECRUITER DRIVE CONTROLS & ATTENDANCE ACTIONS */}
+                <div className="pt-2 grid grid-cols-1 sm:grid-cols-2 gap-2 w-full">
+                  {/* Toggle Stop / Reopen Applications */}
+                  <button
+                    onClick={() => handleToggleApplications(req.id)}
+                    className={`w-full py-2 px-3 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 shadow-sm transition-all cursor-pointer min-h-[38px] ${
+                      req.applications_open === 0
+                        ? 'bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300'
+                        : 'bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-300'
+                    }`}
+                    title={req.applications_open === 0 ? "Reopen student applications for this drive" : "Stop receiving applications for this drive"}
+                  >
+                    {req.applications_open === 0 ? (
+                      <>
+                        <Check className="w-3.5 h-3.5 text-emerald-600 stroke-[2.5]" />
+                        <span>Reopen Applications</span>
+                      </>
+                    ) : (
+                      <>
+                        <Ban className="w-3.5 h-3.5 text-rose-600 stroke-[2.5]" />
+                        <span>Stop Accepting Applications</span>
+                      </>
+                    )}
+                  </button>
+
+                  {/* Generate & Download TPC Attendance Report */}
+                  <button
+                    onClick={() => {
+                      const driveApps = allCompanyApplicants.filter(a => a.requirement_id === req.id);
+                      handleOpenAttendanceReportModal(req, driveApps.length > 0 ? driveApps : applicantsData);
+                    }}
+                    className="w-full py-2 px-3 bg-blue-50 hover:bg-blue-100 text-blue-900 border border-blue-300 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 shadow-sm transition-all cursor-pointer min-h-[38px]"
+                    title="Generate and export official TPC Attendance Report (CSV / PDF)"
+                  >
+                    <FileText className="w-3.5 h-3.5 text-blue-900" />
+                    <span>Download TPC Report</span>
+                  </button>
+                </div>
+
+                <div className="pt-1 grid grid-cols-1 sm:grid-cols-3 gap-2 w-full">
                   <button
                     onClick={() => handleOpenEditModal(req)}
-                    className="w-full py-2.5 px-3 bg-amber-500 hover:bg-amber-600 text-slate-950 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 shadow-md transition-all cursor-pointer min-h-[42px]"
+                    className="w-full py-2 px-3 bg-amber-500 hover:bg-amber-600 text-slate-950 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 shadow-md transition-all cursor-pointer min-h-[38px]"
                     title="Edit placement requirement drive details"
                   >
                     <Pencil className="w-3.5 h-3.5 shrink-0" />
@@ -842,7 +1260,7 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
 
                   <button
                     onClick={() => viewApplicants(req)}
-                    className="w-full py-2.5 px-3 bg-blue-900 hover:bg-blue-800 text-white rounded-xl text-xs font-black flex items-center justify-center gap-1.5 shadow-md transition-all cursor-pointer min-h-[42px]"
+                    className="w-full py-2 px-3 bg-blue-900 hover:bg-blue-800 text-white rounded-xl text-xs font-black flex items-center justify-center gap-1.5 shadow-md transition-all cursor-pointer min-h-[38px]"
                   >
                     <Users className="w-3.5 h-3.5 shrink-0" />
                     <span>Applicants ({req.applicant_count || 0})</span>
@@ -850,7 +1268,7 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
 
                   <button
                     onClick={() => handleDeleteRequirement(req.id)}
-                    className="w-full py-2.5 px-3 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-black flex items-center justify-center gap-1.5 shadow-md transition-all cursor-pointer min-h-[42px]"
+                    className="w-full py-2 px-3 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-black flex items-center justify-center gap-1.5 shadow-md transition-all cursor-pointer min-h-[38px]"
                     title="Delete placement requirement drive"
                   >
                     <Trash2 className="w-3.5 h-3.5 shrink-0" />
@@ -864,118 +1282,271 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
       )}
 
       {/* APPLICANTS INSPECTION MODAL FOR SPECIFIC REQUIREMENT DRIVE */}
-      {activeReqApplicants && (
-        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fadeIn overflow-y-auto">
-          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 max-w-4xl w-full shadow-2xl overflow-hidden my-8 text-slate-900 dark:text-slate-100">
+      {activeReqApplicants && (() => {
+        const driveApps = applicantsData;
+        const totalDriveApplicants = driveApps.length;
+        const presentDriveCount = driveApps.filter(a => a.attendance_status === 'present').length;
+        const absentDriveCount = driveApps.filter(a => a.attendance_status === 'absent').length;
+        const pendingDriveCount = driveApps.filter(a => !a.attendance_status || a.attendance_status === 'pending').length;
 
-            {/* Modal Header */}
-            <div className="bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 p-6 text-white flex items-center justify-between">
-              <div>
-                <span className="px-2.5 py-0.5 bg-amber-500/20 text-amber-300 text-[10px] font-black uppercase rounded-lg border border-amber-500/30 flex items-center gap-1 w-fit mb-1">
-                  <Users className="w-3 h-3" /> Candidate Applicants Feed
-                </span>
-                <h2 className="text-xl font-black">{activeReqApplicants.title}</h2>
-                <p className="text-xs text-slate-300 font-bold">{company?.company_name || 'Recruiter'} • {applicantsData.length} Candidates Submitted</p>
+        return (
+          <div className="fixed inset-0 z-[99999] flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-md animate-fadeIn overflow-y-auto">
+            <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 max-w-5xl w-full shadow-2xl overflow-hidden my-6 text-slate-900 dark:text-slate-100">
+
+              {/* Modal Header */}
+              <div className="bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 p-5 sm:p-6 text-white flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap mb-1">
+                    <span className="px-2.5 py-0.5 bg-amber-500/20 text-amber-300 text-[10px] font-black uppercase rounded-lg border border-amber-500/30 flex items-center gap-1">
+                      <Users className="w-3 h-3" /> Candidate Applicants Roster
+                    </span>
+                    {activeReqApplicants.applications_open === 0 ? (
+                      <span className="px-2.5 py-0.5 bg-rose-500/20 text-rose-300 border border-rose-500/40 text-[10px] font-black rounded-lg">
+                        🔒 Applications Closed
+                      </span>
+                    ) : (
+                      <span className="px-2.5 py-0.5 bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[10px] font-black rounded-lg">
+                        🟢 Applications Open
+                      </span>
+                    )}
+                  </div>
+                  <h2 className="text-lg sm:text-xl font-black">{activeReqApplicants.title}</h2>
+                  <p className="text-xs text-slate-300 font-bold">
+                    {company?.company_name || 'Recruiter'} • {totalDriveApplicants} Registered Students • Turnout: {totalDriveApplicants > 0 ? Math.round((presentDriveCount / totalDriveApplicants) * 100) : 0}%
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto justify-end">
+                  {/* Stop / Reopen toggle button inside modal */}
+                  <button
+                    onClick={() => handleToggleApplications(activeReqApplicants.id)}
+                    className={`py-2 px-3 rounded-xl text-xs font-black flex items-center gap-1 shadow-md transition-all cursor-pointer ${
+                      activeReqApplicants.applications_open === 0
+                        ? 'bg-emerald-600 hover:bg-emerald-500 text-white'
+                        : 'bg-rose-600 hover:bg-rose-500 text-white'
+                    }`}
+                  >
+                    {activeReqApplicants.applications_open === 0 ? <Check className="w-3.5 h-3.5" /> : <Ban className="w-3.5 h-3.5" />}
+                    <span>{activeReqApplicants.applications_open === 0 ? 'Reopen Drive' : 'Stop Applications'}</span>
+                  </button>
+
+                  <button
+                    onClick={() => handleDownloadApplicantsCSV(activeReqApplicants, driveApps)}
+                    className="py-2 px-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-black flex items-center gap-1 shadow-md transition-all cursor-pointer"
+                    title="Export CSV"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span>CSV</span>
+                  </button>
+
+                  <button
+                    onClick={() => handleOpenAttendanceReportModal(activeReqApplicants, driveApps)}
+                    className="py-2 px-3 bg-amber-400 hover:bg-amber-300 text-slate-950 rounded-xl text-xs font-black flex items-center gap-1 shadow-md transition-all cursor-pointer"
+                    title="Open official TPC Attendance Report (PDF)"
+                  >
+                    <Printer className="w-3.5 h-3.5" />
+                    <span>TPC Report</span>
+                  </button>
+
+                  <button
+                    onClick={() => setActiveReqApplicants(null)}
+                    className="p-2 bg-white/10 hover:bg-white/20 rounded-xl text-white transition-colors cursor-pointer"
+                  >
+                    <XCircle className="w-5 h-5" />
+                  </button>
+                </div>
               </div>
-              <button
-                onClick={() => setActiveReqApplicants(null)}
-                className="p-2 bg-white/10 hover:bg-white/20 rounded-xl text-white transition-colors cursor-pointer"
-              >
-                <XCircle className="w-5 h-5" />
-              </button>
-            </div>
 
-            {/* Modal Content */}
-            <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
-              {applicantsData.length === 0 ? (
-                <div className="text-center py-12 space-y-2">
-                  <Users className="w-12 h-12 text-slate-400 mx-auto" />
-                  <h3 className="font-black text-sm text-slate-700 dark:text-slate-300">No Applications Submitted Yet</h3>
-                  <p className="text-xs text-slate-500">Students will appear here as soon as they apply to this hiring drive.</p>
+              {/* Attendance Quick Stats Strip */}
+              <div className="grid grid-cols-3 gap-3 p-4 bg-slate-50 dark:bg-slate-800/40 border-b border-slate-200 dark:border-slate-800 text-center">
+                <div className="p-2.5 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 rounded-xl">
+                  <span className="text-[10px] uppercase font-black text-emerald-800 dark:text-emerald-300 block">Marked Present</span>
+                  <span className="text-base font-black text-emerald-900 dark:text-emerald-200">{presentDriveCount} Students</span>
                 </div>
-              ) : (
-                <div className="space-y-3">
-                  {applicantsData.map((app) => (
-                    <div key={app.application_id} className="p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <h4 className="font-black text-sm text-slate-900 dark:text-slate-100">{app.name}</h4>
-                          <span className={`px-2.5 py-0.5 text-[10px] font-black rounded-lg border ${
-                            app.matchScore >= 85
-                              ? 'bg-emerald-100 text-emerald-900 border-emerald-300'
-                              : app.matchScore >= 70
-                              ? 'bg-blue-100 text-blue-900 border-blue-300'
-                              : 'bg-amber-100 text-amber-900 border-amber-300'
-                          }`}>
-                            {app.matchScore !== undefined && app.matchScore !== null ? `${app.matchScore}% NLP Match` : 'Mapped Candidate'}
-                          </span>
-                        </div>
-                        <div className="text-xs text-slate-600 dark:text-slate-400 font-bold mt-0.5">
-                          {app.program} • CGPA: {app.cgpa} • Applied: {app.applied_at ? String(app.applied_at).split('T')[0] : 'Recently'}
-                        </div>
-                        {Array.isArray(app.skillsSummary) && app.skillsSummary.length > 0 && (
-                          <div className="flex flex-wrap gap-1 mt-2">
-                            {app.skillsSummary.slice(0, 5).map(skill => (
-                              <span key={skill} className="px-2 py-0.5 bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-200 text-[10px] font-bold rounded">
-                                {skill}
+                <div className="p-2.5 bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-800 rounded-xl">
+                  <span className="text-[10px] uppercase font-black text-rose-800 dark:text-rose-300 block">Marked Absent</span>
+                  <span className="text-base font-black text-rose-900 dark:text-rose-200">{absentDriveCount} Students</span>
+                </div>
+                <div className="p-2.5 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-xl">
+                  <span className="text-[10px] uppercase font-black text-amber-800 dark:text-amber-300 block">Pending Review</span>
+                  <span className="text-base font-black text-amber-900 dark:text-amber-200">{pendingDriveCount} Students</span>
+                </div>
+              </div>
+
+              {/* Modal Content */}
+              <div className="p-4 sm:p-6 space-y-4 max-h-[60vh] overflow-y-auto">
+                {driveApps.length === 0 ? (
+                  <div className="text-center py-12 space-y-2">
+                    <Users className="w-12 h-12 text-slate-400 mx-auto" />
+                    <h3 className="font-black text-sm text-slate-700 dark:text-slate-300">No Applications Submitted Yet</h3>
+                    <p className="text-xs text-slate-500">Students will appear here as soon as they apply to this hiring drive.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {driveApps.map((app, idx) => {
+                      const att = app.attendance_status || 'pending';
+                      return (
+                        <div key={app.application_id} className="p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                          <div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="w-5 h-5 rounded-full bg-blue-900 text-amber-300 text-[10px] font-black flex items-center justify-center shrink-0">
+                                {idx + 1}
                               </span>
-                            ))}
+                              <h4 className="font-black text-sm text-slate-900 dark:text-slate-100">{app.name}</h4>
+                              <span className={`px-2.5 py-0.5 text-[10px] font-black rounded-lg border ${
+                                (app.matchScore || app.match_score || 0) >= 85
+                                  ? 'bg-emerald-100 text-emerald-900 border-emerald-300'
+                                  : (app.matchScore || app.match_score || 0) >= 70
+                                  ? 'bg-blue-100 text-blue-900 border-blue-300'
+                                  : 'bg-amber-100 text-amber-900 border-amber-300'
+                              }`}>
+                                {app.matchScore !== undefined && app.matchScore !== null ? `${app.matchScore}% NLP Match` : `${app.match_score || 85}% Match`}
+                              </span>
+                            </div>
+
+                            <div className="text-xs text-slate-600 dark:text-slate-400 font-bold mt-1">
+                              <span className="font-mono text-blue-900 dark:text-blue-400 font-bold">{app.roll_number || 'GSFC/2026/CSE/' + String(idx + 1).padStart(3, '0')}</span> • {app.program} • CGPA: {app.cgpa} • Applied: {app.applied_at ? String(app.applied_at).split('T')[0] : 'Recently'}
+                            </div>
+
+                            {Array.isArray(app.skillsSummary) && app.skillsSummary.length > 0 && (
+                              <div className="flex flex-wrap gap-1 mt-2">
+                                {app.skillsSummary.slice(0, 5).map(skill => (
+                                  <span key={skill} className="px-2 py-0.5 bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-200 text-[10px] font-bold rounded">
+                                    {skill}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
                           </div>
-                        )}
-                      </div>
 
-                      <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-end">
-                        <select
-                          value={app.status || 'applied'}
-                          onChange={(e) => handleUpdateApplicationStatus(app.application_id, e.target.value)}
-                          className="px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-black text-slate-900 dark:text-slate-100 focus:outline-none focus:border-blue-900 cursor-pointer"
-                        >
-                          <option value="applied">Applied</option>
-                          <option value="shortlisted">Shortlisted</option>
-                          <option value="interview">Interview Scheduled</option>
-                          <option value="selected">Selected (Offer)</option>
-                          <option value="rejected">Rejected</option>
-                        </select>
+                          <div className="flex flex-wrap items-center gap-2 w-full md:w-auto justify-end">
+                            {/* Attendance Marking Toggle Buttons */}
+                            <div className="inline-flex items-center p-1 bg-white dark:bg-slate-900 rounded-xl border border-slate-300 dark:border-slate-700 gap-1 shadow-inner">
+                              <button
+                                type="button"
+                                onClick={() => handleMarkAttendance(app.application_id, 'present')}
+                                className={`px-2.5 py-1 rounded-lg text-[10px] font-black transition-all cursor-pointer flex items-center gap-1 ${
+                                  att === 'present'
+                                    ? 'bg-emerald-600 text-white shadow-md'
+                                    : 'text-slate-600 hover:text-emerald-700 hover:bg-emerald-50 dark:text-slate-300'
+                                }`}
+                                title="Mark Present"
+                              >
+                                <CheckCircle className="w-3 h-3" />
+                                <span>Present</span>
+                              </button>
 
-                        <button
-                          onClick={() => openCandidatePdfReport({ name: app.name, email: app.email || `${app.name.toLowerCase().replace(/\s+/g, '_')}@student.edu`, ats_score: app.ats_score || 92 })}
-                          className="py-1.5 px-3 bg-blue-900 hover:bg-blue-800 text-white rounded-xl text-xs font-black inline-flex items-center gap-1 transition-all shadow-md"
-                        >
-                          <Printer className="w-3.5 h-3.5 text-amber-300" /> PDF Report
-                        </button>
+                              <button
+                                type="button"
+                                onClick={() => handleMarkAttendance(app.application_id, 'absent')}
+                                className={`px-2.5 py-1 rounded-lg text-[10px] font-black transition-all cursor-pointer flex items-center gap-1 ${
+                                  att === 'absent'
+                                    ? 'bg-rose-600 text-white shadow-md'
+                                    : 'text-slate-600 hover:text-rose-700 hover:bg-rose-50 dark:text-slate-300'
+                                }`}
+                                title="Mark Absent"
+                              >
+                                <XCircle className="w-3 h-3" />
+                                <span>Absent</span>
+                              </button>
 
-                        <button
-                          onClick={() => handleDeleteApplication(app.application_id)}
-                          className="py-1.5 px-3 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-black inline-flex items-center gap-1 transition-all shadow-md"
-                          title="Delete candidate application entry"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" /> Delete
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+                              <button
+                                type="button"
+                                onClick={() => handleMarkAttendance(app.application_id, 'pending')}
+                                className={`px-2.5 py-1 rounded-lg text-[10px] font-black transition-all cursor-pointer flex items-center gap-1 ${
+                                  att === 'pending'
+                                    ? 'bg-amber-400 text-slate-950 shadow-md'
+                                    : 'text-slate-500 hover:text-amber-700 hover:bg-amber-50 dark:text-slate-400'
+                                }`}
+                                title="Reset to Pending"
+                              >
+                                <Clock className="w-3 h-3" />
+                                <span>Pending</span>
+                              </button>
+                            </div>
+
+                            <select
+                              value={app.status || 'applied'}
+                              onChange={(e) => handleUpdateApplicationStatus(app.application_id, e.target.value)}
+                              className="px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-black text-slate-900 dark:text-slate-100 focus:outline-none focus:border-blue-900 cursor-pointer"
+                            >
+                              <option value="applied">Applied</option>
+                              <option value="shortlisted">Shortlisted</option>
+                              <option value="interview">Interview Scheduled</option>
+                              <option value="selected">Selected (Offer)</option>
+                              <option value="rejected">Rejected</option>
+                            </select>
+
+                            <button
+                              onClick={() => openCandidatePdfReport({ name: app.name, email: app.email || `${app.name.toLowerCase().replace(/\s+/g, '_')}@student.edu`, ats_score: app.ats_score || 92 })}
+                              className="py-1.5 px-3 bg-blue-900 hover:bg-blue-800 text-white rounded-xl text-xs font-black inline-flex items-center gap-1 transition-all shadow-md cursor-pointer"
+                              title="View PDF Report"
+                            >
+                              <Printer className="w-3.5 h-3.5 text-amber-300" />
+                              <span>PDF</span>
+                            </button>
+
+                            <button
+                              onClick={() => handleDeleteApplication(app.application_id)}
+                              className="py-1.5 px-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-300 rounded-xl text-xs font-black inline-flex items-center gap-1 transition-all shadow-sm cursor-pointer"
+                              title="Delete candidate application entry"
+                            >
+                              <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Modal Footer */}
+              <div className="bg-slate-100 dark:bg-slate-800/80 p-4 border-t border-slate-200 dark:border-slate-700 flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handleDownloadApplicantsCSV(activeReqApplicants, driveApps)}
+                    className="py-2 px-3.5 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs rounded-xl shadow-md flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span>Download CSV Register</span>
+                  </button>
+
+                  <button
+                    onClick={() => handleOpenAttendanceReportModal(activeReqApplicants, driveApps)}
+                    className="py-2 px-3.5 bg-blue-900 hover:bg-blue-800 text-white font-black text-xs rounded-xl shadow-md flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <Printer className="w-3.5 h-3.5 text-amber-300" />
+                    <span>Download TPC PDF Report</span>
+                  </button>
                 </div>
-              )}
-            </div>
 
-            {/* Modal Footer */}
-            <div className="bg-slate-100 dark:bg-slate-800/80 p-4 border-t border-slate-200 dark:border-slate-700 flex justify-end">
-              <button
-                onClick={() => setActiveReqApplicants(null)}
-                className="px-5 py-2 bg-slate-900 text-white font-black text-xs rounded-xl hover:bg-slate-800 transition-all cursor-pointer"
-              >
-                Close Applicants Feed
-              </button>
+                <button
+                  onClick={() => setActiveReqApplicants(null)}
+                  className="px-5 py-2 bg-slate-900 text-white font-black text-xs rounded-xl hover:bg-slate-800 transition-all cursor-pointer"
+                >
+                  Close Applicants Feed
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
-      {/* PDF REPORT MODAL */}
+      {/* PDF REPORT MODAL (SINGLE CANDIDATE) */}
       <ReportPDFModal
         isOpen={pdfReportModalOpen}
         onClose={() => setPdfReportModalOpen(false)}
         candidateData={selectedCandidateReport}
+      />
+
+      {/* OFFICIAL TPC PLACEMENT DRIVE ATTENDANCE & ASSESSMENT REPORT MODAL */}
+      <CompanyAttendanceReportModal
+        isOpen={attendanceReportModalOpen}
+        onClose={() => setAttendanceReportModalOpen(false)}
+        requirement={reportTargetReq}
+        applicants={reportTargetApplicants}
+        company={company}
       />
 
       {/* RECRUITER COMPANY QUESTION UPLOAD MODAL */}

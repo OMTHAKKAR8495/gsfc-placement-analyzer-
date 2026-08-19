@@ -551,7 +551,14 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
                             }}
                           />
                           <div>
-                            <h3 className="font-black text-sm text-slate-900 group-hover:text-blue-900 transition-colors leading-tight">{req.title}</h3>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <h3 className="font-black text-sm text-slate-900 group-hover:text-blue-900 transition-colors leading-tight">{req.title}</h3>
+                              {req.applications_open === 0 && (
+                                <span className="px-2 py-0.5 bg-rose-100 dark:bg-rose-950/50 border border-rose-300 dark:border-rose-800 text-rose-800 dark:text-rose-300 text-[10px] font-black rounded-lg flex items-center gap-1 shadow-sm">
+                                  🔒 Applications Closed
+                                </span>
+                              )}
+                            </div>
                             <div className="text-xs text-slate-700 font-black mt-0.5">{req.company_name} • {req.job_type}</div>
                           </div>
                         </div>
@@ -620,14 +627,18 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
 
                       <button
                         onClick={() => handleApplyClick(req)}
-                        disabled={!req.eligible}
+                        disabled={!req.eligible || req.applications_open === 0}
                         className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 transition-all shadow-md shrink-0 min-h-[42px] ${
-                          !req.eligible
+                          req.applications_open === 0
+                            ? 'bg-slate-200 text-slate-500 cursor-not-allowed border border-slate-300'
+                            : !req.eligible
                             ? 'bg-slate-200 text-slate-400 cursor-not-allowed border border-slate-300'
-                            : 'bg-gradient-to-r from-blue-900 via-indigo-900 to-amber-600 hover:from-blue-800 hover:to-amber-500 text-white shadow-blue-900/20'
+                            : 'bg-gradient-to-r from-blue-900 via-indigo-900 to-amber-600 hover:from-blue-800 hover:to-amber-500 text-white shadow-blue-900/20 cursor-pointer'
                         }`}
                       >
-                        {req.eligible ? (
+                        {req.applications_open === 0 ? (
+                          <span>🔒 Applications Closed</span>
+                        ) : req.eligible ? (
                           <><span>Apply Now</span> <ArrowRight className="w-3.5 h-3.5 shrink-0" /></>
                         ) : (
                           <span>{req.eligibilityReason || 'Ineligible'}</span>

@@ -58,6 +58,10 @@ function applyMigrations() {
     if (!reqColumns.includes('company_phone')) {
       db.exec("ALTER TABLE requirements ADD COLUMN company_phone TEXT");
     }
+    if (!reqColumns.includes('applications_open')) {
+      db.exec("ALTER TABLE requirements ADD COLUMN applications_open INTEGER DEFAULT 1");
+    }
+    db.exec("UPDATE requirements SET applications_open = 1 WHERE applications_open IS NULL");
 
     const compColumns = db.prepare("PRAGMA table_info(company_profiles)").all().map(c => c.name);
     if (!compColumns.includes('contact_email')) {
@@ -71,6 +75,10 @@ function applyMigrations() {
     if (!appColumns.includes('applied_via')) {
       db.exec("ALTER TABLE applications ADD COLUMN applied_via TEXT CHECK(applied_via IN ('internal', 'external')) DEFAULT 'internal'");
     }
+    if (!appColumns.includes('attendance_status')) {
+      db.exec("ALTER TABLE applications ADD COLUMN attendance_status TEXT DEFAULT 'pending' CHECK(attendance_status IN ('present', 'absent', 'pending'))");
+    }
+    db.exec("UPDATE applications SET attendance_status = 'pending' WHERE attendance_status IS NULL");
 
     const studColumns = db.prepare("PRAGMA table_info(student_profiles)").all().map(c => c.name);
     if (!studColumns.includes('admission_year')) {

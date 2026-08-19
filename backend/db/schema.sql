@@ -53,6 +53,7 @@ CREATE TABLE IF NOT EXISTS requirements (
     external_click_count INTEGER DEFAULT 0,
     question_bank_json TEXT DEFAULT '[]',
     question_bank_status TEXT CHECK(question_bank_status IN ('pending', 'complete')) DEFAULT 'pending',
+    applications_open INTEGER DEFAULT 1, -- 1: Open, 0: Closed
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -62,6 +63,8 @@ CREATE TABLE IF NOT EXISTS applications (
     requirement_id TEXT NOT NULL REFERENCES requirements(id) ON DELETE CASCADE,
     match_score REAL DEFAULT 0.0,
     status TEXT CHECK(status IN ('applied', 'shortlisted', 'interview', 'selected', 'rejected')) DEFAULT 'applied',
+    applied_via TEXT CHECK(applied_via IN ('internal', 'external')) DEFAULT 'internal',
+    attendance_status TEXT DEFAULT 'pending' CHECK(attendance_status IN ('present', 'absent', 'pending')),
     applied_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(student_id, requirement_id)
 );
