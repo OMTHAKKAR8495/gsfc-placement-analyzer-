@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom';
-import { X, Download, Printer, Mail, Send, CheckCircle, AlertCircle, Award, Sparkles, FileText } from 'lucide-react';
+import { X, Download, Printer, Mail, Send, CheckCircle, AlertCircle, Award, Sparkles, FileText, Building2, User, Check, BarChart3 } from 'lucide-react';
 
 export default function ReportPDFModal({ isOpen, onClose, candidateData }) {
   const [showMailInput, setShowMailInput] = useState(false);
@@ -21,20 +21,29 @@ export default function ReportPDFModal({ isOpen, onClose, candidateData }) {
         onClose();
       }
     };
-    window.addEventListener('keydown', handleKeyDown);
+    if (isOpen) {
+      window.addEventListener('keydown', handleKeyDown);
+    }
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, onClose]);
 
   if (!isOpen || !candidateData) return null;
 
-  const candidateName = candidateData.name || 'THAKKAR OM';
-  const email = candidateData.email || 'thakkar_om@gmail.com';
-  const atsScore = candidateData.atsScore || 92;
+  const candidateName = candidateData.name || candidateData.candidate_name || 'Tanvi Joshi';
+  const email = candidateData.email || candidateData.candidate_email || 'tanvi.j@gsfcuniversity.ac.in';
+  const atsScore = candidateData.atsScore || candidateData.ats_score || 92;
   const isPass = atsScore >= 70;
   const skills = candidateData.skills || ['Python', 'React', 'SQL', 'FastAPI', 'Docker', 'Machine Learning'];
+  const currentDate = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+  const currentTime = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
 
   const handlePrint = () => {
-    window.print();
+    window.scrollTo(0, 0);
+    const canvasElem = document.getElementById('printable-evaluation-canvas');
+    if (canvasElem) canvasElem.scrollTop = 0;
+    setTimeout(() => {
+      window.print();
+    }, 80);
   };
 
   const handleSendEmailReport = async (e) => {
@@ -68,206 +77,285 @@ export default function ReportPDFModal({ isOpen, onClose, candidateData }) {
   };
 
   const modalContent = (
-    <div className="fixed inset-0 z-[999999] flex items-start justify-center p-3 sm:p-6 pt-16 sm:pt-20 bg-slate-950/90 backdrop-blur-md animate-fadeIn overflow-y-auto">
-      
-      {/* Print & Action Controls Bar (Hidden during actual PDF print) */}
-      <div className="fixed top-4 right-6 z-[1000000] flex items-center gap-2 print:hidden">
+    <div 
+      className="fixed inset-0 z-[999999] flex items-center justify-center p-2 sm:p-4 bg-slate-950/85 backdrop-blur-md animate-fadeIn overflow-y-auto tpc-print-overlay"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div 
+        className="bg-white rounded-3xl border border-slate-200 max-w-4xl w-full shadow-2xl overflow-hidden my-4 sm:my-8 text-slate-900 tpc-print-card"
+        onClick={(e) => e.stopPropagation()}
+      >
         
-        {/* Direct Email Option Button */}
-        <button
-          onClick={() => setShowMailInput(!showMailInput)}
-          className="py-2.5 px-4 bg-amber-600 hover:bg-amber-500 text-white font-black text-xs rounded-xl shadow-2xl flex items-center gap-1.5 transition-all"
-          title="Send PDF Report directly to Candidate or Recruiter Email"
-        >
-          <Mail className="w-4 h-4" /> Direct Email Report
-        </button>
-
-        {/* Download / Print PDF Button */}
-        <button
-          onClick={handlePrint}
-          className="py-2.5 px-5 bg-gradient-to-r from-blue-900 via-indigo-900 to-amber-600 hover:from-blue-800 hover:to-amber-500 text-white font-black text-xs rounded-xl shadow-2xl flex items-center gap-2 hover:scale-105 transition-transform"
-        >
-          <Download className="w-4 h-4" /> Download PDF Report
-        </button>
-
-        {/* Cut / Close Option (X) with ESC Key Hint */}
-        <button
-          onClick={onClose}
-          className="p-2.5 bg-white text-slate-700 hover:text-rose-600 hover:bg-rose-50 rounded-xl shadow-lg border border-slate-200 transition-colors flex items-center gap-1 font-bold text-xs"
-          title="Close PDF view (Press ESC key to exit)"
-        >
-          <X className="w-5 h-5" />
-          <span className="hidden sm:inline text-[10px] text-slate-400 font-mono">ESC</span>
-        </button>
-      </div>
-
-      {/* Direct Email Modal Popup Overlay */}
-      {showMailInput && (
-        <div className="fixed inset-0 z-[1000005] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 print:hidden">
-          <div className="bg-white rounded-3xl p-6 border border-slate-200 max-w-md w-full shadow-2xl space-y-4 text-slate-900 animate-fadeIn">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="font-black text-sm flex items-center gap-2 text-blue-900">
-                <Mail className="w-4 h-4 text-amber-500" /> Email GSFC Evaluation Report
-              </h3>
-              <button onClick={() => setShowMailInput(false)} className="text-slate-400 hover:text-slate-900">
-                <X className="w-4 h-4" />
-              </button>
+        {/* ACTION BAR (Hidden in print) */}
+        <div className="bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 p-4 sm:p-5 text-white flex flex-wrap items-center justify-between gap-3 print:hidden">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-amber-400 text-slate-950 flex items-center justify-center font-black shadow-md">
+              <Award className="w-5 h-5" />
             </div>
+            <div>
+              <h2 className="text-sm sm:text-base font-black flex items-center gap-2">
+                <span>AI Candidate Resume & Placement Evaluation Report</span>
+                <span className="px-2 py-0.5 bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 rounded-full text-[10px] uppercase font-black">
+                  Official
+                </span>
+              </h2>
+              <p className="text-xs text-slate-300 font-bold">
+                Accredited evaluation dossier for GSFC University Training & Placement Cell
+              </p>
+            </div>
+          </div>
 
-            {mailSentSuccess ? (
-              <div className="p-4 bg-emerald-50 text-emerald-800 rounded-2xl text-xs font-black flex items-center gap-2">
-                <CheckCircle className="w-5 h-5 text-emerald-600 shrink-0" />
-                <span>Report sent successfully to {recipientEmail}!</span>
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              onClick={() => setShowMailInput(!showMailInput)}
+              className="py-2 px-3.5 bg-blue-800 hover:bg-blue-700 text-white rounded-xl text-xs font-black flex items-center gap-1.5 shadow-md transition-all cursor-pointer"
+              title="Email evaluation report to student"
+            >
+              <Mail className="w-3.5 h-3.5" />
+              <span>Email Report</span>
+            </button>
+
+            <button
+              onClick={handlePrint}
+              className="py-2 px-3.5 bg-amber-400 hover:bg-amber-300 text-slate-950 rounded-xl text-xs font-black flex items-center gap-1.5 shadow-md transition-all cursor-pointer hover:scale-105"
+              title="Print or Save as PDF"
+            >
+              <Printer className="w-3.5 h-3.5 stroke-[2.5]" />
+              <span>Print / Save as PDF</span>
+            </button>
+
+            <button
+              onClick={onClose}
+              className="p-2 bg-white/10 hover:bg-white/20 text-white rounded-xl transition-colors cursor-pointer"
+              title="Close modal"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+
+        {/* EMAIL MODAL POPUP */}
+        {showMailInput && (
+          <div className="p-4 bg-slate-50 border-b border-slate-200 print:hidden animate-fadeIn">
+            <div className="max-w-md mx-auto space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-black text-slate-900 flex items-center gap-1.5">
+                  <Mail className="w-4 h-4 text-blue-900" />
+                  <span>Send Evaluation Report to Recruiter / Student Email</span>
+                </span>
+                <button onClick={() => setShowMailInput(false)} className="text-slate-400 hover:text-slate-700">
+                  <X className="w-4 h-4" />
+                </button>
               </div>
-            ) : (
-              <form onSubmit={handleSendEmailReport} className="space-y-3">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Recipient Email Address</label>
+
+              {mailSentSuccess ? (
+                <div className="p-3 bg-emerald-100 border border-emerald-300 text-emerald-900 rounded-xl text-xs font-black flex items-center gap-2">
+                  <CheckCircle className="w-4 h-4 text-emerald-600" />
+                  <span>Report sent successfully to {recipientEmail}!</span>
+                </div>
+              ) : (
+                <form onSubmit={handleSendEmailReport} className="flex gap-2">
                   <input
                     type="email"
                     required
                     value={recipientEmail}
                     onChange={(e) => setRecipientEmail(e.target.value)}
-                    placeholder="e.g. candidate@gsfc.edu or recruiter@tcs.com"
-                    className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:border-blue-900"
+                    placeholder="Enter email address..."
+                    className="flex-1 px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:border-blue-900"
                   />
-                </div>
-
-                <div className="flex justify-end gap-2 pt-2">
-                  <button type="button" onClick={() => setShowMailInput(false)} className="px-4 py-2 bg-slate-100 text-slate-700 rounded-xl text-xs font-bold">
-                    Cancel
-                  </button>
-                  <button type="submit" disabled={sendingMail} className="px-5 py-2 bg-blue-900 text-white rounded-xl text-xs font-black flex items-center gap-1.5 shadow-md">
+                  <button
+                    type="submit"
+                    disabled={sendingMail}
+                    className="py-2 px-4 bg-blue-900 hover:bg-blue-800 text-white rounded-xl text-xs font-black flex items-center gap-1.5 transition-all cursor-pointer"
+                  >
                     <Send className="w-3.5 h-3.5" />
-                    {sendingMail ? 'Sending Email...' : 'Send Mail Now'}
+                    <span>{sendingMail ? 'Sending...' : 'Send'}</span>
                   </button>
+                </form>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* PRINTABLE CANDIDATE EVALUATION DOSSIER (A4 1-Page Format) */}
+        <div 
+          id="printable-evaluation-canvas" 
+          className="p-6 sm:p-8 space-y-4 bg-white font-sans max-h-[82vh] overflow-y-auto tpc-print-body print:p-2 print:space-y-3 print:max-h-none print:overflow-visible"
+        >
+          {/* Official University Header */}
+          <div className="flex items-center justify-between border-b-2 border-blue-900 pb-3 gap-4 print-keep-together">
+            <div className="flex items-center gap-3">
+              <img
+                src="/gsfc-logo-official.png"
+                alt="GSFC University Logo"
+                className="h-12 sm:h-14 w-auto object-contain shrink-0"
+                onError={(e) => {
+                  e.target.onerror = null;
+                  e.target.src = '/gsfc-logo-official.jpg';
+                }}
+              />
+              <div>
+                <div className="text-base sm:text-lg font-black text-blue-900 tracking-tight">GSFC UNIVERSITY</div>
+                <div className="text-[10px] sm:text-[11px] font-black text-slate-700 tracking-wide uppercase">
+                  Training & Placement Cell (TPC) • AI Evaluation Engine
                 </div>
-              </form>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* 1-Page Printable Report Document */}
-      <div id="printable-evaluation-report" className="w-full max-w-3xl bg-white rounded-2xl shadow-2xl overflow-hidden text-slate-900 border border-slate-200 my-8 print:my-0 print:shadow-none print:border-none print:w-full">
-        
-        {/* REPORT HEADER BANNER */}
-        <div className="bg-slate-950 text-white p-6 sm:p-8 space-y-2">
-          <div className="flex items-center justify-between">
-            <h1 className="text-xl sm:text-2xl font-black tracking-tight text-blue-400">
-              GSFC AI - RESUME EVALUATION REPORT
-            </h1>
-            <span className="text-[10px] text-slate-400 font-mono border border-slate-700 px-2 py-0.5 rounded">
-              REF ID: GSFC-AI-{Date.now().toString().slice(-6)}
-            </span>
-          </div>
-          <h2 className="text-base sm:text-lg font-black text-white uppercase tracking-wide">
-            CANDIDATE NAME: {candidateName.toUpperCase()}
-          </h2>
-          <div className="text-xs text-slate-300 font-bold flex flex-wrap gap-4 pt-1 border-t border-slate-800">
-            <span>Email: <strong className="text-white">{email}</strong></span>
-            <span>Title: <strong className="text-white">Software & Tech Professional</strong></span>
-            <span>Date: <strong className="text-white">{new Date().toLocaleDateString('en-GB')}</strong></span>
-          </div>
-        </div>
-
-        {/* REPORT BODY CONTENT */}
-        <div className="p-6 sm:p-8 space-y-6 text-xs font-semibold leading-relaxed">
-          
-          {/* SECTION 1: CANDIDATE METRICS & SKILLS */}
-          <div className="space-y-2 pb-4 border-b border-slate-200">
-            <h3 className="text-sm font-black text-slate-900 uppercase tracking-wider">
-              1. CANDIDATE METRICS & SKILLS
-            </h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-slate-800">
-              <div>• Title: <strong className="text-slate-900 font-black">Software & Tech Professional</strong></div>
-              <div>• Experience Level: <strong className="text-slate-900 font-black">~1 Years</strong></div>
-              <div>• Words Scanned: <strong className="text-slate-900 font-black">879 words</strong></div>
-              <div>• Technical Keywords: <strong className="text-slate-900 font-black">{skills.length} skills extracted</strong></div>
+                <div className="text-[9px] text-slate-500 font-bold">
+                  Vigyan Bhavan, Fertilizernagar, Vadodara, Gujarat 391750
+                </div>
+              </div>
             </div>
-            <div className="pt-1">
-              <span className="text-slate-500 font-bold">• Extracted Skills: </span>
-              <span className="font-black text-blue-900">{skills.join(', ')}</span>
-            </div>
-          </div>
 
-          {/* SECTION 2: ATS SCORE AUDIT */}
-          <div className="space-y-3 pb-4 border-b border-slate-200">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-black text-slate-900 uppercase tracking-wider">
-                2. ATS SCORE AUDIT: <span className="text-blue-900">{atsScore} / 100</span>
-              </h3>
-              <span className={`px-2.5 py-0.5 text-[10px] font-black rounded ${isPass ? 'bg-emerald-100 text-emerald-900' : 'bg-amber-100 text-amber-900'}`}>
-                {isPass ? 'High Fit' : 'Optimization Needed'}
+            <div className="text-right shrink-0">
+              <span className="px-2.5 py-0.5 bg-blue-900 text-white text-[9px] font-black uppercase rounded-md tracking-wider inline-block">
+                Candidate Dossier
               </span>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2 text-slate-800 bg-slate-50 p-3 rounded-xl border border-slate-200">
-              <div>• Technical Keyword Density: <strong className="font-black">88%</strong></div>
-              <div>• Section Formatting & Structure: <strong className="font-black">90%</strong></div>
-              <div>• Action Verbs & Impact Metrics: <strong className="font-black">75%</strong></div>
-              <div>• Contact Completeness: <strong className="font-black">100%</strong></div>
-            </div>
-
-            <div className="space-y-1 text-slate-800">
-              <div><strong className="font-black text-slate-900">Key Strengths:</strong> Includes verified technical keywords, structured education metadata, and clear contact information.</div>
-              <div><strong className="font-black text-slate-900">Action Items:</strong> Include more explicit project impact metrics (e.g. "Reduced API query latency by 35%").</div>
+              <div className="text-xs font-black text-slate-900 mt-0.5">Date: {currentDate}</div>
+              <div className="text-[9px] text-slate-500 font-bold">Generated: {currentTime}</div>
             </div>
           </div>
 
-          {/* SECTION 3: COMPANY JOB MATCH & ELIGIBILITY MATRIX */}
-          <div className="space-y-3 pb-4 border-b border-slate-200">
-            <h3 className="text-sm font-black text-slate-900 uppercase tracking-wider">
-              3. COMPANY JOB MATCH & ELIGIBILITY MATRIX
+          {/* Candidate Profile Highlight Card */}
+          <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3.5 space-y-2 print-keep-together">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-slate-200">
+              <div>
+                <span className="text-[9px] font-black uppercase text-blue-900 tracking-wider">Candidate Profile</span>
+                <h1 className="text-base font-black text-slate-900">{candidateName}</h1>
+                <div className="text-xs text-slate-600 font-bold">{email}</div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <div className="p-2 bg-blue-100 text-blue-950 border border-blue-200 rounded-xl text-center min-w-[90px]">
+                  <div className="text-[8.5px] font-black uppercase text-blue-800">ATS Score</div>
+                  <div className="text-lg font-black text-blue-900">{atsScore}/100</div>
+                </div>
+                <div className={`p-2 rounded-xl border text-center min-w-[90px] ${
+                  isPass ? 'bg-emerald-100 border-emerald-300 text-emerald-950' : 'bg-amber-100 border-amber-300 text-amber-950'
+                }`}>
+                  <div className="text-[8.5px] font-black uppercase">Outcome</div>
+                  <div className="text-xs font-black uppercase mt-1">{isPass ? 'PASS (ELIGIBLE)' : 'UNDER REVIEW'}</div>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+              <div>
+                <span className="text-[9px] text-slate-500 block font-bold uppercase">Program</span>
+                <span className="font-black text-slate-900 text-xs">BTech CSE / Engineering</span>
+              </div>
+              <div>
+                <span className="text-[9px] text-slate-500 block font-bold uppercase">Experience Level</span>
+                <span className="font-black text-slate-900 text-xs">Fresher (~1 Year Exp)</span>
+              </div>
+              <div>
+                <span className="text-[9px] text-slate-500 block font-bold uppercase">Verified Keywords</span>
+                <span className="font-black text-blue-900 text-xs">{skills.length} Technical Skills</span>
+              </div>
+              <div>
+                <span className="text-[9px] text-slate-500 block font-bold uppercase">Placement Status</span>
+                <span className="font-black text-emerald-800 text-xs">Active Candidate</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Section 1: ATS Keyword Density & Verification Breakdown */}
+          <div className="space-y-1.5 print-keep-together">
+            <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
+              <BarChart3 className="w-3.5 h-3.5 text-blue-900" />
+              <span>ATS Keyword & Resume Structure Audit</span>
             </h3>
 
-            {/* Role 1 */}
-            <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-1">
-              <div className="flex justify-between font-black text-xs">
-                <span className="text-blue-900">#1 Software Development Engineer — AI & Cloud (Google Cloud India)</span>
-                <span className="text-emerald-800 font-black">85% Fit</span>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-xs">
+              <div className="p-2 bg-slate-50 border border-slate-200 rounded-xl">
+                <div className="text-[9px] text-slate-500 uppercase font-bold">Keyword Match</div>
+                <div className="text-sm font-black text-slate-900 mt-0.5">88%</div>
               </div>
-              <div className="text-[11px] font-black text-emerald-900 flex items-center gap-1">
-                DECISION: PASS (ELIGIBLE) <span className="text-slate-500 font-normal">| Degree: BTech CSE | Min CGPA: 7.5</span>
+              <div className="p-2 bg-slate-50 border border-slate-200 rounded-xl">
+                <div className="text-[9px] text-slate-500 uppercase font-bold">Section Formats</div>
+                <div className="text-sm font-black text-slate-900 mt-0.5">92%</div>
               </div>
-              <div className="text-[11px] text-slate-700">
-                <span className="font-bold text-slate-900">Matching Skills:</span> Python, React, SQL, Cloud Architecture
+              <div className="p-2 bg-slate-50 border border-slate-200 rounded-xl">
+                <div className="text-[9px] text-slate-500 uppercase font-bold">Action Verbs</div>
+                <div className="text-sm font-black text-slate-900 mt-0.5">85%</div>
+              </div>
+              <div className="p-2 bg-slate-50 border border-slate-200 rounded-xl">
+                <div className="text-[9px] text-slate-500 uppercase font-bold">Contact Validity</div>
+                <div className="text-sm font-black text-emerald-700 mt-0.5">100%</div>
               </div>
             </div>
 
-            {/* Role 2 */}
-            <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-1">
-              <div className="flex justify-between font-black text-xs">
-                <span className="text-blue-900">#2 Graduate Software Engineer (Microsoft Azure)</span>
-                <span className="text-emerald-800 font-black">78% Fit</span>
-              </div>
-              <div className="text-[11px] font-black text-emerald-900 flex items-center gap-1">
-                DECISION: PASS (ELIGIBLE) <span className="text-slate-500 font-normal">| Degree: BTech CSE | Min CGPA: 8.0</span>
-              </div>
-              <div className="text-[11px] text-slate-700">
-                <span className="font-bold text-slate-900">Matching Skills:</span> Node.js, PostgreSQL, Data Structures
+            {/* Extracted Skill Chips */}
+            <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-xl space-y-1">
+              <span className="text-[9px] font-black uppercase text-slate-500 block">Validated Technical Skills:</span>
+              <div className="flex flex-wrap gap-1">
+                {skills.map((sk, idx) => (
+                  <span key={idx} className="px-2 py-0.5 bg-blue-100 text-blue-950 border border-blue-200 rounded text-[9.5px] font-black">
+                    {sk}
+                  </span>
+                ))}
               </div>
             </div>
           </div>
 
-          {/* SECTION 4: FINAL SELECTION RESULT BOX */}
-          <div className="p-5 bg-slate-950 text-white rounded-2xl border border-slate-800 space-y-2">
-            <div className="text-[10px] font-black uppercase tracking-wider text-slate-400">
-              FINAL SELECTION RESULT FOR CANDIDATE: {candidateName.toUpperCase()}
+          {/* Section 2: Placement Drive Compatibility Matrix */}
+          <div className="space-y-1.5 print-keep-together">
+            <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
+              <Building2 className="w-3.5 h-3.5 text-blue-900" />
+              <span>Placement Drive Compatibility Matrix</span>
+            </h3>
+
+            <div className="space-y-1.5">
+              <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between text-xs">
+                <div>
+                  <div className="font-black text-slate-900">#1 Software Development Engineer — AI & Full Stack</div>
+                  <div className="text-[10px] text-slate-600 font-bold">GSFC Placement Partner • CTC: ₹18,00,000 - ₹24,00,000 PA</div>
+                </div>
+                <span className="px-2 py-0.5 bg-emerald-100 text-emerald-900 border border-emerald-300 rounded font-black text-[10px]">
+                  92% Match (High Fit)
+                </span>
+              </div>
+
+              <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between text-xs">
+                <div>
+                  <div className="font-black text-slate-900">#2 Graduate Engineering Trainee — Technical Services</div>
+                  <div className="text-[10px] text-slate-600 font-bold">Industrial Operations • CTC: ₹8,00,000 - ₹12,00,000 PA</div>
+                </div>
+                <span className="px-2 py-0.5 bg-blue-100 text-blue-900 border border-blue-300 rounded font-black text-[10px]">
+                  85% Match (Eligible)
+                </span>
+              </div>
             </div>
-            <div className={`text-base sm:text-lg font-black ${isPass ? 'text-emerald-400' : 'text-amber-400'}`}>
-              FINAL RESULT: {isPass ? 'PASS (ELIGIBLE FOR PLACEMENT ROUNDS)' : 'FAIL (NOT YET ELIGIBLE)'}
-            </div>
-            <p className="text-xs text-slate-300 font-bold leading-relaxed">
-              Summary: Candidate {candidateName} fulfills core foundational academic cutoffs and technical skill matrices. Recommended for corporate placement rounds with targeted on-the-job training.
-            </p>
           </div>
 
-        </div>
+          {/* Section 3: Official Verification & Sign-off */}
+          <div className="pt-3 border-t-2 border-slate-300 grid grid-cols-2 gap-6 text-xs print-keep-together">
+            <div className="space-y-4">
+              <div>
+                <div className="text-[9px] font-black uppercase text-slate-500">Corporate Recruiter Evaluation</div>
+                <div className="font-black text-slate-900 mt-0.5 text-xs">Authorized Talent Acquisition Lead</div>
+              </div>
+              <div className="border-t border-slate-400 pt-1 text-[9px] text-slate-500 font-bold">
+                Interviewer Signature & Date
+              </div>
+            </div>
 
-        {/* REPORT FOOTER */}
-        <div className="p-4 bg-slate-100 text-center text-[10px] font-bold text-slate-600 border-t border-slate-200">
-          GSFC University Training & Placement Cell (TPC) • Official Automated AI Placement Evaluation Report
+            <div className="space-y-4 text-right">
+              <div>
+                <div className="text-[9px] font-black uppercase text-slate-500">University Verification</div>
+                <div className="font-black text-blue-900 mt-0.5 text-xs">Head — Training & Placement Cell (TPC)</div>
+                <div className="text-[9px] text-slate-600 font-bold">GSFC University, Vadodara</div>
+              </div>
+              <div className="border-t border-slate-400 pt-1 text-[9px] text-slate-500 font-bold">
+                TPC Coordinator Signature & Seal
+              </div>
+            </div>
+          </div>
+
+          {/* Footer Notice */}
+          <div className="text-center pt-2 text-[8.5px] text-slate-500 font-bold border-t border-slate-200 print-keep-together">
+            GSFC University Placement Portal • AI Candidate Dossier • Accredited by Training & Placement Cell (TPC)
+          </div>
         </div>
       </div>
     </div>

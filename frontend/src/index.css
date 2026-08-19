@@ -264,16 +264,18 @@ html.dark ::-webkit-scrollbar-track {
     overflow: visible !important;
   }
 
-  /* Hide background graphics, navbar, controls, and other UI layers during print */
+  /* Hide background graphics, full web app #root, navbar, controls, and other UI layers during print */
+  body:has(.tpc-print-overlay) > #root,
+  body.printing-modal > #root,
   .gsfc-background-wrapper,
   .gsfc-overlay-layer,
   header,
   nav,
-  main,
+  main:not(.tpc-print-overlay *),
   footer,
   .fixed.bottom-20,
   button,
-  .print\\:hidden,
+  .print\:hidden,
   [data-print-hide="true"] {
     display: none !important;
   }
