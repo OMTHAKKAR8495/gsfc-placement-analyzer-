@@ -120,6 +120,94 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
     }
   };
 
+  // Bulk Attendance Marking Shortcuts (All Present, All Absent, Reset)
+  const handleMarkAllPresent = async (targetList) => {
+    const list = targetList || allCompanyApplicants;
+    if (!list || list.length === 0) return;
+    const targetIds = new Set(list.map(a => a.application_id || a.id));
+    setAllCompanyApplicants(prev => prev.map(a => 
+      targetIds.has(a.application_id || a.id) ? { ...a, attendance_status: 'present' } : a
+    ));
+    if (applicantsData) {
+      setApplicantsData(prev => prev.map(a => 
+        targetIds.has(a.application_id || a.id) ? { ...a, attendance_status: 'present' } : a
+      ));
+    }
+    try {
+      const updates = list.map(a => ({
+        application_id: a.application_id || a.id,
+        attendance_status: 'present'
+      }));
+      await fetch('/api/company/applications/bulk-save-attendance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ updates })
+      });
+      setBulkSaveSuccessMsg(`✅ All ${list.length} candidates marked Present!`);
+      setTimeout(() => setBulkSaveSuccessMsg(''), 3500);
+    } catch (e) {
+      console.error('Error marking all present:', e);
+    }
+  };
+
+  const handleMarkAllAbsent = async (targetList) => {
+    const list = targetList || allCompanyApplicants;
+    if (!list || list.length === 0) return;
+    const targetIds = new Set(list.map(a => a.application_id || a.id));
+    setAllCompanyApplicants(prev => prev.map(a => 
+      targetIds.has(a.application_id || a.id) ? { ...a, attendance_status: 'absent' } : a
+    ));
+    if (applicantsData) {
+      setApplicantsData(prev => prev.map(a => 
+        targetIds.has(a.application_id || a.id) ? { ...a, attendance_status: 'absent' } : a
+      ));
+    }
+    try {
+      const updates = list.map(a => ({
+        application_id: a.application_id || a.id,
+        attendance_status: 'absent'
+      }));
+      await fetch('/api/company/applications/bulk-save-attendance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ updates })
+      });
+      setBulkSaveSuccessMsg(`❌ All ${list.length} candidates marked Absent!`);
+      setTimeout(() => setBulkSaveSuccessMsg(''), 3500);
+    } catch (e) {
+      console.error('Error marking all absent:', e);
+    }
+  };
+
+  const handleResetAllPending = async (targetList) => {
+    const list = targetList || allCompanyApplicants;
+    if (!list || list.length === 0) return;
+    const targetIds = new Set(list.map(a => a.application_id || a.id));
+    setAllCompanyApplicants(prev => prev.map(a => 
+      targetIds.has(a.application_id || a.id) ? { ...a, attendance_status: 'pending' } : a
+    ));
+    if (applicantsData) {
+      setApplicantsData(prev => prev.map(a => 
+        targetIds.has(a.application_id || a.id) ? { ...a, attendance_status: 'pending' } : a
+      ));
+    }
+    try {
+      const updates = list.map(a => ({
+        application_id: a.application_id || a.id,
+        attendance_status: 'pending'
+      }));
+      await fetch('/api/company/applications/bulk-save-attendance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ updates })
+      });
+      setBulkSaveSuccessMsg(`🔄 Reset ${list.length} candidates to Pending.`);
+      setTimeout(() => setBulkSaveSuccessMsg(''), 3500);
+    } catch (e) {
+      console.error('Error resetting all pending:', e);
+    }
+  };
+
   // Global ESC key listener to close active modals
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -1142,13 +1230,48 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
                 <table className="w-full text-left border-collapse text-xs">
                   <thead>
                     <tr className="bg-slate-100/90 text-slate-700 border-b border-slate-200 text-[10px] uppercase tracking-wider font-black">
-                      <th className="py-4 px-3 sm:px-4 w-12 text-center">S.No</th>
-                      <th className="py-4 px-4">Candidate Details</th>
-                      <th className="py-4 px-4">Applied Drive</th>
-                      <th className="py-4 px-4">AI Match</th>
-                      <th className="py-4 px-4 text-center">Attendance Marking</th>
-                      <th className="py-4 px-4">Application Status</th>
-                      <th className="py-4 px-4 text-right">Actions</th>
+                      <th className="py-3 px-3 sm:px-4 w-12 text-center">S.No</th>
+                      <th className="py-3 px-4">Candidate Details</th>
+                      <th className="py-3 px-4">Applied Drive</th>
+                      <th className="py-3 px-4">AI Match</th>
+                      <th className="py-3 px-4 text-center">
+                        <div className="flex flex-col items-center justify-center gap-1.5">
+                          <span className="text-[10px] uppercase tracking-wider font-black">Attendance Marking</span>
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() => handleMarkAllPresent(filteredList)}
+                              className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-[9px] font-black uppercase flex items-center gap-1 shadow-sm transition-all cursor-pointer hover:scale-105 active:scale-95"
+                              title="Click to mark all candidate checkboxes as Present"
+                            >
+                              <CheckCircle className="w-3 h-3 text-emerald-200" />
+                              <span>Mark All Present</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => handleMarkAllAbsent(filteredList)}
+                              className="px-2 py-1 bg-rose-100 hover:bg-rose-200 text-rose-800 border border-rose-300 rounded-lg text-[9px] font-black uppercase flex items-center gap-1 transition-all cursor-pointer hover:scale-105 active:scale-95"
+                              title="Mark all as Absent"
+                            >
+                              <XCircle className="w-3 h-3 text-rose-600" />
+                              <span>All Absent</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => handleResetAllPending(filteredList)}
+                              className="px-2 py-1 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg text-[9px] font-black uppercase flex items-center gap-0.5 transition-all cursor-pointer hover:scale-105 active:scale-95"
+                              title="Reset all to Pending"
+                            >
+                              <Clock className="w-3 h-3 text-amber-600" />
+                              <span>Reset</span>
+                            </button>
+                          </div>
+                        </div>
+                      </th>
+                      <th className="py-3 px-4">Application Status</th>
+                      <th className="py-3 px-4 text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200">
