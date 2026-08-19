@@ -307,6 +307,11 @@ router.post('/apply', (req, res) => {
 
     const appId = 'app_' + Date.now();
     const appliedVia = req.body.applied_via === 'external' ? 'external' : 'internal';
+    const override = req.body.override_data || {};
+
+    if (override.phone) {
+      db.prepare('UPDATE student_profiles SET phone = ? WHERE id = ?').run(override.phone, student_id);
+    }
 
     db.prepare(`
       INSERT INTO applications (id, student_id, requirement_id, match_score, status, applied_via)

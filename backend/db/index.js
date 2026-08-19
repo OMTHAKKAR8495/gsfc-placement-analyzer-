@@ -104,6 +104,9 @@ function applyMigrations() {
     `);
 
     const studColumns = db.prepare("PRAGMA table_info(student_profiles)").all().map(c => c.name);
+    if (!studColumns.includes('phone')) {
+      db.exec("ALTER TABLE student_profiles ADD COLUMN phone TEXT");
+    }
     if (!studColumns.includes('admission_year')) {
       db.exec("ALTER TABLE student_profiles ADD COLUMN admission_year INTEGER");
     }

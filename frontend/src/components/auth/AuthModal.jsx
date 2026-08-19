@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Lock, Mail, Building, User, AlertCircle, Sparkles, Shield, CheckCircle2 } from 'lucide-react';
+import { X, Lock, Mail, Building, User, AlertCircle, Sparkles, Shield, CheckCircle2, Phone } from 'lucide-react';
 
 export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
   const [isLogin, setIsLogin] = useState(true);
@@ -7,6 +7,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
   const [formData, setFormData] = useState({
     email: '',
     password: '',
+    phone: '',
     name: '',
     program: 'BTech CSE',
     branch: 'Computer Science & Engineering',
@@ -63,7 +64,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
         const regRes = await fetch('/api/auth/register', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: formData.email, password: formData.password, role: autoRole })
+          body: JSON.stringify({ email: formData.email, password: formData.password, phone: formData.phone || '+91 98765 43210', role: autoRole })
         });
         const regData = await regRes.json();
         if (regRes.ok) {
@@ -90,11 +91,11 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
     setIsLogin(true);
     setError('');
     if (demoRole === 'student') {
-      setFormData(prev => ({ ...prev, email: 's_arav@student.edu', password: 'password123' }));
+      setFormData(prev => ({ ...prev, email: 's_arav@student.edu', password: 'password123', phone: '+91 98765 43210' }));
     } else if (demoRole === 'company') {
-      setFormData(prev => ({ ...prev, email: 'c_google@recruiter.com', password: 'password123' }));
+      setFormData(prev => ({ ...prev, email: 'c_google@recruiter.com', password: 'password123', phone: '+91 98989 89898' }));
     } else if (demoRole === 'admin') {
-      setFormData(prev => ({ ...prev, email: 'admin@gsfcuniversity.ac.in', password: 'password123' }));
+      setFormData(prev => ({ ...prev, email: 'admin@gsfcuniversity.ac.in', password: 'password123', phone: '+91 99999 88888' }));
     }
   };
 
@@ -193,7 +194,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
           {!isLogin && role === 'student' && (
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs text-slate-700 mb-1 font-bold">Full Name</label>
+                <label className="block text-xs text-slate-700 mb-1 font-bold">Full Name *</label>
                 <input
                   type="text"
                   name="name"
@@ -205,7 +206,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
                 />
               </div>
               <div>
-                <label className="block text-xs text-slate-700 mb-1 font-bold">Roll / Reg Number</label>
+                <label className="block text-xs text-slate-700 mb-1 font-bold">Roll / Reg Number *</label>
                 <input
                   type="text"
                   name="roll_number"
@@ -221,7 +222,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
 
           {!isLogin && role === 'company' && (
             <div>
-              <label className="block text-xs text-slate-700 mb-1 font-bold">Company Name</label>
+              <label className="block text-xs text-slate-700 mb-1 font-bold">Company Name *</label>
               <input
                 type="text"
                 name="company_name"
@@ -235,7 +236,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
           )}
 
           <div>
-            <label className="block text-xs text-slate-700 mb-1 font-bold">Email Address</label>
+            <label className="block text-xs text-slate-700 mb-1 font-bold">Email Address *</label>
             <div className="relative">
               <Mail className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
               <input
@@ -249,6 +250,24 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
               />
             </div>
           </div>
+
+          {!isLogin && (
+            <div>
+              <label className="block text-xs text-slate-700 mb-1 font-bold">Phone / WhatsApp Number *</label>
+              <div className="relative">
+                <Phone className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
+                <input
+                  type="tel"
+                  name="phone"
+                  value={formData.phone}
+                  onChange={handleChange}
+                  required
+                  placeholder="+91 98765 43210"
+                  className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 font-bold focus:outline-none focus:border-blue-900"
+                />
+              </div>
+            </div>
+          )}
 
           <div>
             <label className="block text-xs text-slate-700 mb-1 font-bold">Password</label>

@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS student_profiles (
     user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     roll_number TEXT,
     name TEXT NOT NULL,
+    phone TEXT,
     program TEXT NOT NULL, -- e.g., BTech CSE, BTech Mechanical, MBA
     branch TEXT,
     cgpa REAL NOT NULL,

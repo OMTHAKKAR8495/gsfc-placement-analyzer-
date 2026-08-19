@@ -10,7 +10,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'campushire_secret_key_2026';
 // Register User (Rate Limited + Password Policy Enforced)
 router.post('/register', AuthRateLimiter.registerLimiter, async (req, res) => {
   try {
-    const { email, password, role, name, program, branch, cgpa, roll_number, company_name, industry, website } = req.body;
+    const { email, password, role, name, phone, program, branch, cgpa, roll_number, company_name, industry, website } = req.body;
 
     if (!email || !password || !role) {
       return res.status(400).json({ error: 'Email, password, and role are required.' });
@@ -38,16 +38,16 @@ router.post('/register', AuthRateLimiter.registerLimiter, async (req, res) => {
       const studentId = 's_' + Date.now();
       ownerId = studentId;
       db.prepare(`
-        INSERT INTO student_profiles (id, user_id, roll_number, name, program, branch, cgpa)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-      `).run(studentId, userId, roll_number || '21BCE001', name || 'New Student', program || 'BTech CSE', branch || 'Computer Science', parseFloat(cgpa || 8.0));
+        INSERT INTO student_profiles (id, user_id, roll_number, name, phone, program, branch, cgpa)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(studentId, userId, roll_number || '21BCE001', name || 'New Student', phone || '+91 98765 43210', program || 'BTech CSE', branch || 'Computer Science', parseFloat(cgpa || 8.0));
     } else if (role === 'company') {
       const companyId = 'c_' + Date.now();
       ownerId = companyId;
       db.prepare(`
-        INSERT INTO company_profiles (id, user_id, company_name, industry, website, approved)
-        VALUES (?, ?, ?, ?, ?, 0)
-      `).run(companyId, userId, company_name || 'Recruiter Company', industry || 'Technology', website || 'https://company.com');
+        INSERT INTO company_profiles (id, user_id, company_name, contact_phone, industry, website, approved)
+        VALUES (?, ?, ?, ?, ?, ?, 0)
+      `).run(companyId, userId, company_name || 'Recruiter Company', phone || '+91 98765 43210', industry || 'Technology', website || 'https://company.com');
     }
 
     const token = jwt.sign({ userId, email, role, owner_id: ownerId }, JWT_SECRET, { expiresIn: '7d' });

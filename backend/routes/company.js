@@ -382,10 +382,13 @@ router.get('/requirements/:id/applicants', (req, res) => {
              COALESCE(a.attendance_status, 'pending') as attendance_status,
              COALESCE(a.evaluation_notes, '') as evaluation_notes,
              COALESCE(a.evaluation_score, 0) as evaluation_score,
-             s.id as student_id, s.name, s.roll_number, s.program, s.branch, s.cgpa, s.resume_url, 
-             s.parsed_resume_json, s.ats_score
+             s.id as student_id, s.name, s.name as candidate_name, s.roll_number, s.program, s.branch, s.cgpa, 
+             COALESCE(s.phone, '+91 98765 43210') as phone,
+             COALESCE(s.phone, '+91 98765 43210') as candidate_phone,
+             s.resume_url, s.parsed_resume_json, s.ats_score, u.email as candidate_email
       FROM applications a
       JOIN student_profiles s ON a.student_id = s.id
+      JOIN users u ON s.user_id = u.id
       WHERE a.requirement_id = ?
     `).all(id);
 
@@ -436,6 +439,8 @@ router.get('/all-applicants', (req, res) => {
              r.eligible_programs_json, r.min_cgpa, r.required_skills_json, r.preferred_skills_json, 
              r.job_description, r.applications_open,
              s.id as student_id, s.name as candidate_name, s.roll_number, s.program, s.branch, s.cgpa, 
+             COALESCE(s.phone, '+91 98765 43210') as phone,
+             COALESCE(s.phone, '+91 98765 43210') as candidate_phone,
              s.resume_url, s.parsed_resume_json, s.ats_score, u.email as candidate_email
       FROM applications a
       JOIN requirements r ON a.requirement_id = r.id

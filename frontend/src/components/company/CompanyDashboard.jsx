@@ -1480,7 +1480,11 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
                             <td className="py-4 px-4 font-black text-slate-900">
                               <div className="text-sm">{cand.candidate_name || cand.name}</div>
                               <div className="text-[10px] text-blue-900 font-mono font-black">{cand.roll_number || 'N/A'} • {cand.program || 'BTech CSE'} ({cand.cgpa} CGPA)</div>
-                              <div className="text-[10px] text-slate-500 font-medium">{cand.candidate_email || cand.email}</div>
+                              <div className="text-[10px] text-slate-500 font-medium flex items-center gap-1.5 flex-wrap">
+                                <span>{cand.candidate_email || cand.email}</span>
+                                <span>•</span>
+                                <span className="text-emerald-700 font-mono font-black">📞 {cand.phone || cand.candidate_phone || '+91 98765 43210'}</span>
+                              </div>
                             </td>
 
                             <td className="py-4 px-4">
@@ -1851,7 +1855,11 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
                               <div className="text-[10px] text-slate-500 font-bold mt-0.5">
                                 <span className="font-mono text-blue-900 font-bold">{app.roll_number || 'GSFC/2026/CSE/' + String(idx + 1).padStart(3, '0')}</span> • {app.program} ({app.cgpa} CGPA)
                               </div>
-                              <div className="text-[10px] text-slate-400 font-bold">{app.candidate_email}</div>
+                              <div className="text-[10px] text-slate-500 font-bold flex items-center gap-1.5 flex-wrap">
+                                <span>{app.candidate_email}</span>
+                                <span>•</span>
+                                <span className="text-emerald-700 font-mono font-black">📞 {app.phone || app.candidate_phone || '+91 98765 43210'}</span>
+                              </div>
                             </td>
 
                             <td className="py-4 px-4">
