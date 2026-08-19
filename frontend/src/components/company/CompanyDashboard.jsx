@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Building2, Building, Plus, Users, Sparkles, AlertCircle, ArrowLeft, CheckCircle, ExternalLink, Download, Upload, FileText, Search, Tag, ShieldCheck, Database, Printer, Eye, Briefcase, XCircle, Trash2, Pencil, Clock, Ban, Check, RefreshCw } from 'lucide-react';
+import { Building2, Building, Plus, Users, Sparkles, AlertCircle, ArrowLeft, CheckCircle, ExternalLink, Download, Upload, FileText, Search, Tag, ShieldCheck, Database, Printer, Eye, Briefcase, XCircle, Trash2, Pencil, Clock, Ban, Check, RefreshCw, Save } from 'lucide-react';
 import InterviewQuestionGeneratorModal from './InterviewQuestionGeneratorModal';
 import ReportPDFModal from '../common/ReportPDFModal';
 import CompanyQuestionUploadModal from '../common/CompanyQuestionUploadModal';
 import CompanyAttendanceReportModal from './CompanyAttendanceReportModal';
+import CompanyCandidateEvaluationModal from './CompanyCandidateEvaluationModal';
 import RequirementQuestionBankForm from './RequirementQuestionBankForm';
 import { getCompanyUploadedQuestions, saveCompanyUploadedQuestion, bulkUploadCompanyQuestions, deleteCompanyUploadedQuestion } from '../../utils/companyQuestionStorage';
 
@@ -57,6 +58,68 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
   const [uploadedCompanyQuestions, setUploadedCompanyQuestions] = useState(() => getCompanyUploadedQuestions());
   const [selectedCandidate, setSelectedCandidate] = useState(null);
 
+  // Candidate Evaluation & Attendance Editor Modal State
+  const [evalModalOpen, setEvalModalOpen] = useState(false);
+  const [selectedEvalCandidate, setSelectedEvalCandidate] = useState(null);
+  const [savingBulk, setSavingBulk] = useState(false);
+  const [bulkSaveSuccessMsg, setBulkSaveSuccessMsg] = useState('');
+
+  const handleOpenEvaluationModal = (candidateApp) => {
+    setSelectedEvalCandidate(candidateApp);
+    setEvalModalOpen(true);
+  };
+
+  const handleEvaluationSaveSuccess = (updatedData) => {
+    setAllCompanyApplicants(prev => prev.map(a => 
+      (a.application_id === updatedData.application_id || a.id === updatedData.application_id)
+        ? { ...a, ...updatedData }
+        : a
+    ));
+    if (applicantsData) {
+      setApplicantsData(prev => prev.map(a => 
+        (a.application_id === updatedData.application_id || a.id === updatedData.application_id)
+          ? { ...a, ...updatedData }
+          : a
+      ));
+    }
+  };
+
+  const handleBulkSaveAttendance = async () => {
+    if (!allCompanyApplicants || allCompanyApplicants.length === 0) {
+      alert('No applicant records available to save.');
+      return;
+    }
+    setSavingBulk(true);
+    setBulkSaveSuccessMsg('');
+    try {
+      const updates = allCompanyApplicants.map(a => ({
+        application_id: a.application_id || a.id,
+        attendance_status: a.attendance_status || 'pending',
+        status: a.status || 'applied',
+        evaluation_notes: a.evaluation_notes || '',
+        evaluation_score: a.evaluation_score !== undefined ? a.evaluation_score : 85
+      }));
+
+      const res = await fetch('/api/company/applications/bulk-save-attendance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ updates })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setBulkSaveSuccessMsg(`✅ Saved all ${updates.length} candidate attendance records to database!`);
+        setTimeout(() => setBulkSaveSuccessMsg(''), 4000);
+      } else {
+        alert(data.error || 'Failed to save attendance records.');
+      }
+    } catch (err) {
+      console.error('Error saving attendance records:', err);
+      alert('Error saving to server: ' + err.message);
+    } finally {
+      setSavingBulk(false);
+    }
+  };
+
   // Global ESC key listener to close active modals
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -67,11 +130,12 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
         if (activeReqApplicants) setActiveReqApplicants(null);
         if (questionModalOpen) setQuestionModalOpen(false);
         if (uploadQuestionsModalOpen) setUploadQuestionsModalOpen(false);
+        if (evalModalOpen) setEvalModalOpen(false);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [attendanceReportModalOpen, pdfReportModalOpen, showPostModal, activeReqApplicants, questionModalOpen, uploadQuestionsModalOpen]);
+  }, [attendanceReportModalOpen, pdfReportModalOpen, showPostModal, activeReqApplicants, questionModalOpen, uploadQuestionsModalOpen, evalModalOpen]);
 
   // Toggle Accepting Applications on a Placement Drive (Stop / Reopen)
   const handleToggleApplications = async (reqId) => {
@@ -941,27 +1005,44 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
                   </div>
                 </div>
 
-                {/* DUAL REPORT EXPORT BUTTONS */}
-                <div className="flex items-center gap-2 flex-wrap">
-                  <button
-                    onClick={() => handleDownloadApplicantsCSV(selectedReqObj || { title: 'All Corporate Drives' }, filteredList)}
-                    className="py-2.5 px-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-black flex items-center gap-1.5 shadow-md transition-all cursor-pointer"
-                    title="Export filtered student list as CSV"
-                  >
-                    <Download className="w-4 h-4" />
-                    <span>Download CSV ({filteredList.length})</span>
-                  </button>
+                  {/* EXPLICIT SAVE ALL ATTENDANCE DATA & DUAL REPORT EXPORT BUTTONS */}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <button
+                      onClick={handleBulkSaveAttendance}
+                      disabled={savingBulk}
+                      className="py-2.5 px-4 bg-blue-900 hover:bg-blue-800 text-white rounded-xl text-xs font-black flex items-center gap-1.5 shadow-md transition-all cursor-pointer hover:scale-105 border border-blue-700 disabled:opacity-50"
+                      title="Save and synchronize all candidate attendance records to the database"
+                    >
+                      <Save className="w-4 h-4 text-emerald-400" />
+                      <span>{savingBulk ? 'Saving to Database...' : '💾 Save Attendance Data'}</span>
+                    </button>
 
-                  <button
-                    onClick={() => handleOpenAttendanceReportModal(selectedReqObj || { title: 'All Placement Drives Summary' }, filteredList)}
-                    className="py-2.5 px-4 bg-gradient-to-r from-blue-900 via-indigo-900 to-amber-600 hover:from-blue-800 hover:to-amber-500 text-white rounded-xl text-xs font-black flex items-center gap-1.5 shadow-md transition-all cursor-pointer hover:scale-105"
-                    title="Generate and print official TPC Placement Drive Attendance Report (PDF)"
-                  >
-                    <Printer className="w-4 h-4 text-amber-300 stroke-[2.5]" />
-                    <span>Download TPC PDF Report</span>
-                  </button>
+                    <button
+                      onClick={() => handleDownloadApplicantsCSV(selectedReqObj || { title: 'All Corporate Drives' }, filteredList)}
+                      className="py-2.5 px-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-black flex items-center gap-1.5 shadow-md transition-all cursor-pointer"
+                      title="Export filtered student list as CSV"
+                    >
+                      <Download className="w-4 h-4" />
+                      <span>Download CSV ({filteredList.length})</span>
+                    </button>
+
+                    <button
+                      onClick={() => handleOpenAttendanceReportModal(selectedReqObj || { title: 'All Placement Drives Summary' }, filteredList)}
+                      className="py-2.5 px-4 bg-gradient-to-r from-blue-900 via-indigo-900 to-amber-600 hover:from-blue-800 hover:to-amber-500 text-white rounded-xl text-xs font-black flex items-center gap-1.5 shadow-md transition-all cursor-pointer hover:scale-105"
+                      title="Generate and print official TPC Placement Drive Attendance Report (PDF)"
+                    >
+                      <Printer className="w-4 h-4 text-amber-300 stroke-[2.5]" />
+                      <span>Download TPC PDF Report</span>
+                    </button>
+                  </div>
                 </div>
-              </div>
+
+                {bulkSaveSuccessMsg && (
+                  <div className="p-3 bg-emerald-500/15 border border-emerald-500/30 text-emerald-800 text-xs font-black rounded-2xl flex items-center gap-2 animate-fadeIn">
+                    <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <span>{bulkSaveSuccessMsg}</span>
+                  </div>
+                )}
 
               {/* FILTER CONTROLS (BY DRIVE & ATTENDANCE STATUS) */}
               <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 pt-1">
@@ -1180,6 +1261,16 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
                             </td>
 
                             <td className="py-4 px-4 text-right space-x-1.5 whitespace-nowrap">
+                              <button
+                                type="button"
+                                onClick={() => handleOpenEvaluationModal(app)}
+                                className="py-1.5 px-2.5 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 rounded-xl text-xs font-black inline-flex items-center gap-1 transition-all shadow-sm cursor-pointer hover:scale-105"
+                                title="View & Edit Candidate Evaluation, Score, & Remarks (Save Back)"
+                              >
+                                <Pencil className="w-3.5 h-3.5 text-amber-700" />
+                                <span>Edit & Save</span>
+                              </button>
+
                               <button
                                 type="button"
                                 onClick={() => openCandidatePdfReport({ name: app.candidate_name || app.name, email: app.candidate_email || app.email, ats_score: app.ats_score, skills: app.skillsSummary })}
@@ -1531,6 +1622,16 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
 
                             <button
                               type="button"
+                              onClick={() => handleOpenEvaluationModal(app)}
+                              className="py-1.5 px-2.5 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 rounded-xl text-xs font-black inline-flex items-center gap-1 transition-all shadow-sm cursor-pointer hover:scale-105"
+                              title="View & Edit Candidate Evaluation, Score, & Remarks (Save Back)"
+                            >
+                              <Pencil className="w-3.5 h-3.5 text-amber-700" />
+                              <span>Edit & Save</span>
+                            </button>
+
+                            <button
+                              type="button"
                               onClick={() => openCandidatePdfReport({ name: app.name || app.candidate_name, email: app.email || app.candidate_email, ats_score: app.ats_score, skills: app.skillsSummary })}
                               className="py-1.5 px-3 bg-blue-900 hover:bg-blue-800 text-white rounded-xl text-xs font-black inline-flex items-center gap-1 transition-all shadow-md cursor-pointer"
                               title="View PDF Report"
@@ -1586,6 +1687,14 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
           </div>
         );
       })()}
+
+      {/* CANDIDATE EVALUATION & ATTENDANCE EDITOR MODAL (VIEW / EDIT / SAVE BACK) */}
+      <CompanyCandidateEvaluationModal
+        isOpen={evalModalOpen}
+        onClose={() => setEvalModalOpen(false)}
+        application={selectedEvalCandidate}
+        onSaveSuccess={handleEvaluationSaveSuccess}
+      />
 
       {/* PDF REPORT MODAL (SINGLE CANDIDATE) */}
       <ReportPDFModal

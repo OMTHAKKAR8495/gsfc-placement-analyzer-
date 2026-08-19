@@ -292,6 +292,82 @@ router.all('/applications/:id/attendance', (req, res) => {
   }
 });
 
+// Bulk Save All Candidate Attendance & Status Records
+router.post('/applications/bulk-save-attendance', (req, res) => {
+  try {
+    const { updates } = req.body;
+    if (!Array.isArray(updates) || updates.length === 0) {
+      return res.status(400).json({ error: 'Updates array is required.' });
+    }
+
+    const updateStmt = db.prepare(`
+      UPDATE applications 
+      SET attendance_status = COALESCE(?, attendance_status),
+          status = COALESCE(?, status),
+          evaluation_notes = COALESCE(?, evaluation_notes),
+          evaluation_score = COALESCE(?, evaluation_score)
+      WHERE id = ?
+    `);
+
+    const saveTransaction = db.transaction((rows) => {
+      for (const item of rows) {
+        const appId = item.application_id || item.id;
+        if (appId) {
+          updateStmt.run(item.attendance_status || null, item.status || null, item.evaluation_notes || null, item.evaluation_score !== undefined ? item.evaluation_score : null, appId);
+        }
+      }
+    });
+
+    saveTransaction(updates);
+
+    res.json({
+      success: true,
+      message: `Successfully saved all ${updates.length} candidate attendance and evaluation records to database!`,
+      count: updates.length
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Update Single Candidate Evaluation (Attendance, Status, Notes, Interview Score)
+router.post('/applications/:id/update-evaluation', (req, res) => {
+  try {
+    const { id } = req.params;
+    const { attendance_status, status, evaluation_notes, evaluation_score } = req.body;
+
+    const app = db.prepare('SELECT * FROM applications WHERE id = ?').get(id);
+    if (!app) {
+      return res.status(404).json({ error: 'Application record not found.' });
+    }
+
+    db.prepare(`
+      UPDATE applications 
+      SET attendance_status = COALESCE(?, attendance_status),
+          status = COALESCE(?, status),
+          evaluation_notes = COALESCE(?, evaluation_notes),
+          evaluation_score = COALESCE(?, evaluation_score)
+      WHERE id = ?
+    `).run(
+      attendance_status || app.attendance_status,
+      status || app.status,
+      evaluation_notes !== undefined ? evaluation_notes : app.evaluation_notes,
+      evaluation_score !== undefined ? evaluation_score : app.evaluation_score,
+      id
+    );
+
+    const updated = db.prepare('SELECT * FROM applications WHERE id = ?').get(id);
+
+    res.json({
+      success: true,
+      message: 'Candidate evaluation and attendance updated successfully!',
+      application: updated
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // View Ranked Shortlist of Applicants for a Requirement
 router.get('/requirements/:id/applicants', (req, res) => {
   try {
@@ -304,6 +380,8 @@ router.get('/requirements/:id/applicants', (req, res) => {
     const apps = db.prepare(`
       SELECT a.id as application_id, a.match_score, a.status, a.applied_at, a.applied_via,
              COALESCE(a.attendance_status, 'pending') as attendance_status,
+             COALESCE(a.evaluation_notes, '') as evaluation_notes,
+             COALESCE(a.evaluation_score, 0) as evaluation_score,
              s.id as student_id, s.name, s.roll_number, s.program, s.branch, s.cgpa, s.resume_url, 
              s.parsed_resume_json, s.ats_score
       FROM applications a
@@ -352,6 +430,8 @@ router.get('/all-applicants', (req, res) => {
     const rawApps = db.prepare(`
       SELECT a.id as application_id, a.match_score, a.status, a.applied_at, a.applied_via,
              COALESCE(a.attendance_status, 'pending') as attendance_status,
+             COALESCE(a.evaluation_notes, '') as evaluation_notes,
+             COALESCE(a.evaluation_score, 0) as evaluation_score,
              r.id as requirement_id, r.title as job_title, r.ctc_range, r.job_type, 
              r.eligible_programs_json, r.min_cgpa, r.required_skills_json, r.preferred_skills_json, 
              r.job_description, r.applications_open,

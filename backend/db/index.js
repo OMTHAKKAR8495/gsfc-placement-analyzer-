@@ -78,6 +78,12 @@ function applyMigrations() {
     if (!appColumns.includes('attendance_status')) {
       db.exec("ALTER TABLE applications ADD COLUMN attendance_status TEXT DEFAULT 'pending' CHECK(attendance_status IN ('present', 'absent', 'pending'))");
     }
+    if (!appColumns.includes('evaluation_notes')) {
+      db.exec("ALTER TABLE applications ADD COLUMN evaluation_notes TEXT DEFAULT ''");
+    }
+    if (!appColumns.includes('evaluation_score')) {
+      db.exec("ALTER TABLE applications ADD COLUMN evaluation_score REAL DEFAULT 0.0");
+    }
     db.exec("UPDATE applications SET attendance_status = 'pending' WHERE attendance_status IS NULL");
 
     const studColumns = db.prepare("PRAGMA table_info(student_profiles)").all().map(c => c.name);

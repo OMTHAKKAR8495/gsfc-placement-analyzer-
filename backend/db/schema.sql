@@ -65,6 +65,8 @@ CREATE TABLE IF NOT EXISTS applications (
     status TEXT CHECK(status IN ('applied', 'shortlisted', 'interview', 'selected', 'rejected')) DEFAULT 'applied',
     applied_via TEXT CHECK(applied_via IN ('internal', 'external')) DEFAULT 'internal',
     attendance_status TEXT DEFAULT 'pending' CHECK(attendance_status IN ('present', 'absent', 'pending')),
+    evaluation_notes TEXT DEFAULT '',
+    evaluation_score REAL DEFAULT 0.0,
     applied_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(student_id, requirement_id)
 );
