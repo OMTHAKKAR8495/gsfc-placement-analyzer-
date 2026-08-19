@@ -151,6 +151,15 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
   const [broadcastingDriveId, setBroadcastingDriveId] = useState(null);
   const [broadcastSuccessMsg, setBroadcastSuccessMsg] = useState('');
 
+  // Document Authenticity & Forensics Modal State
+  const [authenticityModalOpen, setAuthenticityModalOpen] = useState(false);
+  const [selectedAuthenticityCandidate, setSelectedAuthenticityCandidate] = useState(null);
+
+  const handleOpenAuthenticityCheck = (candidateApp) => {
+    setSelectedAuthenticityCandidate(candidateApp);
+    setAuthenticityModalOpen(true);
+  };
+
   // 1-Click WhatsApp & Email Placement Drive Alert Broadcast
   const handleBroadcastDriveAlert = async (reqItem) => {
     if (!reqItem) return;
