@@ -1317,8 +1317,9 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
         });
 
         const totalSaved = allCompanyApplicants.length;
-        const presentSaved = allCompanyApplicants.filter(a => a.attendance_status === 'present').length;
-        const absentSaved = allCompanyApplicants.filter(a => a.attendance_status === 'absent').length;
+        const newlyAppliedSaved = allCompanyApplicants.filter(a => a.status === 'applied' || a.status === 'newly_applied' || !a.status).length;
+        const shortlistedSaved = allCompanyApplicants.filter(a => a.status === 'shortlisted').length;
+        const interviewSaved = allCompanyApplicants.filter(a => a.status === 'interview').length;
         const selectedSaved = allCompanyApplicants.filter(a => a.status === 'selected').length;
 
         return (
@@ -1438,24 +1439,75 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
                 </div>
               </div>
 
-              {/* Summary Stats Strip */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
-                <div className="p-3 bg-slate-50 border border-slate-200 rounded-2xl">
-                  <div className="text-[10px] font-black uppercase text-slate-500">Saved in Database</div>
-                  <div className="text-lg font-black text-slate-900 mt-0.5">{totalSaved} Records</div>
-                </div>
-                <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-2xl">
-                  <div className="text-[10px] font-black uppercase text-emerald-700">Present Candidates</div>
-                  <div className="text-lg font-black text-emerald-900 mt-0.5">{presentSaved} Students</div>
-                </div>
-                <div className="p-3 bg-rose-50 border border-rose-200 rounded-2xl">
-                  <div className="text-[10px] font-black uppercase text-rose-700">Absent Records</div>
-                  <div className="text-lg font-black text-rose-900 mt-0.5">{absentSaved} Students</div>
-                </div>
-                <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-2xl shadow-xs">
-                  <div className="text-[10px] font-black uppercase text-amber-700">Offers Extended</div>
-                  <div className="text-lg font-black text-amber-900 mt-0.5">{selectedSaved} Selected</div>
-                </div>
+              {/* Summary Stats Strip with Quick Filter Tabs */}
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setDatabaseFilterStatus('ALL')}
+                  className={`p-3.5 rounded-2xl border text-left transition-all cursor-pointer ${
+                    databaseFilterStatus === 'ALL'
+                      ? 'bg-slate-900 text-white border-slate-900 shadow-md scale-[1.02]'
+                      : 'bg-slate-50 border-slate-200 hover:bg-slate-100'
+                  }`}
+                >
+                  <div className={`text-[10px] font-black uppercase ${databaseFilterStatus === 'ALL' ? 'text-slate-300' : 'text-slate-500'}`}>Total Candidates</div>
+                  <div className={`text-lg font-black mt-0.5 ${databaseFilterStatus === 'ALL' ? 'text-white' : 'text-slate-900'}`}>{totalSaved} Records</div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setDatabaseFilterStatus('applied')}
+                  className={`p-3.5 rounded-2xl border text-left transition-all cursor-pointer ${
+                    databaseFilterStatus === 'applied'
+                      ? 'bg-emerald-600 text-white border-emerald-700 shadow-md scale-[1.02]'
+                      : 'bg-emerald-50 border-emerald-300 hover:bg-emerald-100/80 text-emerald-950'
+                  }`}
+                >
+                  <div className={`text-[10px] font-black uppercase flex items-center gap-1.5 ${databaseFilterStatus === 'applied' ? 'text-emerald-100' : 'text-emerald-800'}`}>
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                    <span>🟢 Newly Applied</span>
+                  </div>
+                  <div className={`text-lg font-black mt-0.5 ${databaseFilterStatus === 'applied' ? 'text-white' : 'text-emerald-950'}`}>{newlyAppliedSaved} Fresh</div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setDatabaseFilterStatus('shortlisted')}
+                  className={`p-3.5 rounded-2xl border text-left transition-all cursor-pointer ${
+                    databaseFilterStatus === 'shortlisted'
+                      ? 'bg-purple-600 text-white border-purple-700 shadow-md scale-[1.02]'
+                      : 'bg-purple-50 border-purple-200 hover:bg-purple-100/80 text-purple-950'
+                  }`}
+                >
+                  <div className={`text-[10px] font-black uppercase ${databaseFilterStatus === 'shortlisted' ? 'text-purple-100' : 'text-purple-700'}`}>⚡ Shortlisted</div>
+                  <div className={`text-lg font-black mt-0.5 ${databaseFilterStatus === 'shortlisted' ? 'text-white' : 'text-purple-900'}`}>{shortlistedSaved} Students</div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setDatabaseFilterStatus('interview')}
+                  className={`p-3.5 rounded-2xl border text-left transition-all cursor-pointer ${
+                    databaseFilterStatus === 'interview'
+                      ? 'bg-blue-600 text-white border-blue-700 shadow-md scale-[1.02]'
+                      : 'bg-blue-50 border-blue-200 hover:bg-blue-100/80 text-blue-950'
+                  }`}
+                >
+                  <div className={`text-[10px] font-black uppercase ${databaseFilterStatus === 'interview' ? 'text-blue-100' : 'text-blue-700'}`}>🗓️ Scheduled</div>
+                  <div className={`text-lg font-black mt-0.5 ${databaseFilterStatus === 'interview' ? 'text-white' : 'text-blue-900'}`}>{interviewSaved} Candidates</div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setDatabaseFilterStatus('selected')}
+                  className={`p-3.5 rounded-2xl border text-left transition-all cursor-pointer ${
+                    databaseFilterStatus === 'selected'
+                      ? 'bg-amber-500 text-slate-950 border-amber-600 shadow-md scale-[1.02]'
+                      : 'bg-amber-50 border-amber-200 hover:bg-amber-100/80 text-amber-950'
+                  }`}
+                >
+                  <div className={`text-[10px] font-black uppercase ${databaseFilterStatus === 'selected' ? 'text-amber-950' : 'text-amber-700'}`}>🏆 Offers Extended</div>
+                  <div className={`text-lg font-black mt-0.5 ${databaseFilterStatus === 'selected' ? 'text-slate-950' : 'text-amber-900'}`}>{selectedSaved} Selected</div>
+                </button>
               </div>
             </div>
 
