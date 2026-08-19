@@ -1427,11 +1427,13 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
                     className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-black text-slate-900 focus:outline-none focus:border-blue-900 cursor-pointer shadow-sm"
                   >
                     <option value="ALL">🎯 All Attendance & Statuses</option>
+                    <option value="applied">🟢 Newly Applied (Fresh)</option>
                     <option value="present">✅ Present in Interview</option>
                     <option value="absent">❌ Absent</option>
                     <option value="pending">⏳ Pending Attendance</option>
-                    <option value="selected">🏆 Offer Selected</option>
+                    <option value="shortlisted">⚡ Shortlisted</option>
                     <option value="interview">📅 Interview Scheduled</option>
+                    <option value="selected">🏆 Offer Selected</option>
                   </select>
                 </div>
               </div>
@@ -1520,7 +1522,7 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
 
                             <td className="py-4 px-4 text-center">
                               <select
-                                value={cand.status || 'newly_applied'}
+                                value={cand.status === 'newly_applied' ? 'applied' : (cand.status || 'applied')}
                                 onChange={(e) => handleUpdateApplicationStatus(cand.application_id || cand.id, e.target.value)}
                                 className={`px-2.5 py-1.5 rounded-xl text-xs font-black focus:outline-none cursor-pointer shadow-sm border transition-all ${
                                   (cand.status === 'newly_applied' || cand.status === 'applied' || !cand.status)
@@ -1534,11 +1536,10 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
                                     : 'bg-rose-50 text-rose-950 border-rose-400 font-black'
                                 }`}
                               >
-                                <option value="newly_applied">🟢 Newly Applied</option>
-                                <option value="applied">Applied (Under Review)</option>
+                                <option value="applied">🟢 Newly Applied</option>
                                 <option value="shortlisted">⚡ Shortlisted</option>
                                 <option value="interview">🗓️ Interview Scheduled</option>
-                                <option value="selected">🏆 Selected (Offer)</option>
+                                <option value="selected">🏆 Selected (Official Offer)</option>
                                 <option value="rejected">❌ Rejected</option>
                               </select>
                             </td>
@@ -1968,7 +1969,7 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
 
                             <td className="py-4 px-4">
                               <select
-                                value={app.status || 'newly_applied'}
+                                value={app.status === 'newly_applied' ? 'applied' : (app.status || 'applied')}
                                 onChange={(e) => handleUpdateApplicationStatus(app.application_id || app.id, e.target.value)}
                                 className={`px-2.5 py-1.5 rounded-xl text-xs font-black focus:outline-none cursor-pointer shadow-sm border transition-all ${
                                   (app.status === 'newly_applied' || app.status === 'applied' || !app.status)
@@ -1982,12 +1983,11 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
                                     : 'bg-rose-50 text-rose-950 border-rose-400 font-black'
                                 }`}
                               >
-                                <option value="newly_applied">🟢 Newly Applied</option>
-                                <option value="applied">Applied (Under Review)</option>
-                                <option value="shortlisted">Shortlisted for Rounds</option>
-                                <option value="interview">Interview Scheduled</option>
-                                <option value="selected">Selected (Official Offer Issued)</option>
-                                <option value="rejected">Rejected (Not Eligible)</option>
+                                <option value="applied">🟢 Newly Applied</option>
+                                <option value="shortlisted">⚡ Shortlisted</option>
+                                <option value="interview">🗓️ Interview Scheduled</option>
+                                <option value="selected">🏆 Selected (Official Offer)</option>
+                                <option value="rejected">❌ Rejected</option>
                               </select>
                             </td>
 
@@ -2390,7 +2390,7 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
                             })()}
 
                             <select
-                              value={app.status || 'newly_applied'}
+                              value={app.status === 'newly_applied' ? 'applied' : (app.status || 'applied')}
                               onChange={(e) => handleUpdateApplicationStatus(app.application_id || app.id, e.target.value)}
                               className={`px-2.5 py-1.5 rounded-xl text-xs font-black focus:outline-none cursor-pointer shadow-sm border transition-all ${
                                 (app.status === 'newly_applied' || app.status === 'applied' || !app.status)
@@ -2404,12 +2404,11 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
                                   : 'bg-rose-50 text-rose-950 border-rose-400 dark:bg-rose-950/60 dark:text-rose-200 dark:border-rose-700'
                               }`}
                             >
-                              <option value="newly_applied">🟢 Newly Applied</option>
-                              <option value="applied">Applied (Under Review)</option>
-                              <option value="shortlisted">Shortlisted for Rounds</option>
-                              <option value="interview">Interview Scheduled</option>
-                              <option value="selected">Selected (Offer)</option>
-                              <option value="rejected">Rejected</option>
+                              <option value="applied">🟢 Newly Applied</option>
+                              <option value="shortlisted">⚡ Shortlisted</option>
+                              <option value="interview">🗓️ Interview Scheduled</option>
+                              <option value="selected">🏆 Selected (Official Offer)</option>
+                              <option value="rejected">❌ Rejected</option>
                             </select>
 
                             <button

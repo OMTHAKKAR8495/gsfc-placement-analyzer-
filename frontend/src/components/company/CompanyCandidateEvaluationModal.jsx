@@ -194,10 +194,10 @@ export default function CompanyCandidateEvaluationModal({ isOpen, onClose, appli
                 Recruitment Stage / Status
               </label>
               <select
-                value={status}
+                value={status === 'newly_applied' ? 'applied' : (status || 'applied')}
                 onChange={(e) => setStatus(e.target.value)}
                 className={`w-full py-2.5 px-3 rounded-xl text-xs font-black focus:outline-none cursor-pointer shadow-sm border transition-all ${
-                  (status === 'newly_applied' || status === 'applied')
+                  (status === 'newly_applied' || status === 'applied' || !status)
                     ? 'bg-emerald-50 text-emerald-950 border-emerald-400 dark:bg-emerald-950/50 dark:text-emerald-200 dark:border-emerald-700'
                     : status === 'selected'
                     ? 'bg-amber-50 text-amber-950 border-amber-400 dark:bg-amber-950/50 dark:text-amber-200 dark:border-amber-700'
@@ -208,12 +208,11 @@ export default function CompanyCandidateEvaluationModal({ isOpen, onClose, appli
                     : 'bg-rose-50 text-rose-950 border-rose-400 dark:bg-rose-950/50 dark:text-rose-200 dark:border-rose-700'
                 }`}
               >
-                <option value="newly_applied">🟢 Newly Applied (Fresh Submission)</option>
-                <option value="applied">Applied (Under Review)</option>
-                <option value="shortlisted">Shortlisted for Rounds</option>
-                <option value="interview">Interview Scheduled</option>
-                <option value="selected">Selected (Official Offer Issued)</option>
-                <option value="rejected">Rejected (Not Eligible)</option>
+                <option value="applied">🟢 Newly Applied (Fresh Submission)</option>
+                <option value="shortlisted">⚡ Shortlisted for Rounds</option>
+                <option value="interview">🗓️ Interview Scheduled</option>
+                <option value="selected">🏆 Selected (Official Offer Issued)</option>
+                <option value="rejected">❌ Rejected (Not Eligible)</option>
               </select>
             </div>
           </div>

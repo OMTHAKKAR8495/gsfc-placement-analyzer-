@@ -313,7 +313,9 @@ router.all(['/applications/bulk-save-attendance', '/bulk-save-attendance'], (req
       for (const item of rows) {
         const appId = item.application_id || item.id;
         if (appId) {
-          updateStmt.run(item.attendance_status || null, item.status || null, item.evaluation_notes || null, item.evaluation_score !== undefined ? item.evaluation_score : null, appId);
+          let cleanStatus = item.status || null;
+          if (cleanStatus === 'newly_applied') cleanStatus = 'applied';
+          updateStmt.run(item.attendance_status || null, cleanStatus, item.evaluation_notes || null, item.evaluation_score !== undefined ? item.evaluation_score : null, appId);
         }
       }
     });
@@ -341,6 +343,9 @@ router.post('/applications/:id/update-evaluation', (req, res) => {
       return res.status(404).json({ error: 'Application record not found.' });
     }
 
+    let cleanStatus = status || app.status;
+    if (cleanStatus === 'newly_applied') cleanStatus = 'applied';
+
     db.prepare(`
       UPDATE applications 
       SET attendance_status = COALESCE(?, attendance_status),
@@ -350,7 +355,7 @@ router.post('/applications/:id/update-evaluation', (req, res) => {
       WHERE id = ?
     `).run(
       attendance_status || app.attendance_status,
-      status || app.status,
+      cleanStatus,
       evaluation_notes !== undefined ? evaluation_notes : app.evaluation_notes,
       evaluation_score !== undefined ? evaluation_score : app.evaluation_score,
       id
@@ -487,12 +492,16 @@ router.get('/all-applicants', (req, res) => {
   }
 });
 
-// Update Application Status (e.g. 'shortlisted', 'interview', 'selected', 'rejected')
+// Update Application Status (e.g. 'applied', 'shortlisted', 'interview', 'selected', 'rejected')
 router.post('/update-application-status', (req, res) => {
   try {
-    const { application_id, status } = req.body;
+    let { application_id, status } = req.body;
     if (!application_id || !status) {
       return res.status(400).json({ error: 'application_id and status are required.' });
+    }
+
+    if (status === 'newly_applied') {
+      status = 'applied';
     }
 
     db.prepare('UPDATE applications SET status = ? WHERE id = ?').run(status, application_id);
