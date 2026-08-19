@@ -7,7 +7,7 @@ import CompanyAttendanceReportModal from './CompanyAttendanceReportModal';
 import RequirementQuestionBankForm from './RequirementQuestionBankForm';
 import { getCompanyUploadedQuestions, saveCompanyUploadedQuestion, bulkUploadCompanyQuestions, deleteCompanyUploadedQuestion } from '../../utils/companyQuestionStorage';
 
-export default function CompanyDashboard({ currentUser, company, onCompanyAuthSuccess, onRefreshCompany, openPostModalSignal }) {
+export default function CompanyDashboard({ currentUser, company, onCompanyAuthSuccess, onRefreshCompany, openPostModalSignal, openApplicantsFeedSignal }) {
   const [activeTab, setActiveTab] = useState('my_applications'); // 'my_applications', 'requirements', 'database', 'applicants'
   const [requirements, setRequirements] = useState([]);
   const [activeReqApplicants, setActiveReqApplicants] = useState(null);
@@ -29,6 +29,14 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   }, [openPostModalSignal]);
+
+  // Auto-switch to Applied Candidates Feed when triggered from Navbar
+  useEffect(() => {
+    if (openApplicantsFeedSignal) {
+      setActiveTab('applicants');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [openApplicantsFeedSignal]);
 
   // Recruiter Authentication Lock Screen State
   const [recruiterEmail, setRecruiterEmail] = useState('');

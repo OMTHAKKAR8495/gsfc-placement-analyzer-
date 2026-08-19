@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { User, Building2, ShieldCheck, LogOut, LogIn, Sun, Moon, HelpCircle, Smartphone, Download, Sparkles, Menu, X, Plus } from 'lucide-react';
+import { User, Building2, ShieldCheck, LogOut, LogIn, Sun, Moon, HelpCircle, Smartphone, Download, Sparkles, Menu, X, Plus, Users } from 'lucide-react';
 import AppDownloadModal from './AppDownloadModal';
 
-export default function Navbar({ currentUser, activeRole, onRoleSwitch, onOpenAuth, onLogout, theme, onToggleTheme, onOpenJobPost }) {
+export default function Navbar({ currentUser, activeRole, onRoleSwitch, onOpenAuth, onLogout, theme, onToggleTheme, onOpenJobPost, onOpenApplicantsFeed }) {
   const [downloadModalOpen, setDownloadModalOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -80,6 +80,18 @@ export default function Navbar({ currentUser, activeRole, onRoleSwitch, onOpenAu
             >
               <Building2 className="w-3.5 h-3.5" />
               <span>Recruiter Portal</span>
+            </button>
+          )}
+
+          {/* Direct Navbar Button: Applied Candidates Feed */}
+          {currentUser?.role === 'company' && (
+            <button
+              onClick={onOpenApplicantsFeed || (() => onRoleSwitch('company'))}
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-black transition-all shrink-0 whitespace-nowrap bg-blue-900 hover:bg-blue-800 text-white shadow-md hover:scale-105 ml-1 cursor-pointer border border-blue-700"
+              title="Open Applied Candidates Feed & Attendance Register"
+            >
+              <Users className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+              <span>📥 Applied Candidates Feed</span>
             </button>
           )}
 
@@ -233,6 +245,23 @@ export default function Navbar({ currentUser, activeRole, onRoleSwitch, onOpenAu
                   <span>Recruiter Portal</span>
                 </div>
                 {activeRole === 'company' && <Sparkles className="w-4 h-4 text-amber-300" />}
+              </button>
+            )}
+
+            {currentUser?.role === 'company' && (
+              <button
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  if (onOpenApplicantsFeed) onOpenApplicantsFeed();
+                  else handleMobileNavClick('company');
+                }}
+                className="flex items-center justify-between p-3 rounded-2xl text-xs font-black border transition-all bg-blue-900 text-white border-blue-800 shadow-md cursor-pointer"
+              >
+                <div className="flex items-center gap-2.5">
+                  <Users className="w-4 h-4 text-emerald-400" />
+                  <span>📥 Applied Candidates Feed</span>
+                </div>
+                <Sparkles className="w-4 h-4 text-amber-300" />
               </button>
             )}
 

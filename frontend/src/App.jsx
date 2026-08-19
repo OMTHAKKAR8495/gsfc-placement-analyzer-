@@ -177,11 +177,19 @@ export default function App() {
   };
 
   const [openPostModalSignal, setOpenPostModalSignal] = useState(0);
+  const [openApplicantsFeedSignal, setOpenApplicantsFeedSignal] = useState(0);
 
   const handleOpenJobPost = () => {
     setActiveRole('company');
     window.location.hash = '#company';
     setOpenPostModalSignal(prev => prev + 1);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleOpenApplicantsFeed = () => {
+    setActiveRole('company');
+    window.location.hash = '#company';
+    setOpenApplicantsFeedSignal(prev => prev + 1);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -201,6 +209,7 @@ export default function App() {
         theme={theme}
         onToggleTheme={toggleTheme}
         onOpenJobPost={handleOpenJobPost}
+        onOpenApplicantsFeed={handleOpenApplicantsFeed}
       />
 
       {isOffline && (
@@ -251,6 +260,7 @@ export default function App() {
               onCompanyAuthSuccess={handleAuthSuccess}
               onRefreshCompany={checkCurrentUser}
               openPostModalSignal={openPostModalSignal}
+              openApplicantsFeedSignal={openApplicantsFeedSignal}
             />
           )}
 
