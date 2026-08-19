@@ -196,8 +196,19 @@ export default function CompanyCandidateEvaluationModal({ isOpen, onClose, appli
               <select
                 value={status}
                 onChange={(e) => setStatus(e.target.value)}
-                className="w-full py-2.5 px-3 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-black text-slate-900 dark:text-white focus:outline-none focus:border-blue-900 cursor-pointer shadow-sm"
+                className={`w-full py-2.5 px-3 rounded-xl text-xs font-black focus:outline-none cursor-pointer shadow-sm border transition-all ${
+                  (status === 'newly_applied' || status === 'applied')
+                    ? 'bg-emerald-50 text-emerald-950 border-emerald-400 dark:bg-emerald-950/50 dark:text-emerald-200 dark:border-emerald-700'
+                    : status === 'selected'
+                    ? 'bg-amber-50 text-amber-950 border-amber-400 dark:bg-amber-950/50 dark:text-amber-200 dark:border-amber-700'
+                    : status === 'interview'
+                    ? 'bg-blue-50 text-blue-950 border-blue-400 dark:bg-blue-950/50 dark:text-blue-200 dark:border-blue-700'
+                    : status === 'shortlisted'
+                    ? 'bg-purple-50 text-purple-950 border-purple-400 dark:bg-purple-950/50 dark:text-purple-200 dark:border-purple-700'
+                    : 'bg-rose-50 text-rose-950 border-rose-400 dark:bg-rose-950/50 dark:text-rose-200 dark:border-rose-700'
+                }`}
               >
+                <option value="newly_applied">🟢 Newly Applied (Fresh Submission)</option>
                 <option value="applied">Applied (Under Review)</option>
                 <option value="shortlisted">Shortlisted for Rounds</option>
                 <option value="interview">Interview Scheduled</option>

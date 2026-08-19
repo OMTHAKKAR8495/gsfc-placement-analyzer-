@@ -1519,14 +1519,18 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
                             </td>
 
                             <td className="py-4 px-4 text-center font-black uppercase text-[10px]">
-                              <span className={`px-2.5 py-1 rounded-lg border ${
-                                cand.status === 'selected'
+                              <span className={`px-2.5 py-1 rounded-lg border font-black text-[10px] uppercase shadow-xs ${
+                                cand.status === 'newly_applied' || cand.status === 'applied'
+                                  ? 'bg-emerald-100 text-emerald-950 border-emerald-300'
+                                  : cand.status === 'selected'
                                   ? 'bg-amber-100 text-amber-950 border-amber-300'
                                   : cand.status === 'interview'
-                                    ? 'bg-blue-100 text-blue-950 border-blue-300'
-                                    : 'bg-slate-100 text-slate-800 border-slate-300'
+                                  ? 'bg-blue-100 text-blue-950 border-blue-300'
+                                  : cand.status === 'shortlisted'
+                                  ? 'bg-purple-100 text-purple-950 border-purple-300'
+                                  : 'bg-rose-100 text-rose-800 border-rose-300'
                               }`}>
-                                {cand.status || 'applied'}
+                                {cand.status === 'newly_applied' ? '🟢 Newly Applied' : (cand.status === 'applied' ? '🟢 Newly Applied' : cand.status)}
                               </span>
                             </td>
 
@@ -1955,15 +1959,26 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
 
                             <td className="py-4 px-4">
                               <select
-                                value={app.status || 'applied'}
+                                value={app.status || 'newly_applied'}
                                 onChange={(e) => handleUpdateApplicationStatus(app.application_id || app.id, e.target.value)}
-                                className="px-2.5 py-1.5 bg-white border border-slate-300 rounded-xl text-xs font-black text-slate-900 focus:outline-none focus:border-blue-900 cursor-pointer shadow-sm"
+                                className={`px-2.5 py-1.5 rounded-xl text-xs font-black focus:outline-none cursor-pointer shadow-sm border transition-all ${
+                                  (app.status === 'newly_applied' || app.status === 'applied' || !app.status)
+                                    ? 'bg-emerald-50 text-emerald-950 border-emerald-400 font-black'
+                                    : app.status === 'selected'
+                                    ? 'bg-amber-50 text-amber-950 border-amber-400 font-black'
+                                    : app.status === 'interview'
+                                    ? 'bg-blue-50 text-blue-950 border-blue-400 font-black'
+                                    : app.status === 'shortlisted'
+                                    ? 'bg-purple-50 text-purple-950 border-purple-400 font-black'
+                                    : 'bg-rose-50 text-rose-950 border-rose-400 font-black'
+                                }`}
                               >
-                                <option value="applied">Applied</option>
-                                <option value="shortlisted">Shortlisted</option>
+                                <option value="newly_applied">🟢 Newly Applied</option>
+                                <option value="applied">Applied (Under Review)</option>
+                                <option value="shortlisted">Shortlisted for Rounds</option>
                                 <option value="interview">Interview Scheduled</option>
-                                <option value="selected">Selected (Offer)</option>
-                                <option value="rejected">Rejected</option>
+                                <option value="selected">Selected (Official Offer Issued)</option>
+                                <option value="rejected">Rejected (Not Eligible)</option>
                               </select>
                             </td>
 
@@ -2366,12 +2381,23 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
                             })()}
 
                             <select
-                              value={app.status || 'applied'}
+                              value={app.status || 'newly_applied'}
                               onChange={(e) => handleUpdateApplicationStatus(app.application_id || app.id, e.target.value)}
-                              className="px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-black text-slate-900 dark:text-slate-100 focus:outline-none focus:border-blue-900 cursor-pointer"
+                              className={`px-2.5 py-1.5 rounded-xl text-xs font-black focus:outline-none cursor-pointer shadow-sm border transition-all ${
+                                (app.status === 'newly_applied' || app.status === 'applied' || !app.status)
+                                  ? 'bg-emerald-50 text-emerald-950 border-emerald-400 dark:bg-emerald-950/60 dark:text-emerald-200 dark:border-emerald-700'
+                                  : app.status === 'selected'
+                                  ? 'bg-amber-50 text-amber-950 border-amber-400 dark:bg-amber-950/60 dark:text-amber-200 dark:border-amber-700'
+                                  : app.status === 'interview'
+                                  ? 'bg-blue-50 text-blue-950 border-blue-400 dark:bg-blue-950/60 dark:text-blue-200 dark:border-blue-700'
+                                  : app.status === 'shortlisted'
+                                  ? 'bg-purple-50 text-purple-950 border-purple-400 dark:bg-purple-950/60 dark:text-purple-200 dark:border-purple-700'
+                                  : 'bg-rose-50 text-rose-950 border-rose-400 dark:bg-rose-950/60 dark:text-rose-200 dark:border-rose-700'
+                              }`}
                             >
-                              <option value="applied">Applied</option>
-                              <option value="shortlisted">Shortlisted</option>
+                              <option value="newly_applied">🟢 Newly Applied</option>
+                              <option value="applied">Applied (Under Review)</option>
+                              <option value="shortlisted">Shortlisted for Rounds</option>
                               <option value="interview">Interview Scheduled</option>
                               <option value="selected">Selected (Offer)</option>
                               <option value="rejected">Rejected</option>
