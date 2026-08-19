@@ -2,15 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { 
   X, Award, BarChart3, Download, Printer, ShieldCheck, CheckCircle2, 
   TrendingUp, Building2, Users, FileSpreadsheet, GraduationCap, ChevronRight,
-  PieChart, Sparkles, Layers, BookOpen, ExternalLink, Calendar, Check
+  PieChart, Sparkles, Layers, BookOpen, ExternalLink, Calendar, Check, Trophy, Filter
 } from 'lucide-react';
 
 export default function AccreditationNirfModal({ isOpen, onClose }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('nirf'); // 'nirf', 'branches', 'naac'
-  const [selectedBranch, setSelectedBranch] = useState('ALL');
-  const [exporting, setExporting] = useState(false);
+  const [activeTab, setActiveTab] = useState('trends'); // 'trends', 'nirf', 'branches', 'naac'
+  const [selectedFieldFilter, setSelectedFieldFilter] = useState('ALL'); // 'ALL', 'CSE', 'CHEM', 'MECH', 'CIVIL', 'IT'
 
   useEffect(() => {
     if (isOpen) {
@@ -61,6 +60,31 @@ export default function AccreditationNirfModal({ isOpen, onClose }) {
   const nirfCohorts = data?.nirf_cohorts || [];
   const branchAnalytics = data?.branch_analytics || [];
   const naacRoster = data?.naac_placed_roster || [];
+  const yearlyTrends = data?.yearly_hiring_trends || [];
+  const fieldSummary = data?.field_summary || [];
+
+  // Compute filtered bar chart values based on selected field
+  const chartData = yearlyTrends.map(item => {
+    const hiredCount = item.by_field?.[selectedFieldFilter] || item.total_hired;
+    return {
+      year: item.year,
+      hiredCount,
+      avgLpa: item.avg_package_lpa,
+      highestLpa: item.highest_package_lpa
+    };
+  });
+
+  const maxHiredInSelection = Math.max(...chartData.map(d => d.hiredCount), 1);
+  const peakYearItem = chartData.reduce((prev, current) => (prev.hiredCount > current.hiredCount) ? prev : current, chartData[0] || {});
+
+  const fieldOptions = [
+    { code: 'ALL', name: '🎓 All GSFC Fields & Programs', icon: '🌟' },
+    { code: 'CSE', name: '💻 B.Tech Computer Science & Engineering (CSE)', icon: '💻' },
+    { code: 'CHEM', name: '🧪 B.Tech Chemical Engineering', icon: '🧪' },
+    { code: 'MECH', name: '⚙️ B.Tech Mechanical Engineering', icon: '⚙️' },
+    { code: 'CIVIL', name: '🏗️ B.Tech Civil Engineering', icon: '🏗️' },
+    { code: 'IT', name: '🌐 B.Tech Information Technology & AI', icon: '🌐' }
+  ];
 
   return (
     <div 
@@ -92,7 +116,7 @@ export default function AccreditationNirfModal({ isOpen, onClose }) {
                 <span>NAAC & NIRF Accreditation 1-Click Report Generator</span>
               </h2>
               <p className="text-xs text-blue-100 font-medium">
-                GSFC University Placement Quality Auditing & Institutional Ranking Analytics
+                GSFC University Multi-Year Hiring Trends & Field-Wise Placement Analytics
               </p>
             </div>
           </div>
@@ -118,41 +142,53 @@ export default function AccreditationNirfModal({ isOpen, onClose }) {
 
         {/* Navigation Tab Strip */}
         <div className="bg-slate-100 dark:bg-slate-800/80 p-2 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between gap-2 shrink-0 flex-wrap">
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 flex-wrap">
             <button
-              onClick={() => setActiveTab('nirf')}
-              className={`px-4 py-2 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 ${
-                activeTab === 'nirf'
+              onClick={() => setActiveTab('trends')}
+              className={`px-3.5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 ${
+                activeTab === 'trends'
                   ? 'bg-blue-900 text-white shadow-md'
                   : 'text-slate-700 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-700'
               }`}
             >
               <BarChart3 className="w-4 h-4 text-amber-400" />
-              <span>NIRF Parameter 3 (Graduation Outcomes)</span>
+              <span>📊 Yearly Hiring Bar Chart & Fields</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('nirf')}
+              className={`px-3.5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 ${
+                activeTab === 'nirf'
+                  ? 'bg-blue-900 text-white shadow-md'
+                  : 'text-slate-700 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-700'
+              }`}
+            >
+              <Award className="w-4 h-4 text-emerald-400" />
+              <span>NIRF Parameter 3</span>
             </button>
 
             <button
               onClick={() => setActiveTab('branches')}
-              className={`px-4 py-2 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 ${
+              className={`px-3.5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 ${
                 activeTab === 'branches'
                   ? 'bg-blue-900 text-white shadow-md'
                   : 'text-slate-700 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-700'
               }`}
             >
-              <TrendingUp className="w-4 h-4 text-emerald-400" />
-              <span>Branch Analytics (CSE vs Chem vs Mech vs Civil)</span>
+              <TrendingUp className="w-4 h-4 text-sky-400" />
+              <span>Branch Comparisons</span>
             </button>
 
             <button
               onClick={() => setActiveTab('naac')}
-              className={`px-4 py-2 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 ${
+              className={`px-3.5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 ${
                 activeTab === 'naac'
                   ? 'bg-blue-900 text-white shadow-md'
                   : 'text-slate-700 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-700'
               }`}
             >
-              <FileSpreadsheet className="w-4 h-4 text-sky-400" />
-              <span>NAAC Metric 5.2.1 (Placement Roster)</span>
+              <FileSpreadsheet className="w-4 h-4 text-purple-400" />
+              <span>NAAC Metric 5.2.1</span>
             </button>
           </div>
 
@@ -164,7 +200,7 @@ export default function AccreditationNirfModal({ isOpen, onClose }) {
               className="py-1.5 px-3 bg-emerald-50 hover:bg-emerald-100 text-emerald-950 border border-emerald-300 dark:bg-emerald-950/60 dark:text-emerald-200 dark:border-emerald-700 rounded-xl text-[11px] font-black inline-flex items-center gap-1 transition-all shadow-xs cursor-pointer hover:scale-105"
             >
               <Download className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-              <span>NIRF Table (.CSV)</span>
+              <span>NIRF (.CSV)</span>
             </a>
 
             <a
@@ -173,7 +209,7 @@ export default function AccreditationNirfModal({ isOpen, onClose }) {
               className="py-1.5 px-3 bg-blue-50 hover:bg-blue-100 text-blue-950 border border-blue-300 dark:bg-blue-950/60 dark:text-blue-200 dark:border-blue-700 rounded-xl text-[11px] font-black inline-flex items-center gap-1 transition-all shadow-xs cursor-pointer hover:scale-105"
             >
               <Download className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
-              <span>NAAC 5.2.1 (.CSV)</span>
+              <span>NAAC (.CSV)</span>
             </a>
           </div>
         </div>
@@ -230,6 +266,203 @@ export default function AccreditationNirfModal({ isOpen, onClose }) {
               </div>
             </div>
           </div>
+
+          {/* TAB 0: YEARLY HIRING BAR CHART & FIELD FILTER (USER REQUESTED FEATURE) */}
+          {activeTab === 'trends' && (
+            <div className="space-y-6 animate-fadeIn">
+              {/* Field Filter Selection Strip */}
+              <div className="p-4 sm:p-5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-3xl space-y-3 shadow-xs">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                  <div>
+                    <div className="text-[10px] font-black uppercase text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                      <Filter className="w-3.5 h-3.5" /> Filter by Academic Field / Department
+                    </div>
+                    <h3 className="text-sm font-black text-slate-900 dark:text-slate-100 mt-0.5">
+                      Select Field to Analyze Which Year Had Highest Hiring
+                    </h3>
+                  </div>
+
+                  <div className="w-full sm:w-80">
+                    <select
+                      value={selectedFieldFilter}
+                      onChange={(e) => setSelectedFieldFilter(e.target.value)}
+                      className="w-full py-2.5 px-3 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-black text-slate-900 dark:text-slate-100 focus:outline-none focus:border-blue-900 cursor-pointer shadow-sm"
+                    >
+                      {fieldOptions.map(opt => (
+                        <option key={opt.code} value={opt.code}>
+                          {opt.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Quick Toggle Filter Badges */}
+                <div className="flex items-center gap-2 flex-wrap pt-1">
+                  {fieldOptions.map(opt => (
+                    <button
+                      key={opt.code}
+                      type="button"
+                      onClick={() => setSelectedFieldFilter(opt.code)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 ${
+                        selectedFieldFilter === opt.code
+                          ? 'bg-blue-900 text-white shadow-md scale-105'
+                          : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-100'
+                      }`}
+                    >
+                      <span>{opt.icon}</span>
+                      <span>{opt.code === 'ALL' ? 'All Fields' : opt.code}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Peak Hiring Year Banner Highlight */}
+              <div className="p-4 bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 text-slate-950 rounded-2xl shadow-md flex items-center justify-between flex-wrap gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-slate-950 text-amber-400 flex items-center justify-center font-black shadow-sm">
+                    <Trophy className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <div className="text-[10px] font-black uppercase text-slate-900 tracking-wider">
+                      🏆 Peak Hiring Year Recorded ({selectedFieldFilter === 'ALL' ? 'All GSFC Fields' : selectedFieldFilter})
+                    </div>
+                    <div className="text-base font-black text-slate-950">
+                      Batch {peakYearItem?.year} with {peakYearItem?.hiredCount} Placed Students
+                    </div>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="text-[10px] font-black uppercase text-slate-900">Average Package</div>
+                  <div className="text-sm font-black text-slate-950">₹{peakYearItem?.avgLpa} LPA</div>
+                </div>
+              </div>
+
+              {/* INTERACTIVE VERTICAL BAR CHART */}
+              <div className="p-5 sm:p-6 bg-white dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 rounded-3xl shadow-sm space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="text-sm font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                      <BarChart3 className="w-4 h-4 text-blue-900 dark:text-blue-400" />
+                      <span>Year-over-Year GSFC Hiring Volume Comparison</span>
+                    </h4>
+                    <p className="text-xs text-slate-500 font-medium">
+                      Height of bar represents student placement volume for {fieldOptions.find(f => f.code === selectedFieldFilter)?.name}.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Bar Chart Container */}
+                <div className="pt-8 pb-2">
+                  <div className="grid grid-cols-7 gap-3 sm:gap-6 items-end h-64 border-b border-slate-200 dark:border-slate-700 px-2 sm:px-4">
+                    {chartData.map((item, idx) => {
+                      const heightPercent = Math.max(Math.round((item.hiredCount / maxHiredInSelection) * 100), 12);
+                      const isPeak = item.year === peakYearItem?.year;
+
+                      return (
+                        <div key={idx} className="flex flex-col items-center gap-2 h-full justify-end group">
+                          {/* Peak Year Indicator Badge */}
+                          {isPeak && (
+                            <span className="px-2 py-0.5 bg-amber-400 text-slate-950 rounded-md text-[9px] font-black uppercase tracking-wider animate-bounce shadow-xs">
+                              🏆 Peak
+                            </span>
+                          )}
+
+                          {/* Placed Count Label */}
+                          <div className="text-xs font-black text-slate-900 dark:text-white transition-all group-hover:scale-110">
+                            {item.hiredCount}
+                          </div>
+
+                          {/* Interactive Bar */}
+                          <div 
+                            className={`w-full rounded-2xl transition-all duration-700 shadow-md relative overflow-hidden group-hover:scale-[1.03] cursor-pointer ${
+                              isPeak 
+                                ? 'bg-gradient-to-t from-amber-600 via-orange-500 to-amber-400 shadow-amber-500/30'
+                                : 'bg-gradient-to-t from-blue-950 via-blue-900 to-indigo-600 shadow-blue-900/20'
+                            }`}
+                            style={{ height: `${heightPercent}%` }}
+                          >
+                            <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                          </div>
+
+                          {/* Year Label */}
+                          <div className="text-center pt-2">
+                            <div className={`text-xs font-black ${isPeak ? 'text-amber-600 dark:text-amber-400' : 'text-slate-700 dark:text-slate-300'}`}>
+                              {item.year}
+                            </div>
+                            <div className="text-[9px] font-bold text-slate-400">
+                              ₹{item.avgLpa}L
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+
+              {/* WHICH FIELD GOT HIRED MORE? BREAKDOWN LEADERBOARD */}
+              <div className="p-5 sm:p-6 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-3xl space-y-4 shadow-xs">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="text-sm font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                      <Trophy className="w-4 h-4 text-amber-500" />
+                      <span>Which Academic Field Got Hired More? (Overall Discipline Share)</span>
+                    </h4>
+                    <p className="text-xs text-slate-500 font-medium">
+                      Ranking of GSFC University engineering & science departments by total placements.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+                  {fieldSummary.map((f, idx) => (
+                    <div 
+                      key={idx}
+                      onClick={() => setSelectedFieldFilter(f.field_code)}
+                      className={`p-4 rounded-2xl border transition-all cursor-pointer ${
+                        selectedFieldFilter === f.field_code
+                          ? 'bg-blue-900 text-white border-blue-900 shadow-md scale-105'
+                          : f.is_top
+                          ? 'bg-amber-50 dark:bg-amber-950/30 border-amber-300 dark:border-amber-700 hover:bg-amber-100'
+                          : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 hover:bg-slate-100'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded ${
+                          selectedFieldFilter === f.field_code
+                            ? 'bg-white/20 text-white'
+                            : f.is_top
+                            ? 'bg-amber-400 text-slate-950 font-black'
+                            : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300'
+                        }`}>
+                          Rank #{f.rank}
+                        </span>
+                        <span className="text-xs font-black">
+                          {f.share_pct}%
+                        </span>
+                      </div>
+
+                      <h5 className={`text-xs font-black mt-2 leading-tight ${
+                        selectedFieldFilter === f.field_code ? 'text-white' : 'text-slate-900 dark:text-white'
+                      }`}>
+                        {f.field_name}
+                      </h5>
+
+                      <div className="mt-3 pt-2 border-t border-slate-200/40 flex items-center justify-between text-[10px] font-bold">
+                        <span className={selectedFieldFilter === f.field_code ? 'text-blue-200' : 'text-slate-500'}>
+                          {f.total_placed} Placed
+                        </span>
+                        <span className={selectedFieldFilter === f.field_code ? 'text-amber-300' : 'text-emerald-700 dark:text-emerald-400'}>
+                          ₹{f.avg_lpa} LPA
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* TAB 1: NIRF PARAMETER 3 (GRADUATION OUTCOMES) */}
           {activeTab === 'nirf' && (
