@@ -82,9 +82,16 @@ router.post('/login', AuthRateLimiter.loginLimiter, async (req, res) => {
     let user = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
 
     // Seamless auto-registration for GSFC students / recruiters logging in for the first time
+    const isCompanyEmail = email.toLowerCase().includes('hr') || 
+      email.toLowerCase().includes('company') || 
+      email.toLowerCase().includes('recruiter') ||
+      email.toLowerCase().includes('gsfclimited') ||
+      email.toLowerCase().includes('limited') ||
+      email.toLowerCase().includes('c_');
+    const isAdminEmail = email.toLowerCase().includes('admin') || email.toLowerCase().includes('tpc');
+
+    // Seamless auto-registration for GSFC students / recruiters logging in for the first time
     if (!user) {
-      const isCompanyEmail = email.toLowerCase().includes('hr') || email.toLowerCase().includes('company') || email.toLowerCase().includes('recruiter');
-      const isAdminEmail = email.toLowerCase().includes('admin') || email.toLowerCase().includes('tpc');
       const role = isAdminEmail ? 'admin' : (isCompanyEmail ? 'company' : 'student');
       const userId = 'u_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
       const passwordHash = bcrypt.hashSync(password, 6);
@@ -120,11 +127,24 @@ router.post('/login', AuthRateLimiter.loginLimiter, async (req, res) => {
         db.prepare(`
           INSERT INTO company_profiles (id, user_id, company_name, industry, website, approved)
           VALUES (?, ?, ?, ?, ?, 1)
-        `).run(companyId, userId, 'Recruiter Partner Company', 'Technology', 'https://company.com');
+        `).run(companyId, userId, 'GSFC Limited', 'Fertilizers, Chemicals & Tech', 'https://gsfclimited.com');
       }
 
       user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
     } else {
+      // If logging in as company email, ensure role is company
+      if (isCompanyEmail && user.role !== 'company') {
+        db.prepare("UPDATE users SET role = 'company' WHERE id = ?").run(user.id);
+        user.role = 'company';
+        const existingComp = db.prepare('SELECT id FROM company_profiles WHERE user_id = ?').get(user.id);
+        if (!existingComp) {
+          db.prepare(`
+            INSERT INTO company_profiles (id, user_id, company_name, industry, website, approved)
+            VALUES (?, ?, ?, ?, ?, 1)
+          `).run('c_' + Date.now(), user.id, 'GSFC Limited', 'Fertilizers, Chemicals & Tech', 'https://gsfclimited.com');
+        }
+      }
+
       // Validate password or update hash for smooth login
       const isValid = await bcrypt.compare(password, user.password_hash);
       if (!isValid) {

@@ -15,7 +15,14 @@ import { Network } from '@capacitor/network';
 import { SplashScreen } from '@capacitor/splash-screen';
 
 export default function App() {
-  const [currentUser, setCurrentUser] = useState(null);
+  const [currentUser, setCurrentUser] = useState(() => {
+    try {
+      const saved = localStorage.getItem('campushire_user');
+      return saved ? JSON.parse(saved) : null;
+    } catch (e) {
+      return null;
+    }
+  });
   const [isOffline, setIsOffline] = useState(false);
   const [activeRole, setActiveRole] = useState(() => {
     const hash = window.location.hash.replace('#', '');
@@ -123,6 +130,7 @@ export default function App() {
     const token = localStorage.getItem('campushire_token');
     if (!token) {
       setCurrentUser(null);
+      localStorage.removeItem('campushire_user');
       return;
     }
 
@@ -130,23 +138,29 @@ export default function App() {
       const res = await fetch('/api/auth/me', {
         headers: { Authorization: `Bearer ${token}` }
       });
-      const data = await res.json();
-      if (res.ok && data.user) {
-        setCurrentUser(data.user);
-        
-        // Prayas-Style Login Redirect: Route user to their default role workspace on initial load
-        const currentHash = window.location.hash.replace('#', '');
-        if (!isRoleAllowedInWorkspace(data.user, currentHash)) {
-          const defaultRoleWorkspace = data.user.role === 'company' ? 'company' : data.user.role;
-          setActiveRole(defaultRoleWorkspace);
-          window.history.replaceState(null, '', `#${defaultRoleWorkspace}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.user) {
+          setCurrentUser(data.user);
+          localStorage.setItem('campushire_user', JSON.stringify(data.user));
+          
+          // Route user to their default role workspace on initial load
+          const currentHash = window.location.hash.replace('#', '');
+          if (!isRoleAllowedInWorkspace(data.user, currentHash)) {
+            const defaultRoleWorkspace = data.user.role === 'company' ? 'company' : (data.user.role === 'admin' ? 'admin' : 'student');
+            setActiveRole(defaultRoleWorkspace);
+            window.history.replaceState(null, '', `#${defaultRoleWorkspace}`);
+          }
+          return;
         }
-      } else {
+      }
+      if (res.status === 401 || res.status === 403) {
         localStorage.removeItem('campushire_token');
+        localStorage.removeItem('campushire_user');
         setCurrentUser(null);
       }
     } catch (err) {
-      console.error('Error fetching user profile:', err);
+      console.warn('Network notice: Preserving active client session.');
     }
   };
 
@@ -164,6 +178,7 @@ export default function App() {
 
   const handleLogout = () => {
     localStorage.removeItem('campushire_token');
+    localStorage.removeItem('campushire_user');
     setCurrentUser(null);
     setActiveRole('student');
     window.location.hash = '#student';
@@ -171,10 +186,11 @@ export default function App() {
 
   const handleAuthSuccess = (userData) => {
     setCurrentUser(userData);
-    const defaultWorkspace = userData.role === 'company' ? 'company' : userData.role;
+    localStorage.setItem('campushire_user', JSON.stringify(userData));
+    const defaultWorkspace = userData.role === 'company' ? 'company' : (userData.role === 'admin' ? 'admin' : 'student');
     setActiveRole(defaultWorkspace);
     window.location.hash = `#${defaultWorkspace}`;
-    checkCurrentUser();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const [openPostModalSignal, setOpenPostModalSignal] = useState(0);
