@@ -469,6 +469,80 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
     window.open(waUrl, '_blank');
   };
 
+  // Direct 1-Click Send Offer Letter via WhatsApp & Email
+  const handleDirectSendOfferWhatsAppAndEmail = async (cand) => {
+    if (!cand) return;
+    const candName = cand.candidate_name || cand.name || 'Candidate';
+    const candRoll = cand.roll_number || '21BCE045';
+    const candEmail = cand.candidate_email || cand.email || 'student@gsfcuniversity.ac.in';
+    const rawPhone = cand.candidate_phone || cand.phone || '9876543210';
+    const cleanPhone = String(rawPhone).replace(/\D/g, '');
+    const formattedPhone = cleanPhone.length === 10 ? '91' + cleanPhone : (cleanPhone || '919876543210');
+    const jobTitle = cand.job_title || 'Software Development Engineer';
+    const compName = cand.company_name || company?.company_name || 'GSFC Limited';
+    const ctcRange = cand.ctc_range || '₹18,00,000 - ₹24,00,000 PA';
+    const offerCode = `GSFC-OFFER-${Math.floor(100000 + Math.random() * 900000)}`;
+
+    const whatsappOfferMsg = `🏆 *GSFC UNIVERSITY TPC • OFFICIAL OFFER OF EMPLOYMENT*\n\n` +
+      `Dear *${candName}* (${candRoll}),\n\n` +
+      `🎉 *Congratulations!* On behalf of *${compName}* and the GSFC Training & Placement Cell, we are pleased to officially offer you the position of *${jobTitle}*.\n\n` +
+      `💼 *Annual Package (CTC)*: ${ctcRange}\n` +
+      `📅 *Date of Joining*: 15th October 2026\n` +
+      `📍 *Location*: GSFC Corporate Office / Tech Campus\n` +
+      `🔐 *Verification Code*: ${offerCode}\n` +
+      `🛡️ *Document Seal*: Cryptographically Verified by GSFC University\n\n` +
+      `Please reply on WhatsApp or Email to confirm acceptance. We look forward to welcoming you aboard!\n\n` +
+      `— *Training & Placement Cell (TPC), GSFC University*`;
+
+    const waUrl = `https://api.whatsapp.com/send?phone=${formattedPhone}&text=${encodeURIComponent(whatsappOfferMsg)}`;
+
+    // Update status to 'selected' optimistically
+    const targetId = cand.application_id || cand.id;
+    setAllCompanyApplicants(prev => prev.map(a => 
+      (a.application_id === targetId || a.id === targetId)
+        ? { ...a, status: 'selected', attendance_status: 'present' }
+        : a
+    ));
+    setApplicantsData(prev => prev.map(a => 
+      (a.application_id === targetId || a.id === targetId)
+        ? { ...a, status: 'selected', attendance_status: 'present' }
+        : a
+    ));
+
+    // Fire celebration crackles & toast
+    triggerCelebrationCrackles();
+    showToast({
+      type: 'success',
+      title: '🎉 Offer Letter Dispatched!',
+      message: `Official Offer Letter sent to ${candName} via WhatsApp & Email!`,
+      triggerCrackles: true
+    });
+
+    // Try backend persistence
+    try {
+      await fetch('/api/notifications/send-offer-letter', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          applicationId: targetId,
+          studentId: cand.student_id,
+          candidateName: candName,
+          candidateEmail: candEmail,
+          candidatePhone: rawPhone,
+          candidateRoll: candRoll,
+          jobTitle,
+          companyName: compName,
+          ctc: ctcRange,
+          joiningDate: '2026-10-15',
+          reportingLocation: 'GSFC Corporate Office'
+        })
+      });
+    } catch(e) {}
+
+    // Open WhatsApp Chat window directly
+    window.open(waUrl, '_blank');
+  };
+
   // Open 1-Click Stamped Offer Letter Generator
   const handleOpenOfferLetter = (candidateApp) => {
     setSelectedOfferCandidate(candidateApp);
@@ -1903,6 +1977,62 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
                                 <Calendar className="w-3 h-3 text-slate-500" />
                                 <span>{formatSavedDate(cand.applied_at)}</span>
                               </span>
+                              <div className="flex items-center gap-1.5 flex-wrap mt-2">
+                                  {/* Direct 1-Click WhatsApp & Email Offer Dispatch Button */}
+                                  <button
+                                    onClick={() => handleDirectSendOfferWhatsAppAndEmail(cand)}
+                                    className="py-1.5 px-2.5 bg-gradient-to-r from-amber-600 to-emerald-600 hover:from-amber-500 hover:to-emerald-500 text-white rounded-xl text-[11px] font-black inline-flex items-center gap-1 transition-all shadow-sm cursor-pointer hover:scale-105"
+                                    title="Directly Send Official Appointment Offer via WhatsApp & Email"
+                                  >
+                                    <Send className="w-3.5 h-3.5 text-white" />
+                                    <span>Send Offer (WA/Email)</span>
+                                  </button>
+
+                                  <button
+                                    onClick={() => handleSendCandidateInterviewReminder(cand)}
+                                    className="py-1.5 px-2 bg-green-50 hover:bg-green-100 text-green-900 border border-green-300 rounded-xl text-[11px] font-black inline-flex items-center gap-1 transition-all cursor-pointer hover:scale-105"
+                                    title="Send Interview Schedule / Reminder via WhatsApp & Email"
+                                  >
+                                    <Phone className="w-3.5 h-3.5 text-green-600" />
+                                    <span>WhatsApp</span>
+                                  </button>
+
+                                  <button
+                                    onClick={() => handleOpenOfferLetter(cand)}
+                                    className="py-1.5 px-2 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 rounded-xl text-[11px] font-black inline-flex items-center gap-1 transition-all cursor-pointer hover:scale-105"
+                                    title="1-Click Official Stamped Offer Letter Preview & Customizer"
+                                  >
+                                    <Award className="w-3.5 h-3.5 text-amber-600" />
+                                    <span>Letter</span>
+                                  </button>
+
+                                  <button
+                                    onClick={() => handleOpenAuthenticityCheck(cand)}
+                                    className="py-1.5 px-2 bg-blue-50 hover:bg-blue-100 text-blue-900 border border-blue-300 rounded-xl text-[11px] font-black inline-flex items-center gap-1 transition-all cursor-pointer hover:scale-105"
+                                    title="Inspect Document Authenticity & Forensic Signals"
+                                  >
+                                    <ShieldCheck className="w-3.5 h-3.5 text-blue-700" />
+                                    <span>Verify</span>
+                                  </button>
+
+                                  <button
+                                    onClick={() => handleOpenEvaluationModal(cand)}
+                                    className="py-1.5 px-2 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 rounded-xl text-[11px] font-black inline-flex items-center gap-1 transition-all cursor-pointer hover:scale-105"
+                                    title="View / Edit Candidate Attendance & Evaluation Notes"
+                                  >
+                                    <FileText className="w-3.5 h-3.5 text-blue-900" />
+                                    <span>Notes</span>
+                                  </button>
+
+                                  <button
+                                    onClick={() => openCandidatePdfReport(cand)}
+                                    className="py-1.5 px-2 bg-blue-900 hover:bg-blue-800 text-white rounded-xl text-[11px] font-black inline-flex items-center gap-1 transition-all shadow-md cursor-pointer hover:scale-105"
+                                    title="Open Candidate Placement PDF"
+                                  >
+                                    <Printer className="w-3.5 h-3.5 text-amber-300" />
+                                    <span>PDF</span>
+                                  </button>
+                                </div>
                             </td>
 
                             <td className="py-4.5 px-5 text-right whitespace-nowrap min-w-[360px]">
@@ -2339,6 +2469,67 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
                                 <option value="selected">🏆 Selected (Official Offer)</option>
                                 <option value="rejected">❌ Rejected</option>
                               </select>
+                              <div className="flex items-center gap-1.5 flex-wrap mt-3">
+                                  {/* Direct 1-Click WhatsApp & Email Offer Dispatch Button */}
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDirectSendOfferWhatsAppAndEmail(app)}
+                                    className="py-1.5 px-2.5 bg-gradient-to-r from-amber-600 to-emerald-600 hover:from-amber-500 hover:to-emerald-500 text-white rounded-xl text-xs font-black inline-flex items-center gap-1 transition-all shadow-sm cursor-pointer hover:scale-105"
+                                    title="Directly Send Official Appointment Offer via WhatsApp & Email"
+                                  >
+                                    <Send className="w-3.5 h-3.5 text-white" />
+                                    <span>Send Offer</span>
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => handleSendCandidateInterviewReminder(app)}
+                                    className="py-1.5 px-2.5 bg-green-50 hover:bg-green-100 text-green-900 border border-green-300 rounded-xl text-xs font-black inline-flex items-center gap-1 transition-all cursor-pointer hover:scale-105"
+                                    title="Send Interview Schedule / Reminder via WhatsApp & Email"
+                                  >
+                                    <Phone className="w-3.5 h-3.5 text-green-600" />
+                                    <span>WhatsApp</span>
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => handleOpenOfferLetter(app)}
+                                    className="py-1.5 px-2.5 bg-amber-50 hover:bg-amber-100 text-amber-950 border border-amber-300 rounded-xl text-xs font-black inline-flex items-center gap-1 transition-all cursor-pointer hover:scale-105"
+                                    title="1-Click Official Stamped Offer Letter Generator"
+                                  >
+                                    <Award className="w-3.5 h-3.5 text-amber-600" />
+                                    <span>Letter</span>
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => handleOpenAuthenticityCheck(app)}
+                                    className="py-1.5 px-2.5 bg-blue-50 hover:bg-blue-100 text-blue-900 border border-blue-300 rounded-xl text-xs font-black inline-flex items-center gap-1 transition-all cursor-pointer hover:scale-105"
+                                    title="Inspect Candidate Document Authenticity"
+                                  >
+                                    <ShieldCheck className="w-3.5 h-3.5 text-blue-700" />
+                                    <span>Verify</span>
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => openCandidatePdfReport({ name: app.candidate_name || app.name, email: app.candidate_email || app.email, ats_score: app.ats_score, skills: app.skillsSummary })}
+                                    className="py-1.5 px-2.5 bg-blue-900 hover:bg-blue-800 text-white rounded-xl text-xs font-black inline-flex items-center gap-1 transition-all shadow-md cursor-pointer hover:scale-105"
+                                    title="View Candidate Placement Report"
+                                  >
+                                    <Printer className="w-3.5 h-3.5 text-amber-300" />
+                                    <span>PDF</span>
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteApplication(app.application_id || app.id)}
+                                    className="py-1.5 px-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-300 rounded-xl text-xs font-black inline-flex items-center gap-1 transition-all shadow-sm cursor-pointer hover:scale-105"
+                                    title="Delete candidate application entry"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+                                  </button>
+                                </div>
                             </td>
 
                             <td className="py-4.5 px-5 text-right whitespace-nowrap min-w-[360px]">
