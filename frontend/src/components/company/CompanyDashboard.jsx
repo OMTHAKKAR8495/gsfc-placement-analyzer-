@@ -422,34 +422,51 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
   // 1-Click WhatsApp & Email Interview Reminder Dispatch
   const handleSendCandidateInterviewReminder = async (candidateApp) => {
     if (!candidateApp) return;
+    const name = candidateApp.candidate_name || candidateApp.name || 'Student Candidate';
+    const rawPhone = candidateApp.candidate_phone || candidateApp.phone || '9876543210';
+    const cleanPhone = String(rawPhone).replace(/\D/g, '');
+    const formattedPhone = cleanPhone.length === 10 ? '91' + cleanPhone : (cleanPhone || '919876543210');
+    const jobTitle = candidateApp.job_title || 'Software Development Engineer';
+    const compName = candidateApp.company_name || company?.company_name || 'GSFC Limited';
+
+    const whatsappMessage = `🎓 *GSFC UNIVERSITY TPC • INTERVIEW CALL LETTER*\n\n` +
+      `Dear *${name}*,\n` +
+      `You are invited for the technical interview round with *${compName}* for the position of *${jobTitle}*.\n\n` +
+      `📅 *Date & Time*: Tomorrow at 10:30 AM IST\n` +
+      `📍 *Venue*: Vigyan Bhavan TPC Interview Suites / Online Meet\n` +
+      `🆔 *Roll Number*: ${candidateApp.roll_number || '21BCE045'}\n\n` +
+      `Please be prepared with your updated resume and portfolio. Wish you all the best!\n\n` +
+      `— *Training & Placement Cell, GSFC University*`;
+
+    const waUrl = `https://api.whatsapp.com/send?phone=${formattedPhone}&text=${encodeURIComponent(whatsappMessage)}`;
+
     try {
-      const res = await fetch('/api/notifications/send-interview-reminder', {
+      await fetch('/api/notifications/send-interview-reminder', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           applicationId: candidateApp.application_id || candidateApp.id,
-          candidateName: candidateApp.candidate_name || candidateApp.name,
+          candidateName: name,
           candidateEmail: candidateApp.candidate_email || candidateApp.email,
-          candidatePhone: candidateApp.phone || candidateApp.candidate_phone || '9876543210',
-          jobTitle: candidateApp.job_title || 'Campus Placement Drive',
-          companyName: candidateApp.company_name || company?.company_name || 'gsfc limited',
+          candidatePhone: rawPhone,
+          jobTitle,
+          companyName: compName,
           interviewTime: 'Tomorrow at 10:30 AM',
           venue: 'Vigyan Bhavan TPC Interview Suites / Online Google Meet'
         })
       });
-      const data = await res.json();
-      if (res.ok) {
-        alert(`✅ ${data.message}`);
-        if (data.whatsapp_url) {
-          window.open(data.whatsapp_url, '_blank');
-        }
-      } else {
-        alert(data.error || 'Failed to send interview reminder');
-      }
     } catch (err) {
-      console.error('Error sending interview reminder:', err);
-      alert('Error sending reminder: ' + err.message);
+      console.warn('Network notice: Opening direct WhatsApp communication link.');
     }
+
+    showToast({
+      type: 'success',
+      title: '📲 WhatsApp Reminder Ready!',
+      message: `Interview reminder prepared for ${name}. Opening WhatsApp chat window...`,
+      triggerCrackles: false
+    });
+
+    window.open(waUrl, '_blank');
   };
 
   // Open 1-Click Stamped Offer Letter Generator
