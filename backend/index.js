@@ -119,6 +119,10 @@ app.use((err, req, res, next) => {
   });
 });
 
-app.listen(PORT, () => {
-  console.log(`🚀 CampusHire AI Backend Server running at http://localhost:${PORT}`);
-});
+if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
+  app.listen(PORT, () => {
+    console.log(`🚀 CampusHire AI Backend Server running at http://localhost:${PORT}`);
+  });
+}
+
+export default app;
