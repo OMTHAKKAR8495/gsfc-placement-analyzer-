@@ -5,6 +5,7 @@ import StudentDashboard from './components/student/StudentDashboard';
 import CompanyDashboard from './components/company/CompanyDashboard';
 import AdminDashboard from './components/admin/AdminDashboard';
 import InterviewStudioView from './components/student/InterviewStudioView';
+import AlumniDashboard from './components/alumni/AlumniDashboard';
 import AIBugChatbotWidget from './components/common/AIBugChatbotWidget';
 import ErrorBoundary from './components/common/ErrorBoundary';
 import { ToastProvider } from './context/ToastContext';
@@ -26,7 +27,7 @@ export default function App() {
   const [isOffline, setIsOffline] = useState(false);
   const [activeRole, setActiveRole] = useState(() => {
     const hash = window.location.hash.replace('#', '');
-    return ['student', 'interview', 'company', 'admin'].includes(hash) ? hash : 'student';
+    return ['student', 'interview', 'company', 'admin', 'alumni'].includes(hash) ? hash : 'student';
   });
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [hideCardsForBGView, setHideCardsForBGView] = useState(false);
@@ -65,12 +66,12 @@ export default function App() {
 
   // Helper to validate whether user role is permitted to access target workspace
   const isRoleAllowedInWorkspace = (user, targetWorkspace) => {
-    // Main Student Homepage is universally accessible to all users & guests
-    if (targetWorkspace === 'student' || !targetWorkspace) {
+    // Main Student Homepage & Alumni Network are universally accessible to all users & guests
+    if (targetWorkspace === 'student' || targetWorkspace === 'alumni' || !targetWorkspace) {
       return true;
     }
     if (!user) {
-      // Guest: can only access Student Workspace
+      // Guest: can only access Student & Alumni Workspaces
       return false;
     }
     if (user.role === 'admin') {
@@ -78,12 +79,16 @@ export default function App() {
       return true;
     }
     if (user.role === 'company') {
-      // Recruiter: can access Recruiter Portal and Main Homepage
-      return targetWorkspace === 'company' || targetWorkspace === 'student';
+      // Recruiter: can access Recruiter Portal, Main Homepage, and Alumni Network
+      return targetWorkspace === 'company' || targetWorkspace === 'student' || targetWorkspace === 'alumni';
+    }
+    if (user.role === 'alumni') {
+      // Alumni: can access Alumni Network and Student Homepage
+      return targetWorkspace === 'alumni' || targetWorkspace === 'student';
     }
     if (user.role === 'student') {
-      // Student: scoped ONLY to Student Workspace and Interview Studio
-      return targetWorkspace === 'student' || targetWorkspace === 'interview';
+      // Student: scoped to Student Workspace, Interview Studio, and Alumni Network
+      return targetWorkspace === 'student' || targetWorkspace === 'interview' || targetWorkspace === 'alumni';
     }
     return true;
   };
@@ -101,10 +106,10 @@ export default function App() {
     // Listen for browser Back/Forward navigation with Strict Role-Scoped Route Guards
     const handleHashOrPopState = () => {
       const hash = window.location.hash.replace('#', '');
-      const targetWorkspace = ['student', 'interview', 'company', 'admin'].includes(hash) ? hash : 'student';
+      const targetWorkspace = ['student', 'interview', 'company', 'admin', 'alumni'].includes(hash) ? hash : 'student';
 
       if (!isRoleAllowedInWorkspace(currentUser, targetWorkspace)) {
-        const defaultRole = currentUser ? (currentUser.role === 'company' ? 'company' : currentUser.role) : 'student';
+        const defaultRole = currentUser ? (currentUser.role === 'company' ? 'company' : (currentUser.role === 'alumni' ? 'alumni' : currentUser.role)) : 'student';
         setActiveRole(defaultRole);
         window.history.replaceState(null, '', `#${defaultRole}`);
         return;
@@ -187,7 +192,7 @@ export default function App() {
   const handleAuthSuccess = (userData) => {
     setCurrentUser(userData);
     localStorage.setItem('campushire_user', JSON.stringify(userData));
-    const defaultWorkspace = userData.role === 'company' ? 'company' : (userData.role === 'admin' ? 'admin' : 'student');
+    const defaultWorkspace = userData.role === 'company' ? 'company' : (userData.role === 'admin' ? 'admin' : (userData.role === 'alumni' ? 'alumni' : 'student'));
     setActiveRole(defaultWorkspace);
     window.location.hash = `#${defaultWorkspace}`;
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -292,6 +297,13 @@ export default function App() {
               <AdminDashboard
                 currentUser={currentUser}
                 onAdminAuthSuccess={handleAuthSuccess}
+              />
+            )}
+
+            {activeRole === 'alumni' && (
+              <AlumniDashboard
+                currentUser={currentUser}
+                onOpenAuth={() => setAuthModalOpen(true)}
               />
             )}
 

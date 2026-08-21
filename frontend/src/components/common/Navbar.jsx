@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { User, Building2, ShieldCheck, LogOut, LogIn, Sun, Moon, HelpCircle, Smartphone, Download, Sparkles, Menu, X, Plus, Users } from 'lucide-react';
+import { User, Building2, ShieldCheck, LogOut, LogIn, Sun, Moon, HelpCircle, Smartphone, Download, Sparkles, Menu, X, Plus, Users, Award } from 'lucide-react';
 import AppDownloadModal from './AppDownloadModal';
 
 export default function Navbar({ currentUser, activeRole, onRoleSwitch, onOpenAuth, onLogout, theme, onToggleTheme, onOpenJobPost, onOpenApplicantsFeed }) {
@@ -54,6 +54,19 @@ export default function Navbar({ currentUser, activeRole, onRoleSwitch, onOpenAu
               <span>Student Workspace</span>
             </button>
           )}
+
+          {/* Alumni Network Tab */}
+          <button
+            onClick={() => onRoleSwitch('alumni')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black transition-all shrink-0 whitespace-nowrap ${
+              activeRole === 'alumni'
+                ? 'bg-theme-gradient text-white shadow-md'
+                : 'text-slate-700 dark:text-slate-200 hover:text-slate-900 hover:bg-slate-200/60 dark:hover:bg-slate-700'
+            }`}
+          >
+            <Award className="w-3.5 h-3.5 text-blue-400" />
+            <span>Alumni Network</span>
+          </button>
 
           {(currentUser?.role === 'student' || currentUser?.role === 'admin') && (
             <button
@@ -213,6 +226,22 @@ export default function Navbar({ currentUser, activeRole, onRoleSwitch, onOpenAu
                 {activeRole === 'student' && <Sparkles className="w-4 h-4 text-amber-300" />}
               </button>
             )}
+
+            {/* Mobile Alumni Network Tab */}
+            <button
+              onClick={() => handleMobileNavClick('alumni')}
+              className={`flex items-center justify-between p-3 rounded-2xl text-xs font-black border transition-all ${
+                activeRole === 'alumni'
+                  ? 'bg-gradient-to-r from-blue-900 to-amber-600 text-white border-blue-900 shadow-md'
+                  : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200'
+              }`}
+            >
+              <div className="flex items-center gap-2.5">
+                <Award className="w-4 h-4 text-blue-400" />
+                <span>Alumni Network & Mentorship</span>
+              </div>
+              {activeRole === 'alumni' && <Sparkles className="w-4 h-4 text-amber-300" />}
+            </button>
 
             {(currentUser?.role === 'student' || currentUser?.role === 'admin') && (
               <button

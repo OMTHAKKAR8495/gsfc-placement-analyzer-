@@ -15,6 +15,9 @@ import interviewRoutes from './routes/interview.js';
 import adminRoutes from './routes/admin.js';
 import notificationRoutes from './routes/notifications.js';
 import authenticityRoutes from './routes/authenticity.js';
+import alumniRoutes from './routes/alumni.js';
+import jobfairRoutes from './routes/jobfair.js';
+import qaRoutes from './routes/qa.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -80,6 +83,9 @@ app.use('/api/interview', interviewRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/authenticity', authenticityRoutes);
+app.use('/api/alumni', alumniRoutes);
+app.use('/api/jobfair', jobfairRoutes);
+app.use('/api/qa', qaRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

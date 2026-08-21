@@ -81,10 +81,53 @@ async function runFullVerificationSuite() {
     assert(notifRes.success === true, 'Notification service failed');
     notifStatus = `Dispatched to ${notifRes.recipient.name} via WhatsApp (${notifRes.whatsappUrl.substring(0, 45)}...)`;
   }
-  console.log(`✅ [5/5] Notifications & High-Speed Caching: Cache Latency: ${latencyMs.toFixed(3)}ms (< 2ms), Alert: ${notifStatus}.`);
+  console.log(`✅ [5/9] Notifications & High-Speed Caching: Cache Latency: ${latencyMs.toFixed(3)}ms (< 2ms), Alert: ${notifStatus}.`);
+
+  // 6. Alumni Network & Knowledge Sharing
+  const alumniProfilesCount = db.prepare('SELECT COUNT(*) as c FROM alumni_profiles').get().c;
+  const mentorshipPostsCount = db.prepare('SELECT COUNT(*) as c FROM mentorship_posts').get().c;
+  assert(alumniProfilesCount >= 3, 'Alumni profile seed verification failed');
+  assert(mentorshipPostsCount >= 3, 'Mentorship posts seed verification failed');
+  const sampleAlumniPost = db.prepare("SELECT * FROM mentorship_posts WHERE alumni_id = 'alumni_priya' LIMIT 1").get();
+  assert(sampleAlumniPost && sampleAlumniPost.title.includes('AWS'), 'Alumni post content assertion failed');
+  console.log(`✅ [6/9] Alumni Network: ${alumniProfilesCount} profiles, ${mentorshipPostsCount} mentorship articles with comments active.`);
+
+  // 7. Job Fair / Multi-Employer Conclave Management
+  const fairsCount = db.prepare('SELECT COUNT(*) as c FROM job_fairs').get().c;
+  const fairCompaniesCount = db.prepare('SELECT COUNT(*) as c FROM job_fair_companies').get().c;
+  const sampleFair = db.prepare('SELECT * FROM job_fairs LIMIT 1').get();
+  assert(sampleFair && sampleFair.title && sampleFair.mode, 'Job fair details assertion failed');
+  console.log(`✅ [7/9] Job Fair Conclave Manager: ${fairsCount} active fairs with ${fairCompaniesCount} corporate placement drives attached.`);
+
+  // 8. AI/ML Predictive Recruitment Analytics & Early-Warning System
+  const { forecastPlacementTrends } = await import('../ai/modules/placementForecaster.js');
+  const forecastResult = await forecastPlacementTrends({
+    totalStudents: 150,
+    totalSelected: 110,
+    currentPlacementRate: 73,
+    totalDrives: 12,
+    totalOpenings: 140,
+    currentAvgCtc: '7.8 LPA',
+    branchStats: [
+      { branch: 'Computer Science & Engineering', total: 60, selected: 52, currentRate: 86.7 },
+      { branch: 'Chemical Engineering', total: 40, selected: 28, currentRate: 70.0 }
+    ]
+  });
+  assert(forecastResult && Array.isArray(forecastResult.branchForecast), 'Branch forecast must be an array');
+  assert(forecastResult.ctcTrend && forecastResult.ctcTrend.projectedAvgCtcLPA > 0, 'Projected CTC must be positive');
+  console.log(`✅ [8/9] Predictive AI Forecaster: Projected ${forecastResult.branchForecast.length} depts, ₹${forecastResult.ctcTrend.projectedAvgCtcLPA} LPA avg CTC, Direction: ${forecastResult.ctcTrend.direction}.`);
+
+  // 9. Community Q&A & Doubt Clarification System
+  const threadsCount = db.prepare('SELECT COUNT(*) as c FROM qa_threads').get().c;
+  const repliesCount = db.prepare('SELECT COUNT(*) as c FROM qa_replies').get().c;
+  assert(threadsCount >= 2, 'QA threads count assertion failed');
+  assert(repliesCount >= 2, 'QA replies count assertion failed');
+  const sampleThread = db.prepare("SELECT * FROM qa_threads LIMIT 1").get();
+  assert(sampleThread && sampleThread.title && sampleThread.category, 'QA thread category assertion failed');
+  console.log(`✅ [9/9] Community Placement Q&A: ${threadsCount} threaded discussions with ${repliesCount} official TPO & Alumni replies.`);
 
   console.log('\n================================================================================');
-  console.log('🎉 ALL FULL-STACK SYSTEM & ARCHITECTURAL VERIFICATION SUITES PASSED (100%)!');
+  console.log('🎉 ALL FULL-STACK SYSTEM & ARCHITECTURAL VERIFICATION SUITES PASSED (9/9 - 100%)!');
   console.log('================================================================================\n');
 }
 

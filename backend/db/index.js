@@ -220,6 +220,133 @@ function applyMigrations() {
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
       );
     `);
+    // Migrate users.role check constraint if 'alumni' is missing
+    const userTableSql = db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='users'").get()?.sql || '';
+    if (userTableSql && !userTableSql.includes("'alumni'")) {
+      db.pragma('foreign_keys = OFF');
+      db.exec(`
+        CREATE TABLE users_migrated (
+          id TEXT PRIMARY KEY,
+          email TEXT UNIQUE NOT NULL,
+          password_hash TEXT NOT NULL,
+          role TEXT CHECK(role IN ('student', 'company', 'admin', 'alumni')) NOT NULL,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+        INSERT INTO users_migrated (id, email, password_hash, role, created_at)
+        SELECT id, email, password_hash, role, created_at FROM users;
+        DROP TABLE users;
+        ALTER TABLE users_migrated RENAME TO users;
+      `);
+      db.pragma('foreign_keys = ON');
+    }
+
+    // 1. Alumni Profiles Table
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS alumni_profiles (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        name TEXT NOT NULL,
+        batch_year TEXT,
+        company TEXT,
+        designation TEXT,
+        linkedin_url TEXT,
+        bio TEXT,
+        verified INTEGER DEFAULT 0,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    // 2. Mentorship Posts Table
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS mentorship_posts (
+        id TEXT PRIMARY KEY,
+        alumni_id TEXT NOT NULL REFERENCES alumni_profiles(id) ON DELETE CASCADE,
+        title TEXT NOT NULL,
+        content TEXT NOT NULL,
+        tags_json TEXT DEFAULT '[]',
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    // 3. Mentorship Comments Table
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS mentorship_comments (
+        id TEXT PRIMARY KEY,
+        post_id TEXT NOT NULL REFERENCES mentorship_posts(id) ON DELETE CASCADE,
+        author_id TEXT NOT NULL,
+        author_name TEXT,
+        author_role TEXT CHECK(author_role IN ('student', 'alumni', 'admin', 'company')),
+        content TEXT NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    // 4. Job Fairs Table
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS job_fairs (
+        id TEXT PRIMARY KEY,
+        title TEXT NOT NULL,
+        description TEXT,
+        event_date TEXT NOT NULL,
+        venue TEXT,
+        mode TEXT CHECK(mode IN ('online','offline','hybrid')) DEFAULT 'offline',
+        status TEXT CHECK(status IN ('upcoming','live','closed')) DEFAULT 'upcoming',
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    // 5. Job Fair Companies Join Table
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS job_fair_companies (
+        id TEXT PRIMARY KEY,
+        job_fair_id TEXT NOT NULL REFERENCES job_fairs(id) ON DELETE CASCADE,
+        requirement_id TEXT NOT NULL REFERENCES requirements(id) ON DELETE CASCADE,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(job_fair_id, requirement_id)
+      );
+    `);
+
+    // 6. Job Fair Registrations Table
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS job_fair_registrations (
+        id TEXT PRIMARY KEY,
+        job_fair_id TEXT NOT NULL REFERENCES job_fairs(id) ON DELETE CASCADE,
+        student_id TEXT NOT NULL REFERENCES student_profiles(id) ON DELETE CASCADE,
+        registered_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(job_fair_id, student_id)
+      );
+    `);
+
+    // 7. Community Q&A Threads Table
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS qa_threads (
+        id TEXT PRIMARY KEY,
+        student_id TEXT NOT NULL,
+        student_name TEXT,
+        title TEXT NOT NULL,
+        body TEXT NOT NULL,
+        category TEXT NOT NULL,
+        status TEXT CHECK(status IN ('open','resolved')) DEFAULT 'open',
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    // 8. Community Q&A Replies Table
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS qa_replies (
+        id TEXT PRIMARY KEY,
+        thread_id TEXT NOT NULL REFERENCES qa_threads(id) ON DELETE CASCADE,
+        author_id TEXT NOT NULL,
+        author_name TEXT,
+        author_role TEXT CHECK(author_role IN ('student', 'alumni', 'admin', 'company', 'tpo')),
+        body TEXT NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    // Seed Demo Alumni, Job Fairs & Q&A if not already present
+    seedAlumniAndCommunityData();
+
     // Ensure GSFC Admin accounts exist
     const adminUser = db.prepare("SELECT * FROM users WHERE email = 'admin@gsfcuniversity.ac.in'").get();
     if (!adminUser) {
@@ -228,6 +355,220 @@ function applyMigrations() {
     }
   } catch (err) {
     console.error('Migration notice:', err.message);
+  }
+}
+
+function seedAlumniAndCommunityData() {
+  try {
+    const passHash = bcrypt.hashSync('password123', 6);
+
+    // Seed 2 verified alumni and 1 pending alumni
+    const alumniData = [
+        {
+          userId: 'u_alumni_priya',
+          profileId: 'alumni_priya',
+          email: 'priya.patel@alumni.gsfc.ac.in',
+          name: 'Priya Patel',
+          batch: '2019-2023',
+          company: 'Amazon AWS',
+          designation: 'Cloud Solutions Architect',
+          linkedin: 'https://linkedin.com/in/priya-patel-aws',
+          bio: 'GSFC University 2023 BTech CSE Gold Medalist. Specializing in Distributed Cloud Architecture, Kubernetes, and System Design.',
+          verified: 1
+        },
+        {
+          userId: 'u_alumni_karan',
+          profileId: 'alumni_karan',
+          email: 'karan.mehta@alumni.gsfc.ac.in',
+          name: 'Karan Mehta',
+          batch: '2018-2022',
+          company: 'GSFC Limited',
+          designation: 'Senior Process Control Engineer',
+          linkedin: 'https://linkedin.com/in/karan-mehta-gsfc',
+          bio: 'Chemical Engineering Batch 2022. Expert in industrial DCS automation, safety instrumentation, and plant simulations.',
+          verified: 1
+        },
+        {
+          userId: 'u_alumni_neha',
+          profileId: 'alumni_neha',
+          email: 'neha.shah@alumni.gsfc.ac.in',
+          name: 'Neha Shah',
+          batch: '2020-2024',
+          company: 'Reliance Industries (Jio)',
+          designation: 'Full Stack Engineer',
+          linkedin: 'https://linkedin.com/in/neha-shah-jio',
+          bio: 'Recent graduate working on scalable microservices with React, Go, and Kafka.',
+          verified: 0 // Pending TPO Verification
+        }
+      ];
+
+      for (const a of alumniData) {
+        db.prepare("INSERT OR IGNORE INTO users (id, email, password_hash, role) VALUES (?, ?, ?, ?)").run(a.userId, a.email, passHash, 'alumni');
+        db.prepare(`
+          INSERT OR IGNORE INTO alumni_profiles (id, user_id, name, batch_year, company, designation, linkedin_url, bio, verified)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(a.profileId, a.userId, a.name, a.batch, a.company, a.designation, a.linkedin, a.bio, a.verified);
+      }
+
+      // Seed Mentorship Posts
+      db.prepare(`
+        INSERT OR IGNORE INTO mentorship_posts (id, alumni_id, title, content, tags_json)
+        VALUES (?, ?, ?, ?, ?)
+      `).run(
+        'post_aws_guide',
+        'alumni_priya',
+        'How to Crack Tier-1 Cloud & DevOps Campus Drives (From GSFC CSE to AWS)',
+        'Here are the 3 key preparation pillars that helped me clear AWS technical rounds:\n\n1. Master Linux & Networking fundamentals (TCP/IP, DNS, Load Balancers).\n2. Build a live portfolio project deploying microservices with Docker and CI/CD.\n3. Practice explaining high-level system trade-offs (SQL vs NoSQL, Caching with Redis).\n\nFeel free to ask questions below!',
+        JSON.stringify(['Cloud', 'AWS', 'System Design', 'Interview Tips'])
+      );
+
+      db.prepare(`
+        INSERT OR IGNORE INTO mentorship_posts (id, alumni_id, title, content, tags_json)
+        VALUES (?, ?, ?, ?, ?)
+      `).run(
+        'post_chem_psu',
+        'alumni_karan',
+        'Core Chemical & Petrochemical Placement Roadmap: What Industry Recruiters Look For',
+        'Recruiters from GSFC Ltd, Deepak Nitrite, and Reliance look heavily into thermodynamic fundamentals, Aspen Plus simulations, and plant safety (HAZOP analysis). Make sure your final year capstone project addresses real-world industrial optimization.',
+        JSON.stringify(['Chemical', 'Core Engineering', 'PSU', 'Process Safety'])
+      );
+
+      db.prepare(`
+        INSERT OR IGNORE INTO mentorship_posts (id, alumni_id, title, content, tags_json)
+        VALUES (?, ?, ?, ?, ?)
+      `).run(
+        'post_analytics_tips',
+        'alumni_neha',
+        'Transitioning from GSFC University to Business & Data Analytics Roles',
+        'For students targeting roles in analytics consulting and product management: build strong SQL querying skills, become proficient in exploratory data analysis with Python/Pandas, and learn how to present actionable business insights.',
+        JSON.stringify(['Data Analytics', 'SQL', 'Python', 'Consulting', 'Career Guide'])
+      );
+
+      // Seed Comments on Posts
+      db.prepare(`
+        INSERT OR IGNORE INTO mentorship_comments (id, post_id, author_id, author_name, author_role, content)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `).run(
+        'comm_1',
+        'post_aws_guide',
+        's_arav',
+        'Arav Sharma',
+        'student',
+        'Thank you Priya Di! Should we focus on AWS certifications during semester 7 or prioritize LeetCode coding problems?'
+      );
+
+      db.prepare(`
+        INSERT OR IGNORE INTO mentorship_comments (id, post_id, author_id, author_name, author_role, content)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `).run(
+        'comm_2',
+        'post_aws_guide',
+        'alumni_priya',
+        'Priya Patel',
+        'alumni',
+        'Prioritize Problem Solving & Core DSA first! Certifications are a great bonus, but clean problem-solving and projects will land you the interview.'
+      );
+
+    // Seed Job Fairs
+    const jobFairCount = db.prepare("SELECT COUNT(*) as c FROM job_fairs").get().c;
+    if (jobFairCount === 0) {
+      db.prepare(`
+        INSERT OR IGNORE INTO job_fairs (id, title, description, event_date, venue, mode, status)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `).run(
+        'fair_tech_mega_2026',
+        'GSFC University Annual Mega Tech & Engineering Job Fair 2026',
+        'Grand multi-employer campus recruitment event bringing top MNCs and high-growth technology startups. Over 100+ open positions across Software, Cloud, AI, and Chemical Process Engineering.',
+        '2026-10-15',
+        'GSFC University Convention Center & Innovation Grounds',
+        'hybrid',
+        'upcoming'
+      );
+
+      db.prepare(`
+        INSERT OR IGNORE INTO job_fairs (id, title, description, event_date, venue, mode, status)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `).run(
+        'fair_core_chem_2026',
+        'National Petrochemical & Industrial Automation Placement Conclave',
+        'Specialized recruitment drive focusing on Core Chemical, Petrochemical, Mechanical, and Industrial Automation engineering graduates.',
+        '2026-11-20',
+        'SOT Auditorium, GSFC University Campus',
+        'offline',
+        'upcoming'
+      );
+
+      // Attach existing requirements to the mega fair
+      const existingReqs = db.prepare("SELECT id FROM requirements LIMIT 3").all();
+      for (const r of existingReqs) {
+        db.prepare(`
+          INSERT OR IGNORE INTO job_fair_companies (id, job_fair_id, requirement_id)
+          VALUES (?, ?, ?)
+        `).run(`jfc_${r.id}`, 'fair_tech_mega_2026', r.id);
+      }
+
+      // Pre-register student Arav Sharma
+      db.prepare(`
+        INSERT OR IGNORE INTO job_fair_registrations (id, job_fair_id, student_id)
+        VALUES (?, ?, ?)
+      `).run('reg_arav_fair', 'fair_tech_mega_2026', 's_arav');
+    }
+
+    // Seed Community Q&A Threads
+    const qaCount = db.prepare("SELECT COUNT(*) as c FROM qa_threads").get().c;
+    if (qaCount === 0) {
+      db.prepare(`
+        INSERT OR IGNORE INTO qa_threads (id, student_id, student_name, title, body, category, status)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `).run(
+        'thread_cgpa_policy',
+        's_arav',
+        'Arav Sharma',
+        'What is the university policy for Tier-1 companies if someone has 1 active backlog?',
+        'I have a CGPA of 8.9 in BTech CSE but had a backlog in Sem 4 mathematics that is cleared in re-eval. Will I be eligible for Google / Microsoft on-campus shortlist?',
+        'Eligibility & Drive Rules',
+        'resolved'
+      );
+
+      db.prepare(`
+        INSERT OR IGNORE INTO qa_replies (id, thread_id, author_id, author_name, author_role, body)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `).run(
+        'reply_tpo_cgpa',
+        'thread_cgpa_policy',
+        'u_admin_gsfc',
+        'GSFC TPO Directorate',
+        'tpo',
+        'As per GSFC University Placement Policy: If the backlog has been officially cleared and your grade sheet reflects 0 active backlogs at the time of drive registration, you are 100% eligible for all Tier-1 drives with CGPA >= 8.0.'
+      );
+
+      db.prepare(`
+        INSERT OR IGNORE INTO qa_threads (id, student_id, student_name, title, body, category, status)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `).run(
+        'thread_resume_ats',
+        's_rohan',
+        'Rohan Patel',
+        'How does CampusHire AI compute the ATS score for core mechanical design resumes?',
+        'I added STAAD Pro and AutoCAD projects, but want to know if project metrics help improve the score above 90.',
+        'Resume & ATS Optimization',
+        'open'
+      );
+
+      db.prepare(`
+        INSERT OR IGNORE INTO qa_replies (id, thread_id, author_id, author_name, author_role, body)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `).run(
+        'reply_priya_resume',
+        'thread_resume_ats',
+        'alumni_priya',
+        'Priya Patel (Amazon AWS)',
+        'alumni',
+        'Yes Rohan! Adding quantifiable metrics (e.g. "Reduced finite element analysis error margin by 18%") increases both the NLP semantic match and recruiter readability.'
+      );
+    }
+  } catch (err) {
+    console.error('Community seeding notice:', err.message);
   }
 }
 

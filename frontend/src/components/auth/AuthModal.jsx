@@ -37,12 +37,21 @@ const GOOGLE_ACCOUNTS_PRESETS = [
     avatar: 'RV',
     color: 'bg-amber-600',
     status: 'Verified Student'
+  },
+  {
+    name: 'Priya Patel',
+    email: 'priya.patel@alumni.gsfc.ac.in',
+    program: 'Alumni (Amazon AWS)',
+    roll_number: '2019-2023',
+    avatar: 'PP',
+    color: 'bg-blue-800',
+    status: 'Verified Alumni Mentor'
   }
 ];
 
 export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
   const [isLogin, setIsLogin] = useState(true);
-  const [role, setRole] = useState('student'); // student, company, admin
+  const [role, setRole] = useState('student'); // student, company, admin, alumni
   const [googleLoading, setGoogleLoading] = useState(false);
   const [showGoogleAccountPicker, setShowGoogleAccountPicker] = useState(false);
   const [customGoogleInputOpen, setCustomGoogleInputOpen] = useState(false);
@@ -60,7 +69,10 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
     roll_number: '21BCE045',
     company_name: '',
     industry: 'Technology & AI',
-    website: 'https://company.com'
+    website: 'https://company.com',
+    designation: 'Cloud Solutions Architect',
+    batch_year: '2019-2023',
+    linkedin_url: 'https://linkedin.com'
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -86,9 +98,10 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
 
   // Helper to generate simulated JWT and verified user for offline / Vercel static environments
   const createFallbackUser = (userRole, userEmail, userName) => {
+    const isAlumni = userRole === 'alumni' || (userEmail || '').includes('alumni');
     const isCompany = userRole === 'company' || (userEmail || '').includes('hr') || (userEmail || '').includes('company') || (userEmail || '').includes('gsfclimited');
     const isAdmin = userRole === 'admin' || (userEmail || '').includes('admin');
-    const resolvedRole = isAdmin ? 'admin' : (isCompany ? 'company' : 'student');
+    const resolvedRole = isAdmin ? 'admin' : (isAlumni ? 'alumni' : (isCompany ? 'company' : 'student'));
 
     if (resolvedRole === 'admin') {
       return {
@@ -97,6 +110,23 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
         email: userEmail || 'admin@gsfcuniversity.ac.in',
         role: 'admin',
         owner_id: 'a_director'
+      };
+    }
+    if (resolvedRole === 'alumni') {
+      return {
+        id: 'u_alumni_priya',
+        name: userName || 'Priya Patel',
+        email: userEmail || 'priya.patel@alumni.gsfc.ac.in',
+        role: 'alumni',
+        owner_id: 'alumni_priya',
+        profile: {
+          id: 'alumni_priya',
+          name: userName || 'Priya Patel',
+          company: 'Amazon AWS',
+          designation: 'Cloud Solutions Architect',
+          batch_year: '2019-2023',
+          verified: 1
+        }
       };
     }
 
@@ -258,6 +288,10 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
       email = 'admin@gsfcuniversity.ac.in';
       name = 'GSFC TPC Director';
       setFormData(prev => ({ ...prev, email, password: 'password123', phone: '+91 99999 88888' }));
+    } else if (demoRole === 'alumni') {
+      email = 'priya.patel@alumni.gsfc.ac.in';
+      name = 'Priya Patel (Amazon AWS)';
+      setFormData(prev => ({ ...prev, email, password: 'password123', phone: '+91 97777 66666' }));
     }
 
     // Instantly log in with selected demo persona
@@ -459,25 +493,32 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
                 <Sparkles className="w-3.5 h-3.5 text-blue-800" />
                 Quick Demo 1-Click Login:
               </div>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-4 gap-1.5">
                 <button
                   type="button"
                   onClick={() => fillDemoAccount('student')}
-                  className="py-2 px-2 bg-blue-900 hover:bg-blue-800 text-white rounded-xl text-xs font-black transition-all shadow-sm"
+                  className="py-2 px-1.5 bg-blue-900 hover:bg-blue-800 text-white rounded-xl text-[11px] font-black transition-all shadow-sm"
                 >
                   Student
                 </button>
                 <button
                   type="button"
                   onClick={() => fillDemoAccount('company')}
-                  className="py-2 px-2 bg-indigo-900 hover:bg-indigo-800 text-white rounded-xl text-xs font-black transition-all shadow-sm"
+                  className="py-2 px-1.5 bg-indigo-900 hover:bg-indigo-800 text-white rounded-xl text-[11px] font-black transition-all shadow-sm"
                 >
                   Recruiter
                 </button>
                 <button
                   type="button"
+                  onClick={() => fillDemoAccount('alumni')}
+                  className="py-2 px-1.5 bg-cyan-700 hover:bg-cyan-600 text-white rounded-xl text-[11px] font-black transition-all shadow-sm"
+                >
+                  Alumni
+                </button>
+                <button
+                  type="button"
                   onClick={() => fillDemoAccount('admin')}
-                  className="py-2 px-2 bg-amber-600 hover:bg-amber-500 text-white rounded-xl text-xs font-black transition-all shadow-sm"
+                  className="py-2 px-1.5 bg-amber-600 hover:bg-amber-500 text-white rounded-xl text-[11px] font-black transition-all shadow-sm"
                 >
                   TPC Admin
                 </button>
@@ -488,28 +529,39 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
             {!isLogin && (
               <div className="mt-4">
                 <label className="block text-xs font-black text-slate-700 uppercase mb-1.5">Select Account Role</label>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-3 gap-2">
                   <button
                     type="button"
                     onClick={() => setRole('student')}
-                    className={`py-2 px-3 rounded-xl text-xs font-black flex items-center justify-center gap-2 border transition-all ${
+                    className={`py-2 px-2 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 border transition-all ${
                       role === 'student'
                         ? 'bg-blue-900 text-white border-blue-900 shadow-md'
                         : 'bg-slate-100 border-slate-200 text-slate-700 hover:bg-slate-200'
                     }`}
                   >
-                    <User className="w-4 h-4" /> Student
+                    <User className="w-3.5 h-3.5" /> Student
                   </button>
                   <button
                     type="button"
                     onClick={() => setRole('company')}
-                    className={`py-2 px-3 rounded-xl text-xs font-black flex items-center justify-center gap-2 border transition-all ${
+                    className={`py-2 px-2 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 border transition-all ${
                       role === 'company'
                         ? 'bg-blue-900 text-white border-blue-900 shadow-md'
                         : 'bg-slate-100 border-slate-200 text-slate-700 hover:bg-slate-200'
                     }`}
                   >
-                    <Building className="w-4 h-4" /> Recruiting Company
+                    <Building className="w-3.5 h-3.5" /> Company
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRole('alumni')}
+                    className={`py-2 px-2 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 border transition-all ${
+                      role === 'alumni'
+                        ? 'bg-blue-900 text-white border-blue-900 shadow-md'
+                        : 'bg-slate-100 border-slate-200 text-slate-700 hover:bg-slate-200'
+                    }`}
+                  >
+                    <Shield className="w-3.5 h-3.5" /> Alumni Mentor
                   </button>
                 </div>
               </div>
@@ -578,6 +630,63 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
                       placeholder="e.g. Chemical / IT"
                       className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 font-bold focus:outline-none focus:border-blue-900"
                     />
+                  </div>
+                </div>
+              )}
+
+              {!isLogin && role === 'alumni' && (
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs text-slate-700 mb-1 font-bold">Full Name *</label>
+                      <input
+                        type="text"
+                        name="name"
+                        value={formData.name}
+                        onChange={handleChange}
+                        required
+                        placeholder="e.g. Priya Patel"
+                        className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 font-bold focus:outline-none focus:border-blue-900"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-slate-700 mb-1 font-bold">GSFC Batch *</label>
+                      <input
+                        type="text"
+                        name="batch_year"
+                        value={formData.batch_year}
+                        onChange={handleChange}
+                        required
+                        placeholder="e.g. 2019-2023"
+                        className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 font-bold focus:outline-none focus:border-blue-900"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs text-slate-700 mb-1 font-bold">Current Employer *</label>
+                      <input
+                        type="text"
+                        name="company_name"
+                        value={formData.company_name}
+                        onChange={handleChange}
+                        required
+                        placeholder="e.g. Amazon AWS"
+                        className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 font-bold focus:outline-none focus:border-blue-900"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-slate-700 mb-1 font-bold">Designation *</label>
+                      <input
+                        type="text"
+                        name="designation"
+                        value={formData.designation}
+                        onChange={handleChange}
+                        required
+                        placeholder="e.g. Solutions Architect"
+                        className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 font-bold focus:outline-none focus:border-blue-900"
+                      />
+                    </div>
                   </div>
                 </div>
               )}

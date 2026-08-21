@@ -23,3 +23,17 @@ CREATE INDEX IF NOT EXISTS idx_companies_approved ON company_profiles(approved);
 
 -- 7. Index for Notifications Log
 CREATE INDEX IF NOT EXISTS idx_notif_phone_date ON notifications_log(recipient_phone, created_at DESC);
+
+-- 8. Indexes for Alumni Profiles & Mentorship
+CREATE INDEX IF NOT EXISTS idx_alumni_user_verified ON alumni_profiles(user_id, verified);
+CREATE INDEX IF NOT EXISTS idx_mentorship_posts_date ON mentorship_posts(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_mentorship_comments_post ON mentorship_comments(post_id, created_at ASC);
+
+-- 9. Indexes for Job Fairs & Registrations
+CREATE INDEX IF NOT EXISTS idx_job_fairs_status_date ON job_fairs(status, event_date ASC);
+CREATE INDEX IF NOT EXISTS idx_job_fair_companies_pair ON job_fair_companies(job_fair_id, requirement_id);
+CREATE INDEX IF NOT EXISTS idx_job_fair_reg_student ON job_fair_registrations(job_fair_id, student_id);
+
+-- 10. Indexes for Community Q&A Threads & Replies
+CREATE INDEX IF NOT EXISTS idx_qa_threads_status_date ON qa_threads(status, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_qa_replies_thread ON qa_replies(thread_id, created_at ASC);

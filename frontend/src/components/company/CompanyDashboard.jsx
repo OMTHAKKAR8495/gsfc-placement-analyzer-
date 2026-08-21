@@ -1417,7 +1417,7 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
             <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
               activeTab === 'database' ? 'bg-sky-900 text-sky-200' : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300'
             }`}>
-              {allCandidates.length}
+              {allCompanyApplicants.length}
             </span>
           </button>
 
@@ -1458,7 +1458,7 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
             )}
             {activeTab === 'database' && (
               <span className="text-sky-700 dark:text-sky-400 font-black">
-                🗄️ University Master Candidate Database ({allCandidates.length} Student Profiles)
+                🗄️ University Master Candidate Database ({allCompanyApplicants.length} Student Profiles)
               </span>
             )}
             {activeTab === 'applicants' && (

@@ -3,17 +3,22 @@ import {
   ShieldCheck, CheckCircle2, XCircle, BarChart3, Download, Building, Users, 
   Briefcase, FileSpreadsheet, Sparkles, TrendingUp, PieChart, Database, Search, 
   Printer, CheckCircle, Trash2, Calendar, Filter, SlidersHorizontal, Layers, 
-  CheckSquare, Square, RefreshCw, Eye, GraduationCap, Award, Check, FileText, X
+  CheckSquare, Square, RefreshCw, Eye, GraduationCap, Award, Check, FileText, X, HelpCircle
 } from 'lucide-react';
 import ReportPDFModal from '../common/ReportPDFModal';
 import BatchPDFReportModal from './BatchPDFReportModal';
 import ApprovalNotificationModal from '../common/ApprovalNotificationModal';
 import AccreditationNirfModal from './AccreditationNirfModal';
+import PredictiveAnalyticsPanel from './PredictiveAnalyticsPanel';
+import JobFairManagerModal from './JobFairManagerModal';
+import QABoard from '../common/QABoard';
 
 export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
-  const [activeTab, setActiveTab] = useState('overview'); // 'overview', 'database'
+  const [activeTab, setActiveTab] = useState('overview'); // 'overview', 'predictive', 'database', 'companies', 'drives', 'applications', 'alumni_approvals', 'qa'
   const [accreditationModalOpen, setAccreditationModalOpen] = useState(false);
+  const [jobFairModalOpen, setJobFairModalOpen] = useState(false);
   const [pendingCompanies, setPendingCompanies] = useState([]);
+  const [pendingAlumni, setPendingAlumni] = useState([]);
   const [analytics, setAnalytics] = useState(null);
   const [loading, setLoading] = useState(false);
   const [approvalModal, setApprovalModal] = useState({ isOpen: false, title: '', message: '', entityName: '' });
@@ -166,6 +171,41 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
     }
   };
 
+  const fetchPendingAlumni = async () => {
+    try {
+      const res = await fetch('/api/admin/pending-alumni');
+      if (res.ok) {
+        const data = await res.json();
+        setPendingAlumni(Array.isArray(data) ? data : []);
+      }
+    } catch (err) {
+      console.error('Error fetching pending alumni:', err);
+    }
+  };
+
+  const handleApproveRejectAlumni = async (alumniId, name, verified) => {
+    try {
+      const res = await fetch(`/api/admin/approve-alumni/${alumniId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ verified })
+      });
+      if (res.ok) {
+        setPendingAlumni(prev => prev.filter(a => a.id !== alumniId));
+        if (verified === 1) {
+          setApprovalModal({
+            isOpen: true,
+            title: '🎓 Alumni Mentor Verified!',
+            message: `GSFC University TPC has officially verified ${name}. They can now mentor students and post recruitment tips.`,
+            entityName: name
+          });
+        }
+      }
+    } catch (err) {
+      console.error('Error updating alumni verification:', err);
+    }
+  };
+
   const fetchAdminDataSilently = async () => {
     try {
       const [pendingRes, analyticsRes] = await Promise.all([
@@ -178,6 +218,7 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
 
       setPendingCompanies(Array.isArray(pendingData) ? pendingData : []);
       setAnalytics(analyticsData && !analyticsData.error ? analyticsData : null);
+      fetchPendingAlumni();
     } catch (err) {
       console.error('Error loading TPC admin data:', err);
     }
@@ -540,18 +581,58 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
       <div className="flex items-center gap-3 bg-white/90 p-2 rounded-2xl border border-slate-200 shadow-sm max-w-full overflow-x-auto">
         <button
           onClick={() => setActiveTab('overview')}
-          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black transition-all shrink-0 ${
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black transition-all shrink-0 ${
             activeTab === 'overview'
               ? 'bg-theme-gradient text-white shadow-md'
               : 'text-slate-700 hover:bg-slate-100'
           }`}
         >
-          <BarChart3 className="w-4 h-4" /> Governance & Analytics
+          <BarChart3 className="w-4 h-4" /> Governance
+        </button>
+
+        <button
+          onClick={() => setActiveTab('predictive')}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black transition-all shrink-0 ${
+            activeTab === 'predictive'
+              ? 'bg-theme-gradient text-white shadow-md'
+              : 'text-slate-700 hover:bg-slate-100'
+          }`}
+        >
+          <Sparkles className="w-4 h-4 text-indigo-400" /> 🔮 AI Predictive Forecast
+        </button>
+
+        <button
+          onClick={() => setJobFairModalOpen(true)}
+          className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black transition-all shrink-0 bg-purple-50 text-purple-950 border border-purple-200 hover:bg-purple-100 cursor-pointer shadow-xs"
+        >
+          <Calendar className="w-4 h-4 text-purple-600" /> 🎪 Job Fair Manager
+        </button>
+
+        <button
+          onClick={() => setActiveTab('alumni_approvals')}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black transition-all shrink-0 ${
+            activeTab === 'alumni_approvals'
+              ? 'bg-theme-gradient text-white shadow-md'
+              : 'text-slate-700 hover:bg-slate-100'
+          }`}
+        >
+          <GraduationCap className="w-4 h-4 text-blue-500" /> 🎓 Alumni Approvals ({pendingAlumni.length})
+        </button>
+
+        <button
+          onClick={() => setActiveTab('qa')}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black transition-all shrink-0 ${
+            activeTab === 'qa'
+              ? 'bg-theme-gradient text-white shadow-md'
+              : 'text-slate-700 hover:bg-slate-100'
+          }`}
+        >
+          <HelpCircle className="w-4 h-4 text-cyan-500" /> 💬 Q&A Moderation
         </button>
 
         <button
           onClick={() => setActiveTab('database')}
-          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black transition-all shrink-0 ${
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black transition-all shrink-0 ${
             activeTab === 'database'
               ? 'bg-theme-gradient text-white shadow-md'
               : 'text-slate-700 hover:bg-slate-100'
@@ -562,35 +643,35 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
 
         <button
           onClick={() => setActiveTab('companies')}
-          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black transition-all shrink-0 ${
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black transition-all shrink-0 ${
             activeTab === 'companies'
               ? 'bg-theme-gradient text-white shadow-md'
               : 'text-slate-700 hover:bg-slate-100'
           }`}
         >
-          <Building className="w-4 h-4 text-amber-500" /> 🏢 Recruiter Registry ({allCompaniesList.length})
+          <Building className="w-4 h-4 text-amber-500" /> 🏢 Recruiters ({allCompaniesList.length})
         </button>
 
         <button
           onClick={() => setActiveTab('drives')}
-          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black transition-all shrink-0 ${
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black transition-all shrink-0 ${
             activeTab === 'drives'
               ? 'bg-theme-gradient text-white shadow-md'
               : 'text-slate-700 hover:bg-slate-100'
           }`}
         >
-          <Briefcase className="w-4 h-4 text-emerald-400" /> 💼 Posted Drives ({allDrivesList.length})
+          <Briefcase className="w-4 h-4 text-emerald-400" /> 💼 Drives ({allDrivesList.length})
         </button>
 
         <button
           onClick={() => setActiveTab('applications')}
-          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black transition-all shrink-0 ${
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black transition-all shrink-0 ${
             activeTab === 'applications'
               ? 'bg-theme-gradient text-white shadow-md'
               : 'text-slate-700 hover:bg-slate-100'
           }`}
         >
-          <Users className="w-4 h-4 text-indigo-400" /> 📄 All Applications ({allApplicationsList.length})
+          <Users className="w-4 h-4 text-indigo-400" /> 📄 Applications ({allApplicationsList.length})
         </button>
 
         <button
@@ -598,20 +679,20 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
             setActiveTab('search');
             fetchGlobalSearch(searchQuery);
           }}
-          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black transition-all shrink-0 ${
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black transition-all shrink-0 ${
             activeTab === 'search'
               ? 'bg-theme-gradient text-white shadow-md'
               : 'text-slate-700 hover:bg-slate-100'
           }`}
         >
-          <Search className="w-4 h-4 text-cyan-400" /> 🔍 Cross-Tenant Global Search
+          <Search className="w-4 h-4 text-cyan-400" /> 🔍 Cross-Tenant Search
         </button>
 
         <button
           onClick={() => setAccreditationModalOpen(true)}
-          className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black transition-all shrink-0 bg-amber-50 text-amber-950 border border-amber-300 hover:bg-amber-100 cursor-pointer shadow-xs"
+          className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black transition-all shrink-0 bg-amber-50 text-amber-950 border border-amber-300 hover:bg-amber-100 cursor-pointer shadow-xs"
         >
-          <Award className="w-4 h-4 text-amber-600 stroke-[2.5]" /> 🏆 NAAC & NIRF Reports
+          <Award className="w-4 h-4 text-amber-600 stroke-[2.5]" /> 🏆 NAAC / NIRF
         </button>
       </div>
 
@@ -1673,6 +1754,106 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
           </div>
         </div>
       )}
+
+      {/* VIEW: PREDICTIVE PLACEMENT AI ANALYTICS */}
+      {activeTab === 'predictive' && (
+        <div className="space-y-6 animate-fade-in">
+          <PredictiveAnalyticsPanel />
+        </div>
+      )}
+
+      {/* VIEW: PENDING ALUMNI MENTOR APPROVALS */}
+      {activeTab === 'alumni_approvals' && (
+        <div className="glass-panel p-6 sm:p-8 rounded-3xl border border-slate-200/90 shadow-xl space-y-6 animate-fade-in bg-white/90">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200">
+            <div>
+              <div className="flex items-center gap-2 text-blue-900 text-xs font-black uppercase tracking-wider">
+                <GraduationCap className="w-4 h-4" />
+                <span>Alumni Network Governance</span>
+              </div>
+              <h2 className="text-xl font-black text-slate-900">
+                GSFC Alumni Mentor Verification Queue
+              </h2>
+              <p className="text-xs text-slate-500 font-medium">
+                Verify alumni identity and corporate credentials before granting student mentorship privileges.
+              </p>
+            </div>
+            <button
+              onClick={fetchPendingAlumni}
+              className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-xs font-bold flex items-center gap-1.5 shrink-0"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              <span>Refresh Queue</span>
+            </button>
+          </div>
+
+          {pendingAlumni.length === 0 ? (
+            <div className="p-12 text-center space-y-2 bg-slate-50 rounded-2xl border border-slate-200">
+              <CheckCircle2 className="w-10 h-10 text-emerald-600 mx-auto" />
+              <h3 className="text-sm font-black text-slate-800">All Alumni Mentors Verified!</h3>
+              <p className="text-xs text-slate-500">There are no pending alumni verification requests in the queue.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {pendingAlumni.map((al) => (
+                <div key={al.id} className="p-5 bg-white rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between gap-4">
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-black text-slate-900 text-sm">{al.name}</h3>
+                      <span className="px-2.5 py-0.5 bg-blue-100 text-blue-800 rounded-full text-[10px] font-black">
+                        Batch: {al.batch_year || 'GSFC Alumni'}
+                      </span>
+                    </div>
+                    <div className="text-xs text-slate-700 font-bold">
+                      {al.designation} at <strong className="text-blue-900">{al.company}</strong>
+                    </div>
+                    <div className="text-[11px] text-slate-500">{al.email}</div>
+                    {al.bio && (
+                      <p className="text-xs text-slate-600 italic bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                        "{al.bio}"
+                      </p>
+                    )}
+                    {al.linkedin_url && (
+                      <a href={al.linkedin_url} target="_blank" rel="noreferrer" className="text-[11px] text-blue-600 font-bold hover:underline block">
+                        LinkedIn Profile &rarr;
+                      </a>
+                    )}
+                  </div>
+
+                  <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+                    <button
+                      onClick={() => handleApproveRejectAlumni(al.id, al.name, 0)}
+                      className="px-3.5 py-2 rounded-xl bg-red-50 hover:bg-red-100 text-red-700 text-xs font-black transition-all"
+                    >
+                      Reject
+                    </button>
+                    <button
+                      onClick={() => handleApproveRejectAlumni(al.id, al.name, 1)}
+                      className="px-4 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-black shadow-md flex items-center gap-1.5 transition-all"
+                    >
+                      <CheckCircle2 className="w-4 h-4" /> Verify Mentor
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* VIEW: COMMUNITY Q&A MODERATION */}
+      {activeTab === 'qa' && (
+        <div className="space-y-6 animate-fade-in">
+          <QABoard currentUser={currentUser} />
+        </div>
+      )}
+
+      {/* JOB FAIR MANAGER MODAL */}
+      <JobFairManagerModal
+        isOpen={jobFairModalOpen}
+        onClose={() => setJobFairModalOpen(false)}
+        onFairsUpdated={fetchMasterData}
+      />
 
       {/* PDF REPORT MODAL */}
       <ReportPDFModal

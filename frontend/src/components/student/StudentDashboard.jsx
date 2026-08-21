@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Upload, FileText, CheckCircle, AlertTriangle, Sparkles, Briefcase, Award, TrendingUp, Search, SlidersHorizontal, ArrowRight, Play, Cpu, Check, Layers, ChevronRight, Compass, ShieldCheck, PieChart, BarChart2, RefreshCw, Zap, Database, X, Star, CheckCircle2, AlertCircle, Edit3, Mail, Download, Paperclip, Printer, Trash2, User, Plus, Building2, Bell, Phone } from 'lucide-react';
+import { Upload, FileText, CheckCircle, AlertTriangle, Sparkles, Briefcase, Award, TrendingUp, Search, SlidersHorizontal, ArrowRight, Play, Cpu, Check, Layers, ChevronRight, Compass, ShieldCheck, PieChart, BarChart2, RefreshCw, Zap, Database, X, Star, CheckCircle2, AlertCircle, Edit3, Mail, Download, Paperclip, Printer, Trash2, User, Plus, Building2, Bell, Phone, Calendar, HelpCircle, MessageSquare } from 'lucide-react';
 import MockInterviewChat from './MockInterviewChat';
 import CompanyTrackerSidebar from '../common/CompanyTrackerSidebar';
 import ReportPDFModal from '../common/ReportPDFModal';
@@ -7,6 +7,9 @@ import InternalAutoFillApplyModal from './InternalAutoFillApplyModal';
 import ExternalApplyConfirmModal from './ExternalApplyConfirmModal';
 import OfferLetterModal from '../common/OfferLetterModal';
 import NotificationLogsModal from '../common/NotificationLogsModal';
+import JobFairListView from './JobFairListView';
+import MentorshipFeed from '../alumni/MentorshipFeed';
+import QABoard from '../common/QABoard';
 import { useToast } from '../../context/ToastContext';
 
 export const DEFAULT_REQUIREMENTS_FEED = [
@@ -634,29 +637,62 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
         <div className="flex items-center gap-2 sm:gap-3 mt-6 sm:mt-8 border-t border-slate-200/90 pt-4 overflow-x-auto max-w-full pb-1">
           <button
             onClick={() => setActiveTab('feed')}
-            className={`flex items-center gap-2 px-3.5 sm:px-5 py-2.5 rounded-xl text-xs font-black transition-all shrink-0 whitespace-nowrap ${
+            className={`flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl text-xs font-black transition-all shrink-0 whitespace-nowrap ${
               activeTab === 'feed'
                 ? 'bg-theme-gradient text-white shadow-lg'
                 : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100/80'
             }`}
           >
-            <Briefcase className="w-4 h-4" /> Live GSFC Requirements
+            <Briefcase className="w-4 h-4" /> Live Drives
+          </button>
+
+          <button
+            onClick={() => setActiveTab('job_fairs')}
+            className={`flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl text-xs font-black transition-all shrink-0 whitespace-nowrap ${
+              activeTab === 'job_fairs'
+                ? 'bg-theme-gradient text-white shadow-lg'
+                : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100/80'
+            }`}
+          >
+            <Calendar className="w-4 h-4 text-purple-400" /> Job Fairs & Conclaves
+          </button>
+
+          <button
+            onClick={() => setActiveTab('alumni')}
+            className={`flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl text-xs font-black transition-all shrink-0 whitespace-nowrap ${
+              activeTab === 'alumni'
+                ? 'bg-theme-gradient text-white shadow-lg'
+                : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100/80'
+            }`}
+          >
+            <Award className="w-4 h-4 text-blue-400" /> Alumni Mentorship
+          </button>
+
+          <button
+            onClick={() => setActiveTab('qa')}
+            className={`flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl text-xs font-black transition-all shrink-0 whitespace-nowrap ${
+              activeTab === 'qa'
+                ? 'bg-theme-gradient text-white shadow-lg'
+                : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100/80'
+            }`}
+          >
+            <HelpCircle className="w-4 h-4 text-cyan-400" /> Community Q&A
           </button>
 
           <button
             onClick={() => setActiveTab('profile')}
-            className={`flex items-center gap-2 px-3.5 sm:px-5 py-2.5 rounded-xl text-xs font-black transition-all shrink-0 whitespace-nowrap ${
+            className={`flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl text-xs font-black transition-all shrink-0 whitespace-nowrap ${
               activeTab === 'profile'
                 ? 'bg-theme-gradient text-white shadow-lg'
                 : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100/80'
             }`}
           >
-            <FileText className="w-4 h-4" /> Smart Resume Analyzer
+            <FileText className="w-4 h-4" /> Smart Resume ATS
           </button>
 
           <button
             onClick={() => setActiveTab('applications')}
-            className={`flex items-center gap-2 px-3.5 sm:px-5 py-2.5 rounded-xl text-xs font-black transition-all shrink-0 whitespace-nowrap ${
+            className={`flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl text-xs font-black transition-all shrink-0 whitespace-nowrap ${
               activeTab === 'applications'
                 ? 'bg-theme-gradient text-white shadow-lg'
                 : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100/80'
@@ -1281,6 +1317,37 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
                   ))}
                 </div>
               )}
+            </div>
+          )}
+
+          {activeTab === 'job_fairs' && (
+            <div className="space-y-4">
+              <JobFairListView
+                currentUser={currentUser}
+                onOpenAuth={onOpenAuthModal}
+                onSelectJobDrive={(drive) => {
+                  setActiveTab('feed');
+                  setSearchQuery(drive.job_title || drive.company_name);
+                }}
+              />
+            </div>
+          )}
+
+          {activeTab === 'alumni' && (
+            <div className="space-y-4">
+              <MentorshipFeed
+                currentUser={currentUser}
+                onOpenAuth={onOpenAuthModal}
+              />
+            </div>
+          )}
+
+          {activeTab === 'qa' && (
+            <div className="space-y-4">
+              <QABoard
+                currentUser={currentUser}
+                onOpenAuth={onOpenAuthModal}
+              />
             </div>
           )}
         </div>

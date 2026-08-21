@@ -48,6 +48,13 @@ router.post('/register', AuthRateLimiter.registerLimiter, async (req, res) => {
         INSERT INTO company_profiles (id, user_id, company_name, contact_phone, industry, website, approved)
         VALUES (?, ?, ?, ?, ?, ?, 0)
       `).run(companyId, userId, company_name || 'Recruiter Company', phone || '+91 98765 43210', industry || 'Technology', website || 'https://company.com');
+    } else if (role === 'alumni') {
+      const alumniId = 'alumni_' + Date.now();
+      ownerId = alumniId;
+      db.prepare(`
+        INSERT INTO alumni_profiles (id, user_id, name, batch_year, company, designation, linkedin_url, bio, verified)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)
+      `).run(alumniId, userId, name || 'GSFC Alumni', req.body.batch_year || '2020-2024', company_name || req.body.company || 'Industry Partner', req.body.designation || 'Software Engineer', req.body.linkedin_url || '', req.body.bio || '', 0);
     }
 
     const token = jwt.sign({ userId, email, role, owner_id: ownerId }, JWT_SECRET, { expiresIn: '7d' });
@@ -162,6 +169,9 @@ router.post('/login', AuthRateLimiter.loginLimiter, async (req, res) => {
     } else if (user.role === 'company') {
       profile = db.prepare('SELECT * FROM company_profiles WHERE user_id = ?').get(user.id);
       ownerId = profile?.id || user.id;
+    } else if (user.role === 'alumni') {
+      profile = db.prepare('SELECT * FROM alumni_profiles WHERE user_id = ?').get(user.id);
+      ownerId = profile?.id || user.id;
     }
 
     const token = jwt.sign({ userId: user.id, email: user.email, role: user.role, owner_id: ownerId }, JWT_SECRET, { expiresIn: '7d' });
@@ -267,6 +277,8 @@ router.get('/me', (req, res) => {
       profile = db.prepare('SELECT * FROM student_profiles WHERE user_id = ?').get(user.id);
     } else if (user.role === 'company') {
       profile = db.prepare('SELECT * FROM company_profiles WHERE user_id = ?').get(user.id);
+    } else if (user.role === 'alumni') {
+      profile = db.prepare('SELECT * FROM alumni_profiles WHERE user_id = ?').get(user.id);
     }
 
     res.json({ user: { ...user, profile } });

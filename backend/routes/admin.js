@@ -1,8 +1,73 @@
 import express from 'express';
 import db from '../db/index.js';
 import appCache from '../services/cacheService.js';
+import { AuthRateLimiter } from '../middleware/security.js';
+import { forecastPlacementTrends } from '../ai/modules/placementForecaster.js';
 
 const router = express.Router();
+
+// Pending Alumni Approval List
+router.get('/pending-alumni', (req, res) => {
+  try {
+    const pending = db.prepare(`
+      SELECT a.*, u.email, u.created_at as user_registered_at
+      FROM alumni_profiles a
+      JOIN users u ON a.user_id = u.id
+      WHERE a.verified = 0
+      ORDER BY u.created_at DESC
+    `).all();
+
+    res.json(pending);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Approve or Reject Alumni Profile (POST)
+router.post('/approve-alumni', (req, res) => {
+  try {
+    const { alumni_id, action } = req.body; // 'approve' or 'reject'
+    if (!alumni_id || !action) {
+      return res.status(400).json({ error: 'alumni_id and action are required.' });
+    }
+
+    if (action === 'approve' || action === 1) {
+      db.prepare('UPDATE alumni_profiles SET verified = 1 WHERE id = ?').run(alumni_id);
+      return res.json({ success: true, message: 'Alumni profile verified and approved for mentorship!' });
+    } else {
+      const alumni = db.prepare('SELECT user_id FROM alumni_profiles WHERE id = ?').get(alumni_id);
+      if (alumni) {
+        db.prepare('DELETE FROM alumni_profiles WHERE id = ?').run(alumni_id);
+        db.prepare('DELETE FROM users WHERE id = ?').run(alumni.user_id);
+      }
+      return res.json({ success: true, message: 'Alumni profile registration rejected and removed.' });
+    }
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Approve or Reject Alumni Profile (PUT)
+router.put('/approve-alumni/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+    const { verified } = req.body; // 1 or 0
+
+    if (verified === 1) {
+      db.prepare('UPDATE alumni_profiles SET verified = 1 WHERE id = ?').run(id);
+      return res.json({ success: true, message: 'Alumni mentor verified!' });
+    } else {
+      const alumni = db.prepare('SELECT user_id FROM alumni_profiles WHERE id = ?').get(id);
+      if (alumni) {
+        db.prepare('DELETE FROM alumni_profiles WHERE id = ?').run(id);
+        db.prepare('DELETE FROM users WHERE id = ?').run(alumni.user_id);
+      }
+      return res.json({ success: true, message: 'Alumni verification rejected.' });
+    }
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 // Pending Company Approval List
 router.get('/pending-companies', (req, res) => {
@@ -759,5 +824,103 @@ router.get('/accreditation/export-naac-csv', (req, res) => {
   }
 });
 
+// 🔮 AI Predictive Placement & Recruitment Analytics (Rate Limited)
+router.get('/analytics/forecast', AuthRateLimiter.aiFeatureLimiter, async (req, res) => {
+  try {
+    const students = db.prepare(`
+      SELECT 
+        s.id, s.name, s.roll_number, s.program, s.branch, s.cgpa, s.ats_score, s.passing_year,
+        (SELECT COUNT(*) FROM applications a WHERE a.student_id = s.id) as app_count,
+        (SELECT COUNT(*) FROM applications a WHERE a.student_id = s.id AND a.status = 'selected') as offer_count
+      FROM student_profiles s
+    `).all();
+
+    const totalStudents = students.length;
+    const totalSelected = students.filter(s => s.offer_count > 0).length;
+    const currentPlacementRate = totalStudents > 0 ? Math.round((totalSelected / totalStudents) * 100) : 0;
+
+    const reqStats = db.prepare(`
+      SELECT COUNT(*) as total_drives, COALESCE(SUM(openings), 0) as total_openings FROM requirements WHERE applications_open = 1
+    `).get();
+
+    // Branch Aggregation
+    const branchMap = {};
+    for (const s of students) {
+      const bKey = s.branch || s.program || 'Engineering';
+      if (!branchMap[bKey]) {
+        branchMap[bKey] = { branch: bKey, total: 0, selected: 0, totalAts: 0 };
+      }
+      branchMap[bKey].total += 1;
+      if (s.offer_count > 0) branchMap[bKey].selected += 1;
+      branchMap[bKey].totalAts += (s.ats_score || 75);
+    }
+
+    const branchStats = Object.values(branchMap).map(b => ({
+      branch: b.branch,
+      total: b.total,
+      selected: b.selected,
+      placementRate: b.total > 0 ? Math.round((b.selected / b.total) * 100) : 0,
+      avgAts: b.total > 0 ? Math.round(b.totalAts / b.total) : 75
+    }));
+
+    // Server-Side Statistical At-Risk Detection (Low Applications or Low ATS and no offers)
+    const atRiskStudents = students.filter(s => {
+      if (s.offer_count > 0) return false;
+      const isLowApps = s.app_count === 0;
+      const isLowAts = (s.ats_score || 0) < 78;
+      const isLowCgpa = s.cgpa < 7.0;
+      return isLowApps || isLowAts || isLowCgpa;
+    }).map(s => {
+      const riskReasons = [];
+      if (s.app_count === 0) riskReasons.push('0 Active Applications Submitted');
+      if ((s.ats_score || 0) < 78) riskReasons.push(`Low ATS Score (${s.ats_score || 65}/100)`);
+      if (s.cgpa < 7.0) riskReasons.push(`CGPA (${s.cgpa}) below standard 7.0 threshold`);
+      
+      return {
+        id: s.id,
+        name: s.name,
+        roll_number: s.roll_number,
+        program: s.program,
+        branch: s.branch,
+        cgpa: s.cgpa,
+        ats_score: s.ats_score || 65,
+        app_count: s.app_count,
+        risk_level: riskReasons.length >= 2 ? 'High' : 'Medium',
+        risk_reasons: riskReasons
+      };
+    });
+
+    const preliminaryAtRiskIds = atRiskStudents.map(s => s.id);
+
+    // Call AI Forecaster
+    const forecastResult = await forecastPlacementTrends({
+      totalStudents,
+      totalSelected,
+      currentPlacementRate,
+      totalDrives: reqStats.total_drives || 0,
+      totalOpenings: reqStats.total_openings || 0,
+      branchStats,
+      atRiskCandidatesCount: atRiskStudents.length,
+      preliminaryAtRiskIds
+    });
+
+    res.json({
+      success: true,
+      currentMetrics: {
+        totalStudents,
+        totalSelected,
+        currentPlacementRate,
+        totalDrives: reqStats.total_drives,
+        totalOpenings: reqStats.total_openings
+      },
+      forecast: forecastResult,
+      atRiskStudentsList: atRiskStudents
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 export default router;
+
 

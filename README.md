@@ -38,6 +38,27 @@
 * **360° Master Governance Registries**: View all registered company profiles, active placement drives, and candidate application master feeds.
 * **NAAC/NIRF Accreditation CSV Export**: One-click export downloading complete, audited placement conversion metrics for university accreditation audits.
 
+### 🎓 5. Alumni Network & Mentorship Knowledge Hub
+* **Verified Alumni Profiles**: Graduated GSFC alumni register with verified company affiliations (e.g. *Amazon AWS*, *GSFC Ltd*, *Reliance Jio*).
+* **Mentorship Feed**: Alumni share placement roadmaps, interview playbooks, and company-specific preparation strategies.
+* **Interactive Community Discussions**: Students ask questions directly under alumni posts with real-time comments.
+* **TPC Verification Gate**: Admin queue to authenticate alumni credentials before granting mentor publishing privileges.
+
+### 🎪 6. Multi-Employer Job Fairs & Conclave Management
+* **Pooled Campus Recruitment Drives**: Schedule and manage mega on-campus, hybrid, and virtual career conclaves.
+* **Multi-Company Attachments**: Attach multiple active corporate hiring drives to a single job fair event.
+* **1-Click Student Registration**: Students broadcast ATS-verified resumes to all participating corporate panels simultaneously.
+
+### 🔮 7. AI/ML Predictive Recruitment Analytics & Early-Warning Interventions
+* **Department-Wise Conversion Forecasts**: Predictive models projecting final placement rates per engineering & management branch with analytical reasoning.
+* **Salary Trajectory Trends**: Projected cohort average CTC growth and industry benchmark comparisons.
+* **Early-Warning At-Risk Roster**: Automatic detection of students with 0 applications or low ATS scores with 1-click WhatsApp/Email counseling alerts.
+
+### 💬 8. Open Community Placement Q&A & Doubt Clarification
+* **Categorized Placement Discussions**: Threaded doubts across drive rules, backlog eligibility, and interview technical rounds.
+* **Official TPO & Alumni Badges**: Verified answers highlighted with prominent institutional authority badges.
+* **Resolution Workflow**: TPO officers and thread authors can mark questions as officially resolved.
+
 ---
 
 ## 🛠️ Technology Stack

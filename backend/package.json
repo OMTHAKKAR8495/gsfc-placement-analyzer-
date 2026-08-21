@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "start": "node index.js",
-    "dev": "node index.js",
+    "dev": "node --watch index.js",
     "test": "node tests/verify_all.js"
   },
   "dependencies": {
