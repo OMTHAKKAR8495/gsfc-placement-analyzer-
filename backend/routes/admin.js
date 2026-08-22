@@ -728,11 +728,14 @@ router.get('/accreditation/nirf-naac-data', (req, res) => {
     });
 
     // Overall Live Metrics
+    const placedCount = Object.keys(studentOffers).length;
+    const companies = db.prepare('SELECT id FROM company_profiles WHERE approved = 1').all();
+    const requirements = db.prepare('SELECT id FROM requirements').all();
+
     const allSalaries = applications.map(a => parseSalaryLpa(a.ctc_range));
     if (allSalaries.length === 0) allSalaries.push(7.5);
     allSalaries.sort((a, b) => a - b);
     const overallMid = Math.floor(allSalaries.length / 2);
-    const overallMedian = allSalaries.length % 2 !== 0 ? allSalaries[overallMid] : ((allSalaries[overallMid - 1] + allSalaries[overallMid]) / 2);
     const overallMedianLpa = allSalaries.length % 2 !== 0 ? allSalaries[overallMid] : ((allSalaries[overallMid - 1] + allSalaries[overallMid]) / 2);
     const overallHighestLpa = Math.max(...allSalaries);
     const overallAvgLpa = allSalaries.reduce((a, b) => a + b, 0) / allSalaries.length;

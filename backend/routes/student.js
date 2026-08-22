@@ -374,8 +374,8 @@ router.post('/increment-external-click', (req, res) => {
 // My Applications list
 router.get('/applications', (req, res) => {
   try {
-    const { studentId } = req.query;
-    if (!studentId) return res.status(400).json({ error: 'studentId query required' });
+    const studentId = req.query.studentId || req.query.student_id;
+    if (!studentId) return res.status(400).json({ error: 'studentId or student_id query parameter required' });
 
     const apps = db.prepare(`
       SELECT a.*, r.title as job_title, r.ctc_range, r.job_type, r.deadline, r.application_type, r.external_apply_url, c.company_name, c.logo_url

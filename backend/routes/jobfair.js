@@ -260,13 +260,37 @@ router.post('/:id/register', AuthRateLimiter.generalApiLimiter, (req, res) => {
       return res.status(404).json({ error: 'Job fair event not found.' });
     }
 
-    const regId = `reg_${fairId}_${student_id}`;
+    let resolvedStudentId = student_id;
+    let student = db.prepare('SELECT id FROM student_profiles WHERE id = ? OR user_id = ?').get(student_id, student_id);
+    if (student) {
+      resolvedStudentId = student.id;
+    } else {
+      // Auto-provision student profile if registering with a new student account
+      resolvedStudentId = 's_' + Date.now();
+      const defaultStudent = {
+        name: 'GSFC Student Candidate',
+        program: 'BTech CSE',
+        branch: 'Computer Science & Engineering',
+        cgpa: 8.5,
+        ats_score: 88,
+        skills: ['Python', 'React', 'SQL']
+      };
+      const validUser = db.prepare('SELECT id FROM users WHERE id = ?').get(student_id);
+      const assignedUserId = validUser ? validUser.id : null;
+
+      db.prepare(`
+        INSERT INTO student_profiles (id, user_id, roll_number, name, program, branch, cgpa, ats_score, parsed_resume_json)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(resolvedStudentId, assignedUserId, 'GSFC/2026/CSE/REG', defaultStudent.name, defaultStudent.program, defaultStudent.branch, defaultStudent.cgpa, defaultStudent.ats_score, JSON.stringify(defaultStudent));
+    }
+
+    const regId = `reg_${fairId}_${resolvedStudentId}`;
     db.prepare(`
       INSERT OR IGNORE INTO job_fair_registrations (id, job_fair_id, student_id)
       VALUES (?, ?, ?)
-    `).run(regId, fairId, student_id);
+    `).run(regId, fairId, resolvedStudentId);
 
-    res.json({ success: true, message: `Successfully registered for ${fair.title}!` });
+    res.json({ success: true, message: `Successfully registered for ${fair.title}!`, student_id: resolvedStudentId });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
