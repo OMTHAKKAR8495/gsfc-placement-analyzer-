@@ -172,6 +172,12 @@ function applyMigrations() {
     if (!studColumns.includes('batch_year')) {
       db.exec("ALTER TABLE student_profiles ADD COLUMN batch_year TEXT");
     }
+    if (!studColumns.includes('university_email')) {
+      db.exec("ALTER TABLE student_profiles ADD COLUMN university_email TEXT");
+    }
+    if (!studColumns.includes('whatsapp_number')) {
+      db.exec("ALTER TABLE student_profiles ADD COLUMN whatsapp_number TEXT");
+    }
 
     // Auto-compute admission_year, passing_year, and batch_year for any records missing them
     const allStuds = db.prepare("SELECT id, roll_number, program, created_at FROM student_profiles").all();
