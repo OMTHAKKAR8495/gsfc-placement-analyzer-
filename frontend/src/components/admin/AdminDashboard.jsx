@@ -133,21 +133,28 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
   };
 
   useEffect(() => {
-    if (currentUser?.role === 'admin') {
-      fetchAdminData();
-    }
+    fetchAdminData();
+    fetchCandidateDatabase();
+
+    const handleStudentSync = () => fetchCandidateDatabase();
+    window.addEventListener('student-database-updated', handleStudentSync);
+    window.addEventListener('storage', handleStudentSync);
 
     // Live 15-second auto-sync interval (Only when tab is active)
     const interval = setInterval(() => {
       if (document.hidden) return;
-      if (currentUser?.role === 'admin') {
+      if (currentUser?.role === 'admin' || !currentUser) {
         fetchAdminDataSilently();
         fetchCandidateDatabase();
         fetchMasterData();
       }
     }, 15000);
 
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('student-database-updated', handleStudentSync);
+      window.removeEventListener('storage', handleStudentSync);
+    };
   }, [currentUser]);
 
   const handleAdminLogin = async (e) => {
@@ -232,16 +239,93 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
     }
   };
 
+  const MASTER_STUDENT_ROSTER = [
+    { id: 's_om', name: 'Om Thakkar', email: 'thakkar_om@gmail.com', phone: '+91 98765 43210', roll_number: '21BCE045', program: 'BTech CSE', branch: 'Computer Science & Engineering', passing_year: 2026, admission_year: 2022, cgpa: 8.9, backlogs: 0, skills: 'React, Node.js, Python, System Design', ats_score: 92, placement_status: 'Shortlisted' },
+    { id: 's_vedant', name: 'Vedant Patel', email: 'vedant@gmail.com', phone: '+91 98251 67890', roll_number: '24BCE181', program: 'BTech CSE', branch: 'Computer Science & Engineering', passing_year: 2028, admission_year: 2024, cgpa: 8.7, backlogs: 0, skills: 'Python, Machine Learning, React, PostgreSQL', ats_score: 91, placement_status: 'In Process' },
+    { id: 's_arav', name: 'Arav Sharma', email: 'arav.sharma@gsfcuniversity.ac.in', phone: '+91 98765 43211', roll_number: '22BCE101', program: 'BTech CSE', branch: 'Computer Science & Engineering', passing_year: 2026, admission_year: 2022, cgpa: 8.9, backlogs: 0, skills: 'Java, Spring Boot, AWS, Kubernetes', ats_score: 90, placement_status: 'Offer Received' },
+    { id: 's_rohan', name: 'Rohan Patel', email: 'rohan.patel@gsfcuniversity.ac.in', phone: '+91 98765 43212', roll_number: '22BME034', program: 'BTech Mechanical', branch: 'Mechanical Engineering', passing_year: 2025, admission_year: 2021, cgpa: 8.4, backlogs: 0, skills: 'AutoCAD, SolidWorks, Ansys, Thermodynamics', ats_score: 86, placement_status: 'Offer Received' },
+    { id: 's_sneha', name: 'Sneha Joshi', email: 'sneha.joshi@gsfcuniversity.ac.in', phone: '+91 98765 43213', roll_number: '22BCH012', program: 'BTech Chemical', branch: 'Chemical Engineering', passing_year: 2025, admission_year: 2021, cgpa: 8.8, backlogs: 0, skills: 'Aspen Plus, Chemical Process Safety, Heat Transfer', ats_score: 89, placement_status: 'Offer Received' },
+    { id: 's_devansh', name: 'Devansh Shah', email: 'devansh.shah@gsfcuniversity.ac.in', phone: '+91 98765 43214', roll_number: '23BIT055', program: 'BTech IT', branch: 'Information Technology', passing_year: 2027, admission_year: 2023, cgpa: 8.6, backlogs: 0, skills: 'Flutter, Android, React Native, Firebase', ats_score: 85, placement_status: 'In Process' },
+    { id: 's_priya', name: 'Priya Patel', email: 'priya.patel@alumni.gsfc.ac.in', phone: '+91 98765 43215', roll_number: '19BCE018', program: 'BTech CSE', branch: 'Computer Science & Engineering', passing_year: 2024, admission_year: 2020, cgpa: 9.1, backlogs: 0, skills: 'Cloud Architecture, Microservices, Go, Docker', ats_score: 94, placement_status: 'Placed' },
+    { id: 's_ananya', name: 'Ananya Desai', email: 'ananya.desai@gsfcuniversity.ac.in', phone: '+91 98765 43216', roll_number: '22BFE008', program: 'BTech Fire & Safety', branch: 'Fire & Environment Health Safety', passing_year: 2028, admission_year: 2024, cgpa: 8.7, backlogs: 0, skills: 'Industrial Safety Standards, Hazard Analysis, EHS', ats_score: 88, placement_status: 'In Process' },
+    { id: 's_yash', name: 'Yash Dave', email: 'yash.dave@gsfcuniversity.ac.in', phone: '+91 98765 43217', roll_number: '23BCE099', program: 'BTech CSE', branch: 'Computer Science & Engineering', passing_year: 2027, admission_year: 2023, cgpa: 8.5, backlogs: 0, skills: 'C++, DSA, Competitive Programming, SQL', ats_score: 82, placement_status: 'In Process' },
+    { id: 's_krunal', name: 'Krunal Varma', email: 'krunal.varma@gsfcuniversity.ac.in', phone: '+91 98765 43218', roll_number: '22BSC041', program: 'BSc/MSc Chemistry', branch: 'Applied Chemistry', passing_year: 2025, admission_year: 2022, cgpa: 8.6, backlogs: 0, skills: 'Spectroscopy, Chromatography, Organic Synthesis', ats_score: 84, placement_status: 'In Process' },
+    { id: 's_manan', name: 'Manan Mehta', email: 'manan.mehta@gsfcuniversity.ac.in', phone: '+91 98765 43219', roll_number: '24BCH023', program: 'BTech Chemical', branch: 'Chemical Engineering', passing_year: 2028, admission_year: 2024, cgpa: 8.7, backlogs: 0, skills: 'Process Control, Mass Transfer, MATLAB', ats_score: 87, placement_status: 'In Process' },
+    { id: 's_riya', name: 'Riya Shah', email: 'riya.shah@gsfcuniversity.ac.in', phone: '+91 98765 43220', roll_number: '23BBT019', program: 'BSc/MSc Biotechnology', branch: 'Biotechnology', passing_year: 2027, admission_year: 2023, cgpa: 8.8, backlogs: 0, skills: 'Bioprocess Engineering, Bioinformatics, Python', ats_score: 90, placement_status: 'In Process' },
+    { id: 's_parth', name: 'Parth Trivedi', email: 'parth.trivedi@gsfcuniversity.ac.in', phone: '+91 98765 43221', roll_number: '25BCE204', program: 'BTech CSE', branch: 'Computer Science & Engineering', passing_year: 2029, admission_year: 2025, cgpa: 8.7, backlogs: 0, skills: 'Data Structures, Web Development, Java', ats_score: 88, placement_status: 'In Process' },
+    { id: 's_heta', name: 'Heta Joshi', email: 'heta.joshi@gsfcuniversity.ac.in', phone: '+91 98765 43222', roll_number: '24BBA015', program: 'BBA / MBA', branch: 'Business Analytics & HR', passing_year: 2028, admission_year: 2025, cgpa: 8.5, backlogs: 0, skills: 'Financial Modeling, Power BI, Excel, Marketing Analytics', ats_score: 83, placement_status: 'In Process' },
+    { id: 's_harshil', name: 'Harshil Parikh', email: 'harshil.parikh@gsfcuniversity.ac.in', phone: '+91 98765 43223', roll_number: '21BME056', program: 'BTech Mechanical', branch: 'Mechanical Engineering', passing_year: 2024, admission_year: 2020, cgpa: 8.3, backlogs: 0, skills: 'Mechatronics, Robotics, Fluid Mechanics', ats_score: 85, placement_status: 'Placed' },
+    { id: 's_dhruv', name: 'Dhruv Solanki', email: 'dhruv.solanki@gsfcuniversity.ac.in', phone: '+91 98765 43224', roll_number: '26BCE310', program: 'BTech CSE', branch: 'Computer Science & Engineering', passing_year: 2030, admission_year: 2026, cgpa: 8.7, backlogs: 0, skills: 'Python, Algorithms, Linux, Git', ats_score: 89, placement_status: 'In Process' },
+    { id: 's_tanvi', name: 'Tanvi Panchal', email: 'tanvi.panchal@gsfcuniversity.ac.in', phone: '+91 98765 43225', roll_number: '22BIT088', program: 'BTech IT', branch: 'Information Technology', passing_year: 2025, admission_year: 2021, cgpa: 8.6, backlogs: 0, skills: 'Cybersecurity, Network Security, Python, SQL', ats_score: 87, placement_status: 'In Process' },
+    { id: 's_shreyas', name: 'Shreyas Bhatt', email: 'shreyas.bhatt@gsfcuniversity.ac.in', phone: '+91 98765 43226', roll_number: '23BCH071', program: 'BTech Chemical', branch: 'Chemical Engineering', passing_year: 2026, admission_year: 2022, cgpa: 8.4, backlogs: 0, skills: 'Petroleum Refining, Chemical Reaction Engineering', ats_score: 81, placement_status: 'In Process' },
+    { id: 's_nidhi', name: 'Nidhi Shah', email: 'nidhi.shah@gsfcuniversity.ac.in', phone: '+91 98765 43227', roll_number: '24BCE155', program: 'BTech CSE', branch: 'Computer Science & Engineering', passing_year: 2028, admission_year: 2024, cgpa: 8.8, backlogs: 0, skills: 'TypeScript, Next.js, AI Ethics, Data Science', ats_score: 92, placement_status: 'In Process' },
+    { id: 's_jay', name: 'Jay Rathod', email: 'jay.rathod@gsfcuniversity.ac.in', phone: '+91 98765 43228', roll_number: '22BME091', program: 'BTech Mechanical', branch: 'Mechanical Engineering', passing_year: 2025, admission_year: 2021, cgpa: 8.2, backlogs: 0, skills: 'Industrial Design, 3D Printing, Manufacturing Tech', ats_score: 80, placement_status: 'In Process' },
+    { id: 's_khushi', name: 'Khushi Gandhi', email: 'khushi.gandhi@gsfcuniversity.ac.in', phone: '+91 98765 43229', roll_number: '23BBT044', program: 'BSc/MSc Biotechnology', branch: 'Biotechnology', passing_year: 2027, admission_year: 2023, cgpa: 8.9, backlogs: 0, skills: 'Genetic Engineering, Cell Biology, R Programming', ats_score: 91, placement_status: 'In Process' },
+    { id: 's_meet', name: 'Meet Patel', email: 'meet.patel@gsfcuniversity.ac.in', phone: '+91 98765 43230', roll_number: '25BIT112', program: 'BTech IT', branch: 'Information Technology', passing_year: 2029, admission_year: 2025, cgpa: 8.7, backlogs: 0, skills: 'Full-stack Development, React, GraphQL, Docker', ats_score: 86, placement_status: 'In Process' }
+  ];
+
   const fetchCandidateDatabase = async () => {
+    let remoteCandidates = [];
+    let localCandidates = [];
+
+    try {
+      localCandidates = JSON.parse(localStorage.getItem('gsfc_master_student_database') || '[]');
+    } catch (e) {}
+
+    // Check if current user is a logged-in student to include them
+    try {
+      const activeUser = JSON.parse(localStorage.getItem('campushire_user') || 'null');
+      if (activeUser && (activeUser.role === 'student' || !activeUser.role)) {
+        const uId = activeUser.id || activeUser.owner_id || 's_' + (activeUser.email ? activeUser.email.split('@')[0] : 'candidate');
+        const candidateEntry = {
+          id: uId,
+          name: activeUser.profile?.name || activeUser.name || 'Student Candidate',
+          email: activeUser.email || 'student@gsfcuniversity.ac.in',
+          phone: activeUser.profile?.phone || '+91 98765 43210',
+          roll_number: activeUser.profile?.roll_number || '24BCE181',
+          program: activeUser.profile?.program || 'BTech CSE',
+          branch: activeUser.profile?.branch || 'Computer Science & Engineering',
+          passing_year: activeUser.profile?.passing_year || 2028,
+          admission_year: activeUser.profile?.admission_year || 2024,
+          cgpa: activeUser.profile?.cgpa || 8.7,
+          backlogs: activeUser.profile?.backlogs || 0,
+          skills: 'Python, React, Machine Learning, SQL',
+          ats_score: 91,
+          placement_status: 'In Process'
+        };
+        localCandidates.push(candidateEntry);
+      }
+    } catch (e) {}
+
     try {
       const res = await fetch('/api/admin/students');
-      const data = await res.json();
-      const studentList = Array.isArray(data) ? data : [];
-      setAllCandidates(studentList);
-      setSelectedStudentIds(new Set(studentList.map(s => s.id)));
-    } catch (err) {
-      console.error('Error fetching candidate database:', err);
-    }
+      const contentType = res.headers.get('content-type') || '';
+      if (res.ok && contentType.includes('application/json')) {
+        const data = await res.json();
+        remoteCandidates = Array.isArray(data) ? data : [];
+      }
+    } catch (err) {}
+
+    // Merge and deduplicate candidates by ID and Email
+    const map = new Map();
+    [...localCandidates, ...remoteCandidates, ...MASTER_STUDENT_ROSTER].forEach(c => {
+      if (c && (c.id || c.email)) {
+        const key = c.email || c.id;
+        if (!map.has(key)) {
+          map.set(key, {
+            ...c,
+            passing_year: Number(c.passing_year) || 2026,
+            admission_year: Number(c.admission_year) || 2022,
+            cgpa: Number(c.cgpa) || 8.5,
+            ats_score: Number(c.ats_score) || 85
+          });
+        }
+      }
+    });
+
+    const combinedList = Array.from(map.values());
+    setAllCandidates(combinedList);
+    setSelectedStudentIds(new Set(combinedList.map(s => s.id)));
   };
 
   const handleApproveRejectCompany = async (companyId, action) => {

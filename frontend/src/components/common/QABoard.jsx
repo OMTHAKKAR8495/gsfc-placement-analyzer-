@@ -27,10 +27,28 @@ export default function QABoard({ currentUser, onOpenAuth }) {
 
   useEffect(() => {
     fetchThreads();
+
+    const handleUpdate = () => fetchThreads();
+    window.addEventListener('qa-threads-updated', handleUpdate);
+    window.addEventListener('qa-thread-created', handleUpdate);
+    window.addEventListener('storage', handleUpdate);
+
+    return () => {
+      window.removeEventListener('qa-threads-updated', handleUpdate);
+      window.removeEventListener('qa-thread-created', handleUpdate);
+      window.removeEventListener('storage', handleUpdate);
+    };
   }, [selectedCategory, statusFilter]);
 
   const fetchThreads = async () => {
     setLoading(true);
+    let remoteThreads = [];
+    let localThreads = [];
+
+    try {
+      localThreads = JSON.parse(localStorage.getItem('gsfc_qa_threads') || '[]');
+    } catch (e) {}
+
     try {
       let url = '/api/qa/threads';
       const params = new URLSearchParams();
@@ -42,55 +60,68 @@ export default function QABoard({ currentUser, onOpenAuth }) {
       const contentType = res.headers.get('content-type') || '';
       if (res.ok && contentType.includes('application/json')) {
         const data = await res.json();
-        setThreads(Array.isArray(data) ? data : []);
-        return;
+        remoteThreads = Array.isArray(data) ? data : [];
       }
-      throw new Error('Fallback to demo Q&A threads');
-    } catch (err) {
-      // Safe fallback for Vercel Static Hosting
-      const DEMO_THREADS = [
-        {
-          id: 'thread_cgpa_policy',
-          student_id: 's_arav',
-          student_name: 'Arav Sharma',
-          title: 'What is the university policy for Tier-1 companies if someone has 1 active backlog?',
-          body: 'I have a CGPA of 8.9 in BTech CSE but had a backlog in Sem 4 mathematics that is cleared in re-eval. Will I be eligible for Google / Microsoft on-campus shortlist?',
-          category: 'Eligibility & Drive Rules',
-          status: 'resolved',
-          replies_count: 1,
-          created_at: new Date(Date.now() - 3600000 * 24).toISOString()
-        },
-        {
-          id: 'thread_resume_ats',
-          student_id: 's_rohan',
-          student_name: 'Rohan Patel',
-          title: 'How does CampusHire AI compute the ATS score for core mechanical design resumes?',
-          body: 'I added STAAD Pro and AutoCAD projects, but want to know if project metrics help improve the score above 90.',
-          category: 'Resume & ATS Optimization',
-          status: 'open',
-          replies_count: 2,
-          created_at: new Date(Date.now() - 3600000 * 5).toISOString()
-        }
-      ];
-      setThreads(DEMO_THREADS);
-    } finally {
-      setLoading(false);
-    }
+    } catch (err) {}
+
+    // Fallback seed threads for demo / Vercel
+    const SEED_THREADS = [
+      {
+        id: 'thread_cgpa_policy',
+        student_id: 's_arav',
+        student_name: 'Arav Sharma',
+        title: 'What is the university policy for Tier-1 companies if someone has 1 active backlog?',
+        body: 'I have a CGPA of 8.9 in BTech CSE but had a backlog in Sem 4 mathematics that is cleared in re-eval. Will I be eligible for Google / Microsoft on-campus shortlist?',
+        category: 'Eligibility & Drive Rules',
+        status: 'resolved',
+        replies_count: 1,
+        created_at: new Date(Date.now() - 3600000 * 24).toISOString()
+      },
+      {
+        id: 'thread_resume_ats',
+        student_id: 's_rohan',
+        student_name: 'Rohan Patel',
+        title: 'How does CampusHire AI compute the ATS score for core mechanical design resumes?',
+        body: 'I added STAAD Pro and AutoCAD projects, but want to know if project metrics help improve the score above 90.',
+        category: 'Resume & ATS Optimization',
+        status: 'open',
+        replies_count: 2,
+        created_at: new Date(Date.now() - 3600000 * 5).toISOString()
+      }
+    ];
+
+    // Combine local user-submitted threads, remote threads, and seed threads
+    const map = new Map();
+    [...localThreads, ...remoteThreads, ...SEED_THREADS].forEach(t => {
+      if (t && t.id && !map.has(t.id)) {
+        // Apply category filter if active
+        if (selectedCategory !== 'All' && t.category !== selectedCategory) return;
+        // Apply status filter if active
+        if (statusFilter !== 'all' && t.status !== statusFilter) return;
+        map.set(t.id, t);
+      }
+    });
+
+    setThreads(Array.from(map.values()));
+    setLoading(false);
   };
 
   const handleDeleteThread = async (e, threadId) => {
     e.stopPropagation();
     if (!window.confirm('Are you sure you want to delete this question?')) return;
     try {
-      const res = await fetch(`/api/qa/threads/${threadId}`, {
-        method: 'DELETE'
-      });
-      if (res.ok) {
-        setThreads(prev => prev.filter(t => t.id !== threadId));
-      }
-    } catch (err) {
-      console.error('Error deleting thread:', err);
-    }
+      fetch(`/api/qa/threads/${threadId}`, { method: 'DELETE' }).catch(() => {});
+    } catch (err) {}
+
+    // Update local storage and state
+    try {
+      const stored = JSON.parse(localStorage.getItem('gsfc_qa_threads') || '[]');
+      const filtered = stored.filter(t => t.id !== threadId);
+      localStorage.setItem('gsfc_qa_threads', JSON.stringify(filtered));
+      window.dispatchEvent(new Event('qa-threads-updated'));
+    } catch (e) {}
+
+    setThreads(prev => prev.filter(t => t.id !== threadId));
   };
 
   const filteredThreads = threads.filter(t => {

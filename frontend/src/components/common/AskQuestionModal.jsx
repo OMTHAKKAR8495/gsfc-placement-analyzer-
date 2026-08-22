@@ -92,24 +92,24 @@ export default function AskQuestionModal({ isOpen, onClose, currentUser, onQuest
         })
       });
 
-      let data = null;
-      try { data = await res.json(); } catch (e) {}
-
+      let threadResult = null;
       if (res.ok && data && data.thread) {
-        setCreatedThread(data.thread);
-        setIsSubmitted(true);
-        return;
-      }
-
-      if (data && data.error) {
+        threadResult = data.thread;
+      } else if (data && data.error) {
         setError(data.error);
         setLoading(false);
         return;
+      } else {
+        throw new Error('Failed to post question');
       }
 
-      throw new Error('Failed to post question');
+      setCreatedThread(threadResult);
+      saveAndBroadcastThread(threadResult);
+      setIsSubmitted(true);
+      if (onQuestionPosted) onQuestionPosted(threadResult);
+      return;
     } catch (err) {
-      // Graceful offline fallback: persist question locally so submission is never lost
+      // Graceful offline & Vercel static fallback: persist question locally so submission is never lost
       const fallbackThread = {
         id: 'thread_' + Date.now(),
         student_id: studentId,
@@ -118,12 +118,28 @@ export default function AskQuestionModal({ isOpen, onClose, currentUser, onQuest
         body: body.trim(),
         category,
         status: 'open',
+        replies_count: 0,
         created_at: new Date().toISOString()
       };
       setCreatedThread(fallbackThread);
+      saveAndBroadcastThread(fallbackThread);
       setIsSubmitted(true);
+      if (onQuestionPosted) onQuestionPosted(fallbackThread);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const saveAndBroadcastThread = (newThread) => {
+    if (!newThread) return;
+    try {
+      const stored = JSON.parse(localStorage.getItem('gsfc_qa_threads') || '[]');
+      const updated = [newThread, ...stored.filter(t => t.id !== newThread.id)];
+      localStorage.setItem('gsfc_qa_threads', JSON.stringify(updated));
+      window.dispatchEvent(new CustomEvent('qa-thread-created', { detail: newThread }));
+      window.dispatchEvent(new Event('qa-threads-updated'));
+    } catch (e) {
+      console.error('Error saving thread to storage:', e);
     }
   };
 
