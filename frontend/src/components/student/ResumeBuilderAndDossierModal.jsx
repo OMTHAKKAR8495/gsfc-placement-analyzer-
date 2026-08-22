@@ -1335,12 +1335,12 @@ export default function ResumeBuilderAndDossierModal({
             </div>
 
             {/* Modal Bottom Actions (Hidden in Print) */}
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 border-t border-slate-200 dark:border-slate-800 print:hidden">
-              <div className="flex items-center gap-2">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-4 border-t border-slate-200 dark:border-slate-800 print:hidden">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                 <button
                   type="button"
                   onClick={() => setActiveStep(3)}
-                  className="px-4 py-2 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-bold cursor-pointer"
+                  className="w-full sm:w-auto px-4 py-2.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-bold text-center cursor-pointer"
                 >
                   &larr; Back to Uploads
                 </button>
@@ -1348,7 +1348,7 @@ export default function ResumeBuilderAndDossierModal({
                 <button
                   type="button"
                   onClick={handlePrintResume}
-                  className="px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 rounded-xl text-xs font-black flex items-center gap-1.5 border border-slate-200 dark:border-slate-700 cursor-pointer shadow-sm"
+                  className="w-full sm:w-auto px-4 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 border border-slate-200 dark:border-slate-700 cursor-pointer shadow-sm"
                 >
                   <Printer className="w-3.5 h-3.5 text-blue-600" />
                   <span>Download / Print PDF</span>
@@ -1359,7 +1359,7 @@ export default function ResumeBuilderAndDossierModal({
                 type="button"
                 onClick={handleSubmitAll}
                 disabled={saving}
-                className="px-6 py-3 bg-theme-gradient hover:opacity-90 text-white rounded-2xl text-xs font-black shadow-lg shadow-blue-500/25 flex items-center gap-2 transition-all hover:scale-105 cursor-pointer disabled:opacity-50"
+                className="w-full sm:w-auto px-6 py-3 bg-theme-gradient hover:opacity-90 text-white rounded-2xl text-xs font-black shadow-lg shadow-blue-500/25 flex items-center justify-center gap-2 transition-all hover:scale-105 cursor-pointer disabled:opacity-50"
               >
                 {saving ? (
                   <>

@@ -280,12 +280,12 @@ export default function ResumeUploadPromptModal({
         </div>
 
         {/* Modal Actions */}
-        <div className="flex items-center justify-between pt-4 border-t border-slate-200 dark:border-slate-800 gap-3">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between pt-4 border-t border-slate-200 dark:border-slate-800 gap-3">
           <button
             type="button"
             onClick={onClose}
             disabled={uploading}
-            className="px-4 py-2.5 rounded-2xl text-xs font-bold text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+            className="w-full sm:w-auto px-4 py-2.5 rounded-2xl text-xs font-bold text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-center cursor-pointer"
           >
             I'll Do This Later
           </button>
@@ -294,7 +294,7 @@ export default function ResumeUploadPromptModal({
             type="button"
             onClick={handleUploadAndAnalyze}
             disabled={uploading || !file}
-            className="px-6 py-3 bg-theme-gradient hover:opacity-90 text-white rounded-2xl text-xs font-black shadow-lg shadow-blue-500/25 flex items-center gap-2 transition-all hover:scale-105 disabled:opacity-50 cursor-pointer"
+            className="w-full sm:w-auto px-6 py-3 bg-theme-gradient hover:opacity-90 text-white rounded-2xl text-xs font-black shadow-lg shadow-blue-500/25 flex items-center justify-center gap-2 transition-all hover:scale-105 disabled:opacity-50 cursor-pointer"
           >
             {uploading ? (
               <>
