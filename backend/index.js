@@ -18,6 +18,7 @@ import authenticityRoutes from './routes/authenticity.js';
 import alumniRoutes from './routes/alumni.js';
 import jobfairRoutes from './routes/jobfair.js';
 import qaRoutes from './routes/qa.js';
+import ecosystemRoutes from './routes/ecosystem.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -86,6 +87,7 @@ app.use('/api/authenticity', authenticityRoutes);
 app.use('/api/alumni', alumniRoutes);
 app.use('/api/jobfair', jobfairRoutes);
 app.use('/api/qa', qaRoutes);
+app.use('/api/ecosystem', ecosystemRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

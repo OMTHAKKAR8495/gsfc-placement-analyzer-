@@ -3,7 +3,7 @@ import {
   ShieldCheck, CheckCircle2, XCircle, BarChart3, Download, Building, Users, 
   Briefcase, FileSpreadsheet, Sparkles, TrendingUp, PieChart, Database, Search, 
   Printer, CheckCircle, Trash2, Calendar, Filter, SlidersHorizontal, Layers, 
-  CheckSquare, Square, RefreshCw, Eye, GraduationCap, Award, Check, FileText, X, HelpCircle
+  CheckSquare, Square, RefreshCw, Eye, GraduationCap, Award, Check, FileText, X, HelpCircle, Globe
 } from 'lucide-react';
 import ReportPDFModal from '../common/ReportPDFModal';
 import BatchPDFReportModal from './BatchPDFReportModal';
@@ -12,11 +12,13 @@ import AccreditationNirfModal from './AccreditationNirfModal';
 import PredictiveAnalyticsPanel from './PredictiveAnalyticsPanel';
 import JobFairManagerModal from './JobFairManagerModal';
 import QABoard from '../common/QABoard';
+import EcosystemHubModal from '../common/EcosystemHubModal';
 
 export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
   const [activeTab, setActiveTab] = useState('overview'); // 'overview', 'predictive', 'database', 'companies', 'drives', 'applications', 'alumni_approvals', 'qa'
   const [accreditationModalOpen, setAccreditationModalOpen] = useState(false);
   const [jobFairModalOpen, setJobFairModalOpen] = useState(false);
+  const [ecosystemModalOpen, setEcosystemModalOpen] = useState(false);
   const [pendingCompanies, setPendingCompanies] = useState([]);
   const [pendingAlumni, setPendingAlumni] = useState([]);
   const [analytics, setAnalytics] = useState(null);
@@ -620,6 +622,13 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
           className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black transition-all shrink-0 bg-purple-50 text-purple-950 border border-purple-200 hover:bg-purple-100 cursor-pointer shadow-xs"
         >
           <Calendar className="w-4 h-4 text-purple-600" /> 🎪 Job Fair Manager
+        </button>
+
+        <button
+          onClick={() => setEcosystemModalOpen(true)}
+          className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black transition-all shrink-0 bg-gradient-to-r from-blue-900 via-indigo-900 to-amber-600 hover:from-blue-800 hover:to-amber-500 text-white cursor-pointer shadow-md border border-amber-400/40"
+        >
+          <Globe className="w-4 h-4 text-amber-300 animate-pulse" /> 🌐 Enterprise Suite (POD.ai)
         </button>
 
         <button
@@ -1897,6 +1906,13 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
         selectedStudents={selectedStudentsList}
         batchStats={batchStats}
         yearRangeText={selectAllYears ? 'All Academic Years (2020 - 2030)' : `Batches: ${selectedYears.join(', ')}`}
+      />
+
+      {/* 🌐 ENTERPRISE ECOSYSTEM & OPERATIONS SUITE (POD.AI PARITY) */}
+      <EcosystemHubModal
+        isOpen={ecosystemModalOpen}
+        onClose={() => setEcosystemModalOpen(false)}
+        currentUser={currentUser}
       />
 
       {/* RECRUITER & DRIVE APPROVAL SUCCESS MODAL */}

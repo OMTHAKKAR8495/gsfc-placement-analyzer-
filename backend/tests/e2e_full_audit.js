@@ -231,6 +231,48 @@ async function runE2EAudit() {
   });
   record('Interview', 'Evaluate Student Response via STAR Rubric', evaluateAnswer.status === 200 && evaluateAnswer.json?.feedback, `Verdict: ${evaluateAnswer.json?.feedback?.verdict || 'Pass'}, Score: ${evaluateAnswer.json?.feedback?.score || 85}/100`);
 
+  // ==========================================
+  // PHASE 9: POD.ai Enterprise Parity Suite (Consortium, Assessment, Employer Network)
+  // ==========================================
+  console.log('\n--- Phase 9: Multi-College Ecosystem & POD.ai Enterprise Parity ---');
+
+  const consortium = await request('/api/ecosystem/colleges');
+  record('Ecosystem', 'Fetch Multi-College Consortium Roster', consortium.status === 200 && consortium.json?.total_colleges >= 10, `${consortium.json?.total_colleges} partner universities, ${consortium.json?.total_pool_students?.toLocaleString()} pool students`);
+
+  const poolDrives = await request('/api/ecosystem/pool-drives');
+  record('Ecosystem', 'Fetch Inter-University Joint Pool Drives', poolDrives.status === 200 && Array.isArray(poolDrives.json) && poolDrives.json.length >= 3, `${poolDrives.json?.length} active joint pool conclaves`);
+
+  const registerPool = await request('/api/ecosystem/pool-drives/register', {
+    method: 'POST',
+    body: JSON.stringify({
+      driveId: poolDrives.json[0]?.id || 'pool_drive_google_cloud',
+      studentName: 'Arav Sharma',
+      collegeCode: 'GSFCU',
+      rollNumber: '24BT04171'
+    })
+  });
+  record('Ecosystem', 'Register Candidate for Joint Pool Drive', registerPool.status === 200 && registerPool.json?.success, registerPool.json?.message || 'Registered');
+
+  const employerNetwork = await request('/api/ecosystem/employers');
+  record('Ecosystem', 'National Verified Employer Marketplace (100+ Network)', employerNetwork.status === 200 && Array.isArray(employerNetwork.json) && employerNetwork.json.length >= 10, `${employerNetwork.json?.length} enterprise partner employers verified`);
+
+  const submitAssessment = await request('/api/ecosystem/assessments/submit', {
+    method: 'POST',
+    body: JSON.stringify({
+      assessmentId: 'assess_software_fullstack',
+      candidateName: 'Arav Sharma',
+      candidateEmail: 'arav@gsfcuniversity.ac.in',
+      collegeName: 'GSFC University',
+      mcqAnswers: { q1: 0, q2: 0, q3: 0, q4: 0 },
+      codeSolution: 'function maxSubArray(nums) { let currentSum = 0; let maxSum = nums[0]; for(let i=0; i<nums.length; i++) { currentSum = Math.max(nums[i], currentSum + nums[i]); maxSum = Math.max(maxSum, currentSum); } return maxSum; }',
+      tabSwitchesCount: 0
+    })
+  });
+  record('Ecosystem', 'Proctored Assessment Execution & Anti-Cheat Grading', submitAssessment.status === 200 && submitAssessment.json?.score === 100, `Score: ${submitAssessment.json?.percentage}%, Integrity: ${submitAssessment.json?.proctoring_integrity_score}%, Status: ${submitAssessment.json?.status}`);
+
+  const infraHealth = await request('/api/ecosystem/infra-health');
+  record('Ecosystem', 'Production Infrastructure & 99.99% SLA Monitor', infraHealth.status === 200 && infraHealth.json?.sla_uptime_percent === 99.99, `Status: ${infraHealth.json?.status}, Cache Latency: ${infraHealth.json?.in_memory_cache?.latency_ms}ms, Active Indexes: ${infraHealth.json?.database_cluster?.b_tree_indexes_active}`);
+
   console.log('\n================================================================================');
   console.log(`🎉 COMPREHENSIVE END-TO-END AUDIT PASSED: ${passedTests}/${totalTests} TESTS (100%)!`);
   console.log('================================================================================\n');

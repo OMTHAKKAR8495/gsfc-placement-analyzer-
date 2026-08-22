@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Upload, FileText, CheckCircle, AlertTriangle, Sparkles, Briefcase, Award, TrendingUp, Search, SlidersHorizontal, ArrowRight, Play, Cpu, Check, Layers, ChevronRight, Compass, ShieldCheck, PieChart, BarChart2, RefreshCw, Zap, Database, X, Star, CheckCircle2, AlertCircle, Edit3, Mail, Download, Paperclip, Printer, Trash2, User, Plus, Building2, Bell, Phone, Calendar, HelpCircle, MessageSquare } from 'lucide-react';
+import { Upload, FileText, CheckCircle, AlertTriangle, Sparkles, Briefcase, Award, TrendingUp, Search, SlidersHorizontal, ArrowRight, Play, Cpu, Check, Layers, ChevronRight, Compass, ShieldCheck, PieChart, BarChart2, RefreshCw, Zap, Database, X, Star, CheckCircle2, AlertCircle, Edit3, Mail, Download, Paperclip, Printer, Trash2, User, Plus, Building2, Bell, Phone, Calendar, HelpCircle, MessageSquare, Globe } from 'lucide-react';
 import MockInterviewChat from './MockInterviewChat';
 import CompanyTrackerSidebar from '../common/CompanyTrackerSidebar';
 import ReportPDFModal from '../common/ReportPDFModal';
@@ -12,6 +12,7 @@ import MentorshipFeed from '../alumni/MentorshipFeed';
 import QABoard from '../common/QABoard';
 import ResumeUploadPromptModal from './ResumeUploadPromptModal';
 import ResumeBuilderAndDossierModal from './ResumeBuilderAndDossierModal';
+import EcosystemHubModal from '../common/EcosystemHubModal';
 import { useToast } from '../../context/ToastContext';
 
 export const DEFAULT_REQUIREMENTS_FEED = [
@@ -172,6 +173,7 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
   // Mail Modal & PDF Report Modal State
   const [mailModalOpen, setMailModalOpen] = useState(false);
   const [pdfReportModalOpen, setPdfReportModalOpen] = useState(false);
+  const [ecosystemModalOpen, setEcosystemModalOpen] = useState(false);
   const [mailRecipient, setMailRecipient] = useState(candidateEmail);
   const [mailSentSuccess, setMailSentSuccess] = useState(false);
 
@@ -691,6 +693,13 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
             }`}
           >
             <Calendar className="w-4 h-4 text-purple-400" /> Job Fairs & Conclaves
+          </button>
+
+          <button
+            onClick={() => setEcosystemModalOpen(true)}
+            className="flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl text-xs font-black transition-all shrink-0 whitespace-nowrap bg-gradient-to-r from-blue-900 via-indigo-900 to-amber-600 text-white shadow-md border border-amber-400/40 hover:scale-105 cursor-pointer"
+          >
+            <Globe className="w-4 h-4 text-amber-300 animate-pulse" /> 🌐 Pool Campus & Assessment Studio
           </button>
 
           <button
@@ -1715,6 +1724,14 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
             triggerCrackles: true
           });
         }}
+      />
+
+      {/* 🌐 ENTERPRISE POOL DRIVES & PROCTORED ASSESSMENT STUDIO (POD.AI SUITE) */}
+      <EcosystemHubModal
+        isOpen={ecosystemModalOpen}
+        onClose={() => setEcosystemModalOpen(false)}
+        currentUser={currentUser}
+        defaultTab="assessment"
       />
     </div>
   );

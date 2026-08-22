@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { User, Building2, ShieldCheck, LogOut, LogIn, Sun, Moon, HelpCircle, Smartphone, Download, Sparkles, Menu, X, Plus, Users, Award, Bell } from 'lucide-react';
+import { User, Building2, ShieldCheck, LogOut, LogIn, Sun, Moon, HelpCircle, Smartphone, Download, Sparkles, Menu, X, Plus, Users, Award, Bell, Globe } from 'lucide-react';
 import AppDownloadModal from './AppDownloadModal';
 import NotificationCenterModal from './NotificationCenterModal';
+import EcosystemHubModal from './EcosystemHubModal';
 
 export default function Navbar({ currentUser, activeRole, onRoleSwitch, onOpenAuth, onLogout, theme, onToggleTheme, onOpenJobPost, onOpenApplicantsFeed }) {
   const [downloadModalOpen, setDownloadModalOpen] = useState(false);
+  const [ecosystemModalOpen, setEcosystemModalOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [notifModalOpen, setNotifModalOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
@@ -252,6 +254,16 @@ export default function Navbar({ currentUser, activeRole, onRoleSwitch, onOpenAu
             </button>
           )}
 
+          {/* 🌐 ENTERPRISE ECOSYSTEM (POD.AI SUITE) BUTTON */}
+          <button
+            onClick={() => setEcosystemModalOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gradient-to-r from-blue-900 via-indigo-900 to-amber-600 hover:from-blue-800 hover:to-amber-500 text-white font-black text-xs shadow-md transition-all shrink-0 border border-blue-400/40 cursor-pointer"
+            title="Large-Scale Multi-College Recruitment, 100+ Employers & Proctored Assessment Suite"
+          >
+            <Globe className="w-3.5 h-3.5 text-amber-300 animate-pulse" />
+            <span>🌐 Enterprise Suite</span>
+          </button>
+
           <button
             onClick={() => setDownloadModalOpen(true)}
             className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gradient-to-r from-emerald-600 via-teal-600 to-blue-600 text-white font-black text-xs shadow-md transition-all shrink-0 border border-emerald-400/40 cursor-pointer"
@@ -472,6 +484,13 @@ export default function Navbar({ currentUser, activeRole, onRoleSwitch, onOpenAu
         onMarkAllRead={handleMarkAllRead}
         onMarkOneRead={handleMarkOneRead}
         onClearAll={handleClearAll}
+        currentUser={currentUser}
+      />
+
+      {/* 🌐 ENTERPRISE MULTI-COLLEGE ECOSYSTEM & OPERATIONS MODAL */}
+      <EcosystemHubModal
+        isOpen={ecosystemModalOpen}
+        onClose={() => setEcosystemModalOpen(false)}
         currentUser={currentUser}
       />
     </header>
