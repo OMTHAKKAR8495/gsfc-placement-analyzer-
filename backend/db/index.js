@@ -116,6 +116,9 @@ function applyMigrations() {
     if (!studentColumns.includes('github_url')) {
       db.exec("ALTER TABLE student_profiles ADD COLUMN github_url TEXT");
     }
+    if (!studentColumns.includes('photo_url')) {
+      db.exec("ALTER TABLE student_profiles ADD COLUMN photo_url TEXT");
+    }
 
     // Document Authenticity Checker & Forensics Reports Table
     db.exec(`

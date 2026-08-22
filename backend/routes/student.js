@@ -189,13 +189,14 @@ router.post('/resume/save', (req, res) => {
 router.post('/builder/save', upload.fields([
   { name: 'marksheets', maxCount: 1 },
   { name: 'certifications', maxCount: 1 },
-  { name: 'id_document', maxCount: 1 }
+  { name: 'id_document', maxCount: 1 },
+  { name: 'photo', maxCount: 1 }
 ]), async (req, res) => {
   try {
     const { 
       student_id, name, roll_number, program, branch, cgpa, 
       passing_year, admission_year, phone, email, 
-      linkedin_url, github_url, summary, 
+      linkedin_url, github_url, photo_url, summary, 
       skills_json, projects_json, experience_json, education_json,
       target_requirement_id 
     } = req.body;
@@ -235,6 +236,7 @@ router.post('/builder/save', upload.fields([
     const marksheetsUrl = req.files?.['marksheets'] ? `/uploads/marksheets_${student_id}_${Date.now()}.pdf` : null;
     const certificationsUrl = req.files?.['certifications'] ? `/uploads/certs_${student_id}_${Date.now()}.pdf` : null;
     const idDocumentUrl = req.files?.['id_document'] ? `/uploads/id_${student_id}_${Date.now()}.pdf` : null;
+    const uploadedPhotoUrl = req.files?.['photo'] ? `/uploads/photo_${student_id}_${Date.now()}.jpg` : (photo_url || null);
 
     // Build synthesized full structured resume object
     const synthesizedResumeJson = {
@@ -253,6 +255,7 @@ router.post('/builder/save', upload.fields([
       education: educationArr,
       linkedin_url: linkedin_url || '',
       github_url: github_url || '',
+      photo_url: uploadedPhotoUrl || '',
       verified_dossier: {
         marksheets_attached: !!marksheetsUrl,
         certifications_attached: !!certificationsUrl,
@@ -353,14 +356,14 @@ ${educationArr.map(ed => `- ${ed.degree || 'Degree'} from ${ed.institution || 'S
       db.prepare(`
         INSERT INTO student_profiles (
           id, name, roll_number, program, branch, cgpa, passing_year, admission_year, phone,
-          parsed_resume_json, ats_score, ats_feedback_json, marksheets_url, certifications_url, id_document_url, linkedin_url, github_url
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          parsed_resume_json, ats_score, ats_feedback_json, marksheets_url, certifications_url, id_document_url, photo_url, linkedin_url, github_url
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
         student_id, synthesizedResumeJson.name, synthesizedResumeJson.roll_number,
         synthesizedResumeJson.program, synthesizedResumeJson.branch, synthesizedResumeJson.cgpa,
         synthesizedResumeJson.passing_year, parseInt(admission_year || 2022, 10), synthesizedResumeJson.phone,
         JSON.stringify(synthesizedResumeJson), atsResult.atsScore, JSON.stringify(atsResult.feedback),
-        marksheetsUrl, certificationsUrl, idDocumentUrl, synthesizedResumeJson.linkedin_url, synthesizedResumeJson.github_url
+        marksheetsUrl, certificationsUrl, idDocumentUrl, uploadedPhotoUrl, synthesizedResumeJson.linkedin_url, synthesizedResumeJson.github_url
       );
     } else {
       db.prepare(`
@@ -370,6 +373,7 @@ ${educationArr.map(ed => `- ${ed.degree || 'Degree'} from ${ed.institution || 'S
             marksheets_url = COALESCE(?, marksheets_url),
             certifications_url = COALESCE(?, certifications_url),
             id_document_url = COALESCE(?, id_document_url),
+            photo_url = COALESCE(?, photo_url),
             linkedin_url = ?, github_url = ?
         WHERE id = ?
       `).run(
@@ -377,7 +381,7 @@ ${educationArr.map(ed => `- ${ed.degree || 'Degree'} from ${ed.institution || 'S
         synthesizedResumeJson.branch, synthesizedResumeJson.cgpa, synthesizedResumeJson.passing_year,
         synthesizedResumeJson.phone, JSON.stringify(synthesizedResumeJson), atsResult.atsScore,
         JSON.stringify(atsResult.feedback), marksheetsUrl, certificationsUrl, idDocumentUrl,
-        synthesizedResumeJson.linkedin_url, synthesizedResumeJson.github_url, student_id
+        uploadedPhotoUrl, synthesizedResumeJson.linkedin_url, synthesizedResumeJson.github_url, student_id
       );
     }
 

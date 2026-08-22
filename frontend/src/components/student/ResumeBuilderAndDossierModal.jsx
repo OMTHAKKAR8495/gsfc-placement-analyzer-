@@ -4,7 +4,7 @@ import {
   FileText, Award, ShieldCheck, Upload, Trash2, Plus, 
   CheckCircle2, ArrowRight, Loader2, AlertCircle, Building2, 
   ExternalLink, FileCheck, Check, Printer, Download, Eye, 
-  Layers, RefreshCw, Star, Mail, Phone, Globe, Github, Linkedin
+  Layers, RefreshCw, Star, Mail, Phone, Globe, Github, Linkedin, Camera, Image as ImageIcon
 } from 'lucide-react';
 
 const COMMON_SKILLS = [
@@ -44,6 +44,13 @@ export default function ResumeBuilderAndDossierModal({
   const [summary, setSummary] = useState(
     `Passionate and driven ${program} student at GSFC University with strong problem-solving skills, hands-on project development experience, and proven track record in software engineering and cloud systems.`
   );
+
+  // Formal Passport Photo State
+  const [photoFile, setPhotoFile] = useState(null);
+  const [photoPreview, setPhotoPreview] = useState(
+    student?.photo_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80'
+  );
+  const photoInputRef = useRef(null);
 
   // 2. Technical Skills
   const [technicalSkills, setTechnicalSkills] = useState(
@@ -106,6 +113,14 @@ export default function ResumeBuilderAndDossierModal({
   if (!isOpen) return null;
 
   const targetReq = requirements.find(r => r.id === selectedReqId) || requirements[0];
+
+  const handlePhotoSelect = (e) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setPhotoFile(file);
+      setPhotoPreview(URL.createObjectURL(file));
+    }
+  };
 
   const handleAddSkill = (skillToAdd) => {
     const s = (skillToAdd || skillInput).trim();
@@ -225,6 +240,7 @@ export default function ResumeBuilderAndDossierModal({
       formData.append('email', email);
       formData.append('linkedin_url', linkedinUrl);
       formData.append('github_url', githubUrl);
+      formData.append('photo_url', photoPreview);
       formData.append('summary', summary);
       formData.append('skills_json', JSON.stringify(technicalSkills));
       formData.append('projects_json', JSON.stringify(projects.filter(p => p.title?.trim())));
@@ -233,7 +249,8 @@ export default function ResumeBuilderAndDossierModal({
         formData.append('target_requirement_id', selectedReqId);
       }
 
-      // Append 3 separate files
+      // Append photo and 3 separate files
+      if (photoFile) formData.append('photo', photoFile);
       if (marksheetsFile) formData.append('marksheets', marksheetsFile);
       if (certificationsFile) formData.append('certifications', certificationsFile);
       if (idDocumentFile) formData.append('id_document', idDocumentFile);
@@ -273,15 +290,15 @@ export default function ResumeBuilderAndDossierModal({
         <div className="space-y-2 print:hidden">
           <div className="inline-flex items-center gap-2 px-3 py-1 bg-gradient-to-r from-blue-600/10 via-indigo-600/10 to-teal-600/10 border border-blue-500/30 text-blue-700 dark:text-blue-300 rounded-full text-xs font-black uppercase tracking-wider">
             <Sparkles className="w-3.5 h-3.5 text-blue-600 animate-pulse" />
-            <span>Gemini AI Resume Generator & Placement Dossier</span>
+            <span>Gemini AI Resume Generator & Formal Photo Dossier</span>
           </div>
 
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-slate-100 leading-tight">
-            AI Resume Builder & Verification Dossier
+            AI Resume Builder with Formal Photo & 3-Document Dossier
           </h2>
 
           <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 font-medium leading-relaxed">
-            Fill your details, generate AI-polished STAR bullet points via Gemini AI, choose from 3 professional recruiter templates, and attach your <strong>3 separate verification files</strong>.
+            Upload your formal passport photograph, paste your LinkedIn & GitHub profiles, generate STAR bullet points with Gemini AI, and export in 3 executive recruiter templates.
           </p>
         </div>
 
@@ -304,7 +321,7 @@ export default function ResumeBuilderAndDossierModal({
             }`}
           >
             <User className="w-3.5 h-3.5" />
-            <span>1. Academics</span>
+            <span>1. Photo & Academics</span>
           </button>
 
           <button
@@ -343,13 +360,73 @@ export default function ResumeBuilderAndDossierModal({
             }`}
           >
             <Sparkles className="w-3.5 h-3.5" />
-            <span>4. AI Templates & Preview</span>
+            <span>4. AI Templates & Photo Preview</span>
           </button>
         </div>
 
-        {/* STEP 1: Personal, Academic & Contact Info */}
+        {/* STEP 1: Personal, Photo, Academic & Contact Info */}
         {activeStep === 1 && (
-          <div className="space-y-4 animate-fade-in print:hidden">
+          <div className="space-y-5 animate-fade-in print:hidden">
+            {/* 📸 Formal Passport Photo Uploader Card */}
+            <div className="p-4 sm:p-5 bg-gradient-to-r from-blue-50 via-slate-50 to-indigo-50 dark:from-slate-800 dark:via-slate-800/80 dark:to-blue-950/40 rounded-3xl border border-blue-200/80 dark:border-slate-700 flex flex-col sm:flex-row items-center gap-5 shadow-sm">
+              <div className="relative group shrink-0">
+                <div className="w-24 h-28 rounded-2xl overflow-hidden border-2 border-blue-600 dark:border-blue-400 shadow-md bg-slate-200 dark:bg-slate-700 flex items-center justify-center">
+                  {photoPreview ? (
+                    <img src={photoPreview} alt="Candidate Passport Photo" className="w-full h-full object-cover" />
+                  ) : (
+                    <User className="w-12 h-12 text-slate-400" />
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => photoInputRef.current?.click()}
+                  className="absolute -bottom-2 -right-2 p-2 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg transition-transform hover:scale-110 cursor-pointer"
+                  title="Upload Formal Photo"
+                >
+                  <Camera className="w-3.5 h-3.5" />
+                </button>
+              </div>
+
+              <div className="space-y-1.5 text-center sm:text-left flex-1">
+                <div className="flex items-center justify-center sm:justify-start gap-2">
+                  <span className="text-xs font-black text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+                    <ImageIcon className="w-4 h-4 text-blue-600" />
+                    <span>Formal Passport-Size Photograph</span>
+                  </span>
+                  <span className="px-2 py-0.5 bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 rounded text-[10px] font-bold">
+                    Right Side Placement
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-600 dark:text-slate-300 font-medium">
+                  Upload a clear, front-facing formal photograph (35mm x 45mm standard). It will be rendered on the top-right header of your executive resume.
+                </p>
+
+                <div className="flex items-center justify-center sm:justify-start gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => photoInputRef.current?.click()}
+                    className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-black flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
+                  >
+                    <Upload className="w-3.5 h-3.5" />
+                    <span>Choose Formal Photo</span>
+                  </button>
+                  <input
+                    ref={photoInputRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/jpg"
+                    onChange={handlePhotoSelect}
+                    className="hidden"
+                  />
+                  {photoFile && (
+                    <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-bold">
+                      ✓ {photoFile.name}
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Academic & Personal Fields */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <label className="text-xs font-black text-slate-700 dark:text-slate-300">Candidate Full Name *</label>
@@ -453,31 +530,45 @@ export default function ResumeBuilderAndDossierModal({
                 />
               </div>
 
+              {/* 🔗 Dedicated LinkedIn Paste Field */}
               <div className="space-y-1.5">
-                <label className="text-xs font-black text-slate-700 dark:text-slate-300">LinkedIn Profile URL</label>
-                <input
-                  type="url"
-                  value={linkedinUrl}
-                  onChange={(e) => setLinkedinUrl(e.target.value)}
-                  placeholder="https://linkedin.com/in/username"
-                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                />
+                <label className="text-xs font-black text-slate-700 dark:text-slate-300 flex items-center gap-1.5 text-blue-700 dark:text-blue-400">
+                  <Linkedin className="w-3.5 h-3.5" />
+                  <span>Paste LinkedIn Profile URL:</span>
+                </label>
+                <div className="relative">
+                  <input
+                    type="url"
+                    value={linkedinUrl}
+                    onChange={(e) => setLinkedinUrl(e.target.value)}
+                    placeholder="https://linkedin.com/in/your-username"
+                    className="w-full pl-8 pr-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-blue-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                  />
+                  <Linkedin className="w-4 h-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-blue-600" />
+                </div>
               </div>
 
+              {/* 🔗 Dedicated GitHub Paste Field */}
               <div className="space-y-1.5">
-                <label className="text-xs font-black text-slate-700 dark:text-slate-300">GitHub / Portfolio URL</label>
-                <input
-                  type="url"
-                  value={githubUrl}
-                  onChange={(e) => setGithubUrl(e.target.value)}
-                  placeholder="https://github.com/username"
-                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                />
+                <label className="text-xs font-black text-slate-700 dark:text-slate-300 flex items-center gap-1.5 text-slate-800 dark:text-slate-200">
+                  <Github className="w-3.5 h-3.5" />
+                  <span>Paste GitHub / Portfolio URL:</span>
+                </label>
+                <div className="relative">
+                  <input
+                    type="url"
+                    value={githubUrl}
+                    onChange={(e) => setGithubUrl(e.target.value)}
+                    placeholder="https://github.com/your-username"
+                    className="w-full pl-8 pr-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                  />
+                  <Github className="w-4 h-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-700 dark:text-slate-300" />
+                </div>
               </div>
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-black text-slate-700 dark:text-slate-300">Professional Summary & Objective</label>
+              <label className="text-xs font-black text-slate-700 dark:text-slate-300">Professional Summary & Career Objective</label>
               <textarea
                 rows={3}
                 value={summary}
@@ -1007,7 +1098,7 @@ export default function ResumeBuilderAndDossierModal({
               </div>
             </div>
 
-            {/* LIVE RESUME PREVIEW CONTAINER */}
+            {/* LIVE RESUME PREVIEW CONTAINER WITH RIGHT-SIDE FORMAL PASSPORT PHOTO */}
             <div
               ref={resumePrintRef}
               className={`p-6 sm:p-10 rounded-2xl shadow-xl transition-all ${
@@ -1018,48 +1109,126 @@ export default function ResumeBuilderAndDossierModal({
                   : 'bg-white text-slate-900 border-2 border-emerald-500/40 font-sans'
               }`}
             >
-              {/* Template Header */}
+              {/* 💼 TEMPLATE 1: Modern Tech Executive (Photo on Right) */}
               {selectedTemplate === 'modern' && (
-                <div className="border-b-2 border-blue-900 pb-4 mb-4 flex flex-col sm:flex-row justify-between items-start sm:items-end gap-3">
-                  <div>
+                <div className="border-b-2 border-blue-900 pb-5 mb-5 flex flex-row justify-between items-start gap-4">
+                  <div className="space-y-1 flex-1">
                     <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-blue-950 uppercase">{name}</h1>
-                    <p className="text-sm font-bold text-blue-700 mt-0.5">{program} • {branch} ({passingYear} Batch)</p>
-                    <p className="text-xs text-slate-500 font-semibold mt-0.5">GSFC University • Roll No: {rollNumber} • CGPA: {cgpa}/10</p>
+                    <p className="text-sm font-bold text-blue-700">{program} • {branch} ({passingYear} Batch)</p>
+                    <p className="text-xs text-slate-500 font-semibold">GSFC University • Roll No: {rollNumber} • CGPA: {cgpa}/10</p>
+                    
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-600 pt-1 font-medium">
+                      <span className="flex items-center gap-1"><Mail className="w-3 h-3 text-blue-900" /> {email}</span>
+                      <span className="flex items-center gap-1"><Phone className="w-3 h-3 text-blue-900" /> {phone}</span>
+                      {linkedinUrl && (
+                        <a href={linkedinUrl} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-blue-700 font-bold hover:underline">
+                          <Linkedin className="w-3 h-3 text-blue-700" />
+                          <span>{linkedinUrl.replace(/^https?:\/\/(www\.)?/, '')}</span>
+                        </a>
+                      )}
+                      {githubUrl && (
+                        <a href={githubUrl} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-slate-800 font-bold hover:underline">
+                          <Github className="w-3 h-3 text-slate-800" />
+                          <span>{githubUrl.replace(/^https?:\/\/(www\.)?/, '')}</span>
+                        </a>
+                      )}
+                    </div>
                   </div>
-                  <div className="text-right text-xs text-slate-600 space-y-0.5 sm:shrink-0 font-medium">
-                    <p className="flex items-center sm:justify-end gap-1"><Mail className="w-3 h-3 text-blue-900" /> {email}</p>
-                    <p className="flex items-center sm:justify-end gap-1"><Phone className="w-3 h-3 text-blue-900" /> {phone}</p>
-                    {linkedinUrl && <p className="flex items-center sm:justify-end gap-1"><Linkedin className="w-3 h-3 text-blue-900" /> {linkedinUrl.replace('https://', '')}</p>}
-                    {githubUrl && <p className="flex items-center sm:justify-end gap-1"><Github className="w-3 h-3 text-blue-900" /> {githubUrl.replace('https://', '')}</p>}
+
+                  {/* Right Side Formal Passport Photo */}
+                  <div className="shrink-0">
+                    <div className="w-24 h-28 sm:w-28 sm:h-32 rounded-xl overflow-hidden border-2 border-blue-900 shadow-md bg-slate-100 flex items-center justify-center">
+                      {photoPreview ? (
+                        <img src={photoPreview} alt={name} className="w-full h-full object-cover" />
+                      ) : (
+                        <User className="w-12 h-12 text-slate-400" />
+                      )}
+                    </div>
                   </div>
                 </div>
               )}
 
+              {/* 🎓 TEMPLATE 2: Harvard / Ivy Classic (Photo on Right) */}
               {selectedTemplate === 'harvard' && (
-                <div className="text-center border-b border-slate-400 pb-4 mb-4 space-y-1">
-                  <h1 className="text-2xl sm:text-3xl font-bold tracking-normal uppercase text-slate-950 font-serif">{name}</h1>
-                  <p className="text-xs text-slate-700 font-medium">
-                    {email} | {phone} | {linkedinUrl ? linkedinUrl.replace('https://', '') : ''} | {githubUrl ? githubUrl.replace('https://', '') : ''}
-                  </p>
-                  <p className="text-xs text-slate-800 font-serif font-bold">
-                    GSFC University | {program} ({branch}) | CGPA: {cgpa}/10 | Batch of {passingYear}
-                  </p>
+                <div className="border-b border-slate-400 pb-5 mb-5 flex flex-row justify-between items-start gap-4">
+                  <div className="space-y-1 flex-1">
+                    <h1 className="text-2xl sm:text-3xl font-bold tracking-normal uppercase text-slate-950 font-serif">{name}</h1>
+                    <p className="text-xs text-slate-800 font-serif font-bold">
+                      GSFC University | {program} ({branch}) | CGPA: {cgpa}/10 | Batch of {passingYear}
+                    </p>
+                    <p className="text-xs text-slate-600 font-serif">
+                      Roll Number: {rollNumber} | {email} | {phone}
+                    </p>
+                    <div className="flex flex-wrap items-center gap-3 text-xs text-slate-700 font-serif pt-0.5">
+                      {linkedinUrl && (
+                        <a href={linkedinUrl} target="_blank" rel="noreferrer" className="underline font-bold text-slate-900 flex items-center gap-1">
+                          <Linkedin className="w-3 h-3" />
+                          <span>{linkedinUrl.replace(/^https?:\/\/(www\.)?/, '')}</span>
+                        </a>
+                      )}
+                      {githubUrl && (
+                        <a href={githubUrl} target="_blank" rel="noreferrer" className="underline font-bold text-slate-900 flex items-center gap-1">
+                          <Github className="w-3 h-3" />
+                          <span>{githubUrl.replace(/^https?:\/\/(www\.)?/, '')}</span>
+                        </a>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Right Side Formal Passport Photo */}
+                  <div className="shrink-0">
+                    <div className="w-22 h-26 sm:w-26 sm:h-30 border border-slate-700 shadow-sm bg-slate-50 flex items-center justify-center p-0.5">
+                      {photoPreview ? (
+                        <img src={photoPreview} alt={name} className="w-full h-full object-cover" />
+                      ) : (
+                        <User className="w-10 h-10 text-slate-400" />
+                      )}
+                    </div>
+                  </div>
                 </div>
               )}
 
+              {/* 🌲 TEMPLATE 3: GSFC Emerald Engineering (Photo on Right) */}
               {selectedTemplate === 'emerald' && (
-                <div className="bg-gradient-to-r from-emerald-900 to-teal-900 text-white p-6 rounded-xl -m-2 mb-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shadow-md">
-                  <div>
-                    <span className="px-2 py-0.5 bg-emerald-500/30 text-emerald-200 border border-emerald-400/40 rounded text-[10px] font-black uppercase tracking-wider">
+                <div className="bg-gradient-to-r from-emerald-900 to-teal-900 text-white p-6 rounded-2xl -m-2 mb-5 flex flex-row justify-between items-center gap-4 shadow-md">
+                  <div className="space-y-1.5 flex-1">
+                    <span className="px-2.5 py-0.5 bg-emerald-500/30 text-emerald-200 border border-emerald-400/40 rounded text-[10px] font-black uppercase tracking-wider">
                       GSFC University Placement Certified
                     </span>
                     <h1 className="text-2xl sm:text-3xl font-black text-white mt-1 uppercase">{name}</h1>
-                    <p className="text-xs text-emerald-200 font-bold mt-0.5">{program} • {branch} (CGPA: {cgpa})</p>
+                    <p className="text-xs text-emerald-200 font-bold">{program} • {branch} (CGPA: {cgpa}/10 • Batch {passingYear})</p>
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-emerald-100 font-medium pt-1">
+                      <span>{email}</span>
+                      <span>•</span>
+                      <span>{phone}</span>
+                      <span>•</span>
+                      <span>Roll: {rollNumber}</span>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-3 text-xs text-emerald-200 pt-0.5 font-bold">
+                      {linkedinUrl && (
+                        <a href={linkedinUrl} target="_blank" rel="noreferrer" className="hover:underline flex items-center gap-1">
+                          <Linkedin className="w-3 h-3" />
+                          <span>{linkedinUrl.replace(/^https?:\/\/(www\.)?/, '')}</span>
+                        </a>
+                      )}
+                      {githubUrl && (
+                        <a href={githubUrl} target="_blank" rel="noreferrer" className="hover:underline flex items-center gap-1">
+                          <Github className="w-3 h-3" />
+                          <span>{githubUrl.replace(/^https?:\/\/(www\.)?/, '')}</span>
+                        </a>
+                      )}
+                    </div>
                   </div>
-                  <div className="text-xs text-emerald-100 space-y-0.5 text-right font-medium">
-                    <p>{email}</p>
-                    <p>{phone}</p>
-                    <p>Roll No: {rollNumber}</p>
+
+                  {/* Right Side Formal Passport Photo */}
+                  <div className="shrink-0">
+                    <div className="w-24 h-28 sm:w-28 sm:h-32 rounded-xl overflow-hidden border-2 border-emerald-300/80 shadow-lg bg-emerald-950 flex items-center justify-center">
+                      {photoPreview ? (
+                        <img src={photoPreview} alt={name} className="w-full h-full object-cover" />
+                      ) : (
+                        <User className="w-12 h-12 text-emerald-300" />
+                      )}
+                    </div>
                   </div>
                 </div>
               )}
