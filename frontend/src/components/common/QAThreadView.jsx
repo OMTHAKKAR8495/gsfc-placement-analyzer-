@@ -35,8 +35,12 @@ export default function QAThreadView({ threadId, onClose, currentUser, onOpenAut
 
   const fetchThread = async () => {
     setLoading(true);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 3000);
+
     try {
-      const res = await fetch(`/api/qa/threads/${threadId}`);
+      const res = await fetch(`/api/qa/threads/${threadId}`, { signal: controller.signal });
+      clearTimeout(timeoutId);
       if (res.ok) {
         const data = await res.json();
         setThread(data);
@@ -47,6 +51,7 @@ export default function QAThreadView({ threadId, onClose, currentUser, onOpenAut
       console.error('Error fetching thread:', err);
       setThread(null);
     } finally {
+      clearTimeout(timeoutId);
       setLoading(false);
     }
   };
