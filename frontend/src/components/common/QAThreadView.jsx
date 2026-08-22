@@ -280,6 +280,7 @@ export default function QAThreadView({ threadId, onClose, currentUser, onOpenAut
                 ) : (
                   thread.replies.map(reply => {
                     const isTpo = reply.author_role === 'admin' || reply.author_role === 'tpo';
+                    const isFaculty = reply.author_role === 'faculty';
                     const isAlumni = reply.author_role === 'alumni';
 
                     return (
@@ -288,16 +289,24 @@ export default function QAThreadView({ threadId, onClose, currentUser, onOpenAut
                         className={`p-4 rounded-2xl border text-xs space-y-2 transition-all ${
                           isTpo
                             ? 'bg-amber-50/70 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800/60 shadow-xs'
+                            : isFaculty
+                            ? 'bg-emerald-50/70 dark:bg-emerald-950/30 border-emerald-300 dark:border-emerald-800/60 shadow-xs'
                             : isAlumni
                             ? 'bg-blue-50/70 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800/60 shadow-xs'
                             : 'bg-slate-50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-700'
                         }`}
                       >
                         <div className="flex items-center justify-between gap-2">
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <span className="font-black text-slate-900 dark:text-slate-100">
                               {reply.author_name}
                             </span>
+                            {isFaculty && (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-100 dark:bg-emerald-900/80 text-emerald-950 dark:text-emerald-200 border border-emerald-300 dark:border-emerald-700 rounded text-[10px] font-black">
+                                <Award className="w-3 h-3 text-emerald-700 dark:text-emerald-400" />
+                                <span>🎓 VERIFIED FACULTY ADVISOR</span>
+                              </span>
+                            )}
                             {isTpo && (
                               <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-200 dark:bg-amber-900 text-amber-950 dark:text-amber-200 rounded text-[10px] font-black">
                                 <ShieldCheck className="w-3 h-3 text-amber-700" />

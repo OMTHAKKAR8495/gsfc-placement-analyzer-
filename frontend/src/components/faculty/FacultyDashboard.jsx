@@ -2,10 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { 
   Users, Award, TrendingUp, AlertTriangle, BookOpen, 
   Send, Sparkles, Filter, CheckCircle2, ChevronRight, BarChart2, 
-  ShieldCheck, ArrowRight, Search, Eye, X, Briefcase, FileText, CheckCircle, Clock
+  ShieldCheck, ArrowRight, Search, Eye, X, Briefcase, FileText, CheckCircle, Clock,
+  MessageSquare, HelpCircle
 } from 'lucide-react';
+import QABoard from '../common/QABoard';
 
-export default function FacultyDashboard({ currentUser }) {
+export default function FacultyDashboard({ currentUser, onOpenAuth }) {
+  const [activeTab, setActiveTab] = useState('tracker'); // 'tracker' or 'doubts'
+  
+  // Filter States for Student Tracker
   const [department, setDepartment] = useState('ALL');
   const [minCgpa, setMinCgpa] = useState('0');
   const [minAts, setMinAts] = useState('0');
@@ -43,8 +48,10 @@ export default function FacultyDashboard({ currentUser }) {
   };
 
   useEffect(() => {
-    fetchFacultyAnalytics();
-  }, [department, minCgpa, minAts, selectedSkill, placementStatus, searchQuery]);
+    if (activeTab === 'tracker') {
+      fetchFacultyAnalytics();
+    }
+  }, [activeTab, department, minCgpa, minAts, selectedSkill, placementStatus, searchQuery]);
 
   const handleOpenStudentActivity = async (student) => {
     setActivityLoading(true);
@@ -96,23 +103,50 @@ export default function FacultyDashboard({ currentUser }) {
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <span className="px-2.5 py-0.5 bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 rounded-full text-[10px] font-black uppercase">
-              Faculty & Academic Mentorship Portal
+              Faculty Mentorship & Guidance Hub
             </span>
             <span className="text-[10px] text-slate-300 font-mono">GSFC University • Academic Year 2026-2027</span>
           </div>
           <h1 className="text-xl sm:text-2xl font-black">
-            Department Student Activity Tracker & Placement Readiness
+            Faculty Placement Advisor Portal
           </h1>
           <p className="text-xs text-slate-300 max-w-2xl font-medium">
-            Monitor student applications, assessment scores, and mock interview performance. Filter by required skills or CGPA to assign remedial coaching.
+            Review student placement applications, filter candidates by skills and CGPA, and answer student placement doubts with official Faculty Advisor verification.
           </p>
         </div>
 
         <div className="flex items-center gap-2">
           <span className="px-3 py-1.5 bg-white/10 rounded-xl text-xs font-bold text-slate-200 border border-white/20">
-            Role: Faculty Advisor
+            Logged In: {currentUser?.name || 'Dr. Rajesh Sharma'} (Faculty)
           </span>
         </div>
+      </div>
+
+      {/* Sub-Navigation Tabs */}
+      <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800/80 p-1.5 rounded-2xl border border-slate-200 dark:border-slate-700 w-fit">
+        <button
+          onClick={() => setActiveTab('tracker')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
+            activeTab === 'tracker'
+              ? 'bg-blue-900 text-white shadow-md'
+              : 'text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+          }`}
+        >
+          <Users className="w-4 h-4 text-emerald-400" />
+          <span>Student Activity & Candidate Filters</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('doubts')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
+            activeTab === 'doubts'
+              ? 'bg-emerald-700 text-white shadow-md'
+              : 'text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+          }`}
+        >
+          <MessageSquare className="w-4 h-4 text-amber-300" />
+          <span>💬 Answer Student Doubts & Q&A</span>
+        </button>
       </div>
 
       {assignedSuccessMsg && (
@@ -122,227 +156,255 @@ export default function FacultyDashboard({ currentUser }) {
         </div>
       )}
 
-      {/* KPI Cards Grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-        <div className="p-4 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm space-y-1">
-          <div className="text-[10px] font-black uppercase text-slate-400">Filtered Students</div>
-          <div className="text-2xl font-black text-blue-900 dark:text-blue-400">{data?.total_students || 0}</div>
-          <div className="text-[10px] text-slate-500">In Current Selection</div>
-        </div>
+      {/* ========================================================================= */}
+      {/* TAB 1: STUDENT ROSTER, ADVANCED FILTER SUITE & DETAILED ACTIVITY DOSSIER  */}
+      {/* ========================================================================= */}
+      {activeTab === 'tracker' && (
+        <div className="space-y-6">
+          {/* KPI Cards Grid */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+            <div className="p-4 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm space-y-1">
+              <div className="text-[10px] font-black uppercase text-slate-400">Filtered Students</div>
+              <div className="text-2xl font-black text-blue-900 dark:text-blue-400">{data?.total_students || 0}</div>
+              <div className="text-[10px] text-slate-500">In Current Selection</div>
+            </div>
 
-        <div className="p-4 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm space-y-1">
-          <div className="text-[10px] font-black uppercase text-slate-400">Cohort Avg CGPA</div>
-          <div className="text-2xl font-black text-emerald-600">{data?.avg_cgpa || '0.00'} / 10</div>
-          <div className="text-[10px] text-slate-500">Academic Standing</div>
-        </div>
+            <div className="p-4 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm space-y-1">
+              <div className="text-[10px] font-black uppercase text-slate-400">Cohort Avg CGPA</div>
+              <div className="text-2xl font-black text-emerald-600">{data?.avg_cgpa || '0.00'} / 10</div>
+              <div className="text-[10px] text-slate-500">Academic Standing</div>
+            </div>
 
-        <div className="p-4 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm space-y-1">
-          <div className="text-[10px] font-black uppercase text-slate-400">Average ATS Score</div>
-          <div className="text-2xl font-black text-indigo-600">{data?.avg_ats_score || '0'}%</div>
-          <div className="text-[10px] text-slate-500">Resume Compliance</div>
-        </div>
+            <div className="p-4 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm space-y-1">
+              <div className="text-[10px] font-black uppercase text-slate-400">Average ATS Score</div>
+              <div className="text-2xl font-black text-indigo-600">{data?.avg_ats_score || '0'}%</div>
+              <div className="text-[10px] text-slate-500">Resume Compliance</div>
+            </div>
 
-        <div className="p-4 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm space-y-1">
-          <div className="text-[10px] font-black uppercase text-slate-400">Placement Conversion</div>
-          <div className="text-2xl font-black text-amber-500">{data?.placement_conversion_rate || '0'}%</div>
-          <div className="text-[10px] text-slate-500">Offer Conversion</div>
-        </div>
-      </div>
-
-      {/* 🔍 ADVANCED CANDIDATE FILTER TOOLBAR FOR FACULTY */}
-      <div className="bg-white dark:bg-slate-800 p-4 sm:p-5 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm space-y-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 text-xs font-black text-slate-800 dark:text-white uppercase tracking-wider">
-            <Filter className="w-4 h-4 text-blue-600" />
-            <span>Candidate Filter & Skill Search Suite</span>
-          </div>
-          {(department !== 'ALL' || minCgpa !== '0' || minAts !== '0' || selectedSkill || placementStatus !== 'ALL' || searchQuery) && (
-            <button
-              onClick={clearFilters}
-              className="text-xs font-bold text-rose-600 hover:text-rose-700 cursor-pointer"
-            >
-              Reset Filters
-            </button>
-          )}
-        </div>
-
-        {/* Filter Controls Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2.5">
-          {/* Department Filter */}
-          <div>
-            <label className="block text-[10px] font-black text-slate-500 uppercase mb-1">Department</label>
-            <select
-              value={department}
-              onChange={(e) => setDepartment(e.target.value)}
-              className="w-full p-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-slate-200"
-            >
-              <option value="ALL">All Departments</option>
-              <option value="CSE">BTech CSE & IT</option>
-              <option value="Chemical">BTech Chemical</option>
-              <option value="Mechanical">BTech Mechanical</option>
-              <option value="Fire">BTech Fire & Safety</option>
-            </select>
+            <div className="p-4 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm space-y-1">
+              <div className="text-[10px] font-black uppercase text-slate-400">Placement Conversion</div>
+              <div className="text-2xl font-black text-amber-500">{data?.placement_conversion_rate || '0'}%</div>
+              <div className="text-[10px] text-slate-500">Offer Conversion</div>
+            </div>
           </div>
 
-          {/* Min CGPA Filter */}
-          <div>
-            <label className="block text-[10px] font-black text-slate-500 uppercase mb-1">Min CGPA</label>
-            <select
-              value={minCgpa}
-              onChange={(e) => setMinCgpa(e.target.value)}
-              className="w-full p-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-slate-200"
-            >
-              <option value="0">All CGPA</option>
-              <option value="6.5">≥ 6.5 Cutoff</option>
-              <option value="7.0">≥ 7.0 Standard</option>
-              <option value="7.5">≥ 7.5 Tier-1</option>
-              <option value="8.0">≥ 8.0 Distinction</option>
-              <option value="8.5">≥ 8.5 Star</option>
-            </select>
+          {/* 🔍 ADVANCED CANDIDATE FILTER TOOLBAR FOR FACULTY */}
+          <div className="bg-white dark:bg-slate-800 p-4 sm:p-5 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-xs font-black text-slate-800 dark:text-white uppercase tracking-wider">
+                <Filter className="w-4 h-4 text-blue-600" />
+                <span>Candidate Filter & Skill Search Suite</span>
+              </div>
+              {(department !== 'ALL' || minCgpa !== '0' || minAts !== '0' || selectedSkill || placementStatus !== 'ALL' || searchQuery) && (
+                <button
+                  onClick={clearFilters}
+                  className="text-xs font-bold text-rose-600 hover:text-rose-700 cursor-pointer"
+                >
+                  Reset Filters
+                </button>
+              )}
+            </div>
+
+            {/* Filter Controls Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2.5">
+              {/* Department Filter */}
+              <div>
+                <label className="block text-[10px] font-black text-slate-500 uppercase mb-1">Department</label>
+                <select
+                  value={department}
+                  onChange={(e) => setDepartment(e.target.value)}
+                  className="w-full p-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-slate-200"
+                >
+                  <option value="ALL">All Departments</option>
+                  <option value="CSE">BTech CSE & IT</option>
+                  <option value="Chemical">BTech Chemical</option>
+                  <option value="Mechanical">BTech Mechanical</option>
+                  <option value="Fire">BTech Fire & Safety</option>
+                </select>
+              </div>
+
+              {/* Min CGPA Filter */}
+              <div>
+                <label className="block text-[10px] font-black text-slate-500 uppercase mb-1">Min CGPA</label>
+                <select
+                  value={minCgpa}
+                  onChange={(e) => setMinCgpa(e.target.value)}
+                  className="w-full p-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-slate-200"
+                >
+                  <option value="0">All CGPA</option>
+                  <option value="6.5">≥ 6.5 Cutoff</option>
+                  <option value="7.0">≥ 7.0 Standard</option>
+                  <option value="7.5">≥ 7.5 Tier-1</option>
+                  <option value="8.0">≥ 8.0 Distinction</option>
+                  <option value="8.5">≥ 8.5 Star</option>
+                </select>
+              </div>
+
+              {/* Min ATS Score */}
+              <div>
+                <label className="block text-[10px] font-black text-slate-500 uppercase mb-1">Min ATS Score</label>
+                <select
+                  value={minAts}
+                  onChange={(e) => setMinAts(e.target.value)}
+                  className="w-full p-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-slate-200"
+                >
+                  <option value="0">All Scores</option>
+                  <option value="70">≥ 70% Validated</option>
+                  <option value="80">≥ 80% Strong</option>
+                  <option value="90">≥ 90% High Match</option>
+                </select>
+              </div>
+
+              {/* Placement Status */}
+              <div>
+                <label className="block text-[10px] font-black text-slate-500 uppercase mb-1">Status</label>
+                <select
+                  value={placementStatus}
+                  onChange={(e) => setPlacementStatus(e.target.value)}
+                  className="w-full p-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-slate-200"
+                >
+                  <option value="ALL">All Statuses</option>
+                  <option value="Placed">Placed</option>
+                  <option value="In-Process">In-Process</option>
+                  <option value="Unplaced">Unplaced</option>
+                </select>
+              </div>
+
+              {/* Required Skill Search */}
+              <div>
+                <label className="block text-[10px] font-black text-slate-500 uppercase mb-1">Skill Filter</label>
+                <input
+                  type="text"
+                  value={selectedSkill}
+                  onChange={(e) => setSelectedSkill(e.target.value)}
+                  placeholder="e.g. Python, SQL, DSA..."
+                  className="w-full p-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-slate-200 placeholder-slate-400"
+                />
+              </div>
+
+              {/* Student Search */}
+              <div>
+                <label className="block text-[10px] font-black text-slate-500 uppercase mb-1">Name / Roll No</label>
+                <div className="relative">
+                  <Search className="w-3.5 h-3.5 absolute left-2.5 top-3 text-slate-400" />
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search..."
+                    className="w-full pl-8 p-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-slate-200 placeholder-slate-400"
+                  />
+                </div>
+              </div>
+            </div>
           </div>
 
-          {/* Min ATS Score */}
-          <div>
-            <label className="block text-[10px] font-black text-slate-500 uppercase mb-1">Min ATS Score</label>
-            <select
-              value={minAts}
-              onChange={(e) => setMinAts(e.target.value)}
-              className="w-full p-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-slate-200"
-            >
-              <option value="0">All Scores</option>
-              <option value="70">≥ 70% Validated</option>
-              <option value="80">≥ 80% Strong</option>
-              <option value="90">≥ 90% High Match</option>
-            </select>
-          </div>
+          {/* Student Roster & Activity Inspection Table */}
+          <div className="bg-white dark:bg-slate-800 rounded-3xl border border-slate-200 dark:border-slate-700 overflow-hidden shadow-md space-y-3 p-4 sm:p-6">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2">
+                <Users className="w-4 h-4 text-blue-600" />
+                <span>Student Candidates List & Activity Verification</span>
+              </h3>
+              <span className="text-xs font-bold text-slate-400 font-mono">Showing {data?.students?.length || 0} students</span>
+            </div>
 
-          {/* Placement Status */}
-          <div>
-            <label className="block text-[10px] font-black text-slate-500 uppercase mb-1">Status</label>
-            <select
-              value={placementStatus}
-              onChange={(e) => setPlacementStatus(e.target.value)}
-              className="w-full p-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-slate-200"
-            >
-              <option value="ALL">All Statuses</option>
-              <option value="Placed">Placed</option>
-              <option value="In-Process">In-Process</option>
-              <option value="Unplaced">Unplaced</option>
-            </select>
-          </div>
+            <div className="overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-700">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-slate-100 dark:bg-slate-900 text-[10px] uppercase font-black text-slate-600 dark:text-slate-400">
+                  <tr>
+                    <th className="p-3">Roll Number</th>
+                    <th className="p-3">Candidate Name</th>
+                    <th className="p-3">Program</th>
+                    <th className="p-3 text-center">CGPA</th>
+                    <th className="p-3 text-center">ATS Compliance</th>
+                    <th className="p-3">Skills Extracted</th>
+                    <th className="p-3 text-center">Status</th>
+                    <th className="p-3 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                  {data?.students?.map((s, idx) => (
+                    <tr key={s.id || idx} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                      <td className="p-3 font-mono font-bold">{s.roll_number || '21BCE045'}</td>
+                      <td className="p-3">
+                        <div className="font-black text-slate-900 dark:text-white">{s.name}</div>
+                        <div className="text-[10px] text-slate-400">{s.email}</div>
+                      </td>
+                      <td className="p-3 text-slate-500 font-medium">{s.program}</td>
+                      <td className="p-3 text-center font-bold text-emerald-600">{s.cgpa}</td>
+                      <td className="p-3 text-center font-black text-blue-600">{s.ats_score || 88}%</td>
+                      <td className="p-3">
+                        <div className="flex flex-wrap gap-1 max-w-xs">
+                          {s.skills?.slice(0, 3).map((sk, skIdx) => (
+                            <span key={skIdx} className="px-1.5 py-0.2 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded text-[9px] font-mono font-bold">
+                              {sk}
+                            </span>
+                          ))}
+                          {s.skills?.length > 3 && (
+                            <span className="text-[9px] text-slate-400">+{s.skills.length - 3}</span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="p-3 text-center">
+                        <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase ${
+                          s.placement_status === 'Placed'
+                            ? 'bg-emerald-100 text-emerald-800'
+                            : s.placement_status === 'In-Process'
+                            ? 'bg-blue-100 text-blue-800'
+                            : 'bg-slate-100 text-slate-700'
+                        }`}>
+                          {s.placement_status}
+                        </span>
+                      </td>
+                      <td className="p-3 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            onClick={() => handleOpenStudentActivity(s)}
+                            className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-800 dark:text-slate-200 rounded-lg font-bold text-[10px] transition-colors cursor-pointer flex items-center gap-1"
+                            title="Inspect what this student has done"
+                          >
+                            <Eye className="w-3 h-3 text-blue-600" />
+                            <span>View Activity</span>
+                          </button>
 
-          {/* Required Skill Search */}
-          <div>
-            <label className="block text-[10px] font-black text-slate-500 uppercase mb-1">Skill Filter</label>
-            <input
-              type="text"
-              value={selectedSkill}
-              onChange={(e) => setSelectedSkill(e.target.value)}
-              placeholder="e.g. Python, SQL, DSA..."
-              className="w-full p-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-slate-200 placeholder-slate-400"
-            />
-          </div>
-
-          {/* Student Search */}
-          <div>
-            <label className="block text-[10px] font-black text-slate-500 uppercase mb-1">Name / Roll No</label>
-            <div className="relative">
-              <Search className="w-3.5 h-3.5 absolute left-2.5 top-3 text-slate-400" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search..."
-                className="w-full pl-8 p-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-slate-200 placeholder-slate-400"
-              />
+                          <button
+                            onClick={() => handleAssignTraining(s)}
+                            className="px-2.5 py-1 bg-blue-900 hover:bg-blue-800 text-white rounded-lg font-bold text-[10px] transition-colors cursor-pointer"
+                          >
+                            Assign Sprint
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
         </div>
-      </div>
+      )}
 
-      {/* Student Roster & Activity Inspection Table */}
-      <div className="bg-white dark:bg-slate-800 rounded-3xl border border-slate-200 dark:border-slate-700 overflow-hidden shadow-md space-y-3 p-4 sm:p-6">
-        <div className="flex items-center justify-between">
-          <h3 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2">
-            <Users className="w-4 h-4 text-blue-600" />
-            <span>Student Candidates List & Activity Verification</span>
-          </h3>
-          <span className="text-xs font-bold text-slate-400 font-mono">Showing {data?.students?.length || 0} students</span>
+      {/* ========================================================================= */}
+      {/* TAB 2: STUDENT DOUBTS & PLACEMENT Q&A DESK (ANSWER QUESTIONS RIGHT HERE)  */}
+      {/* ========================================================================= */}
+      {activeTab === 'doubts' && (
+        <div className="space-y-4">
+          <div className="p-4 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-2xl flex items-center justify-between gap-3 text-xs">
+            <div className="flex items-center gap-2.5">
+              <Award className="w-5 h-5 text-emerald-600 shrink-0" />
+              <div>
+                <span className="font-black text-emerald-950 dark:text-emerald-200">Official Faculty Placement Advisory Desk</span>
+                <p className="text-emerald-800 dark:text-emerald-300 text-[11px]">
+                  All answers you submit will be badged with <strong>🎓 VERIFIED FACULTY ADVISOR</strong> to guide students through recruitment doubts and preparation.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <QABoard currentUser={currentUser} onOpenAuth={onOpenAuth} />
         </div>
-
-        <div className="overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-700">
-          <table className="w-full text-left text-xs">
-            <thead className="bg-slate-100 dark:bg-slate-900 text-[10px] uppercase font-black text-slate-600 dark:text-slate-400">
-              <tr>
-                <th className="p-3">Roll Number</th>
-                <th className="p-3">Candidate Name</th>
-                <th className="p-3">Program</th>
-                <th className="p-3 text-center">CGPA</th>
-                <th className="p-3 text-center">ATS Compliance</th>
-                <th className="p-3">Skills Extracted</th>
-                <th className="p-3 text-center">Status</th>
-                <th className="p-3 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-              {data?.students?.map((s, idx) => (
-                <tr key={s.id || idx} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                  <td className="p-3 font-mono font-bold">{s.roll_number || '21BCE045'}</td>
-                  <td className="p-3">
-                    <div className="font-black text-slate-900 dark:text-white">{s.name}</div>
-                    <div className="text-[10px] text-slate-400">{s.email}</div>
-                  </td>
-                  <td className="p-3 text-slate-500 font-medium">{s.program}</td>
-                  <td className="p-3 text-center font-bold text-emerald-600">{s.cgpa}</td>
-                  <td className="p-3 text-center font-black text-blue-600">{s.ats_score || 88}%</td>
-                  <td className="p-3">
-                    <div className="flex flex-wrap gap-1 max-w-xs">
-                      {s.skills?.slice(0, 3).map((sk, skIdx) => (
-                        <span key={skIdx} className="px-1.5 py-0.2 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded text-[9px] font-mono font-bold">
-                          {sk}
-                        </span>
-                      ))}
-                      {s.skills?.length > 3 && (
-                        <span className="text-[9px] text-slate-400">+{s.skills.length - 3}</span>
-                      )}
-                    </div>
-                  </td>
-                  <td className="p-3 text-center">
-                    <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase ${
-                      s.placement_status === 'Placed'
-                        ? 'bg-emerald-100 text-emerald-800'
-                        : s.placement_status === 'In-Process'
-                        ? 'bg-blue-100 text-blue-800'
-                        : 'bg-slate-100 text-slate-700'
-                    }`}>
-                      {s.placement_status}
-                    </span>
-                  </td>
-                  <td className="p-3 text-right">
-                    <div className="flex items-center justify-end gap-1.5">
-                      <button
-                        onClick={() => handleOpenStudentActivity(s)}
-                        className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-800 dark:text-slate-200 rounded-lg font-bold text-[10px] transition-colors cursor-pointer flex items-center gap-1"
-                        title="Inspect what this student has done"
-                      >
-                        <Eye className="w-3 h-3 text-blue-600" />
-                        <span>View Activity</span>
-                      </button>
-
-                      <button
-                        onClick={() => handleAssignTraining(s)}
-                        className="px-2.5 py-1 bg-blue-900 hover:bg-blue-800 text-white rounded-lg font-bold text-[10px] transition-colors cursor-pointer"
-                      >
-                        Assign Sprint
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      )}
 
       {/* 📄 STUDENT ACTIVITY INSPECTION MODAL / DRAWER */}
       {selectedStudentActivity && (

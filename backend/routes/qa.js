@@ -125,8 +125,8 @@ router.post('/threads/:id/replies', AuthRateLimiter.generalApiLimiter, (req, res
       replyId,
       threadId,
       author_id || 'u_anonymous',
-      sanitizeXss(author_name || 'Community Member'),
-      ['student', 'alumni', 'admin', 'company', 'tpo'].includes(author_role) ? author_role : 'student',
+      sanitizeXss(author_name || 'Faculty Member'),
+      ['student', 'alumni', 'admin', 'company', 'tpo', 'faculty', 'superadmin'].includes(author_role) ? author_role : 'faculty',
       sanitizeXss(body)
     );
 
