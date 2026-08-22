@@ -4,6 +4,7 @@ import db from '../db/index.js';
 import { parseResume } from '../ai/modules/resumeParser.js';
 import { computeATSScore } from '../ai/modules/atsScorer.js';
 import { calculateMatchScore } from '../ai/modules/matchingEngine.js';
+import { enhanceResumeWithGemini } from '../ai/modules/resumeAI.js';
 import { analyzeDocumentAuthenticity } from '../services/authenticityChecker.js';
 
 const router = express.Router();
@@ -321,6 +322,31 @@ ${educationArr.map(ed => `- ${ed.degree || 'Degree'} from ${ed.institution || 'S
       };
     }
 
+    // Gemini AI-Powered Executive Resume Synthesis
+    try {
+      const aiEnhanced = await enhanceResumeWithGemini({
+        name: synthesizedResumeJson.name,
+        roll_number: synthesizedResumeJson.roll_number,
+        program: synthesizedResumeJson.program,
+        branch: synthesizedResumeJson.branch,
+        cgpa: synthesizedResumeJson.cgpa,
+        passing_year: synthesizedResumeJson.passing_year,
+        summary: synthesizedResumeJson.summary,
+        skills: skillsObj,
+        projects: projectsArr,
+        experience: experienceArr
+      }, targetReq);
+
+      if (aiEnhanced) {
+        synthesizedResumeJson.ai_enhanced = aiEnhanced;
+        if (aiEnhanced.professional_summary) {
+          synthesizedResumeJson.summary = aiEnhanced.professional_summary;
+        }
+      }
+    } catch(e) {
+      console.warn('AI enhancement fallback:', e.message);
+    }
+
     // Check if student exists or create
     const existing = db.prepare('SELECT * FROM student_profiles WHERE id = ?').get(student_id);
     if (!existing) {
@@ -368,6 +394,32 @@ ${educationArr.map(ed => `- ${ed.degree || 'Degree'} from ${ed.institution || 'S
     });
   } catch (err) {
     console.error('Resume builder save error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Live Gemini AI Resume Generator / Regenerator Endpoint
+router.post('/builder/ai-enhance', async (req, res) => {
+  try {
+    const { student_data, target_requirement_id } = req.body;
+    if (!student_data) {
+      return res.status(400).json({ error: 'student_data is required.' });
+    }
+
+    let targetReq = null;
+    if (target_requirement_id) {
+      targetReq = db.prepare(`
+        SELECT r.*, c.company_name, c.logo_url
+        FROM requirements r
+        JOIN company_profiles c ON r.company_id = c.id
+        WHERE r.id = ?
+      `).get(target_requirement_id);
+    }
+
+    const aiEnhanced = await enhanceResumeWithGemini(student_data, targetReq);
+    res.json({ success: true, aiEnhanced });
+  } catch (err) {
+    console.error('AI resume enhancement error:', err);
     res.status(500).json({ error: err.message });
   }
 });
