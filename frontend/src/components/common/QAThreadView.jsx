@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   X, MessageSquare, Send, CheckCircle2, Clock, 
-  ShieldCheck, Award, User, CornerDownRight, Check, AlertCircle, Trash2 
+  ShieldCheck, Award, User, CornerDownRight, Check, AlertCircle, Trash2, Sparkles, Loader2 
 } from 'lucide-react';
 
 export default function QAThreadView({ threadId, onClose, currentUser, onOpenAuth, onThreadUpdated }) {
@@ -9,12 +9,21 @@ export default function QAThreadView({ threadId, onClose, currentUser, onOpenAut
   const [loading, setLoading] = useState(true);
   const [replyText, setReplyText] = useState('');
   const [submittingReply, setSubmittingReply] = useState(false);
+  const [replySuccess, setReplySuccess] = useState(false);
   const [resolving, setResolving] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     if (threadId) fetchThread();
   }, [threadId]);
+
+  useEffect(() => {
+    let timer;
+    if (replySuccess) {
+      timer = setTimeout(() => setReplySuccess(false), 5000);
+    }
+    return () => clearTimeout(timer);
+  }, [replySuccess]);
 
   const fetchThread = async () => {
     setLoading(true);
@@ -33,7 +42,7 @@ export default function QAThreadView({ threadId, onClose, currentUser, onOpenAut
 
   const handlePostReply = async (e) => {
     e.preventDefault();
-    if (!replyText.trim()) return;
+    if (!replyText.trim() || submittingReply) return;
 
     if (!currentUser) {
       if (onOpenAuth) onOpenAuth();
@@ -41,6 +50,7 @@ export default function QAThreadView({ threadId, onClose, currentUser, onOpenAut
     }
 
     setSubmittingReply(true);
+    setReplySuccess(false);
     const authorId = currentUser.owner_id || currentUser.id;
     const authorName = currentUser.name || currentUser.profile?.name || (currentUser.email ? currentUser.email.split('@')[0] : 'Community Member');
     const authorRole = currentUser.role || 'student';
@@ -65,6 +75,7 @@ export default function QAThreadView({ threadId, onClose, currentUser, onOpenAut
           replies_count: (prev.replies_count || 0) + 1
         }));
         setReplyText('');
+        setReplySuccess(true);
         if (onThreadUpdated) onThreadUpdated();
       }
     } catch (err) {
@@ -272,7 +283,34 @@ export default function QAThreadView({ threadId, onClose, currentUser, onOpenAut
               </div>
 
               {/* Reply Form */}
-              <form onSubmit={handlePostReply} className="pt-3 border-t border-slate-200 dark:border-slate-800 space-y-2">
+              <form onSubmit={handlePostReply} className="pt-3 border-t border-slate-200 dark:border-slate-800 space-y-3">
+                {/* ✨ Glowing Green Correct Symbol UI on Success */}
+                {replySuccess && (
+                  <div className="p-4 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-300 dark:border-emerald-700/60 rounded-2xl flex items-center justify-between gap-3 animate-fade-in shadow-sm">
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-black shrink-0 shadow-sm border border-emerald-500/30">
+                        <CheckCircle2 className="w-5 h-5 animate-bounce" />
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-black text-emerald-950 dark:text-emerald-100 flex items-center gap-1.5">
+                          <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
+                          <span>Reply Submitted Successfully!</span>
+                        </h4>
+                        <p className="text-[11px] text-emerald-800 dark:text-emerald-300 font-medium">
+                          Your response is verified and live in this discussion thread.
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setReplySuccess(false)}
+                      className="p-1 text-emerald-600 hover:text-emerald-800 dark:hover:text-emerald-200 cursor-pointer"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
+
                 <textarea
                   rows={3}
                   required
@@ -286,10 +324,28 @@ export default function QAThreadView({ threadId, onClose, currentUser, onOpenAut
                   <button
                     type="submit"
                     disabled={submittingReply || !replyText.trim()}
-                    className="px-5 py-2.5 bg-theme-gradient hover:opacity-90 disabled:opacity-50 text-white rounded-xl text-xs font-black shadow-md flex items-center gap-1.5 transition-all cursor-pointer"
+                    className={`px-5 py-2.5 rounded-xl text-xs font-black shadow-md flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50 ${
+                      replySuccess
+                        ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                        : 'bg-theme-gradient hover:opacity-90 text-white'
+                    }`}
                   >
-                    <Send className="w-3.5 h-3.5" />
-                    <span>{submittingReply ? 'Submitting...' : 'Post Reply'}</span>
+                    {submittingReply ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        <span>Submitting...</span>
+                      </>
+                    ) : replySuccess ? (
+                      <>
+                        <Check className="w-3.5 h-3.5" />
+                        <span>Reply Posted!</span>
+                      </>
+                    ) : (
+                      <>
+                        <Send className="w-3.5 h-3.5" />
+                        <span>Post Reply</span>
+                      </>
+                    )}
                   </button>
                 </div>
               </form>
