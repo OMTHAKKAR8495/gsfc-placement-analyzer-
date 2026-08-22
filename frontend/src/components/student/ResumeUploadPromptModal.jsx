@@ -16,6 +16,7 @@ export default function ResumeUploadPromptModal({
   const [selectedReqId, setSelectedReqId] = useState(requirements[0]?.id || 'req_google_swe');
   const [file, setFile] = useState(null);
   const [uploading, setUploading] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
   const [error, setError] = useState('');
   const [dragActive, setDragActive] = useState(false);
   const fileInputRef = useRef(null);
@@ -88,10 +89,14 @@ export default function ResumeUploadPromptModal({
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to upload and analyze resume.');
 
-      if (onUploadSuccess) {
-        onUploadSuccess(data);
-      }
-      onClose();
+      setIsSuccess(true);
+      setTimeout(() => {
+        if (onUploadSuccess) {
+          onUploadSuccess(data);
+        }
+        setIsSuccess(false);
+        onClose();
+      }, 1500);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -109,10 +114,33 @@ export default function ResumeUploadPromptModal({
           <X className="w-5 h-5" />
         </button>
 
-        {/* Modal Header */}
-        <div className="space-y-2">
-          <div className="inline-flex items-center gap-2 px-3 py-1 bg-gradient-to-r from-blue-600/10 to-indigo-600/10 dark:from-blue-500/20 dark:to-indigo-500/20 border border-blue-500/30 text-blue-700 dark:text-blue-300 rounded-full text-xs font-black uppercase tracking-wider">
-            <Sparkles className="w-3.5 h-3.5 text-blue-600 animate-pulse" />
+        {isSuccess ? (
+          /* ✨ SUCCESS STATE SCREEN */
+          <div className="py-8 text-center space-y-4 animate-fade-in">
+            <div className="relative inline-flex items-center justify-center">
+              <div className="w-20 h-20 rounded-3xl bg-emerald-500/10 dark:bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center shadow-xl shadow-emerald-500/10">
+                <CheckCircle2 className="w-10 h-10 text-emerald-600 dark:text-emerald-400 animate-bounce" />
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <span className="px-3 py-1 bg-emerald-100 dark:bg-emerald-950/60 border border-emerald-300 text-emerald-800 dark:text-emerald-300 rounded-full text-[10px] font-black uppercase inline-flex items-center gap-1.5">
+                <Sparkles className="w-3 h-3" /> Resume Parsed & ATS Calculated
+              </span>
+              <h3 className="text-xl font-black text-slate-900 dark:text-slate-100">
+                Resume Benchmarked Successfully!
+              </h3>
+              <p className="text-xs text-slate-500 max-w-md mx-auto">
+                Your NLP extracted skills and company readiness report have been saved to your student profile.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* Modal Header */}
+            <div className="space-y-2">
+              <div className="inline-flex items-center gap-2 px-3 py-1 bg-gradient-to-r from-blue-600/10 to-indigo-600/10 dark:from-blue-500/20 dark:to-indigo-500/20 border border-blue-500/30 text-blue-700 dark:text-blue-300 rounded-full text-xs font-black uppercase tracking-wider">
+                <Sparkles className="w-3.5 h-3.5 text-blue-600 animate-pulse" />
             <span>AI Placement Readiness & ATS Booster</span>
           </div>
 
@@ -310,6 +338,8 @@ export default function ResumeUploadPromptModal({
             )}
           </button>
         </div>
+          </>
+        )}
       </div>
     </div>
   );

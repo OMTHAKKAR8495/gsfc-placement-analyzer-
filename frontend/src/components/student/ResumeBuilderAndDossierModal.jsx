@@ -27,6 +27,7 @@ export default function ResumeBuilderAndDossierModal({
   const [selectedReqId, setSelectedReqId] = useState(requirements[0]?.id || 'req_google_swe');
   const [saving, setSaving] = useState(false);
   const [enhancingWithAI, setEnhancingWithAI] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
   const [error, setError] = useState('');
   const [aiData, setAiData] = useState(null);
 
@@ -263,10 +264,14 @@ export default function ResumeBuilderAndDossierModal({
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to save resume and documents.');
 
-      if (onSuccess) {
-        onSuccess(data);
-      }
-      onClose();
+      setIsSuccess(true);
+      setTimeout(() => {
+        if (onSuccess) {
+          onSuccess(data);
+        }
+        setIsSuccess(false);
+        onClose();
+      }, 1500);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -286,21 +291,44 @@ export default function ResumeBuilderAndDossierModal({
           <X className="w-5 h-5" />
         </button>
 
-        {/* Modal Header (Hidden in Print) */}
-        <div className="space-y-2 print:hidden">
-          <div className="inline-flex items-center gap-2 px-3 py-1 bg-gradient-to-r from-blue-600/10 via-indigo-600/10 to-teal-600/10 border border-blue-500/30 text-blue-700 dark:text-blue-300 rounded-full text-xs font-black uppercase tracking-wider">
-            <Sparkles className="w-3.5 h-3.5 text-blue-600 animate-pulse" />
-            <span>Gemini AI Resume Generator & Formal Photo Dossier</span>
+        {isSuccess ? (
+          /* ✨ SUCCESS STATE SCREEN */
+          <div className="py-12 text-center space-y-4 animate-fade-in">
+            <div className="relative inline-flex items-center justify-center">
+              <div className="w-20 h-20 rounded-3xl bg-emerald-500/10 dark:bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center shadow-xl shadow-emerald-500/10">
+                <CheckCircle2 className="w-10 h-10 text-emerald-600 dark:text-emerald-400 animate-bounce" />
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <span className="px-3 py-1 bg-emerald-100 dark:bg-emerald-950/60 border border-emerald-300 text-emerald-800 dark:text-emerald-300 rounded-full text-[10px] font-black uppercase inline-flex items-center gap-1.5">
+                <Sparkles className="w-3 h-3" /> Profile & 3 Documents Saved
+              </span>
+              <h3 className="text-xl font-black text-slate-900 dark:text-slate-100">
+                Resume & Verification Dossier Verified!
+              </h3>
+              <p className="text-xs text-slate-500 max-w-md mx-auto">
+                Your STAR-formatted resume with formal photo and documents have been saved for recruiter review.
+              </p>
+            </div>
           </div>
+        ) : (
+          <>
+            {/* Modal Header (Hidden in Print) */}
+            <div className="space-y-2 print:hidden">
+              <div className="inline-flex items-center gap-2 px-3 py-1 bg-gradient-to-r from-blue-600/10 via-indigo-600/10 to-teal-600/10 border border-blue-500/30 text-blue-700 dark:text-blue-300 rounded-full text-xs font-black uppercase tracking-wider">
+                <Sparkles className="w-3.5 h-3.5 text-blue-600 animate-pulse" />
+                <span>Gemini AI Resume Generator & Formal Photo Dossier</span>
+              </div>
 
-          <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-slate-100 leading-tight">
-            AI Resume Builder with Formal Photo & 3-Document Dossier
-          </h2>
+              <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-slate-100 leading-tight">
+                AI Resume Builder with Formal Photo & 3-Document Dossier
+              </h2>
 
-          <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 font-medium leading-relaxed">
-            Upload your formal passport photograph, paste your LinkedIn & GitHub profiles, generate STAR bullet points with Gemini AI, and export in 3 executive recruiter templates.
-          </p>
-        </div>
+              <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 font-medium leading-relaxed">
+                Upload your formal passport photograph, paste your LinkedIn & GitHub profiles, generate STAR bullet points with Gemini AI, and export in 3 executive recruiter templates.
+              </p>
+            </div>
 
         {error && (
           <div className="p-3.5 bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 rounded-2xl text-xs font-bold flex items-center gap-2 print:hidden">
@@ -1376,6 +1404,8 @@ export default function ResumeBuilderAndDossierModal({
               </button>
             </div>
           </div>
+        )}
+          </>
         )}
       </div>
     </div>
