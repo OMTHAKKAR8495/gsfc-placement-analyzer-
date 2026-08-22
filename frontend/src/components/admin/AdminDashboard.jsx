@@ -1883,11 +1883,20 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
         onFairsUpdated={fetchMasterData}
       />
 
-      {/* PDF REPORT MODAL */}
+      {/* PDF REPORT MODAL (SINGLE CANDIDATE) */}
       <ReportPDFModal
         isOpen={pdfReportModalOpen}
         onClose={() => setPdfReportModalOpen(false)}
         candidateData={selectedCandidateReport}
+      />
+
+      {/* BATCH CANDIDATE ROSTER PDF MODAL */}
+      <BatchPDFReportModal
+        isOpen={batchPdfModalOpen}
+        onClose={() => setBatchPdfModalOpen(false)}
+        selectedStudents={selectedStudentsList}
+        batchStats={batchStats}
+        yearRangeText={selectAllYears ? 'All Academic Years (2020 - 2030)' : `Batches: ${selectedYears.join(', ')}`}
       />
 
       {/* RECRUITER & DRIVE APPROVAL SUCCESS MODAL */}

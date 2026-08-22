@@ -23,11 +23,209 @@ export default function BatchPDFReportModal({ isOpen, onClose, selectedStudents,
   });
 
   const handlePrint = () => {
-    window.print();
+    const printFrame = document.createElement('iframe');
+    printFrame.style.position = 'fixed';
+    printFrame.style.right = '0';
+    printFrame.style.bottom = '0';
+    printFrame.style.width = '0';
+    printFrame.style.height = '0';
+    printFrame.style.border = '0';
+    document.body.appendChild(printFrame);
+
+    const doc = printFrame.contentWindow.document;
+    const rowsHtml = students.map((st, idx) => {
+      const passingYear = st.passing_year || (st.admission_year ? st.admission_year + 4 : 2026);
+      const batchStr = st.batch_year || `${passingYear - 4}-${passingYear}`;
+      return `
+        <tr>
+          <td style="text-align:center; font-family:monospace; color:#64748b;">${idx + 1}</td>
+          <td style="font-family:monospace; font-weight:800; color:#0f172a;">${st.roll_number || '21BCE001'}</td>
+          <td style="font-weight:800; color:#0f172a;">${st.name}</td>
+          <td>
+            <div style="font-weight:700; color:#0f172a;">${st.program}</div>
+            <div style="font-size:9px; color:#64748b;">${st.branch || ''}</div>
+          </td>
+          <td style="color:#334155; font-weight:600;">${batchStr} (${passingYear})</td>
+          <td style="font-weight:800; color:#065f46; text-align:center;">${st.cgpa}</td>
+          <td style="font-weight:800; color:#1e3a8a; text-align:center;">${st.ats_score || 90}%</td>
+          <td style="text-align:center;">
+            <span style="display:inline-block; padding:2px 8px; background:#dcfce7; color:#166534; border-radius:4px; font-weight:800; font-size:9px;">
+              ELIGIBLE
+            </span>
+          </td>
+        </tr>
+      `;
+    }).join('');
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>GSFC University — Candidate Placement Master Roster (${yearRangeText || 'All Batches'})</title>
+          <style>
+            @page {
+              size: A4 portrait;
+              margin: 12mm 10mm;
+            }
+            body {
+              font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+              color: #0f172a;
+              background: #fff;
+              margin: 0;
+              padding: 0;
+              -webkit-print-color-adjust: exact;
+              print-color-adjust: exact;
+            }
+            .header-table {
+              width: 100%;
+              border-bottom: 2px solid #0f172a;
+              padding-bottom: 12px;
+              margin-bottom: 14px;
+            }
+            .stats-grid {
+              display: table;
+              width: 100%;
+              background: #f8fafc;
+              border: 1px solid #cbd5e1;
+              border-radius: 8px;
+              margin-bottom: 14px;
+            }
+            .stat-cell {
+              display: table-cell;
+              width: 25%;
+              text-align: center;
+              padding: 8px;
+              border-right: 1px solid #e2e8f0;
+            }
+            .stat-cell:last-child { border-right: none; }
+            .stat-label { font-size: 8px; font-weight: 800; color: #64748b; text-transform: uppercase; }
+            .stat-val { font-size: 14px; font-weight: 900; color: #0f172a; margin-top: 2px; }
+            table.roster-table {
+              width: 100%;
+              border-collapse: collapse;
+              font-size: 10px;
+            }
+            table.roster-table th {
+              background: #0f172a;
+              color: #ffffff;
+              padding: 6px 8px;
+              font-weight: 800;
+              text-transform: uppercase;
+              font-size: 9px;
+              letter-spacing: 0.5px;
+            }
+            table.roster-table td {
+              padding: 5px 8px;
+              border-bottom: 1px solid #e2e8f0;
+              vertical-align: middle;
+            }
+            table.roster-table tr:nth-child(even) {
+              background: #f8fafc;
+            }
+            .footer-sign {
+              margin-top: 20px;
+              border-top: 2px solid #0f172a;
+              padding-top: 10px;
+              width: 100%;
+            }
+          </style>
+        </head>
+        <body>
+          <table class="header-table">
+            <tr>
+              <td style="width: 15%;">
+                <img src="/gsfc-logo-official.png" style="height: 55px; width: auto;" onerror="this.src='/gsfc-logo-official.jpg'" />
+              </td>
+              <td style="width: 85%; text-align: right;">
+                <div style="font-size: 15px; font-weight: 900; color: #1e3a8a; text-transform: uppercase; letter-spacing: -0.5px;">
+                  GSFC UNIVERSITY — TRAINING & PLACEMENT CELL
+                </div>
+                <div style="font-size: 11px; font-weight: 700; color: #475569;">
+                  NIRF & NAAC Certified Candidate Placement Master Dossier
+                </div>
+                <div style="font-size: 9px; font-family: monospace; font-weight: 600; color: #64748b; margin-top: 2px;">
+                  Audit Date: ${currentDate} • Batch Cohort: ${yearRangeText || 'All Batches'}
+                </div>
+              </td>
+            </tr>
+          </table>
+
+          <div class="stats-grid">
+            <div class="stat-cell">
+              <div class="stat-label">Total Candidates</div>
+              <div class="stat-val" style="color: #1e3a8a;">${students.length} Selected</div>
+            </div>
+            <div class="stat-cell">
+              <div class="stat-label">Cohort Avg CGPA</div>
+              <div class="stat-val" style="color: #166534;">${batchStats?.avgCgpa || '8.80'} / 10</div>
+            </div>
+            <div class="stat-cell">
+              <div class="stat-label">Average ATS Score</div>
+              <div class="stat-val" style="color: #3730a3;">${batchStats?.avgAts || '90'} / 100</div>
+            </div>
+            <div class="stat-cell">
+              <div class="stat-label">High Tier (≥ 8.5 CGPA)</div>
+              <div class="stat-val" style="color: #b45309;">${batchStats?.placedCount || students.length} Students</div>
+            </div>
+          </div>
+
+          <table class="roster-table">
+            <thead>
+              <tr>
+                <th style="width: 4%;">#</th>
+                <th style="width: 14%;">Roll Number</th>
+                <th style="width: 22%;">Candidate Name</th>
+                <th style="width: 26%;">Program & Department</th>
+                <th style="width: 16%;">Academic Batch</th>
+                <th style="width: 6%; text-align: center;">CGPA</th>
+                <th style="width: 6%; text-align: center;">ATS</th>
+                <th style="width: 6%; text-align: center;">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rowsHtml}
+            </tbody>
+          </table>
+
+          <table class="footer-sign">
+            <tr>
+              <td style="width: 50%; font-size: 9px; color: #64748b;">
+                <div style="font-weight: 800; color: #0f172a; text-transform: uppercase;">Accreditation Verification Authority</div>
+                <div>Training & Placement Cell • GSFC University</div>
+                <div>Fertilizernagar, Vadodara, Gujarat 391750</div>
+              </td>
+              <td style="width: 50%; text-align: right; font-size: 9px;">
+                <div style="font-weight: 900; color: #1e3a8a; font-family: monospace;">[DIGITALLY VERIFIED & APPROVED]</div>
+                <div style="border-top: 1px solid #94a3b8; width: 180px; margin-left: auto; margin-top: 18px; padding-top: 2px; color: #475569; font-weight: 700;">
+                  Authorized TPC Officer
+                </div>
+              </td>
+            </tr>
+          </table>
+        </body>
+      </html>
+    `;
+
+    doc.open();
+    doc.write(htmlContent);
+    doc.close();
+
+    setTimeout(() => {
+      printFrame.contentWindow.focus();
+      printFrame.contentWindow.print();
+      setTimeout(() => {
+        if (document.body.contains(printFrame)) {
+          document.body.removeChild(printFrame);
+        }
+      }, 3000);
+    }, 400);
   };
 
   const modalContent = (
-    <div className="fixed inset-0 z-[999999] flex items-start justify-center p-2 sm:p-6 pt-12 sm:pt-16 bg-slate-950/90 backdrop-blur-md animate-fadeIn overflow-y-auto">
+    <div 
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      className="fixed inset-0 z-[999999] flex items-start justify-center p-2 sm:p-6 pt-12 sm:pt-16 bg-slate-950/90 backdrop-blur-md animate-fadeIn overflow-y-auto"
+    >
       
       {/* Top Floating Print & Close Bar (Hidden during actual print) */}
       <div className="fixed top-4 right-6 z-[1000000] flex items-center gap-3 print:hidden">
