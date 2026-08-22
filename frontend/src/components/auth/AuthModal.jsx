@@ -501,48 +501,38 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
                 <Sparkles className="w-3.5 h-3.5 text-blue-800" />
                 Quick Demo 1-Click Login:
               </div>
-              <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 <button
                   type="button"
                   onClick={() => fillDemoAccount('student')}
-                  className="py-2 px-1 bg-blue-900 hover:bg-blue-800 text-white rounded-xl text-[10px] font-black transition-all shadow-sm"
+                  className="py-2.5 px-2 bg-blue-900 hover:bg-blue-800 text-white rounded-xl text-xs font-black transition-all shadow-sm flex items-center justify-center gap-1.5"
                 >
-                  Student
+                  <User className="w-3.5 h-3.5" />
+                  <span>Student</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => fillDemoAccount('company')}
-                  className="py-2 px-1 bg-indigo-900 hover:bg-indigo-800 text-white rounded-xl text-[10px] font-black transition-all shadow-sm"
+                  className="py-2.5 px-2 bg-indigo-900 hover:bg-indigo-800 text-white rounded-xl text-xs font-black transition-all shadow-sm flex items-center justify-center gap-1.5"
                 >
-                  Recruiter
-                </button>
-                <button
-                  type="button"
-                  onClick={() => fillDemoAccount('admin')}
-                  className="py-2 px-1 bg-amber-600 hover:bg-amber-500 text-white rounded-xl text-[10px] font-black transition-all shadow-sm"
-                >
-                  TPC Admin
+                  <Building className="w-3.5 h-3.5" />
+                  <span>Company Recruiter</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => fillDemoAccount('faculty')}
-                  className="py-2 px-1 bg-emerald-700 hover:bg-emerald-600 text-white rounded-xl text-[10px] font-black transition-all shadow-sm"
+                  className="py-2.5 px-2 bg-emerald-700 hover:bg-emerald-600 text-white rounded-xl text-xs font-black transition-all shadow-sm flex items-center justify-center gap-1.5"
                 >
-                  Faculty
+                  <Shield className="w-3.5 h-3.5" />
+                  <span>Faculty</span>
                 </button>
                 <button
                   type="button"
-                  onClick={() => fillDemoAccount('superadmin')}
-                  className="py-2 px-1 bg-purple-700 hover:bg-purple-600 text-white rounded-xl text-[10px] font-black transition-all shadow-sm"
+                  onClick={() => fillDemoAccount('admin')}
+                  className="py-2.5 px-2 bg-amber-600 hover:bg-amber-500 text-white rounded-xl text-xs font-black transition-all shadow-sm flex items-center justify-center gap-1.5"
                 >
-                  Super Admin
-                </button>
-                <button
-                  type="button"
-                  onClick={() => fillDemoAccount('alumni')}
-                  className="py-2 px-1 bg-cyan-700 hover:bg-cyan-600 text-white rounded-xl text-[10px] font-black transition-all shadow-sm"
-                >
-                  Alumni
+                  <Shield className="w-3.5 h-3.5" />
+                  <span>Admin</span>
                 </button>
               </div>
             </div>
