@@ -81,12 +81,59 @@ router.post('/register', AuthRateLimiter.registerLimiter, async (req, res) => {
   }
 });
 
-// Login User (Rate Limited + Secure Cookie)
+// Helper to normalize roles for cross-validation
+function normalizeRole(role) {
+  if (!role) return '';
+  const r = role.toLowerCase().trim();
+  if (r === 'recruiter' || r === 'company' || r === 'company recruiter' || r === 'company_recruiter') return 'company';
+  if (r === 'faculty' || r === 'faculty coordinator' || r === 'faculty_coordinator') return 'faculty';
+  if (r === 'admin' || r === 'administrator' || r === 'tpc') return 'admin';
+  if (r === 'superadmin' || r === 'super admin' || r === 'super_admin') return 'superadmin';
+  if (r === 'student') return 'student';
+  if (r === 'alumni') return 'alumni';
+  return r;
+}
+
+function getRolePortalLabel(role) {
+  const norm = normalizeRole(role);
+  switch (norm) {
+    case 'student': return 'student';
+    case 'company': return 'company recruiter';
+    case 'faculty': return 'faculty';
+    case 'admin': return 'admin';
+    case 'superadmin': return 'super admin';
+    case 'alumni': return 'alumni';
+    default: return role || 'user';
+  }
+}
+
+// Login User (Rate Limited + Secure Cookie + Role Cross-Validation)
 router.post('/login', AuthRateLimiter.loginLimiter, async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email, password, selectedRole } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email and password are required.' });
+    }
 
     let user = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
+
+    // If user exists in database, perform role cross-validation safety guard
+    if (user && selectedRole) {
+      const normSelected = normalizeRole(selectedRole);
+      const normActual = normalizeRole(user.role);
+      const isRoleMatch = normSelected === normActual || (normSelected === 'admin' && normActual === 'superadmin');
+
+      if (normSelected && !isRoleMatch) {
+        const actualLabel = getRolePortalLabel(user.role);
+        const article = (actualLabel.startsWith('a') || actualLabel.startsWith('e') || actualLabel.startsWith('i') || actualLabel.startsWith('o') || actualLabel.startsWith('u')) ? 'an' : 'a';
+        return res.status(403).json({
+          error: `Access Denied: This account is registered as ${article} ${actualLabel}. Please use the ${actualLabel} portal.`,
+          actualRole: user.role,
+          selectedRole: selectedRole
+        });
+      }
+    }
 
     // Seamless auto-registration for GSFC students / recruiters logging in for the first time
     const isCompanyEmail = email.toLowerCase().includes('hr') || 
@@ -105,7 +152,9 @@ router.post('/login', AuthRateLimiter.loginLimiter, async (req, res) => {
 
     // Seamless auto-registration for GSFC students / recruiters logging in for the first time
     if (!user) {
-      const role = isAdminEmail ? 'admin' : (isFacultyEmail ? 'faculty' : (isCompanyEmail ? 'company' : (isAlumniEmail ? 'alumni' : 'student')));
+      const role = selectedRole 
+        ? normalizeRole(selectedRole)
+        : (isAdminEmail ? 'admin' : (isFacultyEmail ? 'faculty' : (isCompanyEmail ? 'company' : (isAlumniEmail ? 'alumni' : 'student'))));
       const userId = 'u_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
       const passwordHash = bcrypt.hashSync(password, 6);
 
@@ -135,7 +184,6 @@ router.post('/login', AuthRateLimiter.loginLimiter, async (req, res) => {
           JSON.stringify({ name: studentName, program: 'BTech CSE', branch: 'Computer Science', cgpa: 8.5, skills: ['Python', 'React', 'SQL', 'FastAPI'] })
         );
       } else if (role === 'faculty') {
-        // Faculty users don't need a separate profile table entry for basic access
         ownerId = userId;
       } else if (role === 'company') {
         const companyId = 'c_' + Date.now();
@@ -148,23 +196,7 @@ router.post('/login', AuthRateLimiter.loginLimiter, async (req, res) => {
 
       user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
     } else {
-      // If email pattern matches a specific role, update user role accordingly
-      if (isFacultyEmail && user.role !== 'faculty' && user.role !== 'admin' && user.role !== 'superadmin') {
-        db.prepare("UPDATE users SET role = 'faculty' WHERE id = ?").run(user.id);
-        user.role = 'faculty';
-      } else if (isCompanyEmail && user.role !== 'company' && user.role !== 'admin' && user.role !== 'superadmin') {
-        db.prepare("UPDATE users SET role = 'company' WHERE id = ?").run(user.id);
-        user.role = 'company';
-        const existingComp = db.prepare('SELECT id FROM company_profiles WHERE user_id = ?').get(user.id);
-        if (!existingComp) {
-          db.prepare(`
-            INSERT INTO company_profiles (id, user_id, company_name, industry, website, approved)
-            VALUES (?, ?, ?, ?, ?, 1)
-          `).run('c_' + Date.now(), user.id, 'GSFC Limited', 'Fertilizers, Chemicals & Tech', 'https://gsfclimited.com');
-        }
-      }
-
-      // Validate password or update hash for smooth login
+      // If user exists and no specific selectedRole conflict, validate password or update hash
       const isValid = await bcrypt.compare(password, user.password_hash);
       if (!isValid) {
         // Auto-update hash for seamless demo / portal access
@@ -210,10 +242,10 @@ router.post('/login', AuthRateLimiter.loginLimiter, async (req, res) => {
   }
 });
 
-// 🌐 Google Sign-In & Federated Authentication Endpoint
+// 🌐 Google Sign-In & Federated Authentication Endpoint (with Role Verification)
 router.post('/google', async (req, res) => {
   try {
-    const { email, name, google_id, picture, roll_number, program } = req.body;
+    const { email, name, google_id, picture, roll_number, program, selectedRole } = req.body;
     const targetEmail = email || 'student.google@gsfcuniversity.ac.in';
     const targetName = name || 'Tanvi Joshi (Google Verified)';
 
@@ -221,27 +253,67 @@ router.post('/google', async (req, res) => {
     let ownerId;
     let profile = null;
 
+    // Cross-validate selected role if existing user
+    if (user && selectedRole) {
+      const normSelected = normalizeRole(selectedRole);
+      const normActual = normalizeRole(user.role);
+      const isRoleMatch = normSelected === normActual || (normSelected === 'admin' && normActual === 'superadmin');
+
+      if (normSelected && !isRoleMatch) {
+        const actualLabel = getRolePortalLabel(user.role);
+        const article = (actualLabel.startsWith('a') || actualLabel.startsWith('e') || actualLabel.startsWith('i') || actualLabel.startsWith('o') || actualLabel.startsWith('u')) ? 'an' : 'a';
+        return res.status(403).json({
+          error: `Access Denied: This account is registered as ${article} ${actualLabel}. Please use the ${actualLabel} portal.`,
+          actualRole: user.role,
+          selectedRole: selectedRole
+        });
+      }
+    }
+
     if (!user) {
       const userId = 'u_google_' + Date.now();
-      const role = 'student';
+      const role = selectedRole ? normalizeRole(selectedRole) : 'student';
       const passwordHash = bcrypt.hashSync('google_auth_' + Date.now(), 6);
 
       db.prepare(`INSERT INTO users (id, email, password_hash, role) VALUES (?, ?, ?, ?)`).run(userId, targetEmail, passwordHash, role);
 
-      const studentId = 's_google_' + Date.now();
-      ownerId = studentId;
-      const derivedRoll = roll_number || (targetEmail.split('@')[0].toUpperCase().slice(0, 8) || '22BCE108');
+      if (role === 'student') {
+        const studentId = 's_google_' + Date.now();
+        ownerId = studentId;
+        const derivedRoll = roll_number || (targetEmail.split('@')[0].toUpperCase().slice(0, 8) || '22BCE108');
 
-      db.prepare(`
-        INSERT INTO student_profiles (id, user_id, roll_number, name, phone, program, branch, cgpa, passing_year, admission_year)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(studentId, userId, derivedRoll, targetName, '+91 98765 43210', program || 'BTech CSE', 'Computer Science & Engineering', 8.5, 2026, 2022);
+        db.prepare(`
+          INSERT INTO student_profiles (id, user_id, roll_number, name, phone, program, branch, cgpa, passing_year, admission_year)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(studentId, userId, derivedRoll, targetName, '+91 98765 43210', program || 'BTech CSE', 'Computer Science & Engineering', 8.5, 2026, 2022);
 
-      profile = db.prepare('SELECT * FROM student_profiles WHERE id = ?').get(studentId);
+        profile = db.prepare('SELECT * FROM student_profiles WHERE id = ?').get(studentId);
+      } else if (role === 'company') {
+        const companyId = 'c_google_' + Date.now();
+        ownerId = companyId;
+        db.prepare(`
+          INSERT INTO company_profiles (id, user_id, company_name, industry, website, approved)
+          VALUES (?, ?, ?, ?, ?, 1)
+        `).run(companyId, userId, targetName || 'GSFC Recruiter', 'Technology', 'https://company.com');
+        profile = db.prepare('SELECT * FROM company_profiles WHERE id = ?').get(companyId);
+      } else {
+        ownerId = userId;
+      }
+
       user = { id: userId, email: targetEmail, role, owner_id: ownerId };
     } else {
-      profile = db.prepare('SELECT * FROM student_profiles WHERE user_id = ?').get(user.id);
-      ownerId = profile ? profile.id : user.id;
+      if (user.role === 'student') {
+        profile = db.prepare('SELECT * FROM student_profiles WHERE user_id = ?').get(user.id);
+        ownerId = profile ? profile.id : user.id;
+      } else if (user.role === 'company') {
+        profile = db.prepare('SELECT * FROM company_profiles WHERE user_id = ?').get(user.id);
+        ownerId = profile ? profile.id : user.id;
+      } else if (user.role === 'alumni') {
+        profile = db.prepare('SELECT * FROM alumni_profiles WHERE user_id = ?').get(user.id);
+        ownerId = profile ? profile.id : user.id;
+      } else {
+        ownerId = user.id;
+      }
     }
 
     const token = jwt.sign({ userId: user.id, email: user.email, role: user.role, owner_id: ownerId }, JWT_SECRET, { expiresIn: '7d' });

@@ -49,9 +49,9 @@ const GOOGLE_ACCOUNTS_PRESETS = [
   }
 ];
 
-export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
+export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialRole = 'student' }) {
   const [isLogin, setIsLogin] = useState(true);
-  const [role, setRole] = useState('student'); // student, company, admin, alumni
+  const [role, setRole] = useState(initialRole || 'student'); // student, company, faculty, admin, alumni
   const [googleLoading, setGoogleLoading] = useState(false);
   const [showGoogleAccountPicker, setShowGoogleAccountPicker] = useState(false);
   const [customGoogleInputOpen, setCustomGoogleInputOpen] = useState(false);
@@ -77,6 +77,15 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  // Sync initialRole whenever modal opens
+  useEffect(() => {
+    if (isOpen && initialRole) {
+      const validRole = ['student', 'company', 'faculty', 'admin', 'alumni'].includes(initialRole) ? initialRole : 'student';
+      setRole(validRole);
+      setError('');
+    }
+  }, [isOpen, initialRole]);
+
   // ESC key listener to close AuthModal
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -94,6 +103,11 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
 
   const handleChange = (e) => {
     setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
+  };
+
+  const handleRoleChange = (newRole) => {
+    setRole(newRole);
+    setError('');
   };
 
   // Helper to generate simulated JWT and verified user for offline / Vercel static environments
@@ -208,26 +222,45 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
           email: account.email.trim(),
           name: account.name.trim(),
           program: account.program || 'BTech CSE',
-          roll_number: account.roll_number || '22BCE108'
+          roll_number: account.roll_number || '22BCE108',
+          selectedRole: role
         })
       });
 
       let data = null;
       try { data = await res.json(); } catch(e) {}
 
-      if (res.ok && data && data.user) {
+      // If backend returns a role mismatch or error
+      if (!res.ok) {
+        if (data && data.error) {
+          setError(data.error);
+          return;
+        }
+        throw new Error('Google Sign-in failed');
+      }
+
+      if (data && data.user) {
         localStorage.setItem('campushire_token', data.token);
         onAuthSuccess(data.user);
-      } else {
-        // Fallback for Vercel static hosting
-        const fallbackUser = createFallbackUser('student', account.email, account.name);
-        localStorage.setItem('campushire_token', 'demo_token_' + Date.now());
-        onAuthSuccess(fallbackUser);
+        onClose();
       }
-      onClose();
     } catch (err) {
-      // Safe fallback on network failure
-      const fallbackUser = createFallbackUser('student', account.email, account.name);
+      // Check offline cross-validation safety
+      const isFacultyEmail = account.email.includes('faculty');
+      const isAdminEmail = account.email.includes('admin') || account.email.includes('director');
+      const isCompanyEmail = account.email.includes('company') || account.email.includes('recruiter') || account.email.includes('hr');
+      const isAlumniEmail = account.email.includes('alumni');
+      const isStudentEmail = !isFacultyEmail && !isAdminEmail && !isCompanyEmail && !isAlumniEmail;
+
+      const detectedRole = isFacultyEmail ? 'faculty' : (isAdminEmail ? 'admin' : (isCompanyEmail ? 'company' : (isAlumniEmail ? 'alumni' : 'student')));
+      if (detectedRole !== role && isLogin) {
+        const displayActual = detectedRole === 'company' ? 'company recruiter' : (detectedRole === 'faculty' ? 'faculty' : (detectedRole === 'admin' ? 'admin' : 'student'));
+        const article = (displayActual.startsWith('a') || displayActual.startsWith('e') || displayActual.startsWith('i') || displayActual.startsWith('o') || displayActual.startsWith('u')) ? 'an' : 'a';
+        setError(`Access Denied: This account is registered as ${article} ${displayActual}. Please use the ${displayActual} portal.`);
+        return;
+      }
+
+      const fallbackUser = createFallbackUser(role, account.email, account.name);
       localStorage.setItem('campushire_token', 'demo_token_' + Date.now());
       onAuthSuccess(fallbackUser);
       onClose();
@@ -257,8 +290,8 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
     try {
       let endpoint = isLogin ? '/api/auth/login' : '/api/auth/register';
       let bodyPayload = isLogin
-        ? { email: formData.email, password: formData.password }
-        : { ...formData, role };
+        ? { email: formData.email, password: formData.password, selectedRole: role }
+        : { ...formData, role, selectedRole: role };
 
       let res = await fetch(endpoint, {
         method: 'POST',
@@ -269,6 +302,15 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
       let data = null;
       try { data = await res.json(); } catch(e) {}
 
+      // If backend returned access denied or role mismatch error
+      if (!res.ok) {
+        if (data && data.error && !data.error.includes('<!DOCTYPE')) {
+          setError(data.error);
+          return;
+        }
+        throw new Error('Authentication request rejected');
+      }
+
       if (res.ok && data && data.user) {
         localStorage.setItem('campushire_token', data.token);
         onAuthSuccess(data.user);
@@ -276,19 +318,27 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
         return;
       }
 
-      // If backend returned error message in JSON
       if (data && data.error && !data.error.includes('<!DOCTYPE')) {
         setError(data.error);
         return;
       }
-
-      // Graceful fallback for Vercel Static deployment
-      const fallbackUser = createFallbackUser(role, formData.email, formData.name);
-      localStorage.setItem('campushire_token', 'demo_token_' + Date.now());
-      onAuthSuccess(fallbackUser);
-      onClose();
     } catch (err) {
-      // Safe fallback on network error
+      // Offline fallback cross-validation check
+      const email = formData.email.toLowerCase();
+      const isFacultyEmail = email.includes('faculty');
+      const isAdminEmail = email.includes('admin') || email.includes('tpc');
+      const isCompanyEmail = email.includes('company') || email.includes('recruiter') || email.includes('hr') || email.includes('gsfclimited');
+      const isAlumniEmail = email.includes('alumni');
+      const detectedRole = isFacultyEmail ? 'faculty' : (isAdminEmail ? 'admin' : (isCompanyEmail ? 'company' : (isAlumniEmail ? 'alumni' : 'student')));
+
+      if (detectedRole !== role && isLogin && email.length > 0) {
+        const displayActual = detectedRole === 'company' ? 'company recruiter' : (detectedRole === 'faculty' ? 'faculty' : (detectedRole === 'admin' ? 'admin' : 'student'));
+        const article = (displayActual.startsWith('a') || displayActual.startsWith('e') || displayActual.startsWith('i') || displayActual.startsWith('o') || displayActual.startsWith('u')) ? 'an' : 'a';
+        setError(`Access Denied: This account is registered as ${article} ${displayActual}. Please use the ${displayActual} portal.`);
+        return;
+      }
+
+      // Safe fallback for demo environment
       const fallbackUser = createFallbackUser(role, formData.email, formData.name);
       localStorage.setItem('campushire_token', 'demo_token_' + Date.now());
       onAuthSuccess(fallbackUser);
@@ -567,47 +617,68 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
               </div>
             </div>
 
-            {/* Role Selector (Sign Up Mode) */}
-            {!isLogin && (
-              <div className="mt-4">
-                <label className="block text-xs font-black text-slate-700 uppercase mb-1.5">Select Account Role</label>
-                <div className="grid grid-cols-3 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setRole('student')}
-                    className={`py-2 px-2 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 border transition-all ${
-                      role === 'student'
-                        ? 'bg-blue-900 text-white border-blue-900 shadow-md'
-                        : 'bg-slate-100 border-slate-200 text-slate-700 hover:bg-slate-200'
-                    }`}
-                  >
-                    <User className="w-3.5 h-3.5" /> Student
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setRole('company')}
-                    className={`py-2 px-2 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 border transition-all ${
-                      role === 'company'
-                        ? 'bg-blue-900 text-white border-blue-900 shadow-md'
-                        : 'bg-slate-100 border-slate-200 text-slate-700 hover:bg-slate-200'
-                    }`}
-                  >
-                    <Building className="w-3.5 h-3.5" /> Company
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setRole('alumni')}
-                    className={`py-2 px-2 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 border transition-all ${
-                      role === 'alumni'
-                        ? 'bg-blue-900 text-white border-blue-900 shadow-md'
-                        : 'bg-slate-100 border-slate-200 text-slate-700 hover:bg-slate-200'
-                    }`}
-                  >
-                    <Shield className="w-3.5 h-3.5" /> Alumni Mentor
-                  </button>
-                </div>
+            {/* Active Role Selector: 4 Main Portals (Student, Company Recruiter, Faculty, Admin) */}
+            <div className="mt-4 p-3 bg-slate-50 border border-slate-200 rounded-2xl">
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-[11px] font-black text-slate-700 uppercase tracking-wider">
+                  {isLogin ? '1. Select Portal Role to Sign In' : '1. Select Account Role to Register'}
+                </label>
+                <span className="text-[10px] font-black px-2 py-0.5 rounded-md bg-blue-100 text-blue-900 border border-blue-200">
+                  Target: {role === 'student' ? 'Student' : role === 'company' ? 'Recruiter' : role === 'faculty' ? 'Faculty' : role === 'admin' ? 'TPC Admin' : 'Alumni'}
+                </span>
               </div>
-            )}
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleRoleChange('student')}
+                  className={`py-2.5 px-2 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 border transition-all cursor-pointer ${
+                    role === 'student'
+                      ? 'bg-blue-900 text-white border-blue-900 shadow-md ring-2 ring-blue-400/50 scale-[1.02]'
+                      : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100'
+                  }`}
+                >
+                  <User className="w-3.5 h-3.5" />
+                  <span>Student</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleRoleChange('company')}
+                  className={`py-2.5 px-2 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 border transition-all cursor-pointer ${
+                    role === 'company'
+                      ? 'bg-indigo-900 text-white border-indigo-900 shadow-md ring-2 ring-indigo-400/50 scale-[1.02]'
+                      : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100'
+                  }`}
+                >
+                  <Building className="w-3.5 h-3.5" />
+                  <span>Company Recruiter</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleRoleChange('faculty')}
+                  className={`py-2.5 px-2 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 border transition-all cursor-pointer ${
+                    role === 'faculty'
+                      ? 'bg-emerald-700 text-white border-emerald-700 shadow-md ring-2 ring-emerald-400/50 scale-[1.02]'
+                      : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100'
+                  }`}
+                >
+                  <Shield className="w-3.5 h-3.5" />
+                  <span>Faculty</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleRoleChange('admin')}
+                  className={`py-2.5 px-2 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 border transition-all cursor-pointer ${
+                    role === 'admin'
+                      ? 'bg-amber-600 text-white border-amber-600 shadow-md ring-2 ring-amber-400/50 scale-[1.02]'
+                      : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100'
+                  }`}
+                >
+                  <Shield className="w-3.5 h-3.5" />
+                  <span>Admin</span>
+                </button>
+              </div>
+            </div>
 
             {/* Form */}
             <form onSubmit={handleSubmit} className="mt-4 space-y-3">

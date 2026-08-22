@@ -39,12 +39,40 @@ export default function QABoard({ currentUser, onOpenAuth }) {
       if (params.toString()) url += `?${params.toString()}`;
 
       const res = await fetch(url);
-      if (res.ok) {
+      const contentType = res.headers.get('content-type') || '';
+      if (res.ok && contentType.includes('application/json')) {
         const data = await res.json();
         setThreads(Array.isArray(data) ? data : []);
+        return;
       }
+      throw new Error('Fallback to demo Q&A threads');
     } catch (err) {
-      console.error('Error fetching Q&A threads:', err);
+      // Safe fallback for Vercel Static Hosting
+      const DEMO_THREADS = [
+        {
+          id: 'thread_cgpa_policy',
+          student_id: 's_arav',
+          student_name: 'Arav Sharma',
+          title: 'What is the university policy for Tier-1 companies if someone has 1 active backlog?',
+          body: 'I have a CGPA of 8.9 in BTech CSE but had a backlog in Sem 4 mathematics that is cleared in re-eval. Will I be eligible for Google / Microsoft on-campus shortlist?',
+          category: 'Eligibility & Drive Rules',
+          status: 'resolved',
+          replies_count: 1,
+          created_at: new Date(Date.now() - 3600000 * 24).toISOString()
+        },
+        {
+          id: 'thread_resume_ats',
+          student_id: 's_rohan',
+          student_name: 'Rohan Patel',
+          title: 'How does CampusHire AI compute the ATS score for core mechanical design resumes?',
+          body: 'I added STAAD Pro and AutoCAD projects, but want to know if project metrics help improve the score above 90.',
+          category: 'Resume & ATS Optimization',
+          status: 'open',
+          replies_count: 2,
+          created_at: new Date(Date.now() - 3600000 * 5).toISOString()
+        }
+      ];
+      setThreads(DEMO_THREADS);
     } finally {
       setLoading(false);
     }

@@ -361,9 +361,10 @@ export default function App() {
           onToggleBGView={() => setHideCardsForBGView(!hideCardsForBGView)}
         />
 
-        {/* Auth Modal */}
+        {/* Auth Modal with Initial Role Binding */}
         <AuthModal
           isOpen={authModalOpen}
+          initialRole={activeRole}
           onClose={() => setAuthModalOpen(false)}
           onAuthSuccess={handleAuthSuccess}
         />

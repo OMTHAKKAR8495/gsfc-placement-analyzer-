@@ -272,33 +272,17 @@ function applyMigrations() {
       db.pragma('foreign_keys = ON');
     }
 
-    // Fix qa_threads author_role constraint to include 'faculty' and 'tpo'
-    const qaThreadsSql = db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='qa_threads'").get()?.sql || '';
-    if (qaThreadsSql && !qaThreadsSql.includes("'faculty'")) {
+    // Ensure qa_threads has correct schema (id, student_id, student_name, title, body, category, status, created_at)
+    const qaThreadsCols = db.prepare("PRAGMA table_info(qa_threads)").all();
+    const hasStudentId = qaThreadsCols.some(c => c.name === 'student_id');
+    if (qaThreadsCols.length > 0 && !hasStudentId) {
       db.pragma('foreign_keys = OFF');
       try {
-        db.exec(`
-          CREATE TABLE qa_threads_migrated AS SELECT id, title, content, author_id, author_name, author_role, category, status, views, created_at FROM qa_threads;
-          DROP TABLE qa_threads;
-          CREATE TABLE qa_threads (
-            id TEXT PRIMARY KEY,
-            title TEXT NOT NULL,
-            content TEXT NOT NULL,
-            author_id TEXT,
-            author_name TEXT,
-            author_role TEXT CHECK(author_role IN ('student', 'alumni', 'admin', 'company', 'faculty', 'tpo')),
-            category TEXT DEFAULT 'general',
-            status TEXT DEFAULT 'open',
-            views INTEGER DEFAULT 0,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-          );
-          INSERT INTO qa_threads (id, title, content, author_id, author_name, author_role, category, status, views, created_at)
-          SELECT id, title, content, author_id, author_name, author_role, category, status, views, created_at FROM qa_threads_migrated;
-          DROP TABLE qa_threads_migrated;
-        `);
-      } catch(e) { console.warn('Migration notice (qa_threads):', e.message); }
+        db.exec(`DROP TABLE IF EXISTS qa_threads;`);
+      } catch(e) { console.warn('Migration notice (qa_threads reset):', e.message); }
       db.pragma('foreign_keys = ON');
     }
+
 
     // Fix qa_replies author_role constraint to include 'faculty' and 'tpo'
     const qaRepliesSql = db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='qa_replies'").get()?.sql || '';

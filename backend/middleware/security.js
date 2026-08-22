@@ -18,8 +18,12 @@ export function validatePasswordPolicy(password, email = '') {
     return { valid: false, message: 'Password is required.' };
   }
 
-  if (password.length < 4) {
-    return { valid: false, message: 'Password must be at least 4 characters long.' };
+  if (COMMON_PASSWORDS.has(password.toLowerCase())) {
+    return { valid: false, message: 'Password is too common and easily guessable.' };
+  }
+
+  if (password.length < 10) {
+    return { valid: false, message: 'Password must be at least 10 characters long.' };
   }
 
   return { valid: true };
