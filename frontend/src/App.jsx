@@ -76,9 +76,13 @@ export default function App() {
       // Guest: can only access Student & Alumni Workspaces
       return false;
     }
-    if (user.role === 'admin') {
-      // Admin: has oversight access to all workspaces
+    if (user.role === 'superadmin' || user.role === 'admin') {
+      // Super Admin & Admin: have oversight access to all workspaces
       return true;
+    }
+    if (user.role === 'faculty') {
+      // Faculty: scoped to Faculty Hub, Student Workspace, and Alumni Network
+      return targetWorkspace === 'faculty' || targetWorkspace === 'student' || targetWorkspace === 'alumni';
     }
     if (user.role === 'company') {
       // Recruiter: can access Recruiter Portal, Main Homepage, and Alumni Network
@@ -108,22 +112,24 @@ export default function App() {
     // Listen for browser Back/Forward navigation with Strict Role-Scoped Route Guards
     const handleHashOrPopState = () => {
       const hash = window.location.hash.replace('#', '');
-      const targetWorkspace = ['student', 'interview', 'company', 'admin', 'alumni'].includes(hash) ? hash : 'student';
-
-      if (!isRoleAllowedInWorkspace(currentUser, targetWorkspace)) {
-        const defaultRole = currentUser ? (currentUser.role === 'company' ? 'company' : (currentUser.role === 'alumni' ? 'alumni' : currentUser.role)) : 'student';
-        setActiveRole(defaultRole);
-        window.history.replaceState(null, '', `#${defaultRole}`);
-        return;
+      if (hash) {
+        if (isRoleAllowedInWorkspace(currentUser, hash)) {
+          setActiveRole(hash);
+        } else {
+          setActiveRole('student');
+          window.location.hash = '#student';
+        }
       }
-
-      setActiveRole(targetWorkspace);
     };
-
     window.addEventListener('hashchange', handleHashOrPopState);
     window.addEventListener('popstate', handleHashOrPopState);
 
+    // Global Shortcut Listener for GSFC Command Suite
     const handleGlobalKeyDown = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        window.dispatchEvent(new CustomEvent('open-gsfc-global-search'));
+      }
       if (e.key === 'Escape' || e.keyCode === 27) {
         if (authModalOpen) setAuthModalOpen(false);
       }
@@ -162,7 +168,9 @@ export default function App() {
           // Route user to their default role workspace on initial load
           const currentHash = window.location.hash.replace('#', '');
           if (!isRoleAllowedInWorkspace(data.user, currentHash)) {
-            const defaultRoleWorkspace = data.user.role === 'company' ? 'company' : (data.user.role === 'admin' ? 'admin' : 'student');
+            const defaultRoleWorkspace = data.user.role === 'faculty' 
+              ? 'faculty' 
+              : (data.user.role === 'superadmin' ? 'superadmin' : (data.user.role === 'company' ? 'company' : (data.user.role === 'admin' ? 'admin' : 'student')));
             setActiveRole(defaultRoleWorkspace);
             window.history.replaceState(null, '', `#${defaultRoleWorkspace}`);
           }
@@ -202,7 +210,9 @@ export default function App() {
   const handleAuthSuccess = (userData) => {
     setCurrentUser(userData);
     localStorage.setItem('campushire_user', JSON.stringify(userData));
-    const defaultWorkspace = userData.role === 'company' ? 'company' : (userData.role === 'admin' ? 'admin' : (userData.role === 'alumni' ? 'alumni' : 'student'));
+    const defaultWorkspace = userData.role === 'faculty' 
+      ? 'faculty' 
+      : (userData.role === 'superadmin' ? 'superadmin' : (userData.role === 'company' ? 'company' : (userData.role === 'admin' ? 'admin' : (userData.role === 'alumni' ? 'alumni' : 'student'))));
     setActiveRole(defaultWorkspace);
     window.location.hash = `#${defaultWorkspace}`;
     window.scrollTo({ top: 0, behavior: 'smooth' });

@@ -98,10 +98,23 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
 
   // Helper to generate simulated JWT and verified user for offline / Vercel static environments
   const createFallbackUser = (userRole, userEmail, userName) => {
+    const isFaculty = userRole === 'faculty' || (userEmail || '').includes('faculty');
+    const isSuperAdmin = userRole === 'superadmin' || (userEmail || '').includes('superadmin');
     const isAlumni = userRole === 'alumni' || (userEmail || '').includes('alumni');
     const isCompany = userRole === 'company' || (userEmail || '').includes('hr') || (userEmail || '').includes('company') || (userEmail || '').includes('gsfclimited');
     const isAdmin = userRole === 'admin' || (userEmail || '').includes('admin');
-    const resolvedRole = isAdmin ? 'admin' : (isAlumni ? 'alumni' : (isCompany ? 'company' : 'student'));
+    
+    const resolvedRole = isSuperAdmin ? 'superadmin' : (isAdmin ? 'admin' : (isFaculty ? 'faculty' : (isAlumni ? 'alumni' : (isCompany ? 'company' : 'student'))));
+
+    if (resolvedRole === 'superadmin') {
+      return {
+        id: 'u_superadmin',
+        name: userName || 'Super Administrator',
+        email: userEmail || 'superadmin@gsfcuniversity.ac.in',
+        role: 'superadmin',
+        owner_id: 'a_superadmin'
+      };
+    }
 
     if (resolvedRole === 'admin') {
       return {
@@ -110,6 +123,23 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
         email: userEmail || 'admin@gsfcuniversity.ac.in',
         role: 'admin',
         owner_id: 'a_director'
+      };
+    }
+
+    if (resolvedRole === 'faculty') {
+      return {
+        id: 'u_faculty_rajesh',
+        name: userName || 'Dr. Rajesh Sharma',
+        email: userEmail || 'faculty.cse@gsfcuniversity.ac.in',
+        role: 'faculty',
+        owner_id: 'f_rajesh',
+        department: 'BTech CSE & IT',
+        profile: {
+          id: 'f_rajesh',
+          name: userName || 'Dr. Rajesh Sharma',
+          department: 'Computer Science & Engineering',
+          designation: 'Faculty Placement Coordinator'
+        }
       };
     }
     if (resolvedRole === 'alumni') {
