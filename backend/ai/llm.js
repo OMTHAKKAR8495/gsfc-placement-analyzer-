@@ -41,13 +41,14 @@ export async function callLLM({ prompt, schemaDescription, fallbackGenerator }) 
     try {
       const { GoogleGenerativeAI } = await import('@google/generative-ai');
       const ai = new GoogleGenerativeAI(apiKey);
-      const model = ai.getGenerativeModel({ model: 'gemini-1.5-flash' });
+      const targetModelName = process.env.GEMINI_MODEL || 'gemini-3.6-flash';
+      const model = ai.getGenerativeModel({ model: targetModelName });
       
       const fullPrompt = `${prompt}\n\nIMPORTANT INSTRUCTION: Respond strictly with valid JSON. Do not include markdown headers or commentary outside JSON.\nSchema requirement:\n${schemaDescription}`;
       
-      // 3.0s timeout promise race
+      // 3.5s timeout promise race
       const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('LLM call timed out after 3000ms')), 3000)
+        setTimeout(() => reject(new Error('LLM call timed out after 3500ms')), 3500)
       );
 
       const apiPromise = model.generateContent(fullPrompt);
