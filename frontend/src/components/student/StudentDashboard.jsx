@@ -109,6 +109,48 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
   const [resumePromptOpen, setResumePromptOpen] = useState(false);
   const [builderModalOpen, setBuilderModalOpen] = useState(false);
 
+  // AI Resume Analyzing Progress Modal & Countdown State
+  const [analyzingModalOpen, setAnalyzingModalOpen] = useState(false);
+  const [countdown, setCountdown] = useState(5);
+  const [analyzingStage, setAnalyzingStage] = useState(0);
+  const [currentTipIndex, setCurrentTipIndex] = useState(0);
+
+  // Editable Candidate Fields
+  const [candidateName, setCandidateName] = useState(student?.name || 'Thakkar Om');
+  const [candidateEmail, setCandidateEmail] = useState('thakkar_om@gmail.com');
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [isEditingEmail, setIsEditingEmail] = useState(false);
+
+  // Selected Match Breakdown Modal State
+  const [selectedMatchBreakdown, setSelectedMatchBreakdown] = useState(null);
+  // Mail Modal & PDF Report Modal State
+  const [mailModalOpen, setMailModalOpen] = useState(false);
+  const [pdfReportModalOpen, setPdfReportModalOpen] = useState(false);
+  const [ecosystemModalOpen, setEcosystemModalOpen] = useState(false);
+  const [mailRecipient, setMailRecipient] = useState(candidateEmail);
+  const [mailSentSuccess, setMailSentSuccess] = useState(false);
+
+  // Database Save State
+  const [savingToDb, setSavingToDb] = useState(false);
+  const [dbSaveConfirmation, setDbSaveConfirmation] = useState(null);
+
+  // AI Mock Interview state
+  const [mockSessionActive, setMockSessionActive] = useState(false);
+  const [mockTargetRequirement, setMockTargetRequirement] = useState(null);
+
+  // Stamped Offer Letter State
+  const [studentOfferLetterOpen, setStudentOfferLetterOpen] = useState(false);
+  const [selectedStudentOffer, setSelectedStudentOffer] = useState(null);
+
+  // AI Copilot & Placement Readiness Intelligence State
+  const [copilotOpen, setCopilotOpen] = useState(false);
+  const [readinessData, setReadinessData] = useState(null);
+
+  // Apply Branching State
+  const [selectedReqForApply, setSelectedReqForApply] = useState(null);
+  const [internalApplyModalOpen, setInternalApplyModalOpen] = useState(false);
+  const [externalConfirmModalOpen, setExternalConfirmModalOpen] = useState(false);
+
   useEffect(() => {
     if (currentUser && (currentUser.role === 'student' || !currentUser.role)) {
       const userKey = currentUser.id || currentUser.owner_id || currentUser.email || 'student';
@@ -157,38 +199,6 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
     }
   };
 
-  // AI Resume Analyzing Progress Modal & Countdown State
-  const [analyzingModalOpen, setAnalyzingModalOpen] = useState(false);
-  const [countdown, setCountdown] = useState(5);
-  const [analyzingStage, setAnalyzingStage] = useState(0);
-  const [currentTipIndex, setCurrentTipIndex] = useState(0);
-
-  // Editable Candidate Fields
-  const [candidateName, setCandidateName] = useState(student?.name || 'Thakkar Om');
-  const [candidateEmail, setCandidateEmail] = useState('thakkar_om@gmail.com');
-  const [isEditingName, setIsEditingName] = useState(false);
-  const [isEditingEmail, setIsEditingEmail] = useState(false);
-
-  // Selected Match Breakdown Modal State
-  const [selectedMatchBreakdown, setSelectedMatchBreakdown] = useState(null);
-  // Mail Modal & PDF Report Modal State
-  const [mailModalOpen, setMailModalOpen] = useState(false);
-  const [pdfReportModalOpen, setPdfReportModalOpen] = useState(false);
-  const [ecosystemModalOpen, setEcosystemModalOpen] = useState(false);
-  const [mailRecipient, setMailRecipient] = useState(candidateEmail);
-  const [mailSentSuccess, setMailSentSuccess] = useState(false);
-
-  // Database Save State
-  const [savingToDb, setSavingToDb] = useState(false);
-  const [dbSaveConfirmation, setDbSaveConfirmation] = useState(null);
-
-  // AI Mock Interview state
-  const [mockSessionActive, setMockSessionActive] = useState(false);
-  const [mockTargetRequirement, setMockTargetRequirement] = useState(null);
-
-  // Stamped Offer Letter State
-  const [studentOfferLetterOpen, setStudentOfferLetterOpen] = useState(false);
-  const [selectedStudentOffer, setSelectedStudentOffer] = useState(null);
 
   const placementTips = [
     '💡 Tip 1: Quantifiable metrics like "Boosted database speed by 35%" increase ATS score by 40%!',
@@ -197,6 +207,7 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
     '🔮 AI Engine: Gemini NLP is vectorizing technical skills & calculating ATS match index...'
   ];
 
+
   const analysisStages = [
     '📄 Stage 1: Extracting PDF Text & Candidate Credentials',
     '🔍 Stage 2: Gemini NLP Vectorizing Technical & Soft Skills',
@@ -204,9 +215,6 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
     '✨ Stage 4: Generating Role Recommendations & Skill Gap Analysis'
   ];
 
-  // AI Copilot & Placement Readiness Intelligence State
-  const [copilotOpen, setCopilotOpen] = useState(false);
-  const [readinessData, setReadinessData] = useState(null);
 
   useEffect(() => {
     fetchFeed();
@@ -379,12 +387,9 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
     setPdfReportModalOpen(true);
   };
 
-  // Apply Branching State
-  const [selectedReqForApply, setSelectedReqForApply] = useState(null);
-  const [internalApplyModalOpen, setInternalApplyModalOpen] = useState(false);
-  const [externalConfirmModalOpen, setExternalConfirmModalOpen] = useState(false);
 
   const isCompanyUser = currentUser?.role === 'company';
+
   const currentCompanyName = currentUser?.profile?.company_name || currentUser?.name || '';
 
   const handleApplyClick = async (reqItem) => {

@@ -162,12 +162,12 @@ export default function App() {
 
       // 204 = demo/offline token — server acknowledged it, keep the localStorage user as-is
       if (res.status === 204) {
+        // User is already loaded from localStorage initial state — just ensure correct routing
         const savedUser = localStorage.getItem('campushire_user');
         if (savedUser) {
           try {
             const parsedUser = JSON.parse(savedUser);
-            setCurrentUser(parsedUser);
-            // Ensure routing matches the saved user's role
+            // Only update routing, don't call setCurrentUser again (it's already set)
             const currentHash = window.location.hash.replace('#', '');
             if (!isRoleAllowedInWorkspace(parsedUser, currentHash)) {
               const defaultRoleWorkspace = parsedUser.role === 'faculty' 
@@ -205,12 +205,8 @@ export default function App() {
         setCurrentUser(null);
       }
     } catch (err) {
-      // Network failure: preserve active client session from localStorage
+      // Network failure — user already loaded from localStorage initial state, no action needed
       console.warn('Network notice: Preserving active client session.');
-      const savedUser = localStorage.getItem('campushire_user');
-      if (savedUser) {
-        try { setCurrentUser(JSON.parse(savedUser)); } catch(e) {}
-      }
     }
   };
 
