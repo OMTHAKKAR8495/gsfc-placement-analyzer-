@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   X, MessageSquare, Send, CheckCircle2, Clock, 
-  ShieldCheck, Award, User, CornerDownRight, Check, AlertCircle 
+  ShieldCheck, Award, User, CornerDownRight, Check, AlertCircle, Trash2 
 } from 'lucide-react';
 
 export default function QAThreadView({ threadId, onClose, currentUser, onOpenAuth, onThreadUpdated }) {
@@ -10,6 +10,7 @@ export default function QAThreadView({ threadId, onClose, currentUser, onOpenAut
   const [replyText, setReplyText] = useState('');
   const [submittingReply, setSubmittingReply] = useState(false);
   const [resolving, setResolving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     if (threadId) fetchThread();
@@ -95,11 +96,30 @@ export default function QAThreadView({ threadId, onClose, currentUser, onOpenAut
     }
   };
 
+  const handleDeleteThread = async () => {
+    if (!window.confirm('Are you sure you want to permanently delete this question and all replies?')) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/qa/threads/${threadId}`, {
+        method: 'DELETE'
+      });
+      if (res.ok) {
+        if (onThreadUpdated) onThreadUpdated();
+        onClose();
+      }
+    } catch (err) {
+      console.error('Error deleting thread:', err);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   if (!threadId) return null;
 
   const isTpoOrAdmin = currentUser?.role === 'admin';
   const isOriginalAuthor = currentUser?.owner_id === thread?.student_id || currentUser?.id === thread?.student_id;
   const canResolve = isTpoOrAdmin || isOriginalAuthor;
+  const canDelete = isTpoOrAdmin || isOriginalAuthor;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-md animate-fade-in">
@@ -134,20 +154,33 @@ export default function QAThreadView({ threadId, onClose, currentUser, onOpenAut
                   </span>
                 </div>
 
-                {canResolve && (
-                  <button
-                    onClick={handleToggleResolve}
-                    disabled={resolving}
-                    className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer border ${
-                      thread.status === 'resolved'
-                        ? 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 hover:bg-slate-200'
-                        : 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-500 shadow-md'
-                    }`}
-                  >
-                    <Check className="w-3.5 h-3.5" />
-                    <span>{thread.status === 'resolved' ? 'Reopen Thread' : 'Mark Resolved'}</span>
-                  </button>
-                )}
+                <div className="flex items-center gap-2">
+                  {canResolve && (
+                    <button
+                      onClick={handleToggleResolve}
+                      disabled={resolving}
+                      className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer border ${
+                        thread.status === 'resolved'
+                          ? 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 hover:bg-slate-200'
+                          : 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-500 shadow-md'
+                      }`}
+                    >
+                      <Check className="w-3.5 h-3.5" />
+                      <span>{thread.status === 'resolved' ? 'Reopen Thread' : 'Mark Resolved'}</span>
+                    </button>
+                  )}
+
+                  {canDelete && (
+                    <button
+                      onClick={handleDeleteThread}
+                      disabled={deleting}
+                      className="px-3.5 py-1.5 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer border border-rose-200 dark:border-rose-800 bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 hover:bg-rose-100 dark:hover:bg-rose-900/60 shadow-sm"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>{deleting ? 'Deleting...' : 'Delete'}</span>
+                    </button>
+                  )}
+                </div>
               </div>
 
               <h2 className="text-xl font-black text-slate-900 dark:text-slate-100 leading-snug">

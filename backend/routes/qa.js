@@ -157,4 +157,25 @@ router.put('/threads/:id/resolve', (req, res) => {
   }
 });
 
+// 6. Delete Question Thread (Author / Admin / TPO)
+router.delete('/threads/:id', (req, res) => {
+  try {
+    const { id: threadId } = req.params;
+
+    const thread = db.prepare('SELECT * FROM qa_threads WHERE id = ?').get(threadId);
+    if (!thread) {
+      return res.status(404).json({ error: 'Question thread not found.' });
+    }
+
+    // Cascade delete replies
+    db.prepare('DELETE FROM qa_replies WHERE thread_id = ?').run(threadId);
+    // Delete thread
+    db.prepare('DELETE FROM qa_threads WHERE id = ?').run(threadId);
+
+    res.json({ success: true, message: 'Question and associated replies deleted successfully.', deletedId: threadId });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 export default router;

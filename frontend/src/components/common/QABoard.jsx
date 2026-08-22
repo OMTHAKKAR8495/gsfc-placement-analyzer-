@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   HelpCircle, MessageSquare, Search, Plus, CheckCircle2, 
-  Clock, ShieldCheck, Tag, Filter, User, Sparkles, ChevronRight 
+  Clock, ShieldCheck, Tag, Filter, User, Sparkles, ChevronRight, Trash2 
 } from 'lucide-react';
 import AskQuestionModal from './AskQuestionModal';
 import QAThreadView from './QAThreadView';
@@ -47,6 +47,21 @@ export default function QABoard({ currentUser, onOpenAuth }) {
       console.error('Error fetching Q&A threads:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDeleteThread = async (e, threadId) => {
+    e.stopPropagation();
+    if (!window.confirm('Are you sure you want to delete this question?')) return;
+    try {
+      const res = await fetch(`/api/qa/threads/${threadId}`, {
+        method: 'DELETE'
+      });
+      if (res.ok) {
+        setThreads(prev => prev.filter(t => t.id !== threadId));
+      }
+    } catch (err) {
+      console.error('Error deleting thread:', err);
     }
   };
 
@@ -199,9 +214,21 @@ export default function QABoard({ currentUser, onOpenAuth }) {
                 </div>
 
                 <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center gap-2 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100 dark:border-slate-800">
-                  <div className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 dark:bg-slate-800 rounded-xl text-xs font-black text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
-                    <MessageSquare className="w-3.5 h-3.5 text-blue-600" />
-                    <span>{thread.replies_count || 0} Replies</span>
+                  <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 dark:bg-slate-800 rounded-xl text-xs font-black text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                      <MessageSquare className="w-3.5 h-3.5 text-blue-600" />
+                      <span>{thread.replies_count || 0} Replies</span>
+                    </div>
+
+                    {(currentUser?.role === 'admin' || currentUser?.owner_id === thread.student_id || currentUser?.id === thread.student_id) && (
+                      <button
+                        title="Delete Question"
+                        onClick={(e) => handleDeleteThread(e, thread.id)}
+                        className="p-1.5 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-xl transition-all border border-transparent hover:border-rose-200 dark:hover:border-rose-800"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
                   </div>
 
                   <span className="text-xs font-bold text-blue-600 dark:text-blue-400 flex items-center gap-1 group-hover:translate-x-1 transition-transform">
