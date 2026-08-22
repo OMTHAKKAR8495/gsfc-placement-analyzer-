@@ -1,7 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { MessageSquare, X, Send, Sparkles, Bot, User, RefreshCw, Bug, CheckCircle, Upload, FileText, Wand2 } from 'lucide-react';
+import { 
+  MessageSquare, X, Send, Sparkles, Bot, User, RefreshCw, 
+  Bug, CheckCircle, Upload, FileText, Wand2, Eye, EyeOff 
+} from 'lucide-react';
 
-export default function AIBugChatbotWidget() {
+export default function AIBugChatbotWidget({ hideCardsForBGView, onToggleBGView }) {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState([
     {
@@ -70,56 +73,83 @@ export default function AIBugChatbotWidget() {
 
   return (
     <>
-      {/* Floating Action Dock: Upload Resume & Make Resume Logo Buttons */}
-      <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-2.5">
+      {/* Unified Floating Action Dock (Never Hidden / Zero Overlap) */}
+      <div className="fixed bottom-6 right-4 sm:right-6 z-50 flex flex-col items-end gap-2.5 max-w-[calc(100vw-2rem)] select-none">
         {!isOpen && (
-          <div className="flex items-center gap-2 animate-fade-in">
-            {/* 1. Upload Resume Button with Logo */}
-            <button
-              type="button"
-              onClick={() => {
-                window.location.hash = '#student';
-                window.dispatchEvent(new CustomEvent('open-resume-upload'));
-              }}
-              className="px-3.5 py-2.5 bg-white/95 dark:bg-slate-900/95 hover:bg-blue-50 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-100 hover:text-blue-600 rounded-full text-xs font-black shadow-xl backdrop-blur-xl border border-slate-200/90 dark:border-slate-700 flex items-center gap-2 transition-all hover:scale-105 group cursor-pointer"
-              title="Upload PDF Resume to Calculate ATS Score"
-            >
-              <div className="w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-950 text-blue-600 flex items-center justify-center shadow-sm">
-                <Upload className="w-3.5 h-3.5" />
-              </div>
-              <span className="hidden sm:inline">Upload Resume</span>
-            </button>
+          <>
+            {/* 📦 Dedicated Glassmorphism Box for Resume Options */}
+            <div className="p-2 sm:p-2.5 bg-white/95 dark:bg-slate-900/95 rounded-2xl border border-slate-200/90 dark:border-slate-700/80 shadow-2xl backdrop-blur-2xl flex items-center gap-2 animate-fade-in">
+              {/* Option 1: Upload Resume */}
+              <button
+                type="button"
+                onClick={() => {
+                  window.location.hash = '#student';
+                  window.dispatchEvent(new CustomEvent('open-resume-upload'));
+                }}
+                className="px-3 py-2 bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/60 dark:hover:bg-blue-900/60 text-blue-900 dark:text-blue-200 rounded-xl text-xs font-black border border-blue-200 dark:border-blue-800 flex items-center gap-2 transition-all hover:scale-105 cursor-pointer shadow-xs"
+                title="Upload PDF Resume to Calculate ATS Score"
+              >
+                <div className="w-5 h-5 rounded-lg bg-blue-600 text-white flex items-center justify-center shadow-xs">
+                  <Upload className="w-3 h-3" />
+                </div>
+                <span>Upload Resume</span>
+              </button>
 
-            {/* 2. Make/Build Resume with AI Button with Logo */}
-            <button
-              type="button"
-              onClick={() => {
-                window.location.hash = '#student';
-                window.dispatchEvent(new CustomEvent('open-resume-builder'));
-              }}
-              className="px-3.5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-full text-xs font-black shadow-xl backdrop-blur-xl border border-white/20 flex items-center gap-2 transition-all hover:scale-105 group cursor-pointer"
-              title="Don't have a resume? Build one with Gemini AI & Upload 3 Documents"
-            >
-              <div className="w-6 h-6 rounded-full bg-white/20 text-amber-300 flex items-center justify-center shadow-sm">
-                <Sparkles className="w-3.5 h-3.5 animate-pulse" />
-              </div>
-              <span>Make Resume (AI)</span>
-            </button>
-          </div>
-        )}
-
-        {/* Floating Chat Trigger Button */}
-        {!isOpen && (
-          <button
-            onClick={() => setIsOpen(true)}
-            className="px-4 py-3 bg-gradient-to-r from-blue-900 via-indigo-900 to-amber-600 hover:from-blue-800 hover:to-amber-500 text-white rounded-full text-xs font-black shadow-2xl backdrop-blur-xl border border-white/30 flex items-center gap-2.5 transition-all hover:scale-105 group cursor-pointer"
-          >
-            <div className="relative">
-              <Bot className="w-5 h-5 text-amber-300 group-hover:rotate-12 transition-transform" />
-              <span className="w-2.5 h-2.5 bg-emerald-400 rounded-full absolute -top-1 -right-1 border border-blue-900 animate-pulse"></span>
+              {/* Option 2: Make Resume with AI */}
+              <button
+                type="button"
+                onClick={() => {
+                  window.location.hash = '#student';
+                  window.dispatchEvent(new CustomEvent('open-resume-builder'));
+                }}
+                className="px-3 py-2 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:opacity-95 text-white rounded-xl text-xs font-black shadow-md border border-white/20 flex items-center gap-2 transition-all hover:scale-105 cursor-pointer"
+                title="Build Resume with Gemini AI, Photo & 3 Documents"
+              >
+                <div className="w-5 h-5 rounded-lg bg-white/20 text-amber-300 flex items-center justify-center shadow-xs">
+                  <Sparkles className="w-3 h-3 animate-pulse" />
+                </div>
+                <span>Make Resume (AI)</span>
+              </button>
             </div>
-            <span>AI Bug & Placement Assistant</span>
-          </button>
+
+            {/* Bottom Row: Clear Poster BG + Assistant Chatbot Pill */}
+            <div className="flex items-center gap-2">
+              {onToggleBGView && (
+                <button
+                  type="button"
+                  onClick={onToggleBGView}
+                  className="px-3 py-2.5 bg-slate-900/90 hover:bg-slate-950 text-white rounded-full text-xs font-black shadow-xl backdrop-blur-xl border border-white/20 flex items-center gap-1.5 transition-all hover:scale-105 cursor-pointer"
+                  title="Toggle Full Campus Poster View"
+                >
+                  {hideCardsForBGView ? (
+                    <>
+                      <Eye className="w-3.5 h-3.5 text-emerald-400" />
+                      <span className="hidden sm:inline">Restore Workspace</span>
+                      <span className="sm:hidden">Restore</span>
+                    </>
+                  ) : (
+                    <>
+                      <EyeOff className="w-3.5 h-3.5 text-amber-400" />
+                      <span className="hidden sm:inline">View Clear Poster BG</span>
+                      <span className="sm:hidden">Clear BG</span>
+                    </>
+                  )}
+                </button>
+              )}
+
+              <button
+                type="button"
+                onClick={() => setIsOpen(true)}
+                className="px-4 py-2.5 bg-gradient-to-r from-blue-900 via-indigo-900 to-amber-600 hover:from-blue-800 hover:to-amber-500 text-white rounded-full text-xs font-black shadow-2xl backdrop-blur-xl border border-white/30 flex items-center gap-2 transition-all hover:scale-105 group cursor-pointer"
+              >
+                <div className="relative">
+                  <Bot className="w-4 h-4 text-amber-300 group-hover:rotate-12 transition-transform" />
+                  <span className="w-2 h-2 bg-emerald-400 rounded-full absolute -top-0.5 -right-0.5 border border-blue-900 animate-pulse"></span>
+                </div>
+                <span>AI Assistant</span>
+              </button>
+            </div>
+          </>
         )}
       </div>
 

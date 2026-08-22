@@ -242,25 +242,6 @@ export default function App() {
           </div>
         )}
 
-        {/* Floating Controls Bar (Poster View Toggle & Light/Dark Theme) */}
-        <div className="fixed bottom-20 right-6 z-40 flex flex-col items-end gap-2">
-          <button
-            onClick={() => setHideCardsForBGView(!hideCardsForBGView)}
-            className="px-4 py-2.5 bg-slate-900/90 hover:bg-slate-950 text-white rounded-2xl text-xs font-black shadow-2xl backdrop-blur-xl border border-white/20 flex items-center gap-2 transition-all hover:scale-105"
-            title="Toggle Full Poster View"
-          >
-            {hideCardsForBGView ? (
-              <>
-                <Eye className="w-4 h-4 text-emerald-400" /> Restore Workspace UI
-              </>
-            ) : (
-              <>
-                <EyeOff className="w-4 h-4 text-amber-400" /> View Clear Poster BG
-              </>
-            )}
-          </button>
-        </div>
-
         {/* Main Role Workspaces Wrapped in Global Error Boundary */}
         <ErrorBoundary>
           <main className={`flex-1 relative transition-opacity duration-300 pb-[80vh] ${hideCardsForBGView ? 'opacity-5 pointer-events-none' : 'opacity-100'}`}>
@@ -319,8 +300,11 @@ export default function App() {
           </main>
         </ErrorBoundary>
 
-        {/* Floating AI Bug & Placement Assistant Chatbot */}
-        <AIBugChatbotWidget />
+        {/* Floating AI Bug & Placement Assistant Chatbot + Unified Quick Actions Box */}
+        <AIBugChatbotWidget 
+          hideCardsForBGView={hideCardsForBGView}
+          onToggleBGView={() => setHideCardsForBGView(!hideCardsForBGView)}
+        />
 
         {/* Auth Modal */}
         <AuthModal
