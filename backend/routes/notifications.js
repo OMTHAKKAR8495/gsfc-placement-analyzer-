@@ -355,4 +355,86 @@ router.get('/student/:studentId', (req, res) => {
   }
 });
 
+// 6. Real-Time Unified Notification Feed (For Navbar Bell & Live In-App Alerts)
+router.get('/feed', (req, res) => {
+  try {
+    const { email, role } = req.query;
+
+    let rows = [];
+    if (email && email !== 'undefined') {
+      rows = db.prepare(`
+        SELECT id, recipient_name, recipient_email, channel, notification_type as type, title, message, status, created_at
+        FROM notifications_log
+        WHERE recipient_email = ? OR recipient_name = 'All Students' OR channel = 'broadcast' OR notification_type = 'drive_alert'
+        ORDER BY created_at DESC
+        LIMIT 30
+      `).all(email);
+    } else {
+      rows = db.prepare(`
+        SELECT id, recipient_name, recipient_email, channel, notification_type as type, title, message, status, created_at
+        FROM notifications_log
+        ORDER BY created_at DESC
+        LIMIT 30
+      `).all();
+    }
+
+    // Default sample alerts if log is small
+    if (rows.length === 0) {
+      rows = [
+        {
+          id: 'notif_welcome_tpc',
+          type: 'announcement',
+          title: '🏛️ Welcome to GSFC Placement Portal 2026-2027',
+          message: 'CampusHire AI is now connected to live corporate placement drives. Keep your resume score above 85 for automated shortlists.',
+          status: 'sent',
+          created_at: new Date().toISOString()
+        }
+      ];
+    }
+
+    res.json(rows);
+  } catch (err) {
+    console.error('Error fetching notification feed:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 7. Send Custom Announcement / Message from TPC Admin or Recruiter
+router.post('/send-message', (req, res) => {
+  try {
+    const { title, message, senderName, senderRole, targetGroup } = req.body;
+    if (!title || !message) {
+      return res.status(400).json({ error: 'Title and message are required.' });
+    }
+
+    const logId = uuidv4();
+    const sender = senderName || (senderRole === 'admin' ? 'TPC Directorate' : 'Corporate Recruiter');
+
+    db.prepare(`
+      INSERT INTO notifications_log (id, recipient_name, recipient_email, recipient_phone, channel, notification_type, title, message, metadata_json, status)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      logId,
+      targetGroup || 'All Students',
+      'broadcast@gsfcuniversity.ac.in',
+      '919876543210',
+      'broadcast',
+      'announcement',
+      title,
+      `📢 [${sender}] ${message}`,
+      JSON.stringify({ sender_name: sender, sender_role: senderRole || 'admin' }),
+      'sent'
+    );
+
+    res.json({
+      success: true,
+      message: 'Notification announcement broadcasted successfully to all students!',
+      id: logId
+    });
+  } catch (err) {
+    console.error('Error broadcasting custom message:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 export default router;

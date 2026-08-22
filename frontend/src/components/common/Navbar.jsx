@@ -1,10 +1,71 @@
-import React, { useState } from 'react';
-import { User, Building2, ShieldCheck, LogOut, LogIn, Sun, Moon, HelpCircle, Smartphone, Download, Sparkles, Menu, X, Plus, Users, Award } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { User, Building2, ShieldCheck, LogOut, LogIn, Sun, Moon, HelpCircle, Smartphone, Download, Sparkles, Menu, X, Plus, Users, Award, Bell } from 'lucide-react';
 import AppDownloadModal from './AppDownloadModal';
+import NotificationCenterModal from './NotificationCenterModal';
 
 export default function Navbar({ currentUser, activeRole, onRoleSwitch, onOpenAuth, onLogout, theme, onToggleTheme, onOpenJobPost, onOpenApplicantsFeed }) {
   const [downloadModalOpen, setDownloadModalOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [notifModalOpen, setNotifModalOpen] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [readNotifIds, setReadNotifIds] = useState(() => {
+    try {
+      const saved = localStorage.getItem('gsfc_read_notifications');
+      return saved ? new Set(JSON.parse(saved)) : new Set();
+    } catch {
+      return new Set();
+    }
+  });
+
+  const fetchLiveNotifications = async () => {
+    try {
+      const email = currentUser?.email || currentUser?.profile?.email || '';
+      const res = await fetch(`/api/notifications/feed?email=${encodeURIComponent(email)}`);
+      if (res.ok) {
+        const data = await res.json();
+        setNotifications(Array.isArray(data) ? data : []);
+      }
+    } catch (err) {
+      console.error('Error polling notification feed:', err);
+    }
+  };
+
+  useEffect(() => {
+    fetchLiveNotifications();
+    const interval = setInterval(fetchLiveNotifications, 15000);
+    return () => clearInterval(interval);
+  }, [currentUser]);
+
+  const handleMarkAllRead = () => {
+    const allIds = new Set([...readNotifIds, ...notifications.map(n => n.id)]);
+    setReadNotifIds(allIds);
+    try {
+      localStorage.setItem('gsfc_read_notifications', JSON.stringify([...allIds]));
+    } catch (err) {}
+  };
+
+  const handleMarkOneRead = (id) => {
+    const updated = new Set(readNotifIds);
+    updated.add(id);
+    setReadNotifIds(updated);
+    try {
+      localStorage.setItem('gsfc_read_notifications', JSON.stringify([...updated]));
+    } catch (err) {}
+  };
+
+  const handleClearAll = () => {
+    handleMarkAllRead();
+    setNotifications([]);
+  };
+
+  const formattedNotifications = useMemo(() => {
+    return notifications.map(n => ({
+      ...n,
+      is_read: readNotifIds.has(n.id)
+    }));
+  }, [notifications, readNotifIds]);
+
+  const unreadCount = formattedNotifications.filter(n => !n.is_read).length;
 
   const handleLogoClick = () => {
     onRoleSwitch('student');
@@ -135,14 +196,28 @@ export default function Navbar({ currentUser, activeRole, onRoleSwitch, onOpenAu
           )}
         </div>
 
-        {/* Desktop Controls (Theme, User, Download App) */}
-        <div className="hidden md:flex items-center gap-2.5 shrink-0">
+        {/* Right Navigation & Header Actions Controls */}
+        <div className="hidden md:flex items-center gap-3">
           <button
             onClick={onToggleTheme}
-            className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-amber-400 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 transition-all font-black text-xs shrink-0 flex items-center justify-center cursor-pointer"
-            title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode`}
+            className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-amber-400 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 transition-colors text-xs font-black cursor-pointer shrink-0"
+            title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
           >
             {theme === 'dark' ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-slate-700" />}
+          </button>
+
+          {/* 🔔 LIVE NOTIFICATION CENTER BELL BUTTON */}
+          <button
+            onClick={() => setNotifModalOpen(true)}
+            className="relative p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 transition-all text-xs font-bold cursor-pointer shrink-0"
+            title="Placement Notifications & Live TPC Updates"
+          >
+            <Bell className="w-4 h-4 text-slate-700 dark:text-slate-200" />
+            {unreadCount > 0 && (
+              <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 bg-amber-500 text-slate-950 rounded-full text-[10px] font-black flex items-center justify-center shadow-md animate-pulse border-2 border-white dark:border-slate-900">
+                {unreadCount > 9 ? '9+' : unreadCount}
+              </span>
+            )}
           </button>
 
           {currentUser ? (
@@ -188,6 +263,20 @@ export default function Navbar({ currentUser, activeRole, onRoleSwitch, onOpenAu
 
         {/* Mobile Header Action Controls (< md) */}
         <div className="flex md:hidden items-center gap-2">
+          {/* Mobile Bell Button */}
+          <button
+            onClick={() => setNotifModalOpen(true)}
+            className="relative p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 text-xs font-black shrink-0"
+            title="Notifications"
+          >
+            <Bell className="w-4 h-4" />
+            {unreadCount > 0 && (
+              <span className="absolute -top-1 -right-1 w-4 h-4 bg-amber-500 text-slate-950 rounded-full text-[9px] font-black flex items-center justify-center animate-pulse">
+                {unreadCount > 9 ? '9+' : unreadCount}
+              </span>
+            )}
+          </button>
+
           <button
             onClick={onToggleTheme}
             className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-amber-400 border border-slate-200 dark:border-slate-700 text-xs font-black shrink-0"
@@ -373,6 +462,17 @@ export default function Navbar({ currentUser, activeRole, onRoleSwitch, onOpenAu
       <AppDownloadModal
         isOpen={downloadModalOpen}
         onClose={() => setDownloadModalOpen(false)}
+      />
+
+      {/* 🔔 NOTIFICATION CENTER MODAL */}
+      <NotificationCenterModal
+        isOpen={notifModalOpen}
+        onClose={() => setNotifModalOpen(false)}
+        notifications={formattedNotifications}
+        onMarkAllRead={handleMarkAllRead}
+        onMarkOneRead={handleMarkOneRead}
+        onClearAll={handleClearAll}
+        currentUser={currentUser}
       />
     </header>
   );
