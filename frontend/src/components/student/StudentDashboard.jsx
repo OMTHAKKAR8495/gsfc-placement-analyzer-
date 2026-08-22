@@ -151,6 +151,28 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
   const [internalApplyModalOpen, setInternalApplyModalOpen] = useState(false);
   const [externalConfirmModalOpen, setExternalConfirmModalOpen] = useState(false);
 
+  // Sync candidate fields dynamically when currentUser or student changes
+  useEffect(() => {
+    if (student?.name) {
+      setCandidateName(student.name);
+    } else if (currentUser?.profile?.name || currentUser?.name) {
+      setCandidateName(currentUser.profile?.name || currentUser.name);
+    } else if (currentUser?.email) {
+      const emailName = currentUser.email
+        .split('@')[0]
+        .replace(/[._-]/g, ' ')
+        .split(' ')
+        .filter(Boolean)
+        .map(p => p.charAt(0).toUpperCase() + p.slice(1).toLowerCase())
+        .join(' ');
+      setCandidateName(emailName || 'Student Candidate');
+    }
+
+    if (currentUser?.email) {
+      setCandidateEmail(currentUser.email);
+    }
+  }, [currentUser, student]);
+
   useEffect(() => {
     if (currentUser && (currentUser.role === 'student' || !currentUser.role)) {
       const userKey = currentUser.id || currentUser.owner_id || currentUser.email || 'student';
@@ -612,7 +634,7 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
             </div>
 
             <h1 className="text-xl sm:text-3xl lg:text-4xl font-black text-slate-900 tracking-tight leading-snug break-words">
-              Welcome to <span className="gradient-text">GSFC Placement Portal</span>, Made by Thakkar Om (BTech CSE)
+              Welcome to <span className="gradient-text">GSFC Placement Portal</span>, {candidateName}
             </h1>
             <p className="text-xs sm:text-sm text-slate-700 mt-1.5 max-w-2xl font-bold leading-relaxed">
               Smart Resume Analyzer powered by NLP & Gemini AI. Visual skill match analytics, ATS compliance evaluation, and automated interview coaching.

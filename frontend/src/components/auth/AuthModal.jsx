@@ -112,62 +112,73 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialRole 
 
   // Helper to generate simulated JWT and verified user for offline / Vercel static environments
   const createFallbackUser = (userRole, userEmail, userName) => {
-    const isFaculty = userRole === 'faculty' || (userEmail || '').includes('faculty');
-    const isSuperAdmin = userRole === 'superadmin' || (userEmail || '').includes('superadmin');
-    const isAlumni = userRole === 'alumni' || (userEmail || '').includes('alumni');
-    const isCompany = userRole === 'company' || (userEmail || '').includes('hr') || (userEmail || '').includes('company') || (userEmail || '').includes('gsfclimited');
-    const isAdmin = userRole === 'admin' || (userEmail || '').includes('admin');
+    const rawEmail = (userEmail || '').trim().toLowerCase();
+    const emailPrefix = rawEmail.split('@')[0] || 'student';
+    const formattedEmailName = emailPrefix
+      .replace(/[._-]/g, ' ')
+      .split(' ')
+      .filter(Boolean)
+      .map(part => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+      .join(' ');
+    const effectiveName = userName?.trim() || (formattedEmailName || 'Student Candidate');
+
+    const isFaculty = userRole === 'faculty' || rawEmail.includes('faculty');
+    const isSuperAdmin = userRole === 'superadmin' || rawEmail.includes('superadmin');
+    const isAlumni = userRole === 'alumni' || rawEmail.includes('alumni');
+    const isCompany = userRole === 'company' || rawEmail.includes('hr') || rawEmail.includes('company') || rawEmail.includes('recruiter') || rawEmail.includes('gsfclimited');
+    const isAdmin = userRole === 'admin' || rawEmail.includes('admin') || rawEmail.includes('tpc');
     
     const resolvedRole = isSuperAdmin ? 'superadmin' : (isAdmin ? 'admin' : (isFaculty ? 'faculty' : (isAlumni ? 'alumni' : (isCompany ? 'company' : 'student'))));
 
     if (resolvedRole === 'superadmin') {
       return {
-        id: 'u_superadmin',
-        name: userName || 'Super Administrator',
+        id: 'u_' + emailPrefix,
+        name: effectiveName || 'Super Administrator',
         email: userEmail || 'superadmin@gsfcuniversity.ac.in',
         role: 'superadmin',
-        owner_id: 'a_superadmin'
+        owner_id: 'a_' + emailPrefix
       };
     }
 
     if (resolvedRole === 'admin') {
       return {
-        id: 'u_admin',
-        name: userName || 'GSFC TPC Director',
+        id: 'u_' + emailPrefix,
+        name: effectiveName || 'GSFC TPC Director',
         email: userEmail || 'admin@gsfcuniversity.ac.in',
         role: 'admin',
-        owner_id: 'a_director'
+        owner_id: 'a_' + emailPrefix
       };
     }
 
     if (resolvedRole === 'faculty') {
       return {
-        id: 'u_faculty_rajesh',
-        name: userName || 'Dr. Rajesh Sharma',
+        id: 'u_' + emailPrefix,
+        name: effectiveName || 'Dr. Faculty Coordinator',
         email: userEmail || 'faculty.cse@gsfcuniversity.ac.in',
         role: 'faculty',
-        owner_id: 'f_rajesh',
+        owner_id: 'f_' + emailPrefix,
         department: 'BTech CSE & IT',
         profile: {
-          id: 'f_rajesh',
-          name: userName || 'Dr. Rajesh Sharma',
+          id: 'f_' + emailPrefix,
+          name: effectiveName || 'Dr. Faculty Coordinator',
           department: 'Computer Science & Engineering',
           designation: 'Faculty Placement Coordinator'
         }
       };
     }
+
     if (resolvedRole === 'alumni') {
       return {
-        id: 'u_alumni_priya',
-        name: userName || 'Priya Patel',
-        email: userEmail || 'priya.patel@alumni.gsfc.ac.in',
+        id: 'u_' + emailPrefix,
+        name: effectiveName || 'GSFC Alumni Mentor',
+        email: userEmail || 'alumni@alumni.gsfc.ac.in',
         role: 'alumni',
-        owner_id: 'alumni_priya',
+        owner_id: 'alumni_' + emailPrefix,
         profile: {
-          id: 'alumni_priya',
-          name: userName || 'Priya Patel',
-          company: 'Amazon AWS',
-          designation: 'Cloud Solutions Architect',
+          id: 'alumni_' + emailPrefix,
+          name: effectiveName || 'GSFC Alumni Mentor',
+          company: 'Industry Partner',
+          designation: 'Software Development Engineer',
           batch_year: '2019-2023',
           verified: 1
         }
@@ -176,34 +187,35 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialRole 
 
     if (resolvedRole === 'company') {
       return {
-        id: 'u_gsfc_recruiter',
-        name: userName || 'Corporate Recruiter',
-        email: userEmail || 'gsfclimited@gmail.com',
+        id: 'u_' + emailPrefix,
+        name: effectiveName || 'Corporate Recruiter',
+        email: userEmail || 'recruiter@company.com',
         role: 'company',
-        owner_id: 'c_gsfc_limited',
+        owner_id: 'c_' + emailPrefix,
         profile: {
-          id: 'c_gsfc_limited',
-          company_name: 'GSFC Limited',
-          industry: 'Fertilizers, Chemicals & Tech',
+          id: 'c_' + emailPrefix,
+          company_name: effectiveName || 'Corporate Partner',
+          industry: 'Technology & Engineering',
           approved: 1
         }
       };
     }
 
-    // Default: Student Profile (Om Thakkar / Arav Sharma)
+    // Default: Dynamic Student Profile
+    const derivedRoll = '22BCE' + Math.floor(100 + Math.random() * 900);
     return {
-      id: 'u_om_thakkar',
-      name: userName || 'Thakkar Om',
-      email: userEmail || 'thakkar_om@gmail.com',
+      id: 'u_' + emailPrefix,
+      name: effectiveName,
+      email: userEmail || 'student@gsfcuniversity.ac.in',
       role: 'student',
-      owner_id: 's_om',
+      owner_id: 's_' + emailPrefix,
       profile: {
-        id: 's_om',
-        name: userName || 'Thakkar Om',
+        id: 's_' + emailPrefix,
+        name: effectiveName,
         program: 'BTech CSE',
         branch: 'Computer Science & Engineering',
-        cgpa: 8.9,
-        roll_number: '21BCE045',
+        cgpa: 8.5,
+        roll_number: derivedRoll,
         phone: '+91 98765 43210'
       }
     };
