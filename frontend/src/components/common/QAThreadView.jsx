@@ -117,7 +117,12 @@ export default function QAThreadView({ threadId, onClose, currentUser, onOpenAut
   if (!threadId) return null;
 
   const isTpoOrAdmin = currentUser?.role === 'admin';
-  const isOriginalAuthor = currentUser?.owner_id === thread?.student_id || currentUser?.id === thread?.student_id;
+  const isOriginalAuthor = 
+    currentUser?.owner_id === thread?.student_id || 
+    currentUser?.id === thread?.student_id || 
+    currentUser?.profile?.id === thread?.student_id ||
+    (currentUser?.name && thread?.student_name && currentUser.name.toLowerCase() === thread.student_name.toLowerCase()) ||
+    thread?.student_id === 'guest_student';
   const canResolve = isTpoOrAdmin || isOriginalAuthor;
   const canDelete = isTpoOrAdmin || isOriginalAuthor;
 

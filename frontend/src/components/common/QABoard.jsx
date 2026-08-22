@@ -220,13 +220,19 @@ export default function QABoard({ currentUser, onOpenAuth }) {
                       <span>{thread.replies_count || 0} Replies</span>
                     </div>
 
-                    {(currentUser?.role === 'admin' || currentUser?.owner_id === thread.student_id || currentUser?.id === thread.student_id) && (
+                    {(currentUser?.role === 'admin' || 
+                      currentUser?.owner_id === thread.student_id || 
+                      currentUser?.id === thread.student_id || 
+                      currentUser?.profile?.id === thread.student_id || 
+                      (currentUser?.name && thread.student_name && currentUser.name.toLowerCase() === thread.student_name.toLowerCase()) ||
+                      thread.student_id === 'guest_student') && (
                       <button
                         title="Delete Question"
                         onClick={(e) => handleDeleteThread(e, thread.id)}
-                        className="p-1.5 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-xl transition-all border border-transparent hover:border-rose-200 dark:hover:border-rose-800"
+                        className="px-2.5 py-1.5 text-rose-600 dark:text-rose-400 hover:text-white bg-rose-50 dark:bg-rose-950/60 hover:bg-rose-600 dark:hover:bg-rose-600 rounded-xl text-[11px] font-bold transition-all border border-rose-200 dark:border-rose-800 flex items-center gap-1 cursor-pointer shadow-sm"
                       >
-                        <Trash2 className="w-4 h-4" />
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>Delete</span>
                       </button>
                     )}
                   </div>
