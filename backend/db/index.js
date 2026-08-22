@@ -404,6 +404,8 @@ function applyMigrations() {
         status TEXT CHECK(status IN ('open','resolved')) DEFAULT 'open',
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
       );
+      CREATE INDEX IF NOT EXISTS idx_qa_threads_student ON qa_threads(student_id);
+      CREATE INDEX IF NOT EXISTS idx_qa_threads_created ON qa_threads(created_at);
     `);
 
     // 8. Community Q&A Replies Table
@@ -413,10 +415,11 @@ function applyMigrations() {
         thread_id TEXT NOT NULL REFERENCES qa_threads(id) ON DELETE CASCADE,
         author_id TEXT NOT NULL,
         author_name TEXT,
-        author_role TEXT CHECK(author_role IN ('student', 'alumni', 'admin', 'company', 'tpo')),
+        author_role TEXT CHECK(author_role IN ('student', 'alumni', 'admin', 'company', 'tpo', 'faculty', 'superadmin')),
         body TEXT NOT NULL,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
       );
+      CREATE INDEX IF NOT EXISTS idx_qa_replies_thread ON qa_replies(thread_id);
     `);
 
     // Seed Demo Alumni, Job Fairs & Q&A if not already present

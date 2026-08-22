@@ -80,9 +80,13 @@ export default function AskQuestionModal({ isOpen, onClose, currentUser, onQuest
     const studentName = currentUser?.name || currentUser?.profile?.name || (currentUser?.email ? currentUser.email.split('@')[0] : 'GSFC Student');
 
     try {
+      const token = localStorage.getItem('campushire_token');
+      const headers = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
       const res = await fetch('/api/qa/threads', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({
           student_id: studentId,
           student_name: studentName,
@@ -91,6 +95,14 @@ export default function AskQuestionModal({ isOpen, onClose, currentUser, onQuest
           category
         })
       });
+
+      let data = null;
+      try {
+        const contentType = res.headers.get('content-type') || '';
+        if (contentType.includes('application/json')) {
+          data = await res.json();
+        }
+      } catch (e) {}
 
       let threadResult = null;
       if (res.ok && data && data.thread) {
@@ -106,6 +118,7 @@ export default function AskQuestionModal({ isOpen, onClose, currentUser, onQuest
       setCreatedThread(threadResult);
       saveAndBroadcastThread(threadResult);
       setIsSubmitted(true);
+      if (onQuestionCreated) onQuestionCreated(threadResult);
       if (onQuestionPosted) onQuestionPosted(threadResult);
       return;
     } catch (err) {
