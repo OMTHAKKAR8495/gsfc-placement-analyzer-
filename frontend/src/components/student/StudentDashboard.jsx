@@ -10,6 +10,7 @@ import NotificationLogsModal from '../common/NotificationLogsModal';
 import JobFairListView from './JobFairListView';
 import MentorshipFeed from '../alumni/MentorshipFeed';
 import QABoard from '../common/QABoard';
+import ResumeUploadPromptModal from './ResumeUploadPromptModal';
 import { useToast } from '../../context/ToastContext';
 
 export const DEFAULT_REQUIREMENTS_FEED = [
@@ -102,6 +103,18 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
   const [uploadingResume, setUploadingResume] = useState(false);
   const [selectedTargetReqId, setSelectedTargetReqId] = useState('');
   const [targetCompanyMatchData, setTargetCompanyMatchData] = useState(null);
+  const [resumePromptOpen, setResumePromptOpen] = useState(false);
+
+  useEffect(() => {
+    if (currentUser && (currentUser.role === 'student' || !currentUser.role)) {
+      const userKey = currentUser.id || currentUser.owner_id || currentUser.email || 'student';
+      const promptShown = sessionStorage.getItem(`gsfc_ats_prompt_shown_${userKey}`);
+      if (!promptShown) {
+        setResumePromptOpen(true);
+        sessionStorage.setItem(`gsfc_ats_prompt_shown_${userKey}`, 'true');
+      }
+    }
+  }, [currentUser]);
 
   const handleWithdrawApplication = async (appId) => {
     if (!window.confirm('Are you sure you want to withdraw/delete your application?')) return;
@@ -597,12 +610,22 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
                   <div className="text-[11px] text-blue-900 font-bold">
                     {(student.ats_score || 92) >= 85 ? 'Highly Compatible' : 'Optimization Tips'}
                   </div>
-                  <button
-                    onClick={() => setActiveTab('profile')}
-                    className="text-[10px] text-blue-800 hover:underline font-extrabold mt-0.5 block"
-                  >
-                    View Breakdown &rarr;
-                  </button>
+                  <div className="flex items-center gap-2 mt-1">
+                    <button
+                      onClick={() => setActiveTab('profile')}
+                      className="text-[10px] text-blue-800 hover:underline font-extrabold block"
+                    >
+                      View Breakdown &rarr;
+                    </button>
+                    <span className="text-slate-300">•</span>
+                    <button
+                      onClick={() => setResumePromptOpen(true)}
+                      className="text-[10px] text-blue-600 hover:text-blue-800 font-black flex items-center gap-0.5"
+                    >
+                      <Sparkles className="w-2.5 h-2.5" />
+                      <span>Re-Check ATS</span>
+                    </button>
+                  </div>
                 </div>
               </div>
             ) : isCompanyUser ? (
@@ -1623,6 +1646,28 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
           company={{ company_name: selectedStudentOffer.company_name }}
         />
       )}
+
+      {/* 🚀 ON-LOGIN RESUME UPLOAD & ATS RECRUITER CHECK PROMPT MODAL */}
+      <ResumeUploadPromptModal
+        isOpen={resumePromptOpen}
+        onClose={() => setResumePromptOpen(false)}
+        currentUser={currentUser}
+        requirements={requirementsFeed}
+        onUploadSuccess={(data) => {
+          if (onUpdateStudent && data.student) {
+            onUpdateStudent(data.student);
+          }
+          if (data.targetCompanyMatch) {
+            setTargetCompanyMatchData(data.targetCompanyMatch);
+          }
+          showToast({
+            type: 'success',
+            title: 'Resume Analyzed & ATS Scored!',
+            message: `ATS Score: ${data.atsScore}/100. Target recruiter match evaluated!`,
+            triggerCrackles: true
+          });
+        }}
+      />
     </div>
   );
 }
