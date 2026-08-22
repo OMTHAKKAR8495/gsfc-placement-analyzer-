@@ -156,7 +156,7 @@ export default function QAThreadView({ threadId, onClose, currentUser, onOpenAut
   return (
     <div 
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-md animate-fade-in"
+      className="fixed inset-0 top-[4.25rem] z-40 flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-md animate-fade-in"
     >
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-3xl w-full p-6 sm:p-8 shadow-2xl space-y-6 relative max-h-[90vh] overflow-y-auto">
         <button

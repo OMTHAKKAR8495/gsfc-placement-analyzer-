@@ -292,8 +292,8 @@ export default function ResumeBuilderAndDossierModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-950/85 backdrop-blur-md animate-fade-in print:p-0 print:bg-white">
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-5xl w-full p-5 sm:p-8 shadow-2xl space-y-6 relative max-h-[94vh] overflow-y-auto print:max-h-none print:border-none print:shadow-none print:p-0">
+    <div className="fixed inset-0 top-[4.25rem] z-40 flex items-center justify-center p-2 sm:p-4 bg-slate-950/85 backdrop-blur-md animate-fade-in print:p-0 print:bg-white">
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-5xl w-full p-5 sm:p-8 shadow-2xl space-y-6 relative max-h-[calc(100vh-5.5rem)] overflow-y-auto print:max-h-none print:border-none print:shadow-none print:p-0">
         
         {/* Close Button (Hidden in Print) */}
         <button

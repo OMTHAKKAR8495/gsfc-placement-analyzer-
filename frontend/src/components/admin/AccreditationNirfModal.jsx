@@ -418,13 +418,13 @@ export default function AccreditationNirfModal({ isOpen, onClose }) {
 
   return (
     <div 
-      className="fixed inset-0 z-[99999] flex items-center justify-center p-2 sm:p-4 bg-slate-950/85 backdrop-blur-md overflow-y-auto animate-fadeIn tpc-print-overlay"
+      className="fixed inset-0 top-[4.25rem] z-40 flex items-center justify-center p-2 sm:p-4 bg-slate-950/80 backdrop-blur-md overflow-y-auto animate-fadeIn tpc-print-overlay"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
       <div 
-        className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 max-w-5xl w-full shadow-2xl overflow-hidden my-4 text-slate-900 dark:text-slate-100 flex flex-col max-h-[92vh] tpc-print-card"
+        className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 max-w-5xl w-full shadow-2xl overflow-hidden text-slate-900 dark:text-slate-100 flex flex-col max-h-[calc(100vh-5.5rem)] tpc-print-card"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Modal Header */}
