@@ -21,6 +21,18 @@ export default function ResumeUploadPromptModal({
   const [dragActive, setDragActive] = useState(false);
   const fileInputRef = useRef(null);
 
+  React.useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' || e.keyCode === 27) {
+        if (onClose) onClose();
+      }
+    };
+    if (isOpen) {
+      window.addEventListener('keydown', handleKeyDown);
+      return () => window.removeEventListener('keydown', handleKeyDown);
+    }
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   const targetReq = requirements.find(r => r.id === selectedReqId) || requirements[0];

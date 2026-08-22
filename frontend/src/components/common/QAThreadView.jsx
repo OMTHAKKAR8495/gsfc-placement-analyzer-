@@ -15,7 +15,15 @@ export default function QAThreadView({ threadId, onClose, currentUser, onOpenAut
 
   useEffect(() => {
     if (threadId) fetchThread();
-  }, [threadId]);
+
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' || e.keyCode === 27) {
+        if (onClose) onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [threadId, onClose]);
 
   useEffect(() => {
     let timer;

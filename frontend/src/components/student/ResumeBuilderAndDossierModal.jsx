@@ -123,6 +123,18 @@ export default function ResumeBuilderAndDossierModal({
     }
   };
 
+  React.useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' || e.keyCode === 27) {
+        if (onClose) onClose();
+      }
+    };
+    if (isOpen) {
+      window.addEventListener('keydown', handleKeyDown);
+      return () => window.removeEventListener('keydown', handleKeyDown);
+    }
+  }, [isOpen, onClose]);
+
   const handleAddSkill = (skillToAdd) => {
     const s = (skillToAdd || skillInput).trim();
     if (s && !technicalSkills.includes(s)) {

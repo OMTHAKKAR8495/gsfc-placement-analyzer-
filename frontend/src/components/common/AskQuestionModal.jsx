@@ -44,6 +44,19 @@ export default function AskQuestionModal({ isOpen, onClose, currentUser, onQuest
     return () => clearTimeout(timer);
   }, [isSubmitted, countdown]);
 
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' || e.keyCode === 27) {
+        if (isSubmitted) handleFinish();
+        else onClose();
+      }
+    };
+    if (isOpen) {
+      window.addEventListener('keydown', handleKeyDown);
+      return () => window.removeEventListener('keydown', handleKeyDown);
+    }
+  }, [isOpen, isSubmitted, onClose]);
+
   if (!isOpen) return null;
 
   const handleFinish = () => {

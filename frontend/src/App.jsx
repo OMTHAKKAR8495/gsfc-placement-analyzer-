@@ -118,14 +118,22 @@ export default function App() {
       setActiveRole(targetWorkspace);
     };
 
-    window.addEventListener('popstate', handleHashOrPopState);
     window.addEventListener('hashchange', handleHashOrPopState);
+    window.addEventListener('popstate', handleHashOrPopState);
+
+    const handleGlobalKeyDown = (e) => {
+      if (e.key === 'Escape' || e.keyCode === 27) {
+        if (authModalOpen) setAuthModalOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleGlobalKeyDown);
 
     return () => {
-      window.removeEventListener('popstate', handleHashOrPopState);
       window.removeEventListener('hashchange', handleHashOrPopState);
+      window.removeEventListener('popstate', handleHashOrPopState);
+      window.removeEventListener('keydown', handleGlobalKeyDown);
     };
-  }, [theme, themeHue, currentUser]);
+  }, [theme, themeHue, currentUser, authModalOpen]);
 
   const toggleTheme = () => {
     setTheme(prev => (prev === 'dark' ? 'light' : 'dark'));

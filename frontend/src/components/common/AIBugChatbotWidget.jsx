@@ -27,6 +27,14 @@ export default function AIBugChatbotWidget({ hideCardsForBGView, onToggleBGView 
     if (isOpen) {
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
+
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' || e.keyCode === 27) {
+        if (isOpen) setIsOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, [messages, isOpen]);
 
   const handleSendMessage = async (customText = null) => {

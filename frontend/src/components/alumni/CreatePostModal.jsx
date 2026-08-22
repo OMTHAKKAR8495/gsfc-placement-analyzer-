@@ -24,6 +24,18 @@ export default function CreatePostModal({ isOpen, onClose, alumniProfile, onPost
     }
   };
 
+  React.useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' || e.keyCode === 27) {
+        if (onClose) onClose();
+      }
+    };
+    if (isOpen) {
+      window.addEventListener('keydown', handleKeyDown);
+      return () => window.removeEventListener('keydown', handleKeyDown);
+    }
+  }, [isOpen, onClose]);
+
   const handleAddCustomTag = (e) => {
     e.preventDefault();
     if (customTag.trim() && !selectedTags.includes(customTag.trim()) && selectedTags.length < 5) {
