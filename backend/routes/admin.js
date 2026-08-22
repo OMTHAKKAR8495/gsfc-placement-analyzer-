@@ -775,16 +775,21 @@ router.get('/accreditation/nirf-naac-data', (req, res) => {
 // 📥 1-Click Official NIRF Table CSV Export
 router.get('/accreditation/export-nirf-csv', (req, res) => {
   try {
+    const { year } = req.query;
     let csv = 'Academic Year,UG/PG Program,Approved Intake,Admitted 1st Year,Graduated in Stipulated Time,No. of Students Placed,Placement %,Median Salary of Placed Graduates (INR in Lakhs),No. of Students Selected for Higher Studies\n';
     
-    const cohorts = [
-      { yr: '2020-21', intake: 180, adm: 174, grad: 168, placed: 148, pct: '88.1%', median: '5.80', higher: 14 },
-      { yr: '2021-22', intake: 210, adm: 205, grad: 198, placed: 179, pct: '90.4%', median: '6.50', higher: 15 },
-      { yr: '2022-23', intake: 240, adm: 238, grad: 230, placed: 212, pct: '92.1%', median: '7.20', higher: 16 },
-      { yr: '2023-24', intake: 270, adm: 265, grad: 258, placed: 240, pct: '93.0%', median: '8.10', higher: 17 },
-      { yr: '2024-25', intake: 300, adm: 295, grad: 288, placed: 271, pct: '94.1%', median: '9.20', higher: 16 },
-      { yr: '2025-26', intake: 320, adm: 318, grad: 310, placed: 292, pct: '94.2%', median: '10.50', higher: 18 }
+    let cohorts = [
+      { yr: '2020-21', gradYear: 2021, intake: 180, adm: 174, grad: 168, placed: 148, pct: '88.1%', median: '5.80', higher: 14 },
+      { yr: '2021-22', gradYear: 2022, intake: 210, adm: 205, grad: 198, placed: 179, pct: '90.4%', median: '6.50', higher: 15 },
+      { yr: '2022-23', gradYear: 2023, intake: 240, adm: 238, grad: 230, placed: 212, pct: '92.1%', median: '7.20', higher: 16 },
+      { yr: '2023-24', gradYear: 2024, intake: 270, adm: 265, grad: 258, placed: 240, pct: '93.0%', median: '8.10', higher: 17 },
+      { yr: '2024-25', gradYear: 2025, intake: 300, adm: 295, grad: 288, placed: 271, pct: '94.1%', median: '9.20', higher: 16 },
+      { yr: '2025-26', gradYear: 2026, intake: 320, adm: 318, grad: 310, placed: 292, pct: '94.2%', median: '10.50', higher: 18 }
     ];
+
+    if (year && year !== 'ALL') {
+      cohorts = cohorts.filter(c => String(c.gradYear) === String(year) || c.yr.includes(String(year)));
+    }
 
     cohorts.forEach(c => {
       csv += `"${c.yr}","B.Tech (4 Years)",${c.intake},${c.adm},${c.grad},${c.placed},"${c.pct}",${c.median},${c.higher}\n`;
@@ -801,17 +806,33 @@ router.get('/accreditation/export-nirf-csv', (req, res) => {
 // 📥 1-Click Official NAAC Metric 5.2.1 CSV Export
 router.get('/accreditation/export-naac-csv', (req, res) => {
   try {
+    const { year, field } = req.query;
     let csv = 'Year,Student Roll Number,Student Name,Program Graduated From,Name of the Employer,Designation / Role,Pay Package at Appointment (INR LPA),Appointment Order / Letter Ref No\n';
     
-    const apps = db.prepare(`
+    let query = `
       SELECT a.id, s.roll_number, s.name as student_name, s.program, s.branch, s.passing_year,
              c.company_name, r.title as job_title, r.ctc_range
       FROM applications a
       JOIN student_profiles s ON a.student_id = s.id
       JOIN requirements r ON a.requirement_id = r.id
       JOIN company_profiles c ON r.company_id = c.id
-      ORDER BY s.passing_year DESC
-    `).all();
+      WHERE 1=1
+    `;
+    const params = [];
+
+    if (year && year !== 'ALL') {
+      query += ` AND s.passing_year = ?`;
+      params.push(parseInt(year, 10));
+    }
+
+    if (field && field !== 'ALL') {
+      query += ` AND (UPPER(s.program) LIKE ? OR UPPER(s.branch) LIKE ?)`;
+      params.push(`%${field.toUpperCase()}%`, `%${field.toUpperCase()}%`);
+    }
+
+    query += ` ORDER BY s.passing_year DESC`;
+
+    const apps = db.prepare(query).all(...params);
 
     apps.forEach((a, idx) => {
       const salaryLpa = parseSalaryLpa(a.ctc_range);
