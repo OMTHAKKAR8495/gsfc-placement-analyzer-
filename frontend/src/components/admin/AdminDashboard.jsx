@@ -228,7 +228,9 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
     try {
       const res = await fetch('/api/admin/students');
       const data = await res.json();
-      setAllCandidates(Array.isArray(data) ? data : []);
+      const studentList = Array.isArray(data) ? data : [];
+      setAllCandidates(studentList);
+      setSelectedStudentIds(new Set(studentList.map(s => s.id)));
     } catch (err) {
       console.error('Error fetching candidate database:', err);
     }
@@ -441,20 +443,32 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
   };
 
   const toggleSelectAllVisibleStudents = () => {
-    if (selectedStudentIds.size === filteredCandidates.length) {
-      setSelectedStudentIds(new Set());
+    const allVisibleIds = filteredCandidates.map(c => c.id);
+    const areAllVisibleSelected = allVisibleIds.length > 0 && allVisibleIds.every(id => selectedStudentIds.has(id));
+
+    if (areAllVisibleSelected) {
+      // Deselect all currently visible students
+      setSelectedStudentIds(prev => {
+        const next = new Set(prev);
+        allVisibleIds.forEach(id => next.delete(id));
+        return next;
+      });
     } else {
-      setSelectedStudentIds(new Set(filteredCandidates.map(c => c.id)));
+      // Select all currently visible students
+      setSelectedStudentIds(prev => {
+        const next = new Set(prev);
+        allVisibleIds.forEach(id => next.add(id));
+        return next;
+      });
     }
   };
 
   const selectedStudentsList = useMemo(() => {
-    if (selectedStudentIds.size === 0) return filteredCandidates;
     return filteredCandidates.filter(c => selectedStudentIds.has(c.id));
   }, [filteredCandidates, selectedStudentIds]);
 
   const batchStats = useMemo(() => {
-    const activeList = selectedStudentsList.length > 0 ? selectedStudentsList : filteredCandidates;
+    const activeList = selectedStudentsList;
     if (activeList.length === 0) {
       return { count: 0, avgCgpa: '0.00', avgAts: '0', placedCount: 0 };
     }
@@ -468,7 +482,7 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
       avgAts,
       placedCount: activeList.filter(c => c.cgpa >= 8.5).length
     };
-  }, [selectedStudentsList, filteredCandidates]);
+  }, [selectedStudentsList]);
 
   if (!currentUser || currentUser.role !== 'admin') {
     return (
@@ -1415,12 +1429,19 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
 
               <div className="flex items-center gap-2 flex-wrap">
                 <button
+                  type="button"
                   onClick={toggleSelectAllVisibleStudents}
-                  className="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-800 dark:text-slate-200 rounded-xl text-xs font-black transition-all flex items-center gap-1 border border-slate-200 dark:border-slate-700 cursor-pointer"
+                  className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all flex items-center gap-1 border cursor-pointer ${
+                    filteredCandidates.length > 0 && filteredCandidates.every(c => selectedStudentIds.has(c.id))
+                      ? 'bg-blue-900 text-white border-blue-800 shadow-sm'
+                      : 'bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-800 dark:text-slate-200 border-slate-200 dark:border-slate-700'
+                  }`}
                 >
                   <CheckSquare className="w-3.5 h-3.5" />
                   <span>
-                    {selectedStudentIds.size === filteredCandidates.length ? 'Deselect All' : 'Select All Visible'}
+                    {filteredCandidates.length > 0 && filteredCandidates.every(c => selectedStudentIds.has(c.id))
+                      ? 'Deselect All' 
+                      : 'Select All Visible'}
                   </span>
                 </button>
 
@@ -1487,7 +1508,14 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
                     <th className="py-4 px-4 text-center w-12">
                       <input
                         type="checkbox"
-                        checked={selectedStudentsList.length > 0 && selectedStudentsList.length === filteredCandidates.length}
+                        checked={filteredCandidates.length > 0 && filteredCandidates.every(c => selectedStudentIds.has(c.id))}
+                        ref={el => {
+                          if (el) {
+                            const allSel = filteredCandidates.length > 0 && filteredCandidates.every(c => selectedStudentIds.has(c.id));
+                            const someSel = filteredCandidates.some(c => selectedStudentIds.has(c.id));
+                            el.indeterminate = !allSel && someSel;
+                          }
+                        }}
                         onChange={toggleSelectAllVisibleStudents}
                         className="w-4 h-4 rounded text-blue-900 focus:ring-blue-900 cursor-pointer"
                         title="Select/Deselect All Visible"
@@ -1506,7 +1534,7 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
                     filteredCandidates.map((cand) => {
                       const passingYear = cand.passing_year || (cand.admission_year ? cand.admission_year + 4 : 2026);
                       const batchStr = cand.batch_year || `${passingYear - 4}-${passingYear}`;
-                      const isSelected = selectedStudentIds.size === 0 || selectedStudentIds.has(cand.id);
+                      const isSelected = selectedStudentIds.has(cand.id);
 
                       return (
                         <tr 
@@ -1514,7 +1542,7 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
                           className={`transition-all ${
                             isSelected 
                               ? 'bg-blue-50/40 dark:bg-blue-950/20 hover:bg-blue-50/70 dark:hover:bg-blue-950/30' 
-                              : 'hover:bg-slate-50/80 dark:hover:bg-slate-800/50 opacity-60'
+                              : 'hover:bg-slate-50/80 dark:hover:bg-slate-800/50 opacity-40 bg-slate-50/20'
                           }`}
                         >
                           <td className="py-4 px-4 text-center">
