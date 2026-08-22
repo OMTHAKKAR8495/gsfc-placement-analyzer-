@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { MessageSquare, X, Send, Sparkles, Bot, User, RefreshCw, Bug, CheckCircle } from 'lucide-react';
+import { MessageSquare, X, Send, Sparkles, Bot, User, RefreshCw, Bug, CheckCircle, Upload, FileText, Wand2 } from 'lucide-react';
 
 export default function AIBugChatbotWidget() {
   const [isOpen, setIsOpen] = useState(false);
@@ -14,9 +14,9 @@ export default function AIBugChatbotWidget() {
   const messagesEndRef = useRef(null);
 
   const quickPrompts = [
+    'How to upload resume & check ATS?',
+    'How to make resume with AI from scratch?',
     'Why Sign In button failed?',
-    'How to parse PDF resume & check ATS?',
-    'How do recruiters post requirements?',
     'Report a portal bug'
   ];
 
@@ -29,6 +29,14 @@ export default function AIBugChatbotWidget() {
   const handleSendMessage = async (customText = null) => {
     const textToSend = customText || inputMessage;
     if (!textToSend.trim() || loading) return;
+
+    if (textToSend.includes('upload resume')) {
+      window.location.hash = '#student';
+      window.dispatchEvent(new CustomEvent('open-resume-upload'));
+    } else if (textToSend.includes('make resume') || textToSend.includes('scratch')) {
+      window.location.hash = '#student';
+      window.dispatchEvent(new CustomEvent('open-resume-builder'));
+    }
 
     const userMsg = { sender: 'user', text: textToSend };
     setMessages(prev => [...prev, userMsg]);
@@ -62,12 +70,49 @@ export default function AIBugChatbotWidget() {
 
   return (
     <>
-      {/* Floating Chat Trigger Button */}
-      <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-2">
+      {/* Floating Action Dock: Upload Resume & Make Resume Logo Buttons */}
+      <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-2.5">
+        {!isOpen && (
+          <div className="flex items-center gap-2 animate-fade-in">
+            {/* 1. Upload Resume Button with Logo */}
+            <button
+              type="button"
+              onClick={() => {
+                window.location.hash = '#student';
+                window.dispatchEvent(new CustomEvent('open-resume-upload'));
+              }}
+              className="px-3.5 py-2.5 bg-white/95 dark:bg-slate-900/95 hover:bg-blue-50 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-100 hover:text-blue-600 rounded-full text-xs font-black shadow-xl backdrop-blur-xl border border-slate-200/90 dark:border-slate-700 flex items-center gap-2 transition-all hover:scale-105 group cursor-pointer"
+              title="Upload PDF Resume to Calculate ATS Score"
+            >
+              <div className="w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-950 text-blue-600 flex items-center justify-center shadow-sm">
+                <Upload className="w-3.5 h-3.5" />
+              </div>
+              <span className="hidden sm:inline">Upload Resume</span>
+            </button>
+
+            {/* 2. Make/Build Resume with AI Button with Logo */}
+            <button
+              type="button"
+              onClick={() => {
+                window.location.hash = '#student';
+                window.dispatchEvent(new CustomEvent('open-resume-builder'));
+              }}
+              className="px-3.5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-full text-xs font-black shadow-xl backdrop-blur-xl border border-white/20 flex items-center gap-2 transition-all hover:scale-105 group cursor-pointer"
+              title="Don't have a resume? Build one with Gemini AI & Upload 3 Documents"
+            >
+              <div className="w-6 h-6 rounded-full bg-white/20 text-amber-300 flex items-center justify-center shadow-sm">
+                <Sparkles className="w-3.5 h-3.5 animate-pulse" />
+              </div>
+              <span>Make Resume (AI)</span>
+            </button>
+          </div>
+        )}
+
+        {/* Floating Chat Trigger Button */}
         {!isOpen && (
           <button
             onClick={() => setIsOpen(true)}
-            className="px-4 py-3 bg-gradient-to-r from-blue-900 via-indigo-900 to-amber-600 hover:from-blue-800 hover:to-amber-500 text-white rounded-full text-xs font-black shadow-2xl backdrop-blur-xl border border-white/30 flex items-center gap-2.5 transition-all hover:scale-105 group"
+            className="px-4 py-3 bg-gradient-to-r from-blue-900 via-indigo-900 to-amber-600 hover:from-blue-800 hover:to-amber-500 text-white rounded-full text-xs font-black shadow-2xl backdrop-blur-xl border border-white/30 flex items-center gap-2.5 transition-all hover:scale-105 group cursor-pointer"
           >
             <div className="relative">
               <Bot className="w-5 h-5 text-amber-300 group-hover:rotate-12 transition-transform" />

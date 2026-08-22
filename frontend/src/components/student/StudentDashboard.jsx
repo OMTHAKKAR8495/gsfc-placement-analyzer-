@@ -116,6 +116,17 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
         sessionStorage.setItem(`gsfc_ats_prompt_shown_${userKey}`, 'true');
       }
     }
+
+    const handleOpenUpload = () => setResumePromptOpen(true);
+    const handleOpenBuilder = () => setBuilderModalOpen(true);
+
+    window.addEventListener('open-resume-upload', handleOpenUpload);
+    window.addEventListener('open-resume-builder', handleOpenBuilder);
+
+    return () => {
+      window.removeEventListener('open-resume-upload', handleOpenUpload);
+      window.removeEventListener('open-resume-builder', handleOpenBuilder);
+    };
   }, [currentUser]);
 
   const handleWithdrawApplication = async (appId) => {
