@@ -101,7 +101,7 @@ export default function Navbar({ currentUser, activeRole, onRoleSwitch, onOpenAu
 
   return (
     <header className="sticky top-0 z-50 w-full glass-panel border-b border-slate-200/90 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl shadow-sm transition-colors duration-300">
-      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 min-h-[4rem] py-2 flex items-center justify-between gap-2">
+      <div className="w-full max-w-[1700px] mx-auto px-2 sm:px-4 lg:px-6 min-h-[4rem] py-2 flex items-center justify-between gap-1.5 sm:gap-3">
         
         {/* GSFC Official Logo Header */}
         <div 
@@ -215,93 +215,99 @@ export default function Navbar({ currentUser, activeRole, onRoleSwitch, onOpenAu
             </button>
           )}
 
-          {/* Faculty Hub Tab */}
-          <button
-            onClick={() => onRoleSwitch('faculty')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black transition-all shrink-0 whitespace-nowrap ${
-              activeRole === 'faculty'
-                ? 'bg-theme-gradient text-white shadow-md'
-                : 'text-slate-700 dark:text-slate-200 hover:text-slate-900 hover:bg-slate-200/60 dark:hover:bg-slate-700'
-            }`}
-          >
-            <GraduationCap className="w-3.5 h-3.5 text-emerald-400" />
-            <span>Faculty Hub</span>
-          </button>
+          {/* Faculty Hub Tab (Visible only to authorized Faculty and TPC Admins) */}
+          {(currentUser?.role === 'faculty' || currentUser?.role === 'admin' || currentUser?.role === 'superadmin') && (
+            <button
+              onClick={() => onRoleSwitch('faculty')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black transition-all shrink-0 whitespace-nowrap ${
+                activeRole === 'faculty'
+                  ? 'bg-theme-gradient text-white shadow-md'
+                  : 'text-slate-700 dark:text-slate-200 hover:text-slate-900 hover:bg-slate-200/60 dark:hover:bg-slate-700'
+              }`}
+            >
+              <GraduationCap className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Faculty Hub</span>
+            </button>
+          )}
 
-          {/* Super Admin Tab */}
-          <button
-            onClick={() => onRoleSwitch('superadmin')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black transition-all shrink-0 whitespace-nowrap ${
-              activeRole === 'superadmin'
-                ? 'bg-theme-gradient text-white shadow-md'
-                : 'text-slate-700 dark:text-slate-200 hover:text-slate-900 hover:bg-slate-200/60 dark:hover:bg-slate-700'
-            }`}
-          >
-            <Lock className="w-3.5 h-3.5 text-purple-400" />
-            <span>Super Admin</span>
-          </button>
+          {/* Super Admin Tab (Visible only to Super Administrators) */}
+          {(currentUser?.role === 'superadmin' || currentUser?.role === 'admin') && (
+            <button
+              onClick={() => onRoleSwitch('superadmin')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black transition-all shrink-0 whitespace-nowrap ${
+                activeRole === 'superadmin'
+                  ? 'bg-theme-gradient text-white shadow-md'
+                  : 'text-slate-700 dark:text-slate-200 hover:text-slate-900 hover:bg-slate-200/60 dark:hover:bg-slate-700'
+              }`}
+            >
+              <Lock className="w-3.5 h-3.5 text-purple-400" />
+              <span>Super Admin</span>
+            </button>
+          )}
         </div>
 
         {/* Right Navigation & Header Actions Controls */}
-        <div className="hidden md:flex items-center gap-2">
+        <div className="hidden md:flex items-center gap-1.5 lg:gap-2 shrink-0">
           {/* 🔍 GLOBAL SEARCH (CMD+K) BUTTON */}
           <button
             onClick={() => setSearchModalOpen(true)}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-xs font-bold transition-all cursor-pointer shrink-0 shadow-2xs"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-xs font-bold transition-all cursor-pointer shadow-2xs"
             title="Global Placement Search (Cmd+K)"
           >
             <Search className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
-            <span className="hidden lg:inline text-[11px]">Search...</span>
             <kbd className="px-1.5 py-0.2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded text-[9px] font-mono text-slate-400">⌘K</kbd>
           </button>
 
           {/* 🤖 AI COPILOT LAUNCHER */}
           <button
             onClick={() => setCopilotDrawerOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-blue-900 via-indigo-900 to-purple-900 text-white font-black text-xs shadow-md border border-purple-400/40 hover:scale-105 transition-all cursor-pointer shrink-0"
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-blue-900 via-indigo-900 to-purple-900 text-white font-black text-xs shadow-md border border-purple-400/40 hover:scale-105 transition-all cursor-pointer"
             title="Launch AI TPO & Career Copilot"
           >
             <Sparkles className="w-3.5 h-3.5 text-amber-300 animate-pulse" />
-            <span>AI Copilot</span>
+            <span>Copilot</span>
           </button>
 
           {/* 🎬 GUIDED DEMO TOUR */}
           <button
             onClick={() => setDemoModalOpen(true)}
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs shadow-xs transition-all cursor-pointer shrink-0"
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs shadow-xs transition-all cursor-pointer"
             title="13-Step Guided Faculty Demonstration"
           >
             <Play className="w-3 h-3 fill-slate-950" />
-            <span>Demo Tour</span>
-          </button>
-
-          <button
-            onClick={onToggleTheme}
-            className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-amber-400 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 transition-colors text-xs font-black cursor-pointer shrink-0"
-            title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-          >
-            {theme === 'dark' ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-slate-700" />}
+            <span>Demo</span>
           </button>
 
           {/* 🔔 LIVE NOTIFICATION CENTER BELL BUTTON */}
           <button
             onClick={() => setNotifModalOpen(true)}
-            className="relative p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 transition-all text-xs font-bold cursor-pointer shrink-0"
+            className="relative p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 transition-all text-xs font-bold cursor-pointer"
             title="Placement Notifications & Live TPC Updates"
           >
             <Bell className="w-4 h-4 text-slate-700 dark:text-slate-200" />
             {unreadCount > 0 && (
-              <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 bg-amber-500 text-slate-950 rounded-full text-[10px] font-black flex items-center justify-center shadow-md animate-pulse border-2 border-white dark:border-slate-900">
+              <span className="absolute -top-1 -right-1 min-w-[16px] h-[16px] px-1 bg-amber-500 text-slate-950 rounded-full text-[9px] font-black flex items-center justify-center shadow-md animate-pulse border border-white dark:border-slate-900">
                 {unreadCount > 9 ? '9+' : unreadCount}
               </span>
             )}
           </button>
 
+          <button
+            onClick={onToggleTheme}
+            className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-amber-400 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 transition-colors text-xs font-black cursor-pointer"
+            title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+          >
+            {theme === 'dark' ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-slate-700" />}
+          </button>
+
+          {/* 🔑 SIGN IN / USER PROFILE & SIGN OUT BUTTON */}
           {currentUser ? (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 pl-1 border-l border-slate-200 dark:border-slate-700">
               <div className="text-right hidden xl:block">
-                <div className="text-xs font-black text-slate-900 dark:text-slate-100 truncate max-w-[100px]">{currentUser.profile?.name || currentUser.email}</div>
-                <div className="text-[9px] font-black text-blue-900 dark:text-blue-400 uppercase tracking-wider flex items-center justify-end gap-1">
+                <div className="text-xs font-black text-slate-900 dark:text-slate-100 truncate max-w-[100px]">
+                  {currentUser.profile?.name || currentUser.email}
+                </div>
+                <div className="text-[9px] font-black text-emerald-600 uppercase tracking-wider flex items-center justify-end gap-1">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
                   {currentUser.role}
                 </div>
@@ -309,39 +315,22 @@ export default function Navbar({ currentUser, activeRole, onRoleSwitch, onOpenAu
 
               <button
                 onClick={onLogout}
-                className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-red-50 dark:hover:bg-red-900/40 hover:text-red-600 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition-all text-xs font-bold cursor-pointer shrink-0"
-                title="Sign Out"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-black shadow-md transition-all cursor-pointer"
+                title="Sign Out of Account"
               >
-                <LogOut className="w-4 h-4" />
+                <LogOut className="w-3.5 h-3.5" />
+                <span>Sign Out</span>
               </button>
             </div>
           ) : (
             <button
               onClick={onOpenAuth}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-blue-900 via-indigo-900 to-amber-600 hover:from-blue-800 text-white font-black text-xs shadow-md transition-all shrink-0 cursor-pointer min-h-[34px]"
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-blue-900 via-indigo-900 to-amber-600 hover:from-blue-800 hover:to-amber-500 text-white font-black text-xs shadow-md transition-all cursor-pointer"
             >
               <LogIn className="w-3.5 h-3.5 shrink-0" />
-              <span>Portal</span>
+              <span>Sign In / Portal</span>
             </button>
           )}
-
-          {/* 🌐 ENTERPRISE ECOSYSTEM (POD.AI SUITE) BUTTON */}
-          <button
-            onClick={() => setEcosystemModalOpen(true)}
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-blue-900 via-indigo-900 to-amber-600 hover:from-blue-800 text-white font-black text-xs shadow-md transition-all shrink-0 border border-blue-400/40 cursor-pointer"
-            title="Large-Scale Multi-College Recruitment, 100+ Employers & Proctored Assessment Suite"
-          >
-            <Globe className="w-3.5 h-3.5 text-amber-300 animate-pulse" />
-            <span className="hidden lg:inline">Consortium</span>
-          </button>
-
-          <button
-            onClick={() => setDownloadModalOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gradient-to-r from-emerald-600 via-teal-600 to-blue-600 text-white font-black text-xs shadow-md transition-all shrink-0 border border-emerald-400/40 cursor-pointer"
-          >
-            <Smartphone className="w-3.5 h-3.5 text-amber-300" />
-            <span>Download App</span>
-          </button>
         </div>
 
         {/* Mobile Header Action Controls (< md) */}

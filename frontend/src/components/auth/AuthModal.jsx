@@ -288,6 +288,14 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
       email = 'admin@gsfcuniversity.ac.in';
       name = 'GSFC TPC Director';
       setFormData(prev => ({ ...prev, email, password: 'password123', phone: '+91 99999 88888' }));
+    } else if (demoRole === 'faculty') {
+      email = 'faculty.cse@gsfcuniversity.ac.in';
+      name = 'Dr. Rajesh Sharma (Faculty Coordinator)';
+      setFormData(prev => ({ ...prev, email, password: 'password123', phone: '+91 98888 77777' }));
+    } else if (demoRole === 'superadmin') {
+      email = 'superadmin@gsfcuniversity.ac.in';
+      name = 'Super Administrator';
+      setFormData(prev => ({ ...prev, email, password: 'password123', phone: '+91 99999 00000' }));
     } else if (demoRole === 'alumni') {
       email = 'priya.patel@alumni.gsfc.ac.in';
       name = 'Priya Patel (Amazon AWS)';
@@ -493,34 +501,48 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
                 <Sparkles className="w-3.5 h-3.5 text-blue-800" />
                 Quick Demo 1-Click Login:
               </div>
-              <div className="grid grid-cols-4 gap-1.5">
+              <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5">
                 <button
                   type="button"
                   onClick={() => fillDemoAccount('student')}
-                  className="py-2 px-1.5 bg-blue-900 hover:bg-blue-800 text-white rounded-xl text-[11px] font-black transition-all shadow-sm"
+                  className="py-2 px-1 bg-blue-900 hover:bg-blue-800 text-white rounded-xl text-[10px] font-black transition-all shadow-sm"
                 >
                   Student
                 </button>
                 <button
                   type="button"
                   onClick={() => fillDemoAccount('company')}
-                  className="py-2 px-1.5 bg-indigo-900 hover:bg-indigo-800 text-white rounded-xl text-[11px] font-black transition-all shadow-sm"
+                  className="py-2 px-1 bg-indigo-900 hover:bg-indigo-800 text-white rounded-xl text-[10px] font-black transition-all shadow-sm"
                 >
                   Recruiter
                 </button>
                 <button
                   type="button"
-                  onClick={() => fillDemoAccount('alumni')}
-                  className="py-2 px-1.5 bg-cyan-700 hover:bg-cyan-600 text-white rounded-xl text-[11px] font-black transition-all shadow-sm"
+                  onClick={() => fillDemoAccount('admin')}
+                  className="py-2 px-1 bg-amber-600 hover:bg-amber-500 text-white rounded-xl text-[10px] font-black transition-all shadow-sm"
                 >
-                  Alumni
+                  TPC Admin
                 </button>
                 <button
                   type="button"
-                  onClick={() => fillDemoAccount('admin')}
-                  className="py-2 px-1.5 bg-amber-600 hover:bg-amber-500 text-white rounded-xl text-[11px] font-black transition-all shadow-sm"
+                  onClick={() => fillDemoAccount('faculty')}
+                  className="py-2 px-1 bg-emerald-700 hover:bg-emerald-600 text-white rounded-xl text-[10px] font-black transition-all shadow-sm"
                 >
-                  TPC Admin
+                  Faculty
+                </button>
+                <button
+                  type="button"
+                  onClick={() => fillDemoAccount('superadmin')}
+                  className="py-2 px-1 bg-purple-700 hover:bg-purple-600 text-white rounded-xl text-[10px] font-black transition-all shadow-sm"
+                >
+                  Super Admin
+                </button>
+                <button
+                  type="button"
+                  onClick={() => fillDemoAccount('alumni')}
+                  className="py-2 px-1 bg-cyan-700 hover:bg-cyan-600 text-white rounded-xl text-[10px] font-black transition-all shadow-sm"
+                >
+                  Alumni
                 </button>
               </div>
             </div>
