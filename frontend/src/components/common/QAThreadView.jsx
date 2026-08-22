@@ -123,7 +123,7 @@ export default function QAThreadView({ threadId, onClose, currentUser, onOpenAut
     currentUser?.profile?.id === thread?.student_id ||
     (currentUser?.name && thread?.student_name && currentUser.name.toLowerCase() === thread.student_name.toLowerCase()) ||
     thread?.student_id === 'guest_student';
-  const canResolve = isTpoOrAdmin || isOriginalAuthor;
+  const canResolve = isTpoOrAdmin; // Only TPO Directorate / Admin can mark resolved
   const canDelete = isTpoOrAdmin || isOriginalAuthor;
 
   return (
