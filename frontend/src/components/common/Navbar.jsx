@@ -73,6 +73,8 @@ export default function Navbar({ currentUser, activeRole, onRoleSwitch, onOpenAu
     }));
   }, [notifications, readNotifIds]);
 
+  const unreadCount = formattedNotifications.filter(n => !n.is_read).length;
+
   // Global shortcut (Cmd+K / Ctrl+K) for Global Search
   useEffect(() => {
     const handleKeyDown = (e) => {
