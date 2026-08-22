@@ -159,6 +159,28 @@ export default function App() {
       const res = await fetch('/api/auth/me', {
         headers: { Authorization: `Bearer ${token}` }
       });
+
+      // 204 = demo/offline token — server acknowledged it, keep the localStorage user as-is
+      if (res.status === 204) {
+        const savedUser = localStorage.getItem('campushire_user');
+        if (savedUser) {
+          try {
+            const parsedUser = JSON.parse(savedUser);
+            setCurrentUser(parsedUser);
+            // Ensure routing matches the saved user's role
+            const currentHash = window.location.hash.replace('#', '');
+            if (!isRoleAllowedInWorkspace(parsedUser, currentHash)) {
+              const defaultRoleWorkspace = parsedUser.role === 'faculty' 
+                ? 'faculty' 
+                : (parsedUser.role === 'superadmin' ? 'superadmin' : (parsedUser.role === 'company' ? 'company' : (parsedUser.role === 'admin' ? 'admin' : 'student')));
+              setActiveRole(defaultRoleWorkspace);
+              window.history.replaceState(null, '', `#${defaultRoleWorkspace}`);
+            }
+          } catch(e) {}
+        }
+        return;
+      }
+
       if (res.ok) {
         const data = await res.json();
         if (data && data.user) {
@@ -183,7 +205,12 @@ export default function App() {
         setCurrentUser(null);
       }
     } catch (err) {
+      // Network failure: preserve active client session from localStorage
       console.warn('Network notice: Preserving active client session.');
+      const savedUser = localStorage.getItem('campushire_user');
+      if (savedUser) {
+        try { setCurrentUser(JSON.parse(savedUser)); } catch(e) {}
+      }
     }
   };
 

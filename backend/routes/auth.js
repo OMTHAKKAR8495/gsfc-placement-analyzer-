@@ -96,10 +96,16 @@ router.post('/login', AuthRateLimiter.loginLimiter, async (req, res) => {
       email.toLowerCase().includes('limited') ||
       email.toLowerCase().includes('c_');
     const isAdminEmail = email.toLowerCase().includes('admin') || email.toLowerCase().includes('tpc');
+    const isFacultyEmail = email.toLowerCase().includes('faculty') ||
+      email.toLowerCase().includes('prof.') ||
+      email.toLowerCase().includes('dr.') ||
+      email.toLowerCase().includes('hod') ||
+      email.toLowerCase().includes('coordinator');
+    const isAlumniEmail = email.toLowerCase().includes('alumni') || email.toLowerCase().includes('alum');
 
     // Seamless auto-registration for GSFC students / recruiters logging in for the first time
     if (!user) {
-      const role = isAdminEmail ? 'admin' : (isCompanyEmail ? 'company' : 'student');
+      const role = isAdminEmail ? 'admin' : (isFacultyEmail ? 'faculty' : (isCompanyEmail ? 'company' : (isAlumniEmail ? 'alumni' : 'student')));
       const userId = 'u_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
       const passwordHash = bcrypt.hashSync(password, 6);
 
@@ -128,6 +134,9 @@ router.post('/login', AuthRateLimiter.loginLimiter, async (req, res) => {
           90,
           JSON.stringify({ name: studentName, program: 'BTech CSE', branch: 'Computer Science', cgpa: 8.5, skills: ['Python', 'React', 'SQL', 'FastAPI'] })
         );
+      } else if (role === 'faculty') {
+        // Faculty users don't need a separate profile table entry for basic access
+        ownerId = userId;
       } else if (role === 'company') {
         const companyId = 'c_' + Date.now();
         ownerId = companyId;
@@ -139,8 +148,11 @@ router.post('/login', AuthRateLimiter.loginLimiter, async (req, res) => {
 
       user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
     } else {
-      // If logging in as company email, ensure role is company
-      if (isCompanyEmail && user.role !== 'company') {
+      // If email pattern matches a specific role, update user role accordingly
+      if (isFacultyEmail && user.role !== 'faculty' && user.role !== 'admin' && user.role !== 'superadmin') {
+        db.prepare("UPDATE users SET role = 'faculty' WHERE id = ?").run(user.id);
+        user.role = 'faculty';
+      } else if (isCompanyEmail && user.role !== 'company' && user.role !== 'admin' && user.role !== 'superadmin') {
         db.prepare("UPDATE users SET role = 'company' WHERE id = ?").run(user.id);
         user.role = 'company';
         const existingComp = db.prepare('SELECT id FROM company_profiles WHERE user_id = ?').get(user.id);
@@ -268,6 +280,12 @@ router.get('/me', (req, res) => {
   }
   try {
     const token = authHeader.split(' ')[1];
+
+    // Handle demo/offline tokens gracefully — return 204 so client keeps localStorage user
+    if (token.startsWith('demo_token_') || token.startsWith('offline_')) {
+      return res.status(204).end();
+    }
+
     const decoded = jwt.verify(token, JWT_SECRET);
     const user = db.prepare('SELECT id, email, role FROM users WHERE id = ?').get(decoded.userId);
     if (!user) return res.status(404).json({ error: 'User not found' });
@@ -279,6 +297,14 @@ router.get('/me', (req, res) => {
       profile = db.prepare('SELECT * FROM company_profiles WHERE user_id = ?').get(user.id);
     } else if (user.role === 'alumni') {
       profile = db.prepare('SELECT * FROM alumni_profiles WHERE user_id = ?').get(user.id);
+    } else if (user.role === 'faculty') {
+      // Faculty profile is embedded in the user object from token
+      profile = {
+        id: decoded.owner_id || user.id,
+        name: decoded.name || 'Faculty Coordinator',
+        department: 'Computer Science & Engineering',
+        designation: 'Faculty Placement Coordinator'
+      };
     }
 
     res.json({ user: { ...user, profile } });

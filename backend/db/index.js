@@ -241,25 +241,89 @@ function applyMigrations() {
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
       );
     `);
-    // Migrate users.role check constraint if 'alumni' is missing
+    // Migrate users.role check constraint if 'faculty'/'superadmin' is missing
     const userTableSql = db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='users'").get()?.sql || '';
-    if (userTableSql && !userTableSql.includes("'alumni'")) {
+    if (userTableSql && (!userTableSql.includes("'faculty'") || !userTableSql.includes("'superadmin'"))) {
       db.pragma('foreign_keys = OFF');
       db.exec(`
         CREATE TABLE users_migrated (
           id TEXT PRIMARY KEY,
           email TEXT UNIQUE NOT NULL,
           password_hash TEXT NOT NULL,
-          role TEXT CHECK(role IN ('student', 'company', 'admin', 'alumni')) NOT NULL,
+          role TEXT CHECK(role IN ('student', 'company', 'admin', 'alumni', 'faculty', 'superadmin')) NOT NULL,
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         );
         INSERT INTO users_migrated (id, email, password_hash, role, created_at)
-        SELECT id, email, password_hash, role, created_at FROM users;
+        SELECT id, email, password_hash,
+          CASE 
+            WHEN role NOT IN ('student', 'company', 'admin', 'alumni', 'faculty', 'superadmin') THEN 'student'
+            ELSE role
+          END,
+          created_at FROM users;
         DROP TABLE users;
         ALTER TABLE users_migrated RENAME TO users;
       `);
       db.pragma('foreign_keys = ON');
     }
+
+    // Fix qa_threads author_role constraint to include 'faculty' and 'tpo'
+    const qaThreadsSql = db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='qa_threads'").get()?.sql || '';
+    if (qaThreadsSql && !qaThreadsSql.includes("'faculty'")) {
+      db.pragma('foreign_keys = OFF');
+      try {
+        db.exec(`
+          CREATE TABLE qa_threads_migrated AS SELECT id, title, content, author_id, author_name, author_role, category, status, views, created_at FROM qa_threads;
+          DROP TABLE qa_threads;
+          CREATE TABLE qa_threads (
+            id TEXT PRIMARY KEY,
+            title TEXT NOT NULL,
+            content TEXT NOT NULL,
+            author_id TEXT,
+            author_name TEXT,
+            author_role TEXT CHECK(author_role IN ('student', 'alumni', 'admin', 'company', 'faculty', 'tpo')),
+            category TEXT DEFAULT 'general',
+            status TEXT DEFAULT 'open',
+            views INTEGER DEFAULT 0,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+          );
+          INSERT INTO qa_threads (id, title, content, author_id, author_name, author_role, category, status, views, created_at)
+          SELECT id, title, content, author_id, author_name, author_role, category, status, views, created_at FROM qa_threads_migrated;
+          DROP TABLE qa_threads_migrated;
+        `);
+      } catch(e) { console.warn('Migration notice (qa_threads):', e.message); }
+      db.pragma('foreign_keys = ON');
+    }
+
+    // Fix qa_replies author_role constraint to include 'faculty' and 'tpo'
+    const qaRepliesSql = db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='qa_replies'").get()?.sql || '';
+    if (qaRepliesSql && !qaRepliesSql.includes("'faculty'")) {
+      db.pragma('foreign_keys = OFF');
+      try {
+        // qa_replies uses 'body' column (not 'content')
+        db.exec(`
+          CREATE TABLE qa_replies_migrated AS SELECT id, thread_id, author_id, author_name, author_role, body, created_at FROM qa_replies;
+          DROP TABLE qa_replies;
+          CREATE TABLE qa_replies (
+            id TEXT PRIMARY KEY,
+            thread_id TEXT NOT NULL,
+            author_id TEXT,
+            author_name TEXT,
+            author_role TEXT CHECK(author_role IN ('student', 'alumni', 'admin', 'company', 'faculty', 'tpo')),
+            body TEXT NOT NULL DEFAULT '',
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+          );
+          INSERT INTO qa_replies (id, thread_id, author_id, author_name, author_role, body, created_at)
+          SELECT id, thread_id, author_id, author_name, author_role, body, created_at FROM qa_replies_migrated;
+          DROP TABLE qa_replies_migrated;
+        `);
+      } catch(e) { console.warn('Migration notice (qa_replies):', e.message); }
+      db.pragma('foreign_keys = ON');
+    }
+
+    // Fix any existing faculty users that were wrongly stored as 'student' due to old constraint
+    try {
+      db.exec("UPDATE users SET role = 'faculty' WHERE email LIKE '%faculty%' AND role = 'student'");
+    } catch(e) { /* ignore if constraint still being applied */ }
 
     // 1. Alumni Profiles Table
     db.exec(`
