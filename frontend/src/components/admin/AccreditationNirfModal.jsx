@@ -556,135 +556,117 @@ export default function AccreditationNirfModal({ isOpen, onClose }) {
         </div>
 
         {/* Scrollable Content Body */}
-        <div className="p-4 sm:p-6 space-y-6 overflow-y-auto flex-1 tpc-print-body">
+        <div className="p-3 sm:p-5 space-y-4 overflow-y-auto flex-1 tpc-print-body">
           {/* Executive Live Metrics Banner (Dynamic from live filter) */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
-            <div className="p-4 bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-950/40 dark:to-teal-950/20 border border-emerald-200 dark:border-emerald-800 rounded-2xl shadow-xs">
-              <div className="text-[10px] font-black uppercase text-emerald-800 dark:text-emerald-300 tracking-wider">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+            <div className="p-3 bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-950/40 dark:to-teal-950/20 border border-emerald-200 dark:border-emerald-800 rounded-2xl shadow-xs">
+              <div className="text-[9px] font-black uppercase text-emerald-800 dark:text-emerald-300 tracking-wider">
                 Live Placement Ratio
               </div>
-              <div className="text-2xl font-black text-emerald-950 dark:text-emerald-100 mt-1">
+              <div className="text-xl font-black text-emerald-950 dark:text-emerald-100 mt-0.5">
                 {liveMetrics.placement_percentage}%
               </div>
-              <div className="text-[10px] text-emerald-700 dark:text-emerald-400 font-bold mt-0.5">
+              <div className="text-[9px] text-emerald-700 dark:text-emerald-400 font-bold">
                 {selectedYearFilter === 'ALL' ? 'Multi-Year Live Data' : `Batch ${selectedYearFilter} Live Record`}
               </div>
             </div>
 
-            <div className="p-4 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/40 dark:to-indigo-950/20 border border-blue-200 dark:border-blue-800 rounded-2xl shadow-xs">
-              <div className="text-[10px] font-black uppercase text-blue-800 dark:text-blue-300 tracking-wider">
+            <div className="p-3 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/40 dark:to-indigo-950/20 border border-blue-200 dark:border-blue-800 rounded-2xl shadow-xs">
+              <div className="text-[9px] font-black uppercase text-blue-800 dark:text-blue-300 tracking-wider">
                 Live Median Salary
               </div>
-              <div className="text-2xl font-black text-blue-950 dark:text-blue-100 mt-1">
+              <div className="text-xl font-black text-blue-950 dark:text-blue-100 mt-0.5">
                 ₹{liveMetrics.median_lpa} LPA
               </div>
-              <div className="text-[10px] text-blue-700 dark:text-blue-400 font-bold mt-0.5">
+              <div className="text-[9px] text-blue-700 dark:text-blue-400 font-bold">
                 Calculated from DB Offers
               </div>
             </div>
 
-            <div className="p-4 bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950/40 dark:to-orange-950/20 border border-amber-200 dark:border-amber-800 rounded-2xl shadow-xs">
-              <div className="text-[10px] font-black uppercase text-amber-800 dark:text-amber-300 tracking-wider">
+            <div className="p-3 bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950/40 dark:to-orange-950/20 border border-amber-200 dark:border-amber-800 rounded-2xl shadow-xs">
+              <div className="text-[9px] font-black uppercase text-amber-800 dark:text-amber-300 tracking-wider">
                 Live Highest CTC
               </div>
-              <div className="text-2xl font-black text-amber-950 dark:text-amber-100 mt-1">
+              <div className="text-xl font-black text-amber-950 dark:text-amber-100 mt-0.5">
                 ₹{liveMetrics.highest_lpa} LPA
               </div>
-              <div className="text-[10px] text-amber-700 dark:text-amber-400 font-bold mt-0.5">
-                Top Active Offer in Database
+              <div className="text-[9px] text-amber-700 dark:text-amber-400 font-bold">
+                Top Active Offer in DB
               </div>
             </div>
 
-            <div className="p-4 bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-950/40 dark:to-pink-950/20 border border-purple-200 dark:border-purple-800 rounded-2xl shadow-xs">
-              <div className="text-[10px] font-black uppercase text-purple-800 dark:text-purple-300 tracking-wider">
+            <div className="p-3 bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-950/40 dark:to-pink-950/20 border border-purple-200 dark:border-purple-800 rounded-2xl shadow-xs">
+              <div className="text-[9px] font-black uppercase text-purple-800 dark:text-purple-300 tracking-wider">
                 Live Placed Candidates
               </div>
-              <div className="text-2xl font-black text-purple-950 dark:text-purple-100 mt-1">
+              <div className="text-xl font-black text-purple-950 dark:text-purple-100 mt-0.5">
                 {liveMetrics.total_placed} Placed
               </div>
-              <div className="text-[10px] text-purple-700 dark:text-purple-400 font-bold mt-0.5">
+              <div className="text-[9px] text-purple-700 dark:text-purple-400 font-bold">
                 Across {liveMetrics.total_drives} Corporate Drives
               </div>
             </div>
           </div>
 
-          {/* 🎯 DUAL FILTER CONTROL SECTION: ACADEMIC YEAR & DEPARTMENT */}
-          <div className="p-4 sm:p-5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-3xl space-y-4 shadow-xs print:hidden">
+          {/* 🎯 COMPACT DUAL FILTER CONTROL SECTION */}
+          <div className="p-3 sm:p-4 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-2xl space-y-2.5 shadow-xs print:hidden">
             {/* 1. Academic Year / Graduating Batch Filter */}
-            <div className="space-y-2">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
-                <div className="flex items-center gap-1.5 text-xs font-black text-blue-900 dark:text-blue-300 uppercase tracking-wider">
-                  <Calendar className="w-4 h-4 text-blue-600" />
-                  <span>Select Academic Passing Year / Graduating Batch:</span>
-                </div>
-
-                <div className="w-full sm:w-72">
-                  <select
-                    value={selectedYearFilter}
-                    onChange={(e) => setSelectedYearFilter(e.target.value)}
-                    className="w-full py-2 px-3 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-black text-slate-900 dark:text-slate-100 focus:outline-none focus:border-blue-900 cursor-pointer shadow-xs"
-                  >
-                    {dynamicYearOptions.map(opt => (
-                      <option key={opt.code} value={opt.code}>
-                        {opt.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-2">
+              <div className="flex items-center gap-1.5 text-[11px] font-black text-blue-900 dark:text-blue-300 uppercase tracking-wider shrink-0">
+                <Calendar className="w-3.5 h-3.5 text-blue-600" />
+                <span>Batch:</span>
               </div>
 
-              {/* Quick Clickable Year Pills */}
-              <div className="flex items-center gap-1.5 flex-wrap">
+              {/* Year Pills & Quick Select */}
+              <div className="flex items-center gap-1 flex-wrap flex-1">
                 {dynamicYearOptions.map(opt => (
                   <button
                     key={opt.code}
                     type="button"
                     onClick={() => setSelectedYearFilter(opt.code)}
-                    className={`px-3 py-1 rounded-xl text-xs font-black transition-all cursor-pointer border ${
+                    className={`px-2.5 py-1 rounded-lg text-[11px] font-black transition-all cursor-pointer border ${
                       selectedYearFilter === opt.code
-                        ? 'bg-blue-900 text-white border-blue-900 shadow-md scale-105 ring-2 ring-blue-400'
+                        ? 'bg-blue-900 text-white border-blue-900 shadow-sm scale-105 ring-2 ring-blue-400'
                         : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-100'
                     }`}
                   >
-                    {opt.code === 'ALL' ? '🌟 All Batches' : `🎓 Batch ${opt.code}`}
+                    {opt.code === 'ALL' ? '🌟 All Batches' : `🎓 ${opt.code}`}
                   </button>
                 ))}
+              </div>
+
+              <div className="w-full md:w-48 shrink-0">
+                <select
+                  value={selectedYearFilter}
+                  onChange={(e) => setSelectedYearFilter(e.target.value)}
+                  className="w-full py-1.5 px-2.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-xs font-bold text-slate-900 dark:text-slate-100 focus:outline-none focus:border-blue-900 cursor-pointer shadow-xs"
+                >
+                  {dynamicYearOptions.map(opt => (
+                    <option key={opt.code} value={opt.code}>
+                      {opt.name}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
 
             {/* 2. Department / Academic Field Filter */}
-            <div className="space-y-2 pt-3 border-t border-slate-200 dark:border-slate-700">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
-                <div className="flex items-center gap-1.5 text-xs font-black text-amber-700 dark:text-amber-400 uppercase tracking-wider">
-                  <Filter className="w-4 h-4 text-amber-500" />
-                  <span>Select Department / Academic Discipline:</span>
-                </div>
-
-                <div className="w-full sm:w-72">
-                  <select
-                    value={selectedFieldFilter}
-                    onChange={(e) => setSelectedFieldFilter(e.target.value)}
-                    className="w-full py-2 px-3 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-black text-slate-900 dark:text-slate-100 focus:outline-none focus:border-amber-600 cursor-pointer shadow-xs"
-                  >
-                    {dynamicFieldOptions.map(opt => (
-                      <option key={opt.code} value={opt.code}>
-                        {opt.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-2 pt-2 border-t border-slate-200 dark:border-slate-700">
+              <div className="flex items-center gap-1.5 text-[11px] font-black text-amber-700 dark:text-amber-400 uppercase tracking-wider shrink-0">
+                <Filter className="w-3.5 h-3.5 text-amber-500" />
+                <span>Field:</span>
               </div>
 
               {/* Quick Clickable Field Pills */}
-              <div className="flex items-center gap-1.5 flex-wrap">
+              <div className="flex items-center gap-1 flex-wrap flex-1">
                 {dynamicFieldOptions.map(opt => (
                   <button
                     key={opt.code}
                     type="button"
                     onClick={() => setSelectedFieldFilter(opt.code)}
-                    className={`px-3 py-1 rounded-xl text-xs font-black transition-all cursor-pointer border flex items-center gap-1 ${
+                    className={`px-2.5 py-1 rounded-lg text-[11px] font-black transition-all cursor-pointer border flex items-center gap-1 ${
                       selectedFieldFilter === opt.code
-                        ? 'bg-amber-600 text-white border-amber-600 shadow-md scale-105 ring-2 ring-amber-400'
+                        ? 'bg-amber-600 text-white border-amber-600 shadow-sm scale-105 ring-2 ring-amber-400'
                         : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-100'
                     }`}
                   >
@@ -693,25 +675,39 @@ export default function AccreditationNirfModal({ isOpen, onClose }) {
                   </button>
                 ))}
               </div>
+
+              <div className="w-full md:w-48 shrink-0">
+                <select
+                  value={selectedFieldFilter}
+                  onChange={(e) => setSelectedFieldFilter(e.target.value)}
+                  className="w-full py-1.5 px-2.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-xs font-bold text-slate-900 dark:text-slate-100 focus:outline-none focus:border-amber-600 cursor-pointer shadow-xs"
+                >
+                  {dynamicFieldOptions.map(opt => (
+                    <option key={opt.code} value={opt.code}>
+                      {opt.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
           </div>
 
           {/* TAB 0: EXACT USER REQUESTED "NUMBER OF STUDENTS" COORDINATE BAR CHART */}
           {activeTab === 'trends' && (
-            <div className="space-y-6 animate-fadeIn">
+            <div className="space-y-4 animate-fadeIn">
               {/* 🎨 EXACT COORDINATE AXIS BAR CHART (MATCHING USER REFERENCE IMAGE) */}
-              <div className="relative rounded-3xl p-6 sm:p-8 bg-gradient-to-br from-[#dbeafe] via-[#eff6ff] to-[#e0f2fe] border-2 border-blue-200 shadow-xl overflow-hidden text-slate-900 print:border-none print:shadow-none print:p-2">
+              <div className="relative rounded-3xl p-4 sm:p-6 bg-gradient-to-br from-[#dbeafe] via-[#eff6ff] to-[#e0f2fe] border-2 border-blue-200 shadow-xl overflow-hidden text-slate-900 print:border-none print:shadow-none print:p-2">
                 {/* Subtle Artistic Pastel Curves */}
-                <div className="absolute top-0 right-0 w-96 h-96 bg-blue-200/40 rounded-full blur-3xl pointer-events-none -mr-20 -mt-20 print:hidden"></div>
-                <div className="absolute bottom-0 left-1/3 w-80 h-80 bg-indigo-200/30 rounded-full blur-2xl pointer-events-none print:hidden"></div>
+                <div className="absolute top-0 right-0 w-80 h-80 bg-blue-200/40 rounded-full blur-3xl pointer-events-none -mr-20 -mt-20 print:hidden"></div>
+                <div className="absolute bottom-0 left-1/3 w-64 h-64 bg-indigo-200/30 rounded-full blur-2xl pointer-events-none print:hidden"></div>
 
-                <div className="relative z-10 space-y-4">
+                <div className="relative z-10 space-y-3">
                   {/* Top Coordinate Graph Area with Y-Axis, Arrow, Rotated Pill & Bars */}
-                  <div className="flex items-stretch gap-4 sm:gap-6 min-h-[320px] pt-4">
+                  <div className="flex items-stretch gap-2 sm:gap-4 h-[260px] pt-3">
                     {/* Y-Axis Label Rotated Pill (Left) */}
-                    <div className="flex items-center justify-center shrink-0">
-                      <div className="bg-white/95 backdrop-blur-md px-3.5 py-2 rounded-2xl shadow-md border border-slate-200/80 -rotate-90 origin-center whitespace-nowrap">
-                        <span className="text-xs sm:text-sm font-black text-slate-900 tracking-tight">
+                    <div className="flex items-center justify-center shrink-0 w-8">
+                      <div className="bg-white/95 backdrop-blur-md px-2.5 py-1 rounded-xl shadow-xs border border-slate-200/80 -rotate-90 origin-center whitespace-nowrap">
+                        <span className="text-[11px] sm:text-xs font-black text-slate-900 tracking-tight">
                           Number of students
                         </span>
                       </div>
@@ -721,26 +717,26 @@ export default function AccreditationNirfModal({ isOpen, onClose }) {
                     <div className="flex flex-col items-end justify-between relative shrink-0 pr-1 py-1">
                       {/* Upward Arrow on Y-Axis Top */}
                       <div className="absolute -top-3.5 right-[-5px] text-slate-950">
-                        <ArrowUp className="w-5 h-5 stroke-[3.5] text-slate-950 fill-slate-950" />
+                        <ArrowUp className="w-4 h-4 stroke-[3.5] text-slate-950 fill-slate-950" />
                       </div>
 
                       {/* Tick Numbers (e.g. 15, 12, 9, 6, 3, 0) */}
                       {yAxisTicks.map((tick, tIdx) => (
-                        <div key={tIdx} className="flex items-center gap-1.5 h-6">
-                          <span className="text-xs sm:text-sm font-black text-slate-900 font-mono">
+                        <div key={tIdx} className="flex items-center gap-1 h-5">
+                          <span className="text-[11px] sm:text-xs font-black text-slate-900 font-mono">
                             {tick}
                           </span>
-                          <span className="w-2 h-0.5 bg-slate-950"></span>
+                          <span className="w-1.5 h-0.5 bg-slate-950"></span>
                         </div>
                       ))}
                     </div>
 
                     {/* Coordinate Plot Area (Vertical Y-Axis Line + Bars Container + Horizontal X-Axis Line) */}
-                    <div className="flex-1 flex flex-col justify-end border-l-[3px] border-slate-950 relative pl-2 sm:pl-4">
+                    <div className="flex-1 flex flex-col justify-end border-l-[3px] border-slate-950 relative pl-2 sm:pl-3">
                       {/* Bars Flow Container */}
-                      <div className="flex-1 flex items-end justify-around gap-2 sm:gap-6 pb-0.5 pt-6">
+                      <div className="flex-1 flex items-end justify-around gap-1.5 sm:gap-4 pb-0.5 pt-4">
                         {chartData.map((item, idx) => {
-                          const heightPct = Math.max(Math.round((item.hiredCount / yAxisMax) * 100), 6);
+                          const heightPct = Math.max(Math.round((item.hiredCount / yAxisMax) * 100), 10);
                           const isPeak = item.year === peakYearItem?.year;
                           const isCurrentlySelected = selectedYearFilter === String(item.year);
 
@@ -753,27 +749,24 @@ export default function AccreditationNirfModal({ isOpen, onClose }) {
                               }`}
                               title={`Click to filter by ${item.batchLabel}: ${item.hiredCount} students hired`}
                             >
-                              {/* Hover / Selected Floating Tooltip */}
-                              <div className={`transition-all duration-200 absolute -top-12 text-white text-[11px] font-black py-1 px-2.5 rounded-xl shadow-xl whitespace-nowrap z-20 pointer-events-none print:hidden ${
-                                isCurrentlySelected ? 'bg-blue-900 ring-2 ring-amber-400 opacity-100' : 'bg-slate-950 opacity-0 group-hover:opacity-100'
+                              {/* Prominent Value Badge Above Bar */}
+                              <div className={`mb-1 px-1.5 py-0.5 rounded text-[10px] font-black leading-none transition-all ${
+                                isCurrentlySelected
+                                  ? 'bg-blue-900 text-amber-300 shadow-sm'
+                                  : 'bg-white/90 text-slate-900 shadow-xs group-hover:bg-slate-900 group-hover:text-white'
                               }`}>
-                                {item.batchLabel}: {item.hiredCount} Placed (₹{item.avgLpa}L)
+                                {item.hiredCount}
                               </div>
 
                               {/* Exact Flat Solid Colored Bar standing on X-Axis line */}
                               <div 
-                                className={`w-full max-w-[64px] ${item.color.bg} border-2 ${item.color.border} shadow-md transition-all duration-500 rounded-t-sm group-hover:brightness-110 group-hover:scale-y-[1.02] origin-bottom relative ${
-                                  isCurrentlySelected ? 'ring-4 ring-amber-400 ring-offset-2' : ''
+                                className={`w-full max-w-[56px] ${item.color.bg} border-2 ${item.color.border} shadow-md transition-all duration-500 rounded-t-sm group-hover:brightness-110 origin-bottom relative ${
+                                  isCurrentlySelected ? 'ring-3 ring-amber-400 ring-offset-1' : ''
                                 }`}
                                 style={{ height: `${heightPct}%` }}
                               >
-                                {isCurrentlySelected && (
-                                  <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-blue-900 text-amber-300 px-1.5 py-0.5 rounded text-[8px] font-black uppercase shadow-sm whitespace-nowrap print:hidden">
-                                    Active
-                                  </div>
-                                )}
                                 {isPeak && !isCurrentlySelected && (
-                                  <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-amber-400 text-slate-950 px-1.5 py-0.5 rounded text-[8px] font-black uppercase shadow-xs print:hidden">
+                                  <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-amber-400 text-slate-950 px-1 py-0.2 rounded text-[7px] font-black uppercase shadow-xs print:hidden">
                                     Top
                                   </div>
                                 )}
@@ -786,26 +779,26 @@ export default function AccreditationNirfModal({ isOpen, onClose }) {
                       {/* Solid Black X-Axis Baseline with Rightward Arrow */}
                       <div className="h-[3px] bg-slate-950 w-full relative flex items-center">
                         <div className="absolute -right-3.5 text-slate-950">
-                          <ArrowRight className="w-5 h-5 stroke-[3.5] text-slate-950 fill-slate-950" />
+                          <ArrowRight className="w-4 h-4 stroke-[3.5] text-slate-950 fill-slate-950" />
                         </div>
                       </div>
                     </div>
                   </div>
 
-                  {/* X-Axis Tick Labels (Period 1 / Batch 2020, Period 2...) */}
-                  <div className="flex items-center pl-16 sm:pl-24 pr-4 pt-2 justify-around gap-2 sm:gap-6">
+                  {/* X-Axis Tick Labels (Period 1 / Batch 2024, Period 2...) */}
+                  <div className="flex items-center pl-10 sm:pl-16 pr-3 pt-1 justify-around gap-1.5 sm:gap-4">
                     {chartData.map((item, idx) => (
                       <div 
                         key={idx} 
                         onClick={() => setSelectedYearFilter(selectedYearFilter === String(item.year) ? 'ALL' : String(item.year))}
-                        className={`flex-1 text-center cursor-pointer p-1 rounded-xl transition-all ${
+                        className={`flex-1 text-center cursor-pointer p-0.5 rounded-lg transition-all ${
                           selectedYearFilter === String(item.year) ? 'bg-white/80 shadow-xs font-black' : 'hover:bg-white/40'
                         }`}
                       >
-                        <div className="text-[11px] sm:text-xs font-black text-slate-900 leading-tight">
+                        <div className="text-[10px] sm:text-[11px] font-black text-slate-900 leading-tight">
                           Period {idx + 1}
                         </div>
-                        <div className="text-[10px] font-bold text-slate-600 font-mono">
+                        <div className="text-[9px] font-bold text-slate-600 font-mono">
                           {item.year}
                         </div>
                       </div>
@@ -813,9 +806,9 @@ export default function AccreditationNirfModal({ isOpen, onClose }) {
                   </div>
 
                   {/* Centered X-Axis "Class categories" Badge */}
-                  <div className="flex justify-center pt-3">
-                    <div className="bg-white/95 backdrop-blur-md px-6 py-2.5 rounded-2xl shadow-md border border-slate-200/80 inline-flex items-center gap-2">
-                      <span className="text-xs sm:text-sm font-black text-slate-900 tracking-tight">
+                  <div className="flex justify-center pt-1.5">
+                    <div className="bg-white/95 backdrop-blur-md px-4 py-1 rounded-xl shadow-xs border border-slate-200/80 inline-flex items-center gap-1.5">
+                      <span className="text-[11px] sm:text-xs font-black text-slate-900 tracking-tight">
                         Class categories / Graduating Batches
                       </span>
                     </div>
@@ -824,25 +817,25 @@ export default function AccreditationNirfModal({ isOpen, onClose }) {
               </div>
 
               {/* WHICH FIELD GOT HIRED MORE? LIVE BREAKDOWN LEADERBOARD */}
-              <div className="p-5 sm:p-6 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-3xl space-y-4 shadow-xs print:hidden">
+              <div className="p-4 sm:p-5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-2xl space-y-3 shadow-xs print:hidden">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h4 className="text-sm font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                    <h4 className="text-xs sm:text-sm font-black text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
                       <Trophy className="w-4 h-4 text-amber-500" />
                       <span>Which Academic Field Got Hired More? (Live Database Rankings)</span>
                     </h4>
-                    <p className="text-xs text-slate-500 font-medium">
+                    <p className="text-[11px] text-slate-500 font-medium">
                       Live share of placements per engineering and science discipline. Click any card to filter the coordinate chart above.
                     </p>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
                   {fieldSummary.map((f, idx) => (
                     <div 
                       key={idx} 
                       onClick={() => setSelectedFieldFilter(f.field_code)}
-                      className={`p-4 rounded-2xl border transition-all cursor-pointer ${
+                      className={`p-3 rounded-xl border transition-all cursor-pointer ${
                         selectedFieldFilter === f.field_code
                           ? 'bg-blue-900 text-white border-blue-900 shadow-md scale-105 ring-2 ring-amber-400'
                           : f.is_top
@@ -851,7 +844,7 @@ export default function AccreditationNirfModal({ isOpen, onClose }) {
                       }`}
                     >
                       <div className="flex items-center justify-between">
-                        <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded ${
+                        <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded ${
                           selectedFieldFilter === f.field_code
                             ? 'bg-white/20 text-white'
                             : f.is_top
