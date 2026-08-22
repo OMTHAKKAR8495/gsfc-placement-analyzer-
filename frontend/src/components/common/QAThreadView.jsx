@@ -40,9 +40,12 @@ export default function QAThreadView({ threadId, onClose, currentUser, onOpenAut
       if (res.ok) {
         const data = await res.json();
         setThread(data);
+      } else {
+        setThread(null);
       }
     } catch (err) {
       console.error('Error fetching thread:', err);
+      setThread(null);
     } finally {
       setLoading(false);
     }
@@ -79,8 +82,8 @@ export default function QAThreadView({ threadId, onClose, currentUser, onOpenAut
         const data = await res.json();
         setThread(prev => ({
           ...prev,
-          replies: [...(prev.replies || []), data.reply],
-          replies_count: (prev.replies_count || 0) + 1
+          replies: [...(prev?.replies || []), data.reply],
+          replies_count: (prev?.replies_count || 0) + 1
         }));
         setReplyText('');
         setReplySuccess(true);
@@ -146,19 +149,42 @@ export default function QAThreadView({ threadId, onClose, currentUser, onOpenAut
   const canDelete = isTpoOrAdmin || isOriginalAuthor;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-md animate-fade-in">
+    <div 
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-md animate-fade-in"
+    >
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-3xl w-full p-6 sm:p-8 shadow-2xl space-y-6 relative max-h-[90vh] overflow-y-auto">
         <button
           onClick={onClose}
-          className="absolute top-5 right-5 p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800"
+          className="absolute top-5 right-5 p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
         >
           <X className="w-5 h-5" />
         </button>
 
-        {loading || !thread ? (
+        {loading ? (
           <div className="p-12 text-center space-y-3">
             <div className="w-8 h-8 border-3 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto" />
             <p className="text-xs text-slate-500 font-bold">Loading Thread Details...</p>
+          </div>
+        ) : !thread ? (
+          <div className="p-12 text-center space-y-4 animate-fade-in">
+            <div className="w-12 h-12 rounded-2xl bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800 flex items-center justify-center mx-auto text-amber-500">
+              <AlertCircle className="w-6 h-6" />
+            </div>
+            <div className="space-y-1">
+              <h3 className="text-base font-black text-slate-900 dark:text-slate-100">
+                Discussion Thread Not Found
+              </h3>
+              <p className="text-xs text-slate-500">
+                This question thread may have been deleted or removed from the database.
+              </p>
+            </div>
+            <button
+              onClick={onClose}
+              className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-black transition-all cursor-pointer shadow-md"
+            >
+              Close Window
+            </button>
           </div>
         ) : (
           <>
@@ -218,44 +244,48 @@ export default function QAThreadView({ threadId, onClose, currentUser, onOpenAut
               <div className="flex items-center gap-3 text-xs text-slate-400 font-medium">
                 <span className="font-bold text-slate-600 dark:text-slate-300 flex items-center gap-1">
                   <User className="w-3.5 h-3.5" />
-                  {thread.student_name || 'GSFC Student'}
+                  <span>{thread.student_name}</span>
                 </span>
                 <span>•</span>
                 <span className="flex items-center gap-1">
                   <Clock className="w-3.5 h-3.5" />
-                  {new Date(thread.created_at).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' })}
+                  <span>{new Date(thread.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
                 </span>
               </div>
             </div>
 
-            {/* Replies Stream */}
+            {/* Answers List */}
             <div className="space-y-4">
-              <h3 className="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-wider flex items-center justify-between">
-                <span>Answers & Community Clarifications</span>
-                <span className="text-blue-600 dark:text-blue-400 font-black">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xs font-black text-slate-900 dark:text-slate-100 uppercase tracking-wider">
+                  Answers & Community Clarifications
+                </h3>
+                <span className="text-xs font-black text-blue-600 dark:text-blue-400">
                   {thread.replies?.length || 0} Replies
                 </span>
-              </h3>
+              </div>
 
-              <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
-                {(!thread.replies || thread.replies.length === 0) ? (
-                  <p className="text-xs text-slate-500 italic py-6 text-center bg-slate-50 dark:bg-slate-800/30 rounded-2xl">
-                    No replies yet. Be the first to provide clarity on this placement doubt!
-                  </p>
+              <div className="space-y-3">
+                {!thread.replies || thread.replies.length === 0 ? (
+                  <div className="p-8 text-center bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-200/60 dark:border-slate-700/60">
+                    <p className="text-xs text-slate-500 font-medium italic">
+                      No replies yet. Be the first to provide clarity on this placement doubt!
+                    </p>
+                  </div>
                 ) : (
                   thread.replies.map(reply => {
-                    const isTpo = reply.author_role === 'tpo' || reply.author_role === 'admin';
+                    const isTpo = reply.author_role === 'admin' || reply.author_role === 'tpo';
                     const isAlumni = reply.author_role === 'alumni';
 
                     return (
-                      <div 
+                      <div
                         key={reply.id}
-                        className={`p-4 rounded-2xl border space-y-2 text-xs ${
+                        className={`p-4 rounded-2xl border text-xs space-y-2 transition-all ${
                           isTpo
-                            ? 'bg-amber-50/80 dark:bg-amber-950/40 border-amber-300 dark:border-amber-700 shadow-sm'
+                            ? 'bg-amber-50/70 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800/60 shadow-xs'
                             : isAlumni
-                            ? 'bg-blue-50/80 dark:bg-blue-950/40 border-blue-300 dark:border-blue-700 shadow-sm'
-                            : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800'
+                            ? 'bg-blue-50/70 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800/60 shadow-xs'
+                            : 'bg-slate-50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-700'
                         }`}
                       >
                         <div className="flex items-center justify-between gap-2">
