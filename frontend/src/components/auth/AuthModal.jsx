@@ -619,30 +619,48 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
               )}
 
               {!isLogin && role === 'student' && (
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs text-slate-700 mb-1 font-bold">Full Name *</label>
-                    <input
-                      type="text"
-                      name="name"
-                      value={formData.name}
-                      onChange={handleChange}
-                      required
-                      placeholder="e.g. Arav Sharma"
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 font-bold focus:outline-none focus:border-blue-900"
-                    />
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs text-slate-700 mb-1 font-bold">Full Name *</label>
+                      <input
+                        type="text"
+                        name="name"
+                        value={formData.name}
+                        onChange={handleChange}
+                        required
+                        placeholder="e.g. Arav Sharma"
+                        className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 font-bold focus:outline-none focus:border-blue-900"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-slate-700 mb-1 font-bold">Roll / Reg Number *</label>
+                      <input
+                        type="text"
+                        name="roll_number"
+                        value={formData.roll_number}
+                        onChange={handleChange}
+                        required
+                        placeholder="21BCE045"
+                        className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 font-bold focus:outline-none focus:border-blue-900"
+                      />
+                    </div>
                   </div>
                   <div>
-                    <label className="block text-xs text-slate-700 mb-1 font-bold">Roll / Reg Number *</label>
-                    <input
-                      type="text"
-                      name="roll_number"
-                      value={formData.roll_number}
-                      onChange={handleChange}
-                      required
-                      placeholder="21BCE045"
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 font-bold focus:outline-none focus:border-blue-900"
-                    />
+                    <label className="block text-xs text-slate-700 mb-1 font-bold">Phone Number *</label>
+                    <div className="relative">
+                      <Phone className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
+                      <input
+                        type="tel"
+                        name="phone"
+                        value={formData.phone}
+                        onChange={handleChange}
+                        required
+                        placeholder="e.g. +91 98765 43210"
+                        autoComplete="tel"
+                        className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 font-bold focus:outline-none focus:border-blue-900"
+                      />
+                    </div>
                   </div>
                 </div>
               )}
