@@ -13,6 +13,7 @@ import QABoard from '../common/QABoard';
 import ResumeUploadPromptModal from './ResumeUploadPromptModal';
 import ResumeBuilderAndDossierModal from './ResumeBuilderAndDossierModal';
 import EcosystemHubModal from '../common/EcosystemHubModal';
+import AICopilotDrawer from '../common/AICopilotDrawer';
 import { useToast } from '../../context/ToastContext';
 
 export const DEFAULT_REQUIREMENTS_FEED = [
@@ -203,13 +204,23 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
     '✨ Stage 4: Generating Role Recommendations & Skill Gap Analysis'
   ];
 
+  // AI Copilot & Placement Readiness Intelligence State
+  const [copilotOpen, setCopilotOpen] = useState(false);
+  const [readinessData, setReadinessData] = useState(null);
+
   useEffect(() => {
     fetchFeed();
     if (student) {
       fetchApplications();
       if (student.name) setCandidateName(student.name);
     }
-  }, [student, showAllFeed]);
+    // Fetch 10-point placement readiness & probability
+    const sId = student?.id || currentUser?.profile?.id || 'demo';
+    fetch(`/api/intelligence/readiness/${sId}`)
+      .then(r => r.json())
+      .then(data => setReadinessData(data))
+      .catch(() => {});
+  }, [student, showAllFeed, currentUser]);
 
   const fetchFeed = async () => {
     try {
@@ -733,6 +744,13 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
             }`}
           >
             <FileText className="w-4 h-4" /> Smart Resume ATS
+          </button>
+
+          <button
+            onClick={() => setCopilotOpen(true)}
+            className="flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl text-xs font-black transition-all shrink-0 whitespace-nowrap bg-purple-900 hover:bg-purple-800 text-white shadow-md border border-purple-400/40 hover:scale-105 cursor-pointer"
+          >
+            <Sparkles className="w-4 h-4 text-amber-300 animate-pulse" /> 🤖 AI Career Copilot
           </button>
 
           <button
@@ -1732,6 +1750,14 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
         onClose={() => setEcosystemModalOpen(false)}
         currentUser={currentUser}
         defaultTab="assessment"
+      />
+
+      {/* 🤖 AI STUDENT CAREER COPILOT DRAWER */}
+      <AICopilotDrawer
+        isOpen={copilotOpen}
+        onClose={() => setCopilotOpen(false)}
+        currentUser={currentUser}
+        mode="student"
       />
     </div>
   );

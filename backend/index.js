@@ -19,6 +19,9 @@ import alumniRoutes from './routes/alumni.js';
 import jobfairRoutes from './routes/jobfair.js';
 import qaRoutes from './routes/qa.js';
 import ecosystemRoutes from './routes/ecosystem.js';
+import intelligenceRoutes from './routes/intelligence.js';
+import facultyRoutes from './routes/faculty.js';
+import auditRoutes from './routes/audit.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -88,6 +91,9 @@ app.use('/api/alumni', alumniRoutes);
 app.use('/api/jobfair', jobfairRoutes);
 app.use('/api/qa', qaRoutes);
 app.use('/api/ecosystem', ecosystemRoutes);
+app.use('/api/intelligence', intelligenceRoutes);
+app.use('/api/faculty', facultyRoutes);
+app.use('/api/audit', auditRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

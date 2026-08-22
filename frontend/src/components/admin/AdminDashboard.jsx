@@ -3,7 +3,7 @@ import {
   ShieldCheck, CheckCircle2, XCircle, BarChart3, Download, Building, Users, 
   Briefcase, FileSpreadsheet, Sparkles, TrendingUp, PieChart, Database, Search, 
   Printer, CheckCircle, Trash2, Calendar, Filter, SlidersHorizontal, Layers, 
-  CheckSquare, Square, RefreshCw, Eye, GraduationCap, Award, Check, FileText, X, HelpCircle, Globe
+  CheckSquare, Square, RefreshCw, Eye, GraduationCap, Award, Check, FileText, X, HelpCircle, Globe, Sliders, MapPin
 } from 'lucide-react';
 import ReportPDFModal from '../common/ReportPDFModal';
 import BatchPDFReportModal from './BatchPDFReportModal';
@@ -13,12 +13,18 @@ import PredictiveAnalyticsPanel from './PredictiveAnalyticsPanel';
 import JobFairManagerModal from './JobFairManagerModal';
 import QABoard from '../common/QABoard';
 import EcosystemHubModal from '../common/EcosystemHubModal';
+import WhatIfSimulatorModal from '../common/WhatIfSimulatorModal';
+import SkillHeatmapModal from '../common/SkillHeatmapModal';
+import AICopilotDrawer from '../common/AICopilotDrawer';
 
 export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
   const [activeTab, setActiveTab] = useState('overview'); // 'overview', 'predictive', 'database', 'companies', 'drives', 'applications', 'alumni_approvals', 'qa'
   const [accreditationModalOpen, setAccreditationModalOpen] = useState(false);
   const [jobFairModalOpen, setJobFairModalOpen] = useState(false);
   const [ecosystemModalOpen, setEcosystemModalOpen] = useState(false);
+  const [whatIfModalOpen, setWhatIfModalOpen] = useState(false);
+  const [heatmapModalOpen, setHeatmapModalOpen] = useState(false);
+  const [copilotOpen, setCopilotOpen] = useState(false);
   const [pendingCompanies, setPendingCompanies] = useState([]);
   const [pendingAlumni, setPendingAlumni] = useState([]);
   const [analytics, setAnalytics] = useState(null);
@@ -628,7 +634,28 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
           onClick={() => setEcosystemModalOpen(true)}
           className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black transition-all shrink-0 bg-gradient-to-r from-blue-900 via-indigo-900 to-amber-600 hover:from-blue-800 hover:to-amber-500 text-white cursor-pointer shadow-md border border-amber-400/40"
         >
-          <Globe className="w-4 h-4 text-amber-300 animate-pulse" /> 🌐 Enterprise Suite (POD.ai)
+          <Globe className="w-4 h-4 text-amber-300 animate-pulse" /> 🌐 Enterprise Suite
+        </button>
+
+        <button
+          onClick={() => setCopilotOpen(true)}
+          className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black transition-all shrink-0 bg-purple-900 hover:bg-purple-800 text-white cursor-pointer shadow-md border border-purple-400/30"
+        >
+          <Sparkles className="w-4 h-4 text-amber-300 animate-pulse" /> 🤖 AI TPO Copilot
+        </button>
+
+        <button
+          onClick={() => setWhatIfModalOpen(true)}
+          className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black transition-all shrink-0 bg-indigo-900 hover:bg-indigo-800 text-white cursor-pointer shadow-md border border-indigo-400/30"
+        >
+          <Sliders className="w-4 h-4 text-amber-300" /> 🔮 What-If Simulator
+        </button>
+
+        <button
+          onClick={() => setHeatmapModalOpen(true)}
+          className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black transition-all shrink-0 bg-teal-900 hover:bg-teal-800 text-white cursor-pointer shadow-md border border-teal-400/30"
+        >
+          <Layers className="w-4 h-4 text-amber-300" /> 🗺️ Skill Heatmap
         </button>
 
         <button
@@ -2027,6 +2054,26 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
       <AccreditationNirfModal 
         isOpen={accreditationModalOpen} 
         onClose={() => setAccreditationModalOpen(false)} 
+      />
+
+      {/* 🔮 What-If Scenario Simulator Modal */}
+      <WhatIfSimulatorModal
+        isOpen={whatIfModalOpen}
+        onClose={() => setWhatIfModalOpen(false)}
+      />
+
+      {/* 🗺️ University Skill Gap Heatmap Modal */}
+      <SkillHeatmapModal
+        isOpen={heatmapModalOpen}
+        onClose={() => setHeatmapModalOpen(false)}
+      />
+
+      {/* 🤖 AI TPO Copilot Drawer */}
+      <AICopilotDrawer
+        isOpen={copilotOpen}
+        onClose={() => setCopilotOpen(false)}
+        currentUser={currentUser}
+        mode="tpo"
       />
     </div>
   );

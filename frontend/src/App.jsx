@@ -4,6 +4,8 @@ import AuthModal from './components/auth/AuthModal';
 import StudentDashboard from './components/student/StudentDashboard';
 import CompanyDashboard from './components/company/CompanyDashboard';
 import AdminDashboard from './components/admin/AdminDashboard';
+import SuperAdminDashboard from './components/admin/SuperAdminDashboard';
+import FacultyDashboard from './components/faculty/FacultyDashboard';
 import InterviewStudioView from './components/student/InterviewStudioView';
 import AlumniDashboard from './components/alumni/AlumniDashboard';
 import AIBugChatbotWidget from './components/common/AIBugChatbotWidget';
@@ -27,7 +29,7 @@ export default function App() {
   const [isOffline, setIsOffline] = useState(false);
   const [activeRole, setActiveRole] = useState(() => {
     const hash = window.location.hash.replace('#', '');
-    return ['student', 'interview', 'company', 'admin', 'alumni'].includes(hash) ? hash : 'student';
+    return ['student', 'interview', 'company', 'admin', 'alumni', 'faculty', 'superadmin'].includes(hash) ? hash : 'student';
   });
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [hideCardsForBGView, setHideCardsForBGView] = useState(false);
@@ -293,6 +295,18 @@ export default function App() {
               <AlumniDashboard
                 currentUser={currentUser}
                 onOpenAuth={() => setAuthModalOpen(true)}
+              />
+            )}
+
+            {activeRole === 'faculty' && (
+              <FacultyDashboard
+                currentUser={currentUser}
+              />
+            )}
+
+            {activeRole === 'superadmin' && (
+              <SuperAdminDashboard
+                currentUser={currentUser}
               />
             )}
 

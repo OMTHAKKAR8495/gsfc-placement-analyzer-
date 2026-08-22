@@ -273,6 +273,53 @@ async function runE2EAudit() {
   const infraHealth = await request('/api/ecosystem/infra-health');
   record('Ecosystem', 'Production Infrastructure & 99.99% SLA Monitor', infraHealth.status === 200 && infraHealth.json?.sla_uptime_percent === 99.99, `Status: ${infraHealth.json?.status}, Cache Latency: ${infraHealth.json?.in_memory_cache?.latency_ms}ms, Active Indexes: ${infraHealth.json?.database_cluster?.b_tree_indexes_active}`);
 
+  // ==========================================
+  // PHASE 10: GSFC AI PLACEMENT INTELLIGENCE PLATFORM
+  // ==========================================
+  console.log('\n--- Phase 10: GSFC AI Placement Intelligence Platform (Copilot, What-If, Heatmap, RAG, Audit) ---');
+
+  const tpoCopilotRes = await request('/api/intelligence/tpo-copilot', {
+    method: 'POST',
+    body: JSON.stringify({ query: 'Show students eligible for next company' })
+  });
+  record('Intelligence', 'AI TPO Copilot Natural-Language Query Processor', tpoCopilotRes.status === 200 && tpoCopilotRes.json?.response && tpoCopilotRes.json?.table, 'Returned structured database response & table');
+
+  const careerCopilotRes = await request('/api/intelligence/student-copilot', {
+    method: 'POST',
+    body: JSON.stringify({ query: 'Which skills should I learn for Google Cloud?' })
+  });
+  record('Intelligence', 'AI Student Career Copilot Personalized Mentor', careerCopilotRes.status === 200 && careerCopilotRes.json?.answer, 'Returned contextual skill guidance & questions');
+
+  const readinessRes = await request('/api/intelligence/readiness/s_arav');
+  record('Intelligence', '10-Point Student Placement Readiness & Probability Engine', readinessRes.status === 200 && readinessRes.json?.dimensions?.length === 10, `Readiness: ${readinessRes.json?.overall_readiness_score}/100, Probability: ${readinessRes.json?.placement_probability}%, Risk: ${readinessRes.json?.risk_level}`);
+
+  const skillHeatmapRes = await request('/api/intelligence/skill-heatmap?department=ALL');
+  record('Intelligence', 'University-Wide Skill Gap Heatmap Diagnostic', skillHeatmapRes.status === 200 && Array.isArray(skillHeatmapRes.json?.skills) && skillHeatmapRes.json?.skills?.length >= 5, `${skillHeatmapRes.json?.skills?.length} technical skills evaluated`);
+
+  const earlyWarningsRes = await request('/api/intelligence/early-warnings');
+  record('Intelligence', 'Early Warning System & At-Risk Action Queue', earlyWarningsRes.status === 200 && earlyWarningsRes.json?.total_at_risk !== undefined, `${earlyWarningsRes.json?.total_at_risk} candidates flagged for remedial intervention`);
+
+  const whatIfRes = await request('/api/intelligence/what-if', {
+    method: 'POST',
+    body: JSON.stringify({ dsaTrainingStudents: 150, companyParticipationIncreasePct: 20 })
+  });
+  record('Intelligence', 'Placement "What-If" Scenario Simulation Engine', whatIfRes.status === 200 && whatIfRes.json?.projection?.projected_placement_rate > 0, `Lift: ${whatIfRes.json?.projection?.placement_rate_lift_pct}, Projected Rate: ${whatIfRes.json?.projection?.projected_placement_rate}%`);
+
+  const ragQueryRes = await request('/api/intelligence/rag-query', {
+    method: 'POST',
+    body: JSON.stringify({ query: 'What is the Dream Offer policy at GSFC?' })
+  });
+  record('Intelligence', 'Placement Policy RAG Engine & Citation Guardrail', ragQueryRes.status === 200 && ragQueryRes.json?.citation_id, `Citation: ${ragQueryRes.json?.source_document}`);
+
+  const globalSearchRes = await request('/api/intelligence/global-search?q=google');
+  record('Intelligence', 'Global Search Engine (Search Everything)', globalSearchRes.status === 200 && Array.isArray(globalSearchRes.json?.results), `Found ${globalSearchRes.json?.results?.length} matching entities`);
+
+  const facultyAnalyticsRes = await request('/api/faculty/department-analytics?department=BTech+CSE');
+  record('Faculty', 'Departmental Faculty Placement Analytics & Remedial Hub', facultyAnalyticsRes.status === 200 && facultyAnalyticsRes.json?.total_students > 0, `${facultyAnalyticsRes.json?.total_students} departmental students tracked`);
+
+  const auditLogsRes = await request('/api/audit/logs');
+  record('Security', 'Immutable Administrative Action Audit Trail', auditLogsRes.status === 200 && Array.isArray(auditLogsRes.json), `${auditLogsRes.json?.length} audit events verified`);
+
   console.log('\n================================================================================');
   console.log(`🎉 COMPREHENSIVE END-TO-END AUDIT PASSED: ${passedTests}/${totalTests} TESTS (100%)!`);
   console.log('================================================================================\n');
