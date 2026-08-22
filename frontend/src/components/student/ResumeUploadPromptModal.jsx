@@ -10,7 +10,8 @@ export default function ResumeUploadPromptModal({
   onClose, 
   currentUser, 
   requirements = [], 
-  onUploadSuccess 
+  onUploadSuccess,
+  onOpenBuilder
 }) {
   const [selectedReqId, setSelectedReqId] = useState(requirements[0]?.id || 'req_google_swe');
   const [file, setFile] = useState(null);
@@ -214,6 +215,35 @@ export default function ResumeUploadPromptModal({
               </div>
             </div>
           )}
+        </div>
+
+        {/* 🌟 Don't have a resume? Create & Build One Now Option */}
+        <div className="p-4 bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-950/40 dark:via-indigo-950/40 dark:to-purple-950/40 border border-blue-200/80 dark:border-blue-800/80 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center font-black shrink-0 shadow-md">
+              <Sparkles className="w-5 h-5" />
+            </div>
+            <div>
+              <h4 className="text-xs font-black text-slate-900 dark:text-slate-100">
+                Don't have a resume? Build one from scratch
+              </h4>
+              <p className="text-[11px] text-slate-600 dark:text-slate-300 font-medium">
+                Fill details & upload your Marksheets, Certifications & Student ID files.
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => {
+              if (onOpenBuilder) onOpenBuilder();
+              onClose();
+            }}
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-black shrink-0 flex items-center gap-1.5 shadow-sm transition-all hover:scale-105 cursor-pointer"
+          >
+            <span>Create Resume Now</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </button>
         </div>
 
         {/* 3 Pillars Showcase */}

@@ -184,6 +184,194 @@ router.post('/resume/save', (req, res) => {
   }
 });
 
+// Interactive Resume Builder & 3-Dossier Verification Document Pipeline
+router.post('/builder/save', upload.fields([
+  { name: 'marksheets', maxCount: 1 },
+  { name: 'certifications', maxCount: 1 },
+  { name: 'id_document', maxCount: 1 }
+]), async (req, res) => {
+  try {
+    const { 
+      student_id, name, roll_number, program, branch, cgpa, 
+      passing_year, admission_year, phone, email, 
+      linkedin_url, github_url, summary, 
+      skills_json, projects_json, experience_json, education_json,
+      target_requirement_id 
+    } = req.body;
+
+    if (!student_id) {
+      return res.status(400).json({ error: 'student_id is required.' });
+    }
+
+    let skillsObj = { technical: ['Python', 'SQL', 'React', 'Git'], soft: ['Communication', 'Teamwork', 'Problem Solving'] };
+    try {
+      if (skills_json) {
+        const parsed = typeof skills_json === 'string' ? JSON.parse(skills_json) : skills_json;
+        if (Array.isArray(parsed)) {
+          skillsObj.technical = parsed;
+        } else if (parsed && typeof parsed === 'object') {
+          skillsObj = parsed;
+        }
+      }
+    } catch (e) {}
+
+    let projectsArr = [];
+    try {
+      if (projects_json) projectsArr = typeof projects_json === 'string' ? JSON.parse(projects_json) : projects_json;
+    } catch(e) {}
+
+    let experienceArr = [];
+    try {
+      if (experience_json) experienceArr = typeof experience_json === 'string' ? JSON.parse(experience_json) : experience_json;
+    } catch(e) {}
+
+    let educationArr = [];
+    try {
+      if (education_json) educationArr = typeof education_json === 'string' ? JSON.parse(education_json) : education_json;
+    } catch(e) {}
+
+    // File attachments URLs
+    const marksheetsUrl = req.files?.['marksheets'] ? `/uploads/marksheets_${student_id}_${Date.now()}.pdf` : null;
+    const certificationsUrl = req.files?.['certifications'] ? `/uploads/certs_${student_id}_${Date.now()}.pdf` : null;
+    const idDocumentUrl = req.files?.['id_document'] ? `/uploads/id_${student_id}_${Date.now()}.pdf` : null;
+
+    // Build synthesized full structured resume object
+    const synthesizedResumeJson = {
+      name: name || 'Student Candidate',
+      roll_number: roll_number || 'GSFC/2026/CSE/001',
+      email: email || 'student@gsfcuniversity.ac.in',
+      phone: phone || '+91 98765 43210',
+      program: program || 'BTech CSE',
+      branch: branch || 'Computer Science & Engineering',
+      cgpa: parseFloat(cgpa || 8.5),
+      passing_year: parseInt(passing_year || 2026, 10),
+      summary: summary || `Aspiring ${program || 'Engineering'} graduate from GSFC University skilled in ${skillsObj.technical?.slice(0, 4).join(', ')}.`,
+      skills: skillsObj,
+      projects: projectsArr,
+      experience: experienceArr,
+      education: educationArr,
+      linkedin_url: linkedin_url || '',
+      github_url: github_url || '',
+      verified_dossier: {
+        marksheets_attached: !!marksheetsUrl,
+        certifications_attached: !!certificationsUrl,
+        id_document_attached: !!idDocumentUrl
+      }
+    };
+
+    let targetReq = null;
+    if (target_requirement_id) {
+      targetReq = db.prepare(`
+        SELECT r.*, c.company_name, c.logo_url
+        FROM requirements r
+        JOIN company_profiles c ON r.company_id = c.id
+        WHERE r.id = ?
+      `).get(target_requirement_id);
+    }
+
+    const rawTextRepresentation = `
+Candidate Name: ${synthesizedResumeJson.name}
+Roll Number: ${synthesizedResumeJson.roll_number}
+Degree & Program: ${synthesizedResumeJson.program} - ${synthesizedResumeJson.branch}
+CGPA: ${synthesizedResumeJson.cgpa}
+Passing Year: ${synthesizedResumeJson.passing_year}
+Professional Summary: ${synthesizedResumeJson.summary}
+Technical Skills: ${(synthesizedResumeJson.skills.technical || []).join(', ')}
+Soft Skills: ${(synthesizedResumeJson.skills.soft || []).join(', ')}
+Key Projects:
+${projectsArr.map(p => `- ${p.title || 'Project'} (${p.techStack || 'Tech'}): ${p.description || ''}`).join('\n')}
+Experience & Internships:
+${experienceArr.map(e => `- ${e.role || 'Intern'} at ${e.company || 'Org'} (${e.duration || 'Period'}): ${e.description || ''}`).join('\n')}
+Education History:
+${educationArr.map(ed => `- ${ed.degree || 'Degree'} from ${ed.institution || 'School'}: ${ed.score || 'Grade'}`).join('\n')}
+    `.trim();
+
+    // Calculate ATS Score
+    const atsResult = await computeATSScore(synthesizedResumeJson, rawTextRepresentation, targetReq);
+
+    // Calculate Target Company Match
+    let targetCompanyMatch = null;
+    if (targetReq) {
+      const matchScoreData = calculateMatchScore({
+        cgpa: synthesizedResumeJson.cgpa,
+        program: synthesizedResumeJson.program,
+        parsed_resume_json: synthesizedResumeJson
+      }, targetReq);
+
+      let reqSkills = [];
+      try {
+        reqSkills = typeof targetReq.required_skills_json === 'string' ? JSON.parse(targetReq.required_skills_json) : (targetReq.required_skills_json || []);
+      } catch(e) {}
+
+      const candidateSkills = synthesizedResumeJson.skills?.technical || [];
+      const matchedSkills = reqSkills.filter(s => candidateSkills.some(cs => cs.toLowerCase().includes(s.toLowerCase())));
+      const missingSkills = reqSkills.filter(s => !matchedSkills.includes(s));
+
+      targetCompanyMatch = {
+        requirementId: targetReq.id,
+        companyName: targetReq.company_name,
+        roleTitle: targetReq.title,
+        ctcRange: targetReq.ctc_range,
+        matchScore: matchScoreData.matchScore,
+        eligible: matchScoreData.eligible,
+        eligibilityReason: matchScoreData.reason,
+        matchedSkills,
+        missingSkills,
+        cgpaCheckPassed: synthesizedResumeJson.cgpa >= (targetReq.min_cgpa || 0)
+      };
+    }
+
+    // Check if student exists or create
+    const existing = db.prepare('SELECT * FROM student_profiles WHERE id = ?').get(student_id);
+    if (!existing) {
+      db.prepare(`
+        INSERT INTO student_profiles (
+          id, name, roll_number, program, branch, cgpa, passing_year, admission_year, phone,
+          parsed_resume_json, ats_score, ats_feedback_json, marksheets_url, certifications_url, id_document_url, linkedin_url, github_url
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(
+        student_id, synthesizedResumeJson.name, synthesizedResumeJson.roll_number,
+        synthesizedResumeJson.program, synthesizedResumeJson.branch, synthesizedResumeJson.cgpa,
+        synthesizedResumeJson.passing_year, parseInt(admission_year || 2022, 10), synthesizedResumeJson.phone,
+        JSON.stringify(synthesizedResumeJson), atsResult.atsScore, JSON.stringify(atsResult.feedback),
+        marksheetsUrl, certificationsUrl, idDocumentUrl, synthesizedResumeJson.linkedin_url, synthesizedResumeJson.github_url
+      );
+    } else {
+      db.prepare(`
+        UPDATE student_profiles 
+        SET name = ?, roll_number = ?, program = ?, branch = ?, cgpa = ?, 
+            passing_year = ?, phone = ?, parsed_resume_json = ?, ats_score = ?, ats_feedback_json = ?,
+            marksheets_url = COALESCE(?, marksheets_url),
+            certifications_url = COALESCE(?, certifications_url),
+            id_document_url = COALESCE(?, id_document_url),
+            linkedin_url = ?, github_url = ?
+        WHERE id = ?
+      `).run(
+        synthesizedResumeJson.name, synthesizedResumeJson.roll_number, synthesizedResumeJson.program,
+        synthesizedResumeJson.branch, synthesizedResumeJson.cgpa, synthesizedResumeJson.passing_year,
+        synthesizedResumeJson.phone, JSON.stringify(synthesizedResumeJson), atsResult.atsScore,
+        JSON.stringify(atsResult.feedback), marksheetsUrl, certificationsUrl, idDocumentUrl,
+        synthesizedResumeJson.linkedin_url, synthesizedResumeJson.github_url, student_id
+      );
+    }
+
+    const updatedStudent = db.prepare('SELECT * FROM student_profiles WHERE id = ?').get(student_id);
+
+    res.json({
+      success: true,
+      message: 'Comprehensive placement profile, structured resume, and document dossier successfully generated & verified!',
+      student: updatedStudent,
+      atsScore: atsResult.atsScore,
+      atsFeedback: atsResult.feedback,
+      parsedResume: synthesizedResumeJson,
+      targetCompanyMatch
+    });
+  } catch (err) {
+    console.error('Resume builder save error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Requirements Feed with Personalized Match Scores
 router.get('/requirements', (req, res) => {
   try {

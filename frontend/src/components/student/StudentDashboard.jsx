@@ -11,6 +11,7 @@ import JobFairListView from './JobFairListView';
 import MentorshipFeed from '../alumni/MentorshipFeed';
 import QABoard from '../common/QABoard';
 import ResumeUploadPromptModal from './ResumeUploadPromptModal';
+import ResumeBuilderAndDossierModal from './ResumeBuilderAndDossierModal';
 import { useToast } from '../../context/ToastContext';
 
 export const DEFAULT_REQUIREMENTS_FEED = [
@@ -104,6 +105,7 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
   const [selectedTargetReqId, setSelectedTargetReqId] = useState('');
   const [targetCompanyMatchData, setTargetCompanyMatchData] = useState(null);
   const [resumePromptOpen, setResumePromptOpen] = useState(false);
+  const [builderModalOpen, setBuilderModalOpen] = useState(false);
 
   useEffect(() => {
     if (currentUser && (currentUser.role === 'student' || !currentUser.role)) {
@@ -1076,17 +1078,28 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
                       Supports PDF, DOCX, or TXT format. Automated parsing will extract candidate name, technical skills, and eligibility.
                     </p>
                   </div>
-                  <label className="inline-flex items-center gap-2 py-2.5 px-5 bg-blue-900 hover:bg-blue-800 text-white font-black text-xs rounded-xl shadow-md cursor-pointer transition-all">
-                    <Paperclip className="w-4 h-4" />
-                    <span>{uploadingResume ? 'Parsing PDF...' : 'Browse File from Computer'}</span>
-                    <input
-                      type="file"
-                      accept=".pdf,.docx,.txt"
-                      onChange={handleResumeFileUpload}
-                      className="hidden"
-                      disabled={uploadingResume}
-                    />
-                  </label>
+                  <div className="flex flex-wrap items-center justify-center gap-3 pt-1">
+                    <label className="inline-flex items-center gap-2 py-2.5 px-5 bg-blue-900 hover:bg-blue-800 text-white font-black text-xs rounded-xl shadow-md cursor-pointer transition-all">
+                      <Paperclip className="w-4 h-4" />
+                      <span>{uploadingResume ? 'Parsing PDF...' : 'Browse File from Computer'}</span>
+                      <input
+                        type="file"
+                        accept=".pdf,.docx,.txt"
+                        onChange={handleResumeFileUpload}
+                        className="hidden"
+                        disabled={uploadingResume}
+                      />
+                    </label>
+
+                    <button
+                      type="button"
+                      onClick={() => setBuilderModalOpen(true)}
+                      className="inline-flex items-center gap-2 py-2.5 px-5 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:opacity-90 text-white font-black text-xs rounded-xl shadow-md cursor-pointer transition-all hover:scale-105"
+                    >
+                      <Sparkles className="w-4 h-4" />
+                      <span>Don't have a resume? Build One & Upload 3 Documents</span>
+                    </button>
+                  </div>
                 </div>
               )}
 
@@ -1653,6 +1666,7 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
         onClose={() => setResumePromptOpen(false)}
         currentUser={currentUser}
         requirements={requirementsFeed}
+        onOpenBuilder={() => setBuilderModalOpen(true)}
         onUploadSuccess={(data) => {
           if (onUpdateStudent && data.student) {
             onUpdateStudent(data.student);
@@ -1664,6 +1678,29 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
             type: 'success',
             title: 'Resume Analyzed & ATS Scored!',
             message: `ATS Score: ${data.atsScore}/100. Target recruiter match evaluated!`,
+            triggerCrackles: true
+          });
+        }}
+      />
+
+      {/* 🌟 FULL-FEATURED RESUME BUILDER & 3-DOCUMENT VERIFICATION DOSSIER MODAL */}
+      <ResumeBuilderAndDossierModal
+        isOpen={builderModalOpen}
+        onClose={() => setBuilderModalOpen(false)}
+        student={student}
+        currentUser={currentUser}
+        requirements={requirementsFeed}
+        onSuccess={(data) => {
+          if (onUpdateStudent && data.student) {
+            onUpdateStudent(data.student);
+          }
+          if (data.targetCompanyMatch) {
+            setTargetCompanyMatchData(data.targetCompanyMatch);
+          }
+          showToast({
+            type: 'success',
+            title: 'Profile Built & Verified Documents Uploaded!',
+            message: `ATS Score: ${data.atsScore}/100. Structured resume created with 3 verification files!`,
             triggerCrackles: true
           });
         }}

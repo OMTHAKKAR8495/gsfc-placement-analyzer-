@@ -100,6 +100,23 @@ function applyMigrations() {
     }
     db.exec("UPDATE applications SET attendance_status = 'pending' WHERE attendance_status IS NULL");
 
+    const studentColumns = db.prepare("PRAGMA table_info(student_profiles)").all().map(c => c.name);
+    if (!studentColumns.includes('marksheets_url')) {
+      db.exec("ALTER TABLE student_profiles ADD COLUMN marksheets_url TEXT");
+    }
+    if (!studentColumns.includes('certifications_url')) {
+      db.exec("ALTER TABLE student_profiles ADD COLUMN certifications_url TEXT");
+    }
+    if (!studentColumns.includes('id_document_url')) {
+      db.exec("ALTER TABLE student_profiles ADD COLUMN id_document_url TEXT");
+    }
+    if (!studentColumns.includes('linkedin_url')) {
+      db.exec("ALTER TABLE student_profiles ADD COLUMN linkedin_url TEXT");
+    }
+    if (!studentColumns.includes('github_url')) {
+      db.exec("ALTER TABLE student_profiles ADD COLUMN github_url TEXT");
+    }
+
     // Document Authenticity Checker & Forensics Reports Table
     db.exec(`
       CREATE TABLE IF NOT EXISTS document_authenticity_reports (
