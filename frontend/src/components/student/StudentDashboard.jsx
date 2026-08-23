@@ -188,6 +188,19 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
   const [candidateEmail, setCandidateEmail] = useState('thakkar_om@gmail.com');
   const [isEditingName, setIsEditingName] = useState(false);
   const [isEditingEmail, setIsEditingEmail] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState(() => localStorage.getItem('gsfc_user_avatar') || student?.avatar_url || '');
+
+  useEffect(() => {
+    const handleAvatarUpdate = (e) => {
+      if (e.detail?.avatarUrl !== undefined) {
+        setAvatarUrl(e.detail.avatarUrl);
+      } else {
+        setAvatarUrl(localStorage.getItem('gsfc_user_avatar') || '');
+      }
+    };
+    window.addEventListener('gsfc-avatar-updated', handleAvatarUpdate);
+    return () => window.removeEventListener('gsfc-avatar-updated', handleAvatarUpdate);
+  }, []);
 
   // Selected Match Breakdown Modal State
   const [selectedMatchBreakdown, setSelectedMatchBreakdown] = useState(null);
@@ -773,23 +786,41 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
       {/* Main Student Header Hero */}
       <div className="glass-panel p-6 sm:p-8 rounded-3xl relative overflow-hidden border border-slate-200/90 shadow-xl bg-gradient-to-r from-blue-900/10 via-teal-900/10 to-indigo-900/10">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
-          <div className="space-y-3">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="px-3 py-1 bg-blue-100 text-blue-900 border border-blue-200 rounded-full text-xs font-black flex items-center gap-1.5">
-                <Sparkles className="w-3.5 h-3.5 text-blue-900" /> GSFC University Placement Workspace
-              </span>
-              <span className="px-3 py-1 bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-full text-xs font-black flex items-center gap-1.5">
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-800" /> {student?.program || 'BTech CSE'} ({student?.cgpa || 8.5} CGPA)
+          <div className="flex items-start sm:items-center gap-4 sm:gap-5">
+            {/* Candidate Big Passport Photo Frame */}
+            <div className="relative group shrink-0">
+              <div className="w-16 h-20 sm:w-20 sm:h-24 rounded-2xl overflow-hidden border-2 border-blue-900 dark:border-amber-400 bg-white dark:bg-slate-800 shadow-md flex items-center justify-center ring-2 ring-blue-500/20">
+                {avatarUrl ? (
+                  <img src={avatarUrl} alt="Candidate Portrait" className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full bg-gradient-to-tr from-blue-900 via-indigo-900 to-amber-600 text-white font-black text-xl flex items-center justify-center">
+                    {(candidateName || 'GS').substring(0, 2).toUpperCase()}
+                  </div>
+                )}
+              </div>
+              <span className="absolute -bottom-1 -right-1 px-1.5 py-0.5 rounded-full bg-emerald-500 text-white text-[8px] font-black tracking-wider uppercase border border-white shadow-xs">
+                VERIFIED
               </span>
             </div>
 
-            <div>
-              <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
-                Welcome to <span className="text-gradient">GSFC Placement Portal</span>, {candidateName}
-              </h1>
-              <p className="text-xs sm:text-sm text-slate-700 font-bold max-w-xl mt-1 leading-relaxed">
-                Smart Resume Analyzer powered by NLP & Gemini AI. Visual skill match analytics, ATS compliance evaluation, and automated interview coaching.
-              </p>
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="px-3 py-1 bg-blue-100 text-blue-900 border border-blue-200 rounded-full text-xs font-black flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-blue-900" /> GSFC University Placement Workspace
+                </span>
+                <span className="px-3 py-1 bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-full text-xs font-black flex items-center gap-1.5">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-800" /> {student?.program || 'BTech CSE'} ({student?.cgpa || 8.5} CGPA)
+                </span>
+              </div>
+
+              <div>
+                <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+                  Welcome to <span className="text-gradient">GSFC Placement Portal</span>, {candidateName}
+                </h1>
+                <p className="text-xs sm:text-sm text-slate-700 font-bold max-w-xl mt-1 leading-relaxed">
+                  Smart Resume Analyzer powered by NLP & Gemini AI. Visual skill match analytics, ATS compliance evaluation, and automated interview coaching.
+                </p>
+              </div>
             </div>
           </div>
 

@@ -332,28 +332,28 @@ export default function Navbar({ currentUser, activeRole, onRoleSwitch, onOpenAu
 
           {/* 🔑 SIGN IN / USER PROFILE & SIGN OUT BUTTON */}
           {currentUser ? (
-            <div className="flex items-center gap-2 pl-1 border-l border-slate-200 dark:border-slate-700">
-              {/* Profile Avatar Image */}
+            <div className="flex items-center gap-2.5 pl-1 border-l border-slate-200 dark:border-slate-700">
+              {/* Profile Avatar Image (Big & High Visibility) */}
               <button
                 type="button"
                 onClick={() => setSettingsModalOpen(true)}
                 className="relative group cursor-pointer shrink-0"
-                title="Account Settings & Profile Photo"
+                title="Account Settings & Profile Photo (Click to Change)"
               >
-                <div className="w-8 h-8 rounded-full overflow-hidden border-2 border-blue-900 dark:border-amber-400 bg-slate-200 dark:bg-slate-700 flex items-center justify-center shadow-xs transition-transform group-hover:scale-105">
+                <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl overflow-hidden border-2 border-blue-900 dark:border-amber-400 bg-slate-200 dark:bg-slate-700 flex items-center justify-center shadow-md transition-all group-hover:scale-105 ring-2 ring-blue-500/20">
                   {avatarUrl ? (
                     <img src={avatarUrl} alt="Candidate Profile" className="w-full h-full object-cover" />
                   ) : (
-                    <div className="w-full h-full bg-gradient-to-tr from-blue-900 to-indigo-700 text-white font-black text-[11px] flex items-center justify-center">
+                    <div className="w-full h-full bg-gradient-to-tr from-blue-900 to-indigo-700 text-white font-black text-sm flex items-center justify-center">
                       {(currentUser.profile?.name || currentUser.name || currentUser.email || 'GS').substring(0, 2).toUpperCase()}
                     </div>
                   )}
                 </div>
-                <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-white dark:border-slate-900" />
+                <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-500 border-2 border-white dark:border-slate-900 shadow-xs" />
               </button>
 
               <div className="text-right hidden xl:block">
-                <div className="text-xs font-black text-slate-900 dark:text-slate-100 truncate max-w-[100px]">
+                <div className="text-xs font-black text-slate-900 dark:text-slate-100 truncate max-w-[110px]">
                   {currentUser.profile?.name || currentUser.name || currentUser.email}
                 </div>
                 <div className="text-[9px] font-black text-emerald-600 uppercase tracking-wider flex items-center justify-end gap-1">
