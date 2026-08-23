@@ -285,7 +285,7 @@ export default function Navbar({ currentUser, activeRole, onRoleSwitch, onOpenAu
         </div>
 
         {/* Right Navigation & Header Actions Controls */}
-        <div className="hidden md:flex items-center gap-1.5 lg:gap-2 shrink-0">
+        <div className="hidden md:flex items-center gap-1 lg:gap-1.5 shrink-0 min-w-0">
           {/* 🔍 GLOBAL SEARCH (CMD+K) BUTTON */}
           <button
             onClick={() => setSearchModalOpen(true)}
@@ -349,7 +349,7 @@ export default function Navbar({ currentUser, activeRole, onRoleSwitch, onOpenAu
 
           {/* 🔑 SIGN IN / USER PROFILE & SIGN OUT BUTTON */}
           {currentUser ? (
-            <div className="flex items-center gap-3 pl-2 border-l border-slate-200 dark:border-slate-700">
+            <div className="flex items-center gap-2 pl-2 border-l border-slate-200 dark:border-slate-700 shrink-0">
               {/* Profile Avatar Image (Big Passport Portrait Style) */}
               <button
                 type="button"
@@ -357,7 +357,7 @@ export default function Navbar({ currentUser, activeRole, onRoleSwitch, onOpenAu
                 className="relative group cursor-pointer shrink-0"
                 title="Account Settings & Passport Photo (Click to Change)"
               >
-                <div className="w-11 h-14 sm:w-12 sm:h-15 rounded-2xl overflow-hidden border-2 border-blue-900 dark:border-amber-400 bg-slate-200 dark:bg-slate-700 flex items-center justify-center shadow-lg transition-all group-hover:scale-105 ring-2 ring-blue-500/20">
+                <div className="w-10 h-12 rounded-xl overflow-hidden border-2 border-blue-900 dark:border-amber-400 bg-slate-200 dark:bg-slate-700 flex items-center justify-center shadow-lg transition-all group-hover:scale-105 ring-2 ring-blue-500/20">
                   {avatarUrl ? (
                     <img src={avatarUrl} alt="Candidate Profile" className="w-full h-full object-cover" />
                   ) : (
@@ -371,8 +371,8 @@ export default function Navbar({ currentUser, activeRole, onRoleSwitch, onOpenAu
                 </span>
               </button>
 
-              <div className="text-right hidden xl:block">
-                <div className="text-xs font-black text-slate-900 dark:text-slate-100 truncate max-w-[120px]">
+              <div className="text-right hidden 2xl:block">
+                <div className="text-xs font-black text-slate-900 dark:text-slate-100 truncate max-w-[100px]">
                   {currentUser.profile?.name || currentUser.name || currentUser.email}
                 </div>
                 <div className="text-[9px] font-black text-emerald-600 uppercase tracking-wider flex items-center justify-end gap-1">
@@ -381,13 +381,14 @@ export default function Navbar({ currentUser, activeRole, onRoleSwitch, onOpenAu
                 </div>
               </div>
 
+              {/* Sign Out — icon-only on md/lg/xl, full label on 2xl+ */}
               <button
                 onClick={onLogout}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-black shadow-md transition-all cursor-pointer"
+                className="flex items-center gap-1.5 p-2 2xl:px-3 2xl:py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-black shadow-md transition-all cursor-pointer shrink-0"
                 title="Sign Out of Account"
               >
-                <LogOut className="w-3.5 h-3.5" />
-                <span>Sign Out</span>
+                <LogOut className="w-3.5 h-3.5 shrink-0" />
+                <span className="hidden 2xl:inline">Sign Out</span>
               </button>
             </div>
           ) : (
