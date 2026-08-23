@@ -860,7 +860,7 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
         requirement_title: targetReq.title,
         company_name: targetReq.company_name,
         match_score: matchScore,
-        applied_at: new Date().toISOString().split('T')[0],
+        applied_at: new Date().toISOString(),
         status: 'applied',
         applied_via: 'internal'
       };
