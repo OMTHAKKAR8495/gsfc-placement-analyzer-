@@ -41,15 +41,15 @@ export default async function handler(req, res) {
       createdAt: Date.now()
     });
 
+    const smtpUser = process.env.SMTP_USER || process.env.EMAIL_USER;
+    const smtpPass = (process.env.SMTP_PASS || process.env.EMAIL_PASS || '').replace(/\s+/g, '');
+
     // Configure Mail Transporter
     const transporter = nodemailer.createTransport({
       service: 'gmail',
-      host: 'smtp.gmail.com',
-      port: 587,
-      secure: false,
       auth: {
-        user: process.env.SMTP_USER || 'gsfc.placement.notifications@gmail.com',
-        pass: process.env.SMTP_PASS || 'dklv kldp xzqr jwvy' // Dedicated App Password for GSFC notification relay
+        user: smtpUser,
+        pass: smtpPass
       }
     });
 

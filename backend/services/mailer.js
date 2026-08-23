@@ -2,29 +2,28 @@ import nodemailer from 'nodemailer';
 
 // Configure nodemailer transporter
 const getTransporter = () => {
-  const host = process.env.SMTP_HOST || 'smtp.gmail.com';
-  const port = parseInt(process.env.SMTP_PORT || '587', 10);
   const user = process.env.SMTP_USER || process.env.EMAIL_USER;
-  const pass = process.env.SMTP_PASS || process.env.EMAIL_PASS || process.env.GMAIL_APP_PASSWORD;
+  const pass = (process.env.SMTP_PASS || process.env.EMAIL_PASS || '').replace(/\s+/g, ''); // Trim any spaces in 16-char app password
+  const host = process.env.SMTP_HOST || 'smtp.gmail.com';
+  const port = parseInt(process.env.SMTP_PORT || '465', 10);
+  const secure = process.env.SMTP_SECURE === 'true' || port === 465;
 
   if (user && pass) {
     return nodemailer.createTransport({
       service: host.includes('gmail') ? 'gmail' : undefined,
       host: !host.includes('gmail') ? host : undefined,
       port,
-      secure: port === 465,
+      secure,
       auth: { user, pass }
     });
   }
 
-  // Fallback transport configuration for university relay / local environment
+  // Default Gmail SMTP Transporter
   return nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 587,
-    secure: false,
+    service: 'gmail',
     auth: {
-      user: 'gsfc.placement.notifications@gmail.com',
-      pass: 'dklv kldp xzqr jwvy' // Dedicated App Password for GSFC notification relay
+      user: user || 'tpc@gsfcuniversity.ac.in',
+      pass: pass || ''
     }
   });
 };
