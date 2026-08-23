@@ -24,6 +24,7 @@ export default function Navbar({ currentUser, activeRole, onRoleSwitch, onOpenAu
   const [settingsModalOpen, setSettingsModalOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [notifModalOpen, setNotifModalOpen] = useState(false);
+  const [avatarDropdownOpen, setAvatarDropdownOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [avatarUrl, setAvatarUrl] = useState(() => localStorage.getItem('gsfc_user_avatar') || currentUser?.profile?.avatar_url || '');
   const [readNotifIds, setReadNotifIds] = useState(() => {
@@ -347,19 +348,19 @@ export default function Navbar({ currentUser, activeRole, onRoleSwitch, onOpenAu
             {theme === 'dark' ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-slate-700" />}
           </button>
 
-          {/* 🔑 SIGN IN / USER PROFILE & SIGN OUT BUTTON */}
+          {/* 🔑 AVATAR DROPDOWN — Sign In/Out & Profile (no overflow at any screen width) */}
           {currentUser ? (
-            <div className="flex items-center gap-2 pl-2 border-l border-slate-200 dark:border-slate-700 shrink-0">
-              {/* Profile Avatar Image (Big Passport Portrait Style) */}
+            <div className="relative shrink-0 pl-2 border-l border-slate-200 dark:border-slate-700">
+              {/* Avatar Trigger Button */}
               <button
                 type="button"
-                onClick={() => setSettingsModalOpen(true)}
-                className="relative group cursor-pointer shrink-0"
-                title="Account Settings & Passport Photo (Click to Change)"
+                onClick={() => setAvatarDropdownOpen(prev => !prev)}
+                className="relative group cursor-pointer shrink-0 flex items-center gap-1.5"
+                title="Account Menu"
               >
-                <div className="w-10 h-12 rounded-xl overflow-hidden border-2 border-blue-900 dark:border-amber-400 bg-slate-200 dark:bg-slate-700 flex items-center justify-center shadow-lg transition-all group-hover:scale-105 ring-2 ring-blue-500/20">
+                <div className="w-9 h-11 rounded-xl overflow-hidden border-2 border-blue-900 dark:border-amber-400 bg-slate-200 dark:bg-slate-700 flex items-center justify-center shadow-lg transition-all group-hover:scale-105 ring-2 ring-blue-500/20">
                   {avatarUrl ? (
-                    <img src={avatarUrl} alt="Candidate Profile" className="w-full h-full object-cover" />
+                    <img src={avatarUrl} alt="Profile" className="w-full h-full object-cover" />
                   ) : (
                     <div className="w-full h-full bg-gradient-to-tr from-blue-900 to-indigo-700 text-white font-black text-xs flex items-center justify-center">
                       {getInitials(currentUser?.profile?.name || currentUser?.name || currentUser?.email)}
@@ -369,32 +370,67 @@ export default function Navbar({ currentUser, activeRole, onRoleSwitch, onOpenAu
                 <span className="absolute -bottom-1 -right-1 px-1 py-0.5 rounded-md bg-emerald-500 text-white text-[7px] font-black uppercase tracking-wider border border-white dark:border-slate-900 shadow-xs">
                   VERIFIED
                 </span>
+                {/* Name + Role (visible only on wide screens — no overflow risk) */}
+                <div className="hidden xl:block text-left">
+                  <div className="text-xs font-black text-slate-900 dark:text-slate-100 truncate max-w-[90px] leading-tight">
+                    {currentUser.profile?.name || currentUser.name || currentUser.email}
+                  </div>
+                  <div className="text-[9px] font-black text-emerald-600 uppercase tracking-wider flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                    {currentUser.role}
+                  </div>
+                </div>
               </button>
 
-              <div className="text-right hidden 2xl:block">
-                <div className="text-xs font-black text-slate-900 dark:text-slate-100 truncate max-w-[100px]">
-                  {currentUser.profile?.name || currentUser.name || currentUser.email}
-                </div>
-                <div className="text-[9px] font-black text-emerald-600 uppercase tracking-wider flex items-center justify-end gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                  {currentUser.role}
-                </div>
-              </div>
-
-              {/* Sign Out — icon-only on md/lg/xl, full label on 2xl+ */}
-              <button
-                onClick={onLogout}
-                className="flex items-center gap-1.5 p-2 2xl:px-3 2xl:py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-black shadow-md transition-all cursor-pointer shrink-0"
-                title="Sign Out of Account"
-              >
-                <LogOut className="w-3.5 h-3.5 shrink-0" />
-                <span className="hidden 2xl:inline">Sign Out</span>
-              </button>
+              {/* Dropdown Popover */}
+              {avatarDropdownOpen && (
+                <>
+                  {/* Backdrop */}
+                  <div
+                    className="fixed inset-0 z-[9998]"
+                    onClick={() => setAvatarDropdownOpen(false)}
+                  />
+                  {/* Menu */}
+                  <div className="absolute right-0 top-[calc(100%+10px)] z-[9999] w-56 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-2xl overflow-hidden">
+                    {/* Header */}
+                    <div className="px-4 py-3 bg-gradient-to-r from-blue-900 to-indigo-900">
+                      <div className="text-xs font-black text-white truncate">
+                        {currentUser.profile?.name || currentUser.name || currentUser.email}
+                      </div>
+                      <div className="text-[9px] text-blue-300 font-bold uppercase tracking-wider mt-0.5">
+                        {currentUser.email || currentUser.profile?.email}
+                      </div>
+                      <span className="inline-flex items-center gap-1 mt-1.5 px-2 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400/30 text-emerald-300 text-[9px] font-black uppercase tracking-wider">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                        {currentUser.role}
+                      </span>
+                    </div>
+                    {/* Actions */}
+                    <div className="py-1">
+                      <button
+                        onClick={() => { setAvatarDropdownOpen(false); setSettingsModalOpen(true); }}
+                        className="w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-left cursor-pointer"
+                      >
+                        <Settings className="w-4 h-4 text-slate-500" />
+                        <span>Account Settings</span>
+                      </button>
+                      <div className="mx-3 my-1 border-t border-slate-100 dark:border-slate-800" />
+                      <button
+                        onClick={() => { setAvatarDropdownOpen(false); onLogout(); }}
+                        className="w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors text-left cursor-pointer"
+                      >
+                        <LogOut className="w-4 h-4" />
+                        <span>Sign Out</span>
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           ) : (
             <button
               onClick={onOpenAuth}
-              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-blue-900 via-indigo-900 to-amber-600 hover:from-blue-800 hover:to-amber-500 text-white font-black text-xs shadow-md transition-all cursor-pointer"
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-blue-900 via-indigo-900 to-amber-600 hover:from-blue-800 hover:to-amber-500 text-white font-black text-xs shadow-md transition-all cursor-pointer shrink-0"
             >
               <LogIn className="w-3.5 h-3.5 shrink-0" />
               <span>Sign In / Portal</span>
