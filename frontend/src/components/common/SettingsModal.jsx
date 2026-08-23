@@ -314,8 +314,29 @@ export default function SettingsModal({ isOpen, onClose, currentUser, theme, onT
 
   const handleSaveSettings = () => {
     setSavingSettings(true);
+    const trimmedName = (displayName || '').trim();
+
+    // 1. Sync User Object & Real-time Session Across Platform
+    try {
+      const savedUserStr = localStorage.getItem('campushire_user');
+      let savedUser = savedUserStr ? JSON.parse(savedUserStr) : (currentUser || {});
+      if (trimmedName) {
+        savedUser.name = trimmedName;
+        if (!savedUser.profile) savedUser.profile = {};
+        savedUser.profile.name = trimmedName;
+      }
+      if (!savedUser.profile) savedUser.profile = {};
+      savedUser.profile.phone = phone;
+      savedUser.profile.targetStream = targetStream;
+
+      localStorage.setItem('campushire_user', JSON.stringify(savedUser));
+      localStorage.setItem('gsfc_candidate_name', trimmedName);
+      window.dispatchEvent(new CustomEvent('gsfc-user-updated', { detail: { user: savedUser } }));
+    } catch(e) {}
+
+    // 2. Persist Settings Object
     const settingsObj = {
-      displayName,
+      displayName: trimmedName,
       targetStream,
       phone,
       publicProfile,
@@ -346,7 +367,7 @@ export default function SettingsModal({ isOpen, onClose, currentUser, theme, onT
     setTimeout(() => {
       setSavingSettings(false);
       onClose();
-    }, 500);
+    }, 400);
   };
 
   const handleExportData = () => {
@@ -557,7 +578,7 @@ export default function SettingsModal({ isOpen, onClose, currentUser, theme, onT
                   <div className="flex items-center justify-between">
                     <div>
                       <div className="text-xs font-black text-blue-950 dark:text-blue-200">
-                        {currentUser?.name || currentUser?.profile?.name || 'Thakkar Om'}
+                        {displayName || currentUser?.profile?.name || currentUser?.name || 'Thakkar Om'}
                       </div>
                       <div className="text-[11px] font-medium text-slate-600 dark:text-slate-400">
                         {currentUser?.email || 'student@gsfcuniversity.ac.in'}

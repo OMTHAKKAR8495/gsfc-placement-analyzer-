@@ -171,10 +171,19 @@ export default function App() {
     };
     window.addEventListener('keydown', handleGlobalKeyDown);
 
+    // Real-time user profile updates listener (e.g. from Settings modal)
+    const handleUserUpdated = (e) => {
+      if (e.detail?.user) {
+        setCurrentUser(e.detail.user);
+      }
+    };
+    window.addEventListener('gsfc-user-updated', handleUserUpdated);
+
     return () => {
       window.removeEventListener('hashchange', handleHashOrPopState);
       window.removeEventListener('popstate', handleHashOrPopState);
       window.removeEventListener('keydown', handleGlobalKeyDown);
+      window.removeEventListener('gsfc-user-updated', handleUserUpdated);
     };
   }, [theme, themeHue, currentUser, authModalOpen]);
 

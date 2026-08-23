@@ -88,14 +88,14 @@ export function ToastProvider({ children }) {
         {toasts.map((toast) => (
           <div
             key={toast.id}
-            className={`pointer-events-auto w-full rounded-2xl p-4 shadow-2xl border backdrop-blur-xl transition-all duration-300 transform flex items-start gap-3.5 ${
+            className={`pointer-events-auto w-full rounded-2xl p-4 shadow-[0_20px_50px_rgba(0,0,0,0.5)] border-2 transition-all duration-300 transform flex items-start gap-3.5 ${
               toast.type === 'error'
-                ? 'bg-rose-950/95 text-white border-rose-500/50 shadow-rose-950/60'
+                ? 'bg-rose-950 text-white border-rose-500 shadow-rose-950/70'
                 : toast.type === 'warning'
-                ? 'bg-amber-950/95 text-white border-amber-500/50 shadow-amber-950/60'
+                ? 'bg-amber-950 text-white border-amber-400 shadow-amber-950/70'
                 : toast.type === 'celebration'
-                ? 'bg-gradient-to-r from-blue-950 via-indigo-950 to-slate-950 text-white border-amber-500/60 shadow-amber-950/80 ring-2 ring-amber-400/40'
-                : 'bg-slate-900/98 text-white border-emerald-500/40 shadow-emerald-950/40 ring-1 ring-white/10'
+                ? 'bg-gradient-to-r from-blue-950 via-indigo-950 to-slate-950 text-white border-amber-400 shadow-amber-950/90 ring-2 ring-amber-400/40'
+                : 'bg-slate-950 text-white border-emerald-500 ring-2 ring-emerald-500/20'
             }`}
             style={{
               animation: 'slideUpBounce 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards'
@@ -104,21 +104,21 @@ export function ToastProvider({ children }) {
             {/* BIG STATUS ICON */}
             <div className={`p-2.5 rounded-2xl shrink-0 mt-0.5 shadow-md flex items-center justify-center ${
               toast.type === 'error'
-                ? 'bg-rose-500/20 text-rose-400 border border-rose-500/40'
+                ? 'bg-rose-500 text-white shadow-rose-900/50'
                 : toast.type === 'warning'
-                ? 'bg-amber-500/20 text-amber-400 border border-amber-500/40'
+                ? 'bg-amber-400 text-slate-950 shadow-amber-900/50 font-black'
                 : toast.type === 'celebration'
-                ? 'bg-amber-500/25 text-amber-300 border border-amber-400/50 animate-bounce'
-                : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
+                ? 'bg-amber-400 text-slate-950 shadow-amber-900/50 animate-bounce'
+                : 'bg-emerald-500 text-slate-950 shadow-emerald-900/50 font-black'
             }`}>
               {toast.type === 'error' ? (
-                <AlertCircle className="w-6 h-6" />
+                <AlertCircle className="w-6 h-6 text-white" />
               ) : toast.type === 'warning' ? (
-                <Info className="w-6 h-6" />
+                <Info className="w-6 h-6 text-slate-950" />
               ) : toast.type === 'celebration' || toast.matchScore !== null ? (
-                <Trophy className="w-6 h-6 text-amber-400" />
+                <Trophy className="w-6 h-6 text-slate-950" />
               ) : (
-                <CheckCircle2 className="w-6 h-6 text-emerald-400" />
+                <CheckCircle2 className="w-6 h-6 text-slate-950 stroke-[2.5]" />
               )}
             </div>
 
@@ -129,12 +129,12 @@ export function ToastProvider({ children }) {
                   {toast.title || (toast.type === 'error' ? 'Notice' : 'Your changes changed successfully')}
                 </h4>
                 {toast.matchScore !== null && (
-                  <span className="px-2 py-0.5 bg-gradient-to-r from-amber-400 to-emerald-400 text-slate-950 font-black text-[10px] uppercase rounded-full shadow-sm">
+                  <span className="px-2 py-0.5 bg-amber-400 text-slate-950 font-black text-[10px] uppercase rounded-full shadow-sm">
                     ✨ {toast.matchScore}% Match
                   </span>
                 )}
               </div>
-              <p className="text-xs text-slate-300 font-medium mt-1 leading-relaxed">
+              <p className="text-xs text-slate-200 font-semibold mt-1 leading-relaxed">
                 {toast.message || 'All changes and preferences have been updated.'}
               </p>
             </div>

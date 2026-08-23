@@ -185,7 +185,18 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
   const [currentTipIndex, setCurrentTipIndex] = useState(0);
 
   // Editable Candidate Fields
-  const [candidateName, setCandidateName] = useState(student?.name || 'Thakkar Om');
+  const [candidateName, setCandidateName] = useState(() => {
+    try {
+      const savedUserStr = localStorage.getItem('campushire_user');
+      if (savedUserStr) {
+        const u = JSON.parse(savedUserStr);
+        if (u.profile?.name || u.name) return u.profile?.name || u.name;
+      }
+      const directSaved = localStorage.getItem('gsfc_candidate_name');
+      if (directSaved) return directSaved;
+    } catch(e) {}
+    return student?.name || 'Thakkar Om';
+  });
   const [candidateEmail, setCandidateEmail] = useState('thakkar_om@gmail.com');
   const [isEditingName, setIsEditingName] = useState(false);
   const [isEditingEmail, setIsEditingEmail] = useState(false);
@@ -199,8 +210,21 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
         setAvatarUrl(localStorage.getItem('gsfc_user_avatar') || '');
       }
     };
+
+    const handleUserUpdate = (e) => {
+      if (e.detail?.user) {
+        const u = e.detail.user;
+        const newName = u.profile?.name || u.name || '';
+        if (newName) setCandidateName(newName);
+      }
+    };
+
     window.addEventListener('gsfc-avatar-updated', handleAvatarUpdate);
-    return () => window.removeEventListener('gsfc-avatar-updated', handleAvatarUpdate);
+    window.addEventListener('gsfc-user-updated', handleUserUpdate);
+    return () => {
+      window.removeEventListener('gsfc-avatar-updated', handleAvatarUpdate);
+      window.removeEventListener('gsfc-user-updated', handleUserUpdate);
+    };
   }, []);
 
   // Selected Match Breakdown Modal State
