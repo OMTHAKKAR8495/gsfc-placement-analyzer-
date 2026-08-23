@@ -418,7 +418,7 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
       .then(r => r.json())
       .then(data => setReadinessData(data))
       .catch(() => {});
-  }, [student, showAllFeed, currentUser]);
+  }, [student?.id, showAllFeed, currentUser?.id, currentUser?.email]);
 
   const fetchFeed = async () => {
     try {

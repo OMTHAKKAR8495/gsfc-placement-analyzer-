@@ -130,10 +130,19 @@ export default function App() {
     return true;
   };
 
+  // Keep a ref to currentUser for event listeners and route guards without re-binding effects
+  const currentUserRef = React.useRef(currentUser);
+  useEffect(() => {
+    currentUserRef.current = currentUser;
+  }, [currentUser]);
+
+  // 1. Check current authenticated user ONCE on app mount
   useEffect(() => {
     checkCurrentUser();
+  }, []);
 
-    // Set light / dark mode class and dynamic theme hue on document element
+  // 2. Set light / dark mode class and dynamic theme hue on document element
+  useEffect(() => {
     try {
       const savedSettings = JSON.parse(localStorage.getItem('gsfc_user_settings') || '{}');
       const classes = [theme];
@@ -149,12 +158,14 @@ export default function App() {
     document.documentElement.style.setProperty('--theme-hue', themeHue);
     document.documentElement.setAttribute('data-theme-hue', themeHue);
     localStorage.setItem('gsfc_theme_hue', themeHue);
+  }, [theme, themeHue]);
 
-    // Listen for browser Back/Forward navigation with Strict Role-Scoped Route Guards
+  // 3. Browser Navigation, Global Shortcuts, and Event Listeners
+  useEffect(() => {
     const handleHashOrPopState = () => {
       const rawHash = window.location.hash.replace(/^#/, '');
       const base = resolveBaseWorkspace(rawHash);
-      if (isRoleAllowedInWorkspace(currentUser, base)) {
+      if (isRoleAllowedInWorkspace(currentUserRef.current, base)) {
         setActiveRole(base);
       } else {
         setActiveRole('student');
@@ -164,7 +175,6 @@ export default function App() {
     window.addEventListener('hashchange', handleHashOrPopState);
     window.addEventListener('popstate', handleHashOrPopState);
 
-    // Global Shortcut Listener for GSFC Command Suite
     const handleGlobalKeyDown = (e) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
@@ -176,7 +186,6 @@ export default function App() {
     };
     window.addEventListener('keydown', handleGlobalKeyDown);
 
-    // Real-time user profile updates listener (e.g. from Settings modal)
     const handleUserUpdated = (e) => {
       if (e.detail?.user) {
         setCurrentUser(e.detail.user);
@@ -190,7 +199,7 @@ export default function App() {
       window.removeEventListener('keydown', handleGlobalKeyDown);
       window.removeEventListener('gsfc-user-updated', handleUserUpdated);
     };
-  }, [theme, themeHue, currentUser, authModalOpen]);
+  }, [authModalOpen]);
 
   const toggleTheme = () => {
     setTheme(prev => (prev === 'dark' ? 'light' : 'dark'));
