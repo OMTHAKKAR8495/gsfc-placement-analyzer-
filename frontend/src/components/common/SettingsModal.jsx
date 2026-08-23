@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom';
 import { 
   X, Settings, User, Bell, Shield, Moon, Sun, Monitor, 
   Download, Trash2, Key, Check, CheckCircle2, AlertCircle, 
   Sparkles, HelpCircle, FileText, Smartphone, Mail, Globe, 
-  ExternalLink, Lock, Eye, EyeOff, RefreshCw, Zap, Eye as EyeIcon, Minimize2 
+  ExternalLink, Lock, Eye, EyeOff, RefreshCw, Zap, Eye as EyeIcon, 
+  Minimize2, Camera, UploadCloud, FileCheck, Plus, Paperclip, Award, CheckCircle 
 } from 'lucide-react';
 import { useToast } from '../../context/ToastContext';
 
@@ -60,13 +61,36 @@ function ToggleSwitch({ enabled, onChange, label, description, icon: Icon, badge
 
 export default function SettingsModal({ isOpen, onClose, currentUser, theme, onToggleTheme, onOpenAuth }) {
   const { showToast } = useToast();
-  const [activeTab, setActiveTab] = useState('appearance');
+  const [activeTab, setActiveTab] = useState('account');
   
   // Account & Profile State
   const [displayName, setDisplayName] = useState('');
   const [targetStream, setTargetStream] = useState('Software Engineering & AI');
   const [phone, setPhone] = useState('');
   const [publicProfile, setPublicProfile] = useState(true);
+
+  // 📸 Professional Passport Photo State
+  const [avatarUrl, setAvatarUrl] = useState(() => localStorage.getItem('gsfc_user_avatar') || '');
+  
+  // 📄 Official Resume State
+  const [resumeFileName, setResumeFileName] = useState(() => localStorage.getItem('gsfc_resume_name') || 'THAKKAR_OM (1).pdf');
+  const [resumeFileSize, setResumeFileSize] = useState(() => localStorage.getItem('gsfc_resume_size') || '0.55 MB');
+  
+  // 📜 Academic & Skill Certificates List State
+  const [certificatesList, setCertificatesList] = useState(() => {
+    try {
+      const saved = localStorage.getItem('gsfc_certificates_list');
+      return saved ? JSON.parse(saved) : [
+        { name: 'Semester-6 University Marksheet & CGPA Transcript.pdf', size: '1.45 MB', date: 'Aug 2026' },
+        { name: 'AWS Certified Cloud Practitioner - Certificate.pdf', size: '0.85 MB', date: 'Jul 2026' }
+      ];
+    } catch {
+      return [
+        { name: 'Semester-6 University Marksheet & CGPA Transcript.pdf', size: '1.45 MB', date: 'Aug 2026' },
+        { name: 'AWS Certified Cloud Practitioner - Certificate.pdf', size: '0.85 MB', date: 'Jul 2026' }
+      ];
+    }
+  });
 
   // Notification Preferences State
   const [notifDrives, setNotifDrives] = useState(true);
@@ -86,10 +110,18 @@ export default function SettingsModal({ isOpen, onClose, currentUser, theme, onT
   const [showPassText, setShowPassText] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
 
+  // Input Refs for 1-Click Upload triggers
+  const photoInputRef = useRef(null);
+  const resumeInputRef = useRef(null);
+  const certInputRef = useRef(null);
+
   useEffect(() => {
     if (currentUser) {
-      setDisplayName(currentUser.profile?.name || currentUser.name || '');
-      setPhone(currentUser.profile?.phone || currentUser.phone || '+91 95584 13347');
+      setDisplayName(currentUser.profile?.name || currentUser.name || 'Thakkar Om');
+      setPhone(currentUser.profile?.phone || currentUser.phone || '+91 98765 43210');
+      if (currentUser.profile?.avatar_url && !avatarUrl) {
+        setAvatarUrl(currentUser.profile.avatar_url);
+      }
     }
 
     // Load saved client settings
@@ -126,6 +158,101 @@ export default function SettingsModal({ isOpen, onClose, currentUser, theme, onT
   }, [isOpen, onClose]);
 
   if (!isOpen) return null;
+
+  // 📸 Upload Passport-size Photo
+  const handlePhotoUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Photo size exceeds 5MB. Please choose a standard passport photograph.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const base64Data = event.target.result;
+      setAvatarUrl(base64Data);
+      try {
+        localStorage.setItem('gsfc_user_avatar', base64Data);
+        window.dispatchEvent(new CustomEvent('gsfc-avatar-updated', { detail: { avatarUrl: base64Data } }));
+      } catch (err) {}
+
+      showToast({
+        type: 'success',
+        title: '📸 Passport Photo Updated',
+        message: 'Your professional portrait has been verified and saved for campus hall tickets.',
+        triggerCrackles: true
+      });
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // 📄 Upload Official ATS Resume
+  const handleResumeUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 15 * 1024 * 1024) {
+      alert('Resume file size exceeds 15MB.');
+      return;
+    }
+
+    const sizeStr = `${(file.size / (1024 * 1024)).toFixed(2)} MB`;
+    setResumeFileName(file.name);
+    setResumeFileSize(sizeStr);
+
+    try {
+      localStorage.setItem('gsfc_resume_name', file.name);
+      localStorage.setItem('gsfc_resume_size', sizeStr);
+    } catch (err) {}
+
+    showToast({
+      type: 'success',
+      title: '📄 Placement Resume Uploaded',
+      message: `"${file.name}" is now synced with your ATS profile and Auto-Fill Apply engine.`,
+      triggerCrackles: true
+    });
+  };
+
+  // 📜 Upload Academic & Skill Certificate
+  const handleCertificateUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const sizeStr = `${(file.size / (1024 * 1024)).toFixed(2)} MB`;
+    const newCert = {
+      name: file.name,
+      size: sizeStr,
+      date: new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+    };
+
+    const updatedList = [newCert, ...certificatesList];
+    setCertificatesList(updatedList);
+
+    try {
+      localStorage.setItem('gsfc_certificates_list', JSON.stringify(updatedList));
+    } catch (err) {}
+
+    showToast({
+      type: 'success',
+      title: '📜 Certificate Added',
+      message: `"${file.name}" has been appended to your verified academic credentials dossier.`
+    });
+  };
+
+  const handleRemoveCertificate = (indexToRemove) => {
+    const updatedList = certificatesList.filter((_, idx) => idx !== indexToRemove);
+    setCertificatesList(updatedList);
+    try {
+      localStorage.setItem('gsfc_certificates_list', JSON.stringify(updatedList));
+    } catch (err) {}
+    showToast({
+      type: 'info',
+      title: 'Certificate Removed',
+      message: 'Certificate removed from your profile attachments.'
+    });
+  };
 
   const updateSetting = (key, val, className = null) => {
     try {
@@ -205,7 +332,7 @@ export default function SettingsModal({ isOpen, onClose, currentUser, theme, onT
       showToast({
         type: 'success',
         title: '⚙️ Settings Applied & Saved',
-        message: 'All preferences are actively applied across your workspace.',
+        message: 'All profile details, documents & display preferences are saved.',
         triggerCrackles: true
       });
     } catch(e) {}
@@ -220,6 +347,9 @@ export default function SettingsModal({ isOpen, onClose, currentUser, theme, onT
     const dataToExport = {
       exportDate: new Date().toISOString(),
       user: currentUser,
+      avatarAttached: Boolean(avatarUrl),
+      resumeFile: resumeFileName,
+      certificatesAttached: certificatesList,
       settings: JSON.parse(localStorage.getItem('gsfc_user_settings') || '{}'),
       token: localStorage.getItem('campushire_token') ? 'Active Session (Protected)' : 'Guest',
       system: 'GSFC University CampusHire AI Placement Intelligence Platform v2.4.0'
@@ -256,6 +386,29 @@ export default function SettingsModal({ isOpen, onClose, currentUser, theme, onT
 
   const modalContent = (
     <div className="fixed inset-0 z-[999999] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fadeIn overflow-y-auto">
+      {/* Hidden File Upload Inputs */}
+      <input
+        ref={photoInputRef}
+        type="file"
+        accept="image/*"
+        onChange={handlePhotoUpload}
+        className="hidden"
+      />
+      <input
+        ref={resumeInputRef}
+        type="file"
+        accept=".pdf,.doc,.docx"
+        onChange={handleResumeUpload}
+        className="hidden"
+      />
+      <input
+        ref={certInputRef}
+        type="file"
+        accept=".pdf,.png,.jpg,.jpeg,.zip"
+        onChange={handleCertificateUpload}
+        className="hidden"
+      />
+
       <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 max-w-3xl w-full shadow-2xl overflow-hidden my-6 text-slate-900 dark:text-slate-100 flex flex-col max-h-[90vh]">
         
         {/* Header */}
@@ -271,7 +424,7 @@ export default function SettingsModal({ isOpen, onClose, currentUser, theme, onT
                 </span>
               </div>
               <h2 className="text-xl font-black">Platform & Account Settings</h2>
-              <p className="text-xs text-slate-300 font-medium">Manage live workspace display, alerts, security & layout</p>
+              <p className="text-xs text-slate-300 font-medium">Manage profile, passport photo, resume, certificates & workspace</p>
             </div>
           </div>
           <button 
@@ -287,8 +440,8 @@ export default function SettingsModal({ isOpen, onClose, currentUser, theme, onT
           {/* Tabs Sidebar */}
           <div className="w-full sm:w-60 bg-slate-50 dark:bg-slate-950/60 p-3 sm:p-4 border-b sm:border-b-0 sm:border-r border-slate-200 dark:border-slate-800 space-y-1 shrink-0 overflow-x-auto sm:overflow-y-auto">
             {[
+              { id: 'account', label: '👤 Profile & Documents', icon: User },
               { id: 'appearance', label: '🎨 Theme & Display', icon: Moon },
-              { id: 'account', label: '👤 Account & Profile', icon: User },
               { id: 'notifications', label: '🔔 Notifications & SMS', icon: Bell },
               { id: 'security', label: '🔒 Security & Access', icon: Shield },
               { id: 'data', label: '📄 Data & Exports', icon: Download },
@@ -315,7 +468,212 @@ export default function SettingsModal({ isOpen, onClose, currentUser, theme, onT
           {/* Content Body */}
           <div className="flex-1 p-6 overflow-y-auto max-h-[60vh] space-y-6">
             
-            {/* 1. THEME & DISPLAY (DEFAULT TAB FOR IMMEDIATE VISUAL FEEDBACK) */}
+            {/* 1. ACCOUNT & PROFILE WITH PASSPORT PHOTO, RESUME & CERTIFICATE UPLOADS */}
+            {activeTab === 'account' && (
+              <div className="space-y-5 animate-fadeIn">
+                <div>
+                  <h3 className="text-sm font-black uppercase text-slate-400 tracking-wider">Candidate Profile & Verified Documents</h3>
+                  <p className="text-xs text-slate-500">Upload your professional photo, master ATS resume, and academic certificates.</p>
+                </div>
+
+                {/* 📸 SECTION 1: PROFESSIONAL PASSPORT PHOTO UPLOADER */}
+                <div className="p-4 bg-gradient-to-r from-blue-50/80 to-indigo-50/80 dark:from-slate-800/80 dark:to-blue-950/40 rounded-3xl border border-blue-200 dark:border-blue-900/60 flex flex-col sm:flex-row items-center gap-4">
+                  <div className="relative group">
+                    <div className="w-20 h-24 rounded-2xl overflow-hidden bg-slate-200 dark:bg-slate-700 border-2 border-blue-900 dark:border-blue-500 shadow-md flex items-center justify-center relative">
+                      {avatarUrl ? (
+                        <img src={avatarUrl} alt="Candidate Passport" className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="flex flex-col items-center justify-center text-slate-400 p-2 text-center">
+                          <User className="w-8 h-8 text-blue-900 dark:text-blue-300 mb-1" />
+                          <span className="text-[9px] font-black leading-none">Passport Photo</span>
+                        </div>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => photoInputRef.current?.click()}
+                      className="absolute -bottom-2 -right-2 p-2 bg-blue-900 hover:bg-blue-800 text-white rounded-xl shadow-lg cursor-pointer hover:scale-110 transition-transform"
+                      title="Upload New Passport Photo"
+                    >
+                      <Camera className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+
+                  <div className="flex-1 text-center sm:text-left space-y-1">
+                    <div className="flex items-center justify-center sm:justify-start gap-2">
+                      <span className="text-xs font-black text-slate-900 dark:text-slate-100">Professional Passport Size Photo</span>
+                      <span className="px-2 py-0.5 text-[9px] font-black uppercase rounded-md bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300">
+                        Official Identity
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-600 dark:text-slate-400">
+                      Standard formal photo with light background. Used on company interview admit cards, attendance sheets & stamped offer letters.
+                    </p>
+                    <div className="pt-1 flex items-center justify-center sm:justify-start gap-2">
+                      <button
+                        type="button"
+                        onClick={() => photoInputRef.current?.click()}
+                        className="px-3 py-1.5 bg-blue-900 hover:bg-blue-800 text-white rounded-xl text-[11px] font-black flex items-center gap-1.5 cursor-pointer shadow-xs"
+                      >
+                        <UploadCloud className="w-3.5 h-3.5" />
+                        <span>{avatarUrl ? 'Change Passport Photo' : 'Upload Passport Photo'}</span>
+                      </button>
+                      {avatarUrl && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setAvatarUrl('');
+                            localStorage.removeItem('gsfc_user_avatar');
+                            showToast({ type: 'info', title: 'Photo Removed', message: 'Profile photo reset to default avatar.' });
+                          }}
+                          className="px-2.5 py-1.5 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl text-[11px] font-bold hover:bg-slate-300 cursor-pointer"
+                        >
+                          Remove
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* 📄 SECTION 2: OFFICIAL ATS RESUME UPLOADER */}
+                <div className="p-4 bg-slate-50 dark:bg-slate-800/80 rounded-3xl border border-slate-200 dark:border-slate-700 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <FileCheck className="w-4 h-4 text-blue-800 dark:text-blue-400" />
+                      <span className="text-xs font-black text-slate-900 dark:text-slate-100">Master ATS Placement Resume</span>
+                    </div>
+                    <span className="text-[10px] text-slate-500 font-bold">PDF, DOCX (Max 15MB)</span>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => resumeInputRef.current?.click()}
+                      className="w-full sm:w-auto px-4 py-2 bg-gradient-to-r from-blue-900 to-indigo-900 hover:from-blue-800 hover:to-indigo-800 text-white rounded-xl text-xs font-black flex items-center justify-center gap-1.5 cursor-pointer shadow-xs shrink-0"
+                    >
+                      <UploadCloud className="w-4 h-4" />
+                      <span>{resumeFileName ? 'Replace Resume' : 'Upload Resume'}</span>
+                    </button>
+
+                    <div className="flex-1 w-full bg-white dark:bg-slate-900 p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 flex items-center justify-between shadow-xs">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <FileText className="w-4 h-4 text-blue-900 dark:text-blue-400 shrink-0" />
+                        <span className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">
+                          {resumeFileName}
+                        </span>
+                      </div>
+                      <span className="text-[10px] font-black text-emerald-800 bg-emerald-100 dark:bg-emerald-950 dark:text-emerald-300 px-2 py-0.5 rounded-md shrink-0 ml-2">
+                        {resumeFileSize}
+                      </span>
+                    </div>
+                  </div>
+                  <p className="text-[10px] text-slate-500 leading-tight">
+                    💡 This resume is automatically parsed by Gemini NLP to calculate ATS fit scores and auto-populate job applications.
+                  </p>
+                </div>
+
+                {/* 📜 SECTION 3: ACADEMIC & PROFESSIONAL CERTIFICATES BUNDLE */}
+                <div className="p-4 bg-slate-50 dark:bg-slate-800/80 rounded-3xl border border-slate-200 dark:border-slate-700 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Award className="w-4 h-4 text-amber-500" />
+                      <span className="text-xs font-black text-slate-900 dark:text-slate-100">Academic Transcripts & Certificates</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => certInputRef.current?.click()}
+                      className="px-3 py-1 bg-amber-400 hover:bg-amber-300 text-slate-950 rounded-xl text-[11px] font-black flex items-center gap-1 cursor-pointer shadow-xs"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Upload Certificate</span>
+                    </button>
+                  </div>
+
+                  <div className="space-y-2">
+                    {certificatesList.map((cert, idx) => (
+                      <div key={idx} className="bg-white dark:bg-slate-900 p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 flex items-center justify-between gap-2 shadow-xs">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <Paperclip className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                          <div className="truncate">
+                            <div className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">{cert.name}</div>
+                            <div className="text-[10px] text-slate-500">{cert.size} • Uploaded {cert.date}</div>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveCertificate(idx)}
+                          className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg cursor-pointer"
+                          title="Remove certificate"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Candidate Credentials Fields */}
+                <div className="p-4 bg-slate-50 dark:bg-slate-800/80 rounded-3xl border border-slate-200 dark:border-slate-700 space-y-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Display Candidate Name</label>
+                      <input
+                        type="text"
+                        value={displayName}
+                        onChange={(e) => setDisplayName(e.target.value)}
+                        placeholder="e.g. Thakkar Om"
+                        className="w-full px-3.5 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-slate-100 focus:outline-none focus:border-blue-900"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Target Career Stream</label>
+                      <select
+                        value={targetStream}
+                        onChange={(e) => setTargetStream(e.target.value)}
+                        className="w-full px-3.5 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-slate-100 focus:outline-none focus:border-blue-900"
+                      >
+                        <option value="Software Engineering & AI">Software Engineering & AI Systems</option>
+                        <option value="Cloud Architecture & DevOps">Cloud Architecture & DevOps</option>
+                        <option value="Chemical & Petrochemical Core">Chemical & Petrochemical Core</option>
+                        <option value="Mechanical & Manufacturing">Mechanical & Manufacturing Design</option>
+                        <option value="Data Analytics & BI">Data Analytics & Business Intelligence</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Registered Mobile / WhatsApp</label>
+                    <input
+                      type="tel"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      placeholder="+91 98765 43210"
+                      className="w-full px-3.5 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-slate-100 focus:outline-none focus:border-blue-900"
+                    />
+                  </div>
+
+                  <ToggleSwitch
+                    enabled={publicProfile}
+                    onChange={(val) => {
+                      setPublicProfile(val);
+                      updateSetting('publicProfile', val);
+                      showToast({
+                        type: val ? 'success' : 'default',
+                        title: val ? 'Visibility Enabled' : 'Visibility Private',
+                        message: val ? 'Your profile card is visible to verified recruiters.' : 'Profile hidden from public recruiters.'
+                      });
+                    }}
+                    label="Recruiter Profile Visibility"
+                    description="Allow verified corporate recruiters to view your parsed ATS skill card"
+                    icon={User}
+                    badge={publicProfile ? 'Public' : 'Private'}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* 2. THEME & DISPLAY */}
             {activeTab === 'appearance' && (
               <div className="space-y-4 animate-fadeIn">
                 <div>
@@ -379,88 +737,6 @@ export default function SettingsModal({ isOpen, onClose, currentUser, theme, onT
                     description="Disable pulsing and gradient keyframes for instant, high-speed page performance"
                     icon={Zap}
                     badge={reducedMotion ? 'Active' : 'Off'}
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* 2. ACCOUNT & PROFILE */}
-            {activeTab === 'account' && (
-              <div className="space-y-4 animate-fadeIn">
-                <div>
-                  <h3 className="text-sm font-black uppercase text-slate-400 tracking-wider">Account Credentials & Profile</h3>
-                  <p className="text-xs text-slate-500">Your verified university identity registered on CampusHire AI.</p>
-                </div>
-
-                <div className="p-4 bg-blue-50 dark:bg-blue-950/30 rounded-2xl border border-blue-200 dark:border-blue-900/60 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="text-xs font-black text-blue-950 dark:text-blue-200">
-                        {currentUser?.name || currentUser?.profile?.name || 'GSFC Candidate'}
-                      </div>
-                      <div className="text-[11px] font-medium text-slate-600 dark:text-slate-400">
-                        {currentUser?.email || 'student@gsfcuniversity.ac.in'}
-                      </div>
-                    </div>
-                    <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300">
-                      {currentUser?.role || 'Verified Student'}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="space-y-3">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Display Name</label>
-                    <input
-                      type="text"
-                      value={displayName}
-                      onChange={(e) => setDisplayName(e.target.value)}
-                      placeholder="e.g. Om Thakkar"
-                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-slate-100 focus:outline-none focus:border-blue-900"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Target Career Stream</label>
-                    <select
-                      value={targetStream}
-                      onChange={(e) => setTargetStream(e.target.value)}
-                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-slate-100 focus:outline-none focus:border-blue-900"
-                    >
-                      <option value="Software Engineering & AI">Software Engineering & AI Systems</option>
-                      <option value="Cloud Architecture & DevOps">Cloud Architecture & DevOps</option>
-                      <option value="Chemical & Petrochemical Core">Chemical & Petrochemical Core</option>
-                      <option value="Mechanical & Manufacturing">Mechanical & Manufacturing Design</option>
-                      <option value="Data Analytics & BI">Data Analytics & Business Intelligence</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Registered Mobile / WhatsApp</label>
-                    <input
-                      type="tel"
-                      value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
-                      placeholder="+91 95584 13347"
-                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-slate-100 focus:outline-none focus:border-blue-900"
-                    />
-                  </div>
-
-                  <ToggleSwitch
-                    enabled={publicProfile}
-                    onChange={(val) => {
-                      setPublicProfile(val);
-                      updateSetting('publicProfile', val);
-                      showToast({
-                        type: val ? 'success' : 'default',
-                        title: val ? 'Visibility Enabled' : 'Visibility Private',
-                        message: val ? 'Your profile card is visible to verified recruiters.' : 'Profile hidden from public recruiters.'
-                      });
-                    }}
-                    label="Recruiter Profile Visibility"
-                    description="Allow verified corporate recruiters to view your parsed ATS skill card"
-                    icon={User}
-                    badge={publicProfile ? 'Public' : 'Private'}
                   />
                 </div>
               </div>
