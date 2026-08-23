@@ -186,6 +186,7 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
 
   // Editable Candidate Fields
   const [candidateName, setCandidateName] = useState(() => {
+    if (!currentUser) return 'Guest Explorer';
     try {
       const savedUserStr = localStorage.getItem('campushire_user');
       if (savedUserStr) {
@@ -200,14 +201,28 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
   const [candidateEmail, setCandidateEmail] = useState('thakkar_om@gmail.com');
   const [isEditingName, setIsEditingName] = useState(false);
   const [isEditingEmail, setIsEditingEmail] = useState(false);
-  const [avatarUrl, setAvatarUrl] = useState(() => localStorage.getItem('gsfc_user_avatar') || student?.avatar_url || '');
+  const [avatarUrl, setAvatarUrl] = useState(() => {
+    if (!currentUser) return '';
+    return localStorage.getItem('gsfc_user_avatar') || student?.avatar_url || '';
+  });
+
+  useEffect(() => {
+    if (!currentUser) {
+      setCandidateName('Guest Explorer');
+      setAvatarUrl('');
+    } else {
+      const name = currentUser.profile?.name || currentUser.name || student?.name || 'Thakkar Om';
+      setCandidateName(name);
+      setAvatarUrl(localStorage.getItem('gsfc_user_avatar') || currentUser.profile?.avatar_url || student?.avatar_url || '');
+    }
+  }, [currentUser, student]);
 
   useEffect(() => {
     const handleAvatarUpdate = (e) => {
       if (e.detail?.avatarUrl !== undefined) {
         setAvatarUrl(e.detail.avatarUrl);
       } else {
-        setAvatarUrl(localStorage.getItem('gsfc_user_avatar') || '');
+        setAvatarUrl(currentUser ? (localStorage.getItem('gsfc_user_avatar') || '') : '');
       }
     };
 
@@ -216,6 +231,9 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
         const u = e.detail.user;
         const newName = u.profile?.name || u.name || '';
         if (newName) setCandidateName(newName);
+      } else if (e.detail?.user === null) {
+        setCandidateName('Guest Explorer');
+        setAvatarUrl('');
       }
     };
 
@@ -225,7 +243,7 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
       window.removeEventListener('gsfc-avatar-updated', handleAvatarUpdate);
       window.removeEventListener('gsfc-user-updated', handleUserUpdate);
     };
-  }, []);
+  }, [currentUser]);
 
   // Selected Match Breakdown Modal State
   const [selectedMatchBreakdown, setSelectedMatchBreakdown] = useState(null);
@@ -815,16 +833,16 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
             {/* Candidate Big Passport Photo Frame */}
             <div className="relative group shrink-0">
               <div className="w-20 h-26 sm:w-24 sm:h-32 rounded-3xl overflow-hidden border-3 border-blue-900 dark:border-amber-400 bg-white dark:bg-slate-800 shadow-xl flex items-center justify-center ring-4 ring-blue-500/15 transition-transform group-hover:scale-105">
-                {avatarUrl ? (
+                {currentUser && avatarUrl ? (
                   <img src={avatarUrl} alt="Candidate Portrait" className="w-full h-full object-cover" />
                 ) : (
                   <div className="w-full h-full bg-gradient-to-tr from-blue-900 via-indigo-900 to-amber-600 text-white font-black text-2xl flex items-center justify-center">
-                    {typeof candidateName === 'string' && candidateName.trim() ? candidateName.trim().substring(0, 2).toUpperCase() : 'GS'}
+                    {currentUser ? (typeof candidateName === 'string' && candidateName.trim() ? candidateName.trim().substring(0, 2).toUpperCase() : 'GS') : 'GS'}
                   </div>
                 )}
               </div>
-              <span className="absolute -bottom-1 -right-1 px-2 py-0.5 rounded-full bg-emerald-500 text-white text-[9px] font-black tracking-wider uppercase border-2 border-white dark:border-slate-900 shadow-md">
-                VERIFIED
+              <span className={`absolute -bottom-1 -right-1 px-2 py-0.5 rounded-full text-[9px] font-black tracking-wider uppercase border-2 border-white dark:border-slate-900 shadow-md ${currentUser ? 'bg-emerald-500 text-white' : 'bg-slate-600 text-white'}`}>
+                {currentUser ? 'VERIFIED' : 'GUEST'}
               </span>
             </div>
 
@@ -833,14 +851,20 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
                 <span className="px-3 py-1 bg-blue-100 text-blue-900 border border-blue-200 rounded-full text-xs font-black flex items-center gap-1.5">
                   <Sparkles className="w-3.5 h-3.5 text-blue-900" /> GSFC University Placement Workspace
                 </span>
-                <span className="px-3 py-1 bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-full text-xs font-black flex items-center gap-1.5">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-800" /> {student?.program || 'BTech CSE'} ({student?.cgpa || 8.5} CGPA)
-                </span>
+                {currentUser ? (
+                  <span className="px-3 py-1 bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-full text-xs font-black flex items-center gap-1.5">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-800" /> {student?.program || 'BTech CSE'} ({student?.cgpa || 8.5} CGPA)
+                  </span>
+                ) : (
+                  <span className="px-3 py-1 bg-amber-100 text-amber-900 border border-amber-300 rounded-full text-xs font-black flex items-center gap-1.5">
+                    👋 Guest Mode • Sign In to Access Portal
+                  </span>
+                )}
               </div>
 
               <div>
                 <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
-                  Welcome to <span className="text-gradient">GSFC Placement Portal</span>, {candidateName}
+                  Welcome to <span className="text-gradient">GSFC Placement Portal</span>, {currentUser ? candidateName : 'Guest Explorer'}
                 </h1>
                 <p className="text-xs sm:text-sm text-slate-700 font-bold max-w-xl mt-1 leading-relaxed">
                   Smart Resume Analyzer powered by NLP & Gemini AI. Visual skill match analytics, ATS compliance evaluation, and automated interview coaching.

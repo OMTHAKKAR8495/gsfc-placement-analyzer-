@@ -278,9 +278,13 @@ export default function App() {
   const handleLogout = () => {
     localStorage.removeItem('campushire_token');
     localStorage.removeItem('campushire_user');
+    localStorage.removeItem('gsfc_user_avatar');
+    localStorage.removeItem('gsfc_candidate_name');
     setCurrentUser(null);
     setActiveRole('student');
     window.location.hash = '#student';
+    window.dispatchEvent(new CustomEvent('gsfc-avatar-updated', { detail: { avatarUrl: '' } }));
+    window.dispatchEvent(new CustomEvent('gsfc-user-updated', { detail: { user: null } }));
   };
 
   const handleAuthSuccess = (userData) => {
