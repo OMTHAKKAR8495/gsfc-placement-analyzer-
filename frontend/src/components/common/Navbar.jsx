@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { User, Building2, ShieldCheck, LogOut, LogIn, Sun, Moon, HelpCircle, Smartphone, Download, Sparkles, Menu, X, Plus, Users, Award, Bell, Globe, Search, Play, Bot, GraduationCap, Lock } from 'lucide-react';
+import { User, Building2, ShieldCheck, LogOut, LogIn, Sun, Moon, HelpCircle, Smartphone, Download, Sparkles, Menu, X, Plus, Users, Award, Bell, Globe, Search, Play, Bot, GraduationCap, Lock, Settings } from 'lucide-react';
 import AppDownloadModal from './AppDownloadModal';
 import NotificationCenterModal from './NotificationCenterModal';
 import EcosystemHubModal from './EcosystemHubModal';
 import GlobalSearchModal from './GlobalSearchModal';
 import AICopilotDrawer from './AICopilotDrawer';
 import FacultyGuidedDemoModal from './FacultyGuidedDemoModal';
+import SettingsModal from './SettingsModal';
 
 export default function Navbar({ currentUser, activeRole, onRoleSwitch, onOpenAuth, onLogout, theme, onToggleTheme, onOpenJobPost, onOpenApplicantsFeed }) {
   const [downloadModalOpen, setDownloadModalOpen] = useState(false);
@@ -13,6 +14,7 @@ export default function Navbar({ currentUser, activeRole, onRoleSwitch, onOpenAu
   const [searchModalOpen, setSearchModalOpen] = useState(false);
   const [copilotDrawerOpen, setCopilotDrawerOpen] = useState(false);
   const [demoModalOpen, setDemoModalOpen] = useState(false);
+  const [settingsModalOpen, setSettingsModalOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [notifModalOpen, setNotifModalOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
@@ -292,6 +294,15 @@ export default function Navbar({ currentUser, activeRole, onRoleSwitch, onOpenAu
             )}
           </button>
 
+          {/* ⚙️ SETTINGS BUTTON WITH LOGO */}
+          <button
+            onClick={() => setSettingsModalOpen(true)}
+            className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 transition-all text-xs font-black cursor-pointer group"
+            title="Portal & Account Settings"
+          >
+            <Settings className="w-4 h-4 text-slate-700 dark:text-slate-200 group-hover:rotate-90 transition-transform duration-300" />
+          </button>
+
           <button
             onClick={onToggleTheme}
             className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-amber-400 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 transition-colors text-xs font-black cursor-pointer"
@@ -335,6 +346,15 @@ export default function Navbar({ currentUser, activeRole, onRoleSwitch, onOpenAu
 
         {/* Mobile Header Action Controls (< md) */}
         <div className="flex md:hidden items-center gap-2">
+          {/* Mobile Settings Button */}
+          <button
+            onClick={() => setSettingsModalOpen(true)}
+            className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 text-xs font-black shrink-0"
+            title="Settings"
+          >
+            <Settings className="w-4 h-4" />
+          </button>
+
           {/* Mobile Bell Button */}
           <button
             onClick={() => setNotifModalOpen(true)}
@@ -499,6 +519,21 @@ export default function Navbar({ currentUser, activeRole, onRoleSwitch, onOpenAu
             <span>📱 Download GSFC App (Android APK & iOS)</span>
           </button>
 
+          {/* Settings in Mobile Drawer */}
+          <button
+            onClick={() => {
+              setMobileMenuOpen(false);
+              setSettingsModalOpen(true);
+            }}
+            className="w-full p-3 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 font-black text-xs flex items-center justify-between border border-slate-200 dark:border-slate-700 cursor-pointer hover:bg-slate-200 transition-colors"
+          >
+            <div className="flex items-center gap-2">
+              <Settings className="w-4 h-4 text-amber-500" />
+              <span>Portal & Account Settings</span>
+            </div>
+            <span className="text-[10px] text-slate-500 font-bold">Preferences &rarr;</span>
+          </button>
+
           {/* User Auth Section on Mobile */}
           {currentUser ? (
             <div className="pt-2 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between">
@@ -572,6 +607,16 @@ export default function Navbar({ currentUser, activeRole, onRoleSwitch, onOpenAu
       <FacultyGuidedDemoModal
         isOpen={demoModalOpen}
         onClose={() => setDemoModalOpen(false)}
+      />
+
+      {/* ⚙️ PLATFORM SETTINGS & PREFERENCES MODAL */}
+      <SettingsModal
+        isOpen={settingsModalOpen}
+        onClose={() => setSettingsModalOpen(false)}
+        currentUser={currentUser}
+        theme={theme}
+        onToggleTheme={onToggleTheme}
+        onOpenAuth={onOpenAuth}
       />
     </header>
   );
