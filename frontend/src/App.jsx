@@ -66,10 +66,26 @@ export default function App() {
     };
   }, []);
 
+  const resolveBaseWorkspace = (rawHash) => {
+    if (!rawHash) return 'student';
+    const clean = rawHash.replace(/^#/, '').toLowerCase().trim();
+    if (clean.startsWith('student') || clean === 'qa' || clean === 'community' || clean === 'job_fairs' || clean === 'applications' || clean === 'drives' || clean === 'profile') {
+      return 'student';
+    }
+    if (clean.startsWith('admin') || clean === 'tpc') return 'admin';
+    if (clean.startsWith('faculty')) return 'faculty';
+    if (clean.startsWith('company') || clean === 'recruiter') return 'company';
+    if (clean.startsWith('alumni') || clean === 'mentorship') return 'alumni';
+    if (clean.startsWith('interview') || clean === 'studio') return 'interview';
+    if (clean.startsWith('superadmin')) return 'superadmin';
+    return clean;
+  };
+
   // Helper to validate whether user role is permitted to access target workspace
   const isRoleAllowedInWorkspace = (user, targetWorkspace) => {
+    const base = resolveBaseWorkspace(targetWorkspace);
     // Main Student Homepage & Alumni Network are universally accessible to all users & guests
-    if (targetWorkspace === 'student' || targetWorkspace === 'alumni' || !targetWorkspace) {
+    if (base === 'student' || base === 'alumni' || !base) {
       return true;
     }
     if (!user) {
@@ -82,19 +98,19 @@ export default function App() {
     }
     if (user.role === 'faculty') {
       // Faculty: scoped to Faculty Hub, Student Workspace, and Alumni Network
-      return targetWorkspace === 'faculty' || targetWorkspace === 'student' || targetWorkspace === 'alumni';
+      return base === 'faculty' || base === 'student' || base === 'alumni';
     }
     if (user.role === 'company') {
       // Recruiter: can access Recruiter Portal, Main Homepage, and Alumni Network
-      return targetWorkspace === 'company' || targetWorkspace === 'student' || targetWorkspace === 'alumni';
+      return base === 'company' || base === 'student' || base === 'alumni';
     }
     if (user.role === 'alumni') {
       // Alumni: can access Alumni Network and Student Homepage
-      return targetWorkspace === 'alumni' || targetWorkspace === 'student';
+      return base === 'alumni' || base === 'student';
     }
     if (user.role === 'student') {
       // Student: scoped to Student Workspace, Interview Studio, and Alumni Network
-      return targetWorkspace === 'student' || targetWorkspace === 'interview' || targetWorkspace === 'alumni';
+      return base === 'student' || base === 'interview' || base === 'alumni';
     }
     return true;
   };
@@ -111,14 +127,13 @@ export default function App() {
 
     // Listen for browser Back/Forward navigation with Strict Role-Scoped Route Guards
     const handleHashOrPopState = () => {
-      const hash = window.location.hash.replace('#', '');
-      if (hash) {
-        if (isRoleAllowedInWorkspace(currentUser, hash)) {
-          setActiveRole(hash);
-        } else {
-          setActiveRole('student');
-          window.location.hash = '#student';
-        }
+      const rawHash = window.location.hash.replace(/^#/, '');
+      const base = resolveBaseWorkspace(rawHash);
+      if (isRoleAllowedInWorkspace(currentUser, base)) {
+        setActiveRole(base);
+      } else {
+        setActiveRole('student');
+        window.location.hash = '#student';
       }
     };
     window.addEventListener('hashchange', handleHashOrPopState);

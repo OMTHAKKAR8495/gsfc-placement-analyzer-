@@ -97,7 +97,66 @@ export const DEFAULT_REQUIREMENTS_FEED = [
 
 export default function StudentDashboard({ student, currentUser, onUpdateStudent, onOpenAuthModal, onOpenJobPost }) {
   const { showToast, triggerCelebrationCrackles } = useToast();
-  const [activeTab, setActiveTab] = useState('feed'); // 'feed', 'profile', 'applications'
+
+  const getInitialTab = () => {
+    try {
+      const hash = (window.location.hash || '').toLowerCase();
+      if (hash.includes('qa') || hash.includes('community') || hash.includes('doubt')) return 'qa';
+      if (hash.includes('job_fair') || hash.includes('conclave') || hash.includes('pool')) return 'job_fairs';
+      if (hash.includes('alumni') || hash.includes('mentorship')) return 'alumni';
+      if (hash.includes('app') || hash.includes('application')) return 'applications';
+      if (hash.includes('profile') || hash.includes('ats') || hash.includes('resume')) return 'profile';
+      const savedTab = sessionStorage.getItem('gsfc_student_active_tab');
+      if (savedTab && ['feed', 'job_fairs', 'alumni', 'qa', 'profile', 'applications'].includes(savedTab)) {
+        return savedTab;
+      }
+    } catch(e) {}
+    return 'feed';
+  };
+
+  const [activeTab, setActiveTab] = useState(getInitialTab);
+
+  const handleTabChange = (newTab) => {
+    setActiveTab(newTab);
+    try {
+      sessionStorage.setItem('gsfc_student_active_tab', newTab);
+      const newHash = newTab === 'feed' ? '#student' : `#student-${newTab}`;
+      if (window.location.hash !== newHash) {
+        window.history.replaceState(null, '', newHash);
+      }
+    } catch(e) {}
+  };
+
+  useEffect(() => {
+    const handleHashSync = () => {
+      const hash = (window.location.hash || '').toLowerCase();
+      if (hash.includes('qa') || hash.includes('community') || hash.includes('doubt')) {
+        setActiveTab('qa');
+        sessionStorage.setItem('gsfc_student_active_tab', 'qa');
+      } else if (hash.includes('job_fair') || hash.includes('conclave') || hash.includes('pool')) {
+        setActiveTab('job_fairs');
+        sessionStorage.setItem('gsfc_student_active_tab', 'job_fairs');
+      } else if (hash.includes('alumni') || hash.includes('mentorship')) {
+        setActiveTab('alumni');
+        sessionStorage.setItem('gsfc_student_active_tab', 'alumni');
+      } else if (hash.includes('app') || hash.includes('application')) {
+        setActiveTab('applications');
+        sessionStorage.setItem('gsfc_student_active_tab', 'applications');
+      } else if (hash.includes('profile') || hash.includes('ats') || hash.includes('resume')) {
+        setActiveTab('profile');
+        sessionStorage.setItem('gsfc_student_active_tab', 'profile');
+      } else if (hash === '#student' || hash === '') {
+        const saved = sessionStorage.getItem('gsfc_student_active_tab');
+        if (saved && saved !== 'feed') {
+          setActiveTab(saved);
+        }
+      }
+    };
+
+    window.addEventListener('hashchange', handleHashSync);
+    return () => window.removeEventListener('hashchange', handleHashSync);
+  }, []);
+
   const [requirementsFeed, setRequirementsFeed] = useState(DEFAULT_REQUIREMENTS_FEED);
   const [applications, setApplications] = useState([]);
   const [showAllFeed, setShowAllFeed] = useState(false);
@@ -712,8 +771,8 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
         {/* Tab Navigation Segment */}
         <div className="flex items-center gap-2 sm:gap-3 mt-6 sm:mt-8 border-t border-slate-200/90 pt-4 overflow-x-auto max-w-full pb-1">
           <button
-            onClick={() => setActiveTab('feed')}
-            className={`flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl text-xs font-black transition-all shrink-0 whitespace-nowrap ${
+            onClick={() => handleTabChange('feed')}
+            className={`flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl text-xs font-black transition-all shrink-0 whitespace-nowrap cursor-pointer ${
               activeTab === 'feed'
                 ? 'bg-theme-gradient text-white shadow-lg'
                 : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100/80'
@@ -723,8 +782,8 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
           </button>
 
           <button
-            onClick={() => setActiveTab('job_fairs')}
-            className={`flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl text-xs font-black transition-all shrink-0 whitespace-nowrap ${
+            onClick={() => handleTabChange('job_fairs')}
+            className={`flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl text-xs font-black transition-all shrink-0 whitespace-nowrap cursor-pointer ${
               activeTab === 'job_fairs'
                 ? 'bg-theme-gradient text-white shadow-lg'
                 : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100/80'
@@ -741,8 +800,8 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
           </button>
 
           <button
-            onClick={() => setActiveTab('alumni')}
-            className={`flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl text-xs font-black transition-all shrink-0 whitespace-nowrap ${
+            onClick={() => handleTabChange('alumni')}
+            className={`flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl text-xs font-black transition-all shrink-0 whitespace-nowrap cursor-pointer ${
               activeTab === 'alumni'
                 ? 'bg-theme-gradient text-white shadow-lg'
                 : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100/80'
@@ -752,8 +811,8 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
           </button>
 
           <button
-            onClick={() => setActiveTab('qa')}
-            className={`flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl text-xs font-black transition-all shrink-0 whitespace-nowrap ${
+            onClick={() => handleTabChange('qa')}
+            className={`flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl text-xs font-black transition-all shrink-0 whitespace-nowrap cursor-pointer ${
               activeTab === 'qa'
                 ? 'bg-theme-gradient text-white shadow-lg'
                 : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100/80'
@@ -763,8 +822,8 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
           </button>
 
           <button
-            onClick={() => setActiveTab('profile')}
-            className={`flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl text-xs font-black transition-all shrink-0 whitespace-nowrap ${
+            onClick={() => handleTabChange('profile')}
+            className={`flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl text-xs font-black transition-all shrink-0 whitespace-nowrap cursor-pointer ${
               activeTab === 'profile'
                 ? 'bg-theme-gradient text-white shadow-lg'
                 : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100/80'
@@ -781,8 +840,8 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
           </button>
 
           <button
-            onClick={() => setActiveTab('applications')}
-            className={`flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl text-xs font-black transition-all shrink-0 whitespace-nowrap ${
+            onClick={() => handleTabChange('applications')}
+            className={`flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl text-xs font-black transition-all shrink-0 whitespace-nowrap cursor-pointer ${
               activeTab === 'applications'
                 ? 'bg-theme-gradient text-white shadow-lg'
                 : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100/80'
@@ -1427,7 +1486,7 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
                 currentUser={currentUser}
                 onOpenAuth={onOpenAuthModal}
                 onSelectJobDrive={(drive) => {
-                  setActiveTab('feed');
+                  handleTabChange('feed');
                   setSearchQuery(drive.job_title || drive.company_name);
                 }}
               />
