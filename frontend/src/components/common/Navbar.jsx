@@ -18,6 +18,7 @@ export default function Navbar({ currentUser, activeRole, onRoleSwitch, onOpenAu
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [notifModalOpen, setNotifModalOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
+  const [avatarUrl, setAvatarUrl] = useState(() => localStorage.getItem('gsfc_user_avatar') || currentUser?.profile?.avatar_url || '');
   const [readNotifIds, setReadNotifIds] = useState(() => {
     try {
       const saved = localStorage.getItem('gsfc_read_notifications');
@@ -26,6 +27,24 @@ export default function Navbar({ currentUser, activeRole, onRoleSwitch, onOpenAu
       return new Set();
     }
   });
+
+  useEffect(() => {
+    const handleAvatarUpdate = (e) => {
+      if (e.detail?.avatarUrl !== undefined) {
+        setAvatarUrl(e.detail.avatarUrl);
+      } else {
+        setAvatarUrl(localStorage.getItem('gsfc_user_avatar') || '');
+      }
+    };
+    window.addEventListener('gsfc-avatar-updated', handleAvatarUpdate);
+    return () => window.removeEventListener('gsfc-avatar-updated', handleAvatarUpdate);
+  }, []);
+
+  useEffect(() => {
+    if (currentUser?.profile?.avatar_url && !avatarUrl) {
+      setAvatarUrl(currentUser.profile.avatar_url);
+    }
+  }, [currentUser]);
 
   const fetchLiveNotifications = async () => {
     try {
@@ -313,10 +332,29 @@ export default function Navbar({ currentUser, activeRole, onRoleSwitch, onOpenAu
 
           {/* 🔑 SIGN IN / USER PROFILE & SIGN OUT BUTTON */}
           {currentUser ? (
-            <div className="flex items-center gap-1.5 pl-1 border-l border-slate-200 dark:border-slate-700">
+            <div className="flex items-center gap-2 pl-1 border-l border-slate-200 dark:border-slate-700">
+              {/* Profile Avatar Image */}
+              <button
+                type="button"
+                onClick={() => setSettingsModalOpen(true)}
+                className="relative group cursor-pointer shrink-0"
+                title="Account Settings & Profile Photo"
+              >
+                <div className="w-8 h-8 rounded-full overflow-hidden border-2 border-blue-900 dark:border-amber-400 bg-slate-200 dark:bg-slate-700 flex items-center justify-center shadow-xs transition-transform group-hover:scale-105">
+                  {avatarUrl ? (
+                    <img src={avatarUrl} alt="Candidate Profile" className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full bg-gradient-to-tr from-blue-900 to-indigo-700 text-white font-black text-[11px] flex items-center justify-center">
+                      {(currentUser.profile?.name || currentUser.name || currentUser.email || 'GS').substring(0, 2).toUpperCase()}
+                    </div>
+                  )}
+                </div>
+                <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-white dark:border-slate-900" />
+              </button>
+
               <div className="text-right hidden xl:block">
                 <div className="text-xs font-black text-slate-900 dark:text-slate-100 truncate max-w-[100px]">
-                  {currentUser.profile?.name || currentUser.email}
+                  {currentUser.profile?.name || currentUser.name || currentUser.email}
                 </div>
                 <div className="text-[9px] font-black text-emerald-600 uppercase tracking-wider flex items-center justify-end gap-1">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
@@ -537,16 +575,27 @@ export default function Navbar({ currentUser, activeRole, onRoleSwitch, onOpenAu
           {/* User Auth Section on Mobile */}
           {currentUser ? (
             <div className="pt-2 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between">
-              <div>
-                <div className="text-xs font-black text-slate-900 dark:text-slate-100">{currentUser.profile?.name || currentUser.email}</div>
-                <div className="text-[10px] font-black text-emerald-600 uppercase tracking-wider">{currentUser.role}</div>
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-9 h-9 rounded-full overflow-hidden border-2 border-blue-900 dark:border-amber-400 bg-slate-200 dark:bg-slate-700 flex items-center justify-center shrink-0">
+                  {avatarUrl ? (
+                    <img src={avatarUrl} alt="Profile" className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full bg-gradient-to-tr from-blue-900 to-indigo-700 text-white font-black text-xs flex items-center justify-center">
+                      {(currentUser.profile?.name || currentUser.name || currentUser.email || 'GS').substring(0, 2).toUpperCase()}
+                    </div>
+                  )}
+                </div>
+                <div className="truncate">
+                  <div className="text-xs font-black text-slate-900 dark:text-slate-100 truncate">{currentUser.profile?.name || currentUser.name || currentUser.email}</div>
+                  <div className="text-[10px] font-black text-emerald-600 uppercase tracking-wider">{currentUser.role}</div>
+                </div>
               </div>
               <button
                 onClick={() => {
                   setMobileMenuOpen(false);
                   onLogout();
                 }}
-                className="py-2 px-3 bg-rose-50 dark:bg-rose-900/30 text-rose-600 dark:text-rose-300 border border-rose-200 dark:border-rose-800 text-xs font-black rounded-xl flex items-center gap-1.5"
+                className="py-2 px-3 bg-rose-50 dark:bg-rose-900/30 text-rose-600 dark:text-rose-300 border border-rose-200 dark:border-rose-800 text-xs font-black rounded-xl flex items-center gap-1.5 shrink-0"
               >
                 <LogOut className="w-3.5 h-3.5" /> Sign Out
               </button>
