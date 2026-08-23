@@ -115,8 +115,28 @@ export default function SettingsModal({ isOpen, onClose, currentUser, theme, onT
   const resumeInputRef = useRef(null);
   const certInputRef = useRef(null);
 
+  const userEmail = (currentUser?.email || currentUser?.profile?.email || '').toLowerCase();
+
   useEffect(() => {
-    if (currentUser) {
+    // 1. Check account-specific persistent profile
+    let accountProfile = null;
+    let accountAvatar = '';
+    if (userEmail) {
+      try {
+        const raw = localStorage.getItem('gsfc_user_profile_' + userEmail);
+        if (raw) accountProfile = JSON.parse(raw);
+        accountAvatar = localStorage.getItem('gsfc_user_avatar_' + userEmail) || '';
+      } catch(e) {}
+    }
+
+    if (accountProfile) {
+      if (accountProfile.displayName) setDisplayName(accountProfile.displayName);
+      if (accountProfile.phone) setPhone(accountProfile.phone);
+      if (accountProfile.targetStream) setTargetStream(accountProfile.targetStream);
+      if (accountAvatar || accountProfile.avatarUrl) {
+        setAvatarUrl(accountAvatar || accountProfile.avatarUrl);
+      }
+    } else if (currentUser) {
       setDisplayName(currentUser.profile?.name || currentUser.name || 'Thakkar Om');
       setPhone(currentUser.profile?.phone || currentUser.phone || '+91 98765 43210');
       if (currentUser.profile?.avatar_url && !avatarUrl) {
@@ -127,7 +147,7 @@ export default function SettingsModal({ isOpen, onClose, currentUser, theme, onT
     // Load saved client settings
     try {
       const saved = JSON.parse(localStorage.getItem('gsfc_user_settings') || '{}');
-      if (saved.targetStream) setTargetStream(saved.targetStream);
+      if (saved.targetStream && !accountProfile?.targetStream) setTargetStream(saved.targetStream);
       if (saved.publicProfile !== undefined) setPublicProfile(saved.publicProfile);
       if (saved.notifDrives !== undefined) setNotifDrives(saved.notifDrives);
       if (saved.notifShortlists !== undefined) setNotifShortlists(saved.notifShortlists);
@@ -146,7 +166,7 @@ export default function SettingsModal({ isOpen, onClose, currentUser, theme, onT
         document.documentElement.classList.toggle('reduce-motion', Boolean(saved.reducedMotion));
       }
     } catch(e) {}
-  }, [currentUser, isOpen]);
+  }, [currentUser, isOpen, userEmail]);
 
   // ESC key listener
   useEffect(() => {
@@ -175,6 +195,9 @@ export default function SettingsModal({ isOpen, onClose, currentUser, theme, onT
       setAvatarUrl(base64Data);
       try {
         localStorage.setItem('gsfc_user_avatar', base64Data);
+        if (userEmail) {
+          localStorage.setItem('gsfc_user_avatar_' + userEmail, base64Data);
+        }
         window.dispatchEvent(new CustomEvent('gsfc-avatar-updated', { detail: { avatarUrl: base64Data } }));
       } catch (err) {}
 
@@ -328,10 +351,34 @@ export default function SettingsModal({ isOpen, onClose, currentUser, theme, onT
       if (!savedUser.profile) savedUser.profile = {};
       savedUser.profile.phone = phone;
       savedUser.profile.targetStream = targetStream;
+      if (avatarUrl) savedUser.profile.avatar_url = avatarUrl;
 
       localStorage.setItem('campushire_user', JSON.stringify(savedUser));
       localStorage.setItem('gsfc_candidate_name', trimmedName);
+      if (avatarUrl) localStorage.setItem('gsfc_user_avatar', avatarUrl);
+
+      // Save permanently into per-account persistent storage
+      if (userEmail) {
+        const accountProfile = {
+          displayName: trimmedName,
+          phone,
+          targetStream,
+          avatarUrl,
+          certificatesList,
+          resumeFileName,
+          resumeFileSize,
+          updatedAt: new Date().toISOString()
+        };
+        localStorage.setItem('gsfc_user_profile_' + userEmail, JSON.stringify(accountProfile));
+        if (avatarUrl) {
+          localStorage.setItem('gsfc_user_avatar_' + userEmail, avatarUrl);
+        }
+      }
+
       window.dispatchEvent(new CustomEvent('gsfc-user-updated', { detail: { user: savedUser } }));
+      if (avatarUrl) {
+        window.dispatchEvent(new CustomEvent('gsfc-avatar-updated', { detail: { avatarUrl } }));
+      }
     } catch(e) {}
 
     // 2. Persist Settings Object
@@ -562,6 +609,9 @@ export default function SettingsModal({ isOpen, onClose, currentUser, theme, onT
                           onClick={() => {
                             setAvatarUrl('');
                             localStorage.removeItem('gsfc_user_avatar');
+                            if (userEmail) {
+                              localStorage.removeItem('gsfc_user_avatar_' + userEmail);
+                            }
                             window.dispatchEvent(new CustomEvent('gsfc-avatar-updated', { detail: { avatarUrl: '' } }));
                             showToast({ type: 'info', title: 'Your changes changed successfully', message: 'Profile photo reset to default avatar.', triggerCrackles: false });
                           }}

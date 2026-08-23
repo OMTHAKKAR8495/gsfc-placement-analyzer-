@@ -288,8 +288,48 @@ export default function App() {
   };
 
   const handleAuthSuccess = (userData) => {
+    const userEmail = (userData?.email || userData?.profile?.email || '').toLowerCase();
+    
+    // Check if there is a saved customized profile or avatar for this specific user account
+    if (userEmail) {
+      try {
+        const savedProfileRaw = localStorage.getItem('gsfc_user_profile_' + userEmail);
+        const savedAvatar = localStorage.getItem('gsfc_user_avatar_' + userEmail);
+
+        if (savedProfileRaw) {
+          const profile = JSON.parse(savedProfileRaw);
+          if (profile.displayName) {
+            userData.name = profile.displayName;
+            if (!userData.profile) userData.profile = {};
+            userData.profile.name = profile.displayName;
+          }
+          if (profile.phone) {
+            if (!userData.profile) userData.profile = {};
+            userData.profile.phone = profile.phone;
+          }
+          if (profile.targetStream) {
+            if (!userData.profile) userData.profile = {};
+            userData.profile.targetStream = profile.targetStream;
+          }
+        }
+
+        if (savedAvatar) {
+          if (!userData.profile) userData.profile = {};
+          userData.profile.avatar_url = savedAvatar;
+          localStorage.setItem('gsfc_user_avatar', savedAvatar);
+          window.dispatchEvent(new CustomEvent('gsfc-avatar-updated', { detail: { avatarUrl: savedAvatar } }));
+        }
+
+        if (userData.name) {
+          localStorage.setItem('gsfc_candidate_name', userData.name);
+        }
+      } catch(e) {}
+    }
+
     setCurrentUser(userData);
     localStorage.setItem('campushire_user', JSON.stringify(userData));
+    window.dispatchEvent(new CustomEvent('gsfc-user-updated', { detail: { user: userData } }));
+
     const defaultWorkspace = userData.role === 'faculty' 
       ? 'faculty' 
       : (userData.role === 'superadmin' ? 'superadmin' : (userData.role === 'company' ? 'company' : (userData.role === 'admin' ? 'admin' : (userData.role === 'alumni' ? 'alumni' : 'student'))));

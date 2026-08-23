@@ -277,10 +277,21 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
 
   // Sync candidate fields dynamically when currentUser or student changes
   useEffect(() => {
-    if (student?.name) {
-      setCandidateName(student.name);
+    const email = (currentUser?.email || student?.email || '').toLowerCase();
+    let customProfile = null;
+    if (email) {
+      try {
+        const raw = localStorage.getItem('gsfc_user_profile_' + email);
+        if (raw) customProfile = JSON.parse(raw);
+      } catch (e) {}
+    }
+
+    if (customProfile?.displayName) {
+      setCandidateName(customProfile.displayName);
     } else if (currentUser?.profile?.name || currentUser?.name) {
       setCandidateName(currentUser.profile?.name || currentUser.name);
+    } else if (student?.name) {
+      setCandidateName(student.name);
     } else if (currentUser?.email) {
       const emailName = currentUser.email
         .split('@')[0]
@@ -290,6 +301,14 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
         .map(p => p.charAt(0).toUpperCase() + p.slice(1).toLowerCase())
         .join(' ');
       setCandidateName(emailName || 'Student Candidate');
+    }
+
+    if (customProfile?.phone) {
+      setCandidatePhone(customProfile.phone);
+    } else if (currentUser?.profile?.phone || currentUser?.phone) {
+      setCandidatePhone(currentUser.profile?.phone || currentUser.phone);
+    } else if (student?.phone) {
+      setCandidatePhone(student.phone);
     }
 
     if (currentUser?.email) {
