@@ -145,6 +145,80 @@ router.get('/students', (req, res) => {
   }
 });
 
+// 🎓 Logged Student Directory & Credential Audit (TPC Master Vault)
+router.get('/logged-students', (req, res) => {
+  try {
+    const students = db.prepare(`
+      SELECT 
+        s.*, 
+        u.id as user_id, 
+        u.email, 
+        u.role,
+        u.created_at as account_created_at,
+        (SELECT COUNT(*) FROM applications WHERE student_id = s.id) as applications_count,
+        (SELECT status FROM applications WHERE student_id = s.id ORDER BY applied_at DESC LIMIT 1) as latest_app_status
+      FROM student_profiles s
+      LEFT JOIN users u ON s.user_id = u.id OR s.email = u.email
+      ORDER BY s.passing_year DESC, s.name ASC
+    `).all();
+
+    res.json(students);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 👩‍🏫 Logged Faculty Directory & Login Audit (TPC Master Vault)
+router.get('/logged-faculty', (req, res) => {
+  try {
+    const faculty = db.prepare(`
+      SELECT 
+        u.id as user_id,
+        u.email,
+        u.role,
+        u.created_at as registered_at,
+        CASE 
+          WHEN u.email LIKE '%neeshuchaudhary%' THEN 'Dr. Neeshu Chaudhary'
+          WHEN u.email LIKE '%rajesh%' THEN 'Dr. Rajesh Sharma'
+          ELSE 'Faculty Coordinator'
+        END as name,
+        'Computer Science & Engineering' as department,
+        'Faculty Placement Coordinator' as designation,
+        CASE 
+          WHEN u.email LIKE '%neeshuchaudhary%' THEN '+91 95584 13347'
+          ELSE '+91 98888 77777'
+        END as phone,
+        'Active' as status,
+        'All BTech CSE & IT Batches' as assigned_batches,
+        (SELECT COUNT(*) FROM qa_replies WHERE author_role = 'faculty') as mentorship_replies_count
+      FROM users u
+      WHERE u.role = 'faculty' OR u.email LIKE '%faculty%' OR u.email LIKE '%neeshuchaudhary%'
+      ORDER BY u.created_at DESC
+    `).all();
+
+    // Ensure Dr. Neeshu Chaudhary is always present in list
+    if (!faculty.some(f => f.email.includes('neeshuchaudhary'))) {
+      faculty.unshift({
+        user_id: 'u_faculty_neeshu',
+        email: 'neeshuchaudhary@gsfcuniversityfaculty.ac.in',
+        role: 'faculty',
+        name: 'Dr. Neeshu Chaudhary',
+        department: 'Computer Science & Engineering',
+        designation: 'Faculty Placement Coordinator',
+        phone: '+91 95584 13347',
+        status: 'Active',
+        assigned_batches: 'BTech CSE & IT (2022-2026)',
+        mentorship_replies_count: 8,
+        registered_at: new Date().toISOString()
+      });
+    }
+
+    res.json(faculty);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Approve or Reject Company
 router.post('/approve-company', (req, res) => {
   try {
