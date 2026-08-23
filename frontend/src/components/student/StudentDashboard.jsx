@@ -614,8 +614,8 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
       if (!res.ok) throw new Error(data.error || 'Failed to record external application');
 
       showToast({
-        type: 'success',
-        title: '✅ External Application Tracked',
+        type: 'celebration',
+        title: `🎉 Application Tracked for ${targetReq?.company_name || 'Recruiter'}!`,
         message: 'External job application marked as applied in your placement tracker!',
         triggerCrackles: true
       });
@@ -649,11 +649,11 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
 
       const targetReq = requirementsFeed.find(r => r.id === reqId);
 
-      // Trigger Celebration Toast & Crackles Fireworks
+      // Trigger Celebration Toast & Multi-stage Crackles Fireworks
       showToast({
-        type: 'success',
-        title: '🎉 Application Submitted Successfully!',
-        message: `Your verified profile and resume have been dispatched to ${targetReq?.company_name || 'the recruiter'}.`,
+        type: 'celebration',
+        title: `🎉 Application Submitted to ${targetReq?.company_name || 'Recruiter'}!`,
+        message: `Your verified profile, ATS resume, and credentials dossier have been successfully dispatched.`,
         matchScore: data.matchScore,
         triggerCrackles: true
       });

@@ -180,9 +180,9 @@ export default function SettingsModal({ isOpen, onClose, currentUser, theme, onT
 
       showToast({
         type: 'success',
-        title: '📸 Passport Photo Updated',
+        title: 'Your changes changed successfully',
         message: 'Your professional portrait has been verified and saved for campus hall tickets.',
-        triggerCrackles: true
+        triggerCrackles: false
       });
     };
     reader.readAsDataURL(file);
@@ -209,9 +209,9 @@ export default function SettingsModal({ isOpen, onClose, currentUser, theme, onT
 
     showToast({
       type: 'success',
-      title: '📄 Placement Resume Uploaded',
-      message: `"${file.name}" is now synced with your ATS profile and Auto-Fill Apply engine.`,
-      triggerCrackles: true
+      title: 'Your changes changed successfully',
+      message: `"${file.name}" is now synced with your master ATS placement profile.`,
+      triggerCrackles: false
     });
   };
 
@@ -236,8 +236,9 @@ export default function SettingsModal({ isOpen, onClose, currentUser, theme, onT
 
     showToast({
       type: 'success',
-      title: '📜 Certificate Added',
-      message: `"${file.name}" has been appended to your verified academic credentials dossier.`
+      title: 'Your changes changed successfully',
+      message: `"${file.name}" has been appended to your verified academic credentials dossier.`,
+      triggerCrackles: false
     });
   };
 
@@ -249,8 +250,9 @@ export default function SettingsModal({ isOpen, onClose, currentUser, theme, onT
     } catch (err) {}
     showToast({
       type: 'info',
-      title: 'Certificate Removed',
-      message: 'Certificate removed from your profile attachments.'
+      title: 'Your changes changed successfully',
+      message: 'Certificate removed from your profile attachments.',
+      triggerCrackles: false
     });
   };
 
@@ -271,8 +273,9 @@ export default function SettingsModal({ isOpen, onClose, currentUser, theme, onT
     updateSetting('compactDensity', val, 'compact-density');
     showToast({
       type: val ? 'info' : 'default',
-      title: val ? '📐 Compact Density Enabled' : '📐 Standard Density Restored',
-      message: val ? 'Cards and tables are now packed tightly with optimized padding.' : 'Standard card spacing restored.'
+      title: 'Your changes changed successfully',
+      message: val ? 'Compact Table & Card Density mode enabled.' : 'Standard card spacing restored.',
+      triggerCrackles: false
     });
   };
 
@@ -281,8 +284,9 @@ export default function SettingsModal({ isOpen, onClose, currentUser, theme, onT
     updateSetting('highContrast', val, 'high-contrast');
     showToast({
       type: val ? 'info' : 'default',
-      title: val ? '👁️ High Contrast Mode Enabled' : '👁️ Standard Contrast Restored',
-      message: val ? 'Font weights, borders, and color contrasts enhanced.' : 'Standard theme contrast restored.'
+      title: 'Your changes changed successfully',
+      message: val ? 'High Contrast Text & Borders enabled.' : 'Standard contrast restored.',
+      triggerCrackles: false
     });
   };
 
@@ -291,8 +295,9 @@ export default function SettingsModal({ isOpen, onClose, currentUser, theme, onT
     updateSetting('reducedMotion', val, 'reduce-motion');
     showToast({
       type: val ? 'info' : 'default',
-      title: val ? '⚡ Reduced Motion Enabled' : '⚡ Smooth Animations Restored',
-      message: val ? 'Animations and transitions disabled for maximum performance.' : 'Dynamic micro-animations active.'
+      title: 'Your changes changed successfully',
+      message: val ? 'Reduced Animation Motion enabled.' : 'Standard animations restored.',
+      triggerCrackles: false
     });
   };
 
@@ -301,8 +306,9 @@ export default function SettingsModal({ isOpen, onClose, currentUser, theme, onT
     updateSetting(key, val);
     showToast({
       type: val ? 'success' : 'default',
-      title: `${label} ${val ? 'Enabled' : 'Muted'}`,
-      message: `Your alert preference has been updated immediately.`
+      title: 'Your changes changed successfully',
+      message: `${label} has been ${val ? 'enabled' : 'muted'}.`,
+      triggerCrackles: false
     });
   };
 
@@ -331,9 +337,9 @@ export default function SettingsModal({ isOpen, onClose, currentUser, theme, onT
 
       showToast({
         type: 'success',
-        title: '⚙️ Settings Applied & Saved',
+        title: 'Your changes changed successfully',
         message: 'All profile details, documents & display preferences are saved.',
-        triggerCrackles: true
+        triggerCrackles: false
       });
     } catch(e) {}
 

@@ -61,11 +61,12 @@ export function ToastProvider({ children }) {
     message = '', 
     matchScore = null, 
     duration = 4500,
-    triggerCrackles = true 
+    triggerCrackles = false 
   }) => {
     const id = 'toast_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
     
-    if (triggerCrackles || type === 'celebration' || type === 'success') {
+    // Only fire firecracker celebration on explicit milestones (applications, offers, trophies)
+    if (triggerCrackles || type === 'celebration') {
       triggerCelebrationCrackles();
     }
 
@@ -83,7 +84,7 @@ export function ToastProvider({ children }) {
       {children}
 
       {/* BOTTOM-POPPING TOAST CONTAINER */}
-      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[999999] flex flex-col items-center gap-3 w-full max-w-md px-4 pointer-events-none">
+      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[999999] flex flex-col items-center gap-3 w-full max-w-lg px-4 pointer-events-none">
         {toasts.map((toast) => (
           <div
             key={toast.id}
@@ -92,30 +93,40 @@ export function ToastProvider({ children }) {
                 ? 'bg-rose-950/95 text-white border-rose-500/50 shadow-rose-950/60'
                 : toast.type === 'warning'
                 ? 'bg-amber-950/95 text-white border-amber-500/50 shadow-amber-950/60'
-                : 'bg-slate-900/95 text-white border-blue-500/40 shadow-blue-950/70 ring-1 ring-white/10'
+                : toast.type === 'celebration'
+                ? 'bg-gradient-to-r from-blue-950 via-indigo-950 to-slate-950 text-white border-amber-500/60 shadow-amber-950/80 ring-2 ring-amber-400/40'
+                : 'bg-slate-900/98 text-white border-emerald-500/40 shadow-emerald-950/40 ring-1 ring-white/10'
             }`}
             style={{
               animation: 'slideUpBounce 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards'
             }}
           >
-            {/* ICON */}
-            <div className="p-2.5 rounded-xl bg-gradient-to-br from-blue-600 via-indigo-600 to-amber-500 text-white shadow-lg shrink-0 mt-0.5">
+            {/* BIG STATUS ICON */}
+            <div className={`p-2.5 rounded-2xl shrink-0 mt-0.5 shadow-md flex items-center justify-center ${
+              toast.type === 'error'
+                ? 'bg-rose-500/20 text-rose-400 border border-rose-500/40'
+                : toast.type === 'warning'
+                ? 'bg-amber-500/20 text-amber-400 border border-amber-500/40'
+                : toast.type === 'celebration'
+                ? 'bg-amber-500/25 text-amber-300 border border-amber-400/50 animate-bounce'
+                : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
+            }`}>
               {toast.type === 'error' ? (
-                <AlertCircle className="w-5 h-5 text-rose-200" />
+                <AlertCircle className="w-6 h-6" />
               ) : toast.type === 'warning' ? (
-                <Info className="w-5 h-5 text-amber-200" />
-              ) : toast.matchScore !== null ? (
-                <Trophy className="w-5 h-5 text-amber-300 animate-bounce" />
+                <Info className="w-6 h-6" />
+              ) : toast.type === 'celebration' || toast.matchScore !== null ? (
+                <Trophy className="w-6 h-6 text-amber-400" />
               ) : (
-                <Sparkles className="w-5 h-5 text-amber-300" />
+                <CheckCircle2 className="w-6 h-6 text-emerald-400" />
               )}
             </div>
 
             {/* CONTENT */}
             <div className="flex-1 min-w-0 pr-1">
               <div className="flex items-center gap-2 flex-wrap">
-                <h4 className="font-black text-sm text-white tracking-wide">
-                  {toast.title || (toast.type === 'error' ? 'Notice' : 'Success!')}
+                <h4 className="font-black text-sm text-white tracking-wide flex items-center gap-1.5">
+                  {toast.title || (toast.type === 'error' ? 'Notice' : 'Your changes changed successfully')}
                 </h4>
                 {toast.matchScore !== null && (
                   <span className="px-2 py-0.5 bg-gradient-to-r from-amber-400 to-emerald-400 text-slate-950 font-black text-[10px] uppercase rounded-full shadow-sm">
@@ -124,7 +135,7 @@ export function ToastProvider({ children }) {
                 )}
               </div>
               <p className="text-xs text-slate-300 font-medium mt-1 leading-relaxed">
-                {toast.message}
+                {toast.message || 'All changes and preferences have been updated.'}
               </p>
             </div>
 
