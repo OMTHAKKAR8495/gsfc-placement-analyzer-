@@ -100,6 +100,203 @@ export default function FacultyDashboard({ currentUser, onOpenAuth }) {
     }
   };
 
+  const DEFAULT_STUDENTS = [
+    {
+      id: 's_om_thakkar',
+      user_id: 'u_om_thakkar',
+      name: 'Om Thakkar',
+      roll_number: '24BT04171',
+      email: '24bt04171@gsfcuniversity.ac.in',
+      phone: '+91 95584 13347',
+      program: 'BTech CSE',
+      branch: 'Computer Science & Engineering',
+      cgpa: 8.9,
+      ats_score: 94,
+      skills: ['Python', 'React.js', 'Node.js', 'SQL', 'FastAPI', 'Machine Learning', 'Docker', 'Kubernetes'],
+      placement_status: 'Placed',
+      applications_count: 3,
+      mock_interview_score: 94,
+      assessment_score: 96,
+      applications: [
+        {
+          id: 'app_om_01',
+          company_name: 'Google Cloud India',
+          requirement_title: 'Software Development Engineer — AI & Cloud Systems',
+          ctc_range: '₹ 28,00,000 - ₹ 34,00,000 PA',
+          status: 'selected',
+          match_score: 94.5,
+          applied_at: new Date(Date.now() - 2 * 86400000).toISOString()
+        },
+        {
+          id: 'app_om_02',
+          company_name: 'Microsoft Azure Systems',
+          requirement_title: 'Graduate Software Engineer (Cloud & Microservices)',
+          ctc_range: '₹ 24,00,000 - ₹ 28,00,000 PA',
+          status: 'interview',
+          match_score: 91.0,
+          applied_at: new Date(Date.now() - 4 * 86400000).toISOString()
+        },
+        {
+          id: 'app_om_03',
+          company_name: 'GSFC Limited',
+          requirement_title: 'Graduate Engineer Trainee (IT & Software)',
+          ctc_range: '₹ 9,50,000 - ₹ 12,00,000 PA',
+          status: 'shortlisted',
+          match_score: 96.0,
+          applied_at: new Date(Date.now() - 6 * 86400000).toISOString()
+        }
+      ]
+    },
+    {
+      id: 's_arav',
+      user_id: 'u_arav',
+      name: 'Arav Sharma',
+      roll_number: '21BCE045',
+      email: 'arav.sharma@gsfcuniversity.ac.in',
+      phone: '+91 98765 43210',
+      program: 'BTech CSE',
+      branch: 'Computer Science & Engineering',
+      cgpa: 8.8,
+      ats_score: 92,
+      skills: ['Python', 'Django', 'PostgreSQL', 'Docker', 'AWS', 'TensorFlow', 'REST APIs'],
+      placement_status: 'Placed',
+      applications_count: 2,
+      mock_interview_score: 91,
+      assessment_score: 93,
+      applications: [
+        {
+          id: 'app_arav_01',
+          company_name: 'Google Cloud India',
+          requirement_title: 'Software Development Engineer — AI & Cloud Systems',
+          ctc_range: '₹ 28,00,000 - ₹ 34,00,000 PA',
+          status: 'selected',
+          match_score: 93.0,
+          applied_at: new Date(Date.now() - 3 * 86400000).toISOString()
+        },
+        {
+          id: 'app_arav_02',
+          company_name: 'Amazon Web Services',
+          requirement_title: 'Cloud DevOps Trainee Engineer',
+          ctc_range: '₹ 22,00,000 - ₹ 26,00,000 PA',
+          status: 'interview',
+          match_score: 89.5,
+          applied_at: new Date(Date.now() - 5 * 86400000).toISOString()
+        }
+      ]
+    },
+    {
+      id: 's_priya',
+      user_id: 'u_priya',
+      name: 'Priya Patel',
+      roll_number: '21BCE088',
+      email: 'priya.patel@gsfcuniversity.ac.in',
+      phone: '+91 91234 56789',
+      program: 'BTech CSE',
+      branch: 'Computer Science & Engineering',
+      cgpa: 8.7,
+      ats_score: 90,
+      skills: ['React.js', 'Next.js', 'Node.js', 'GraphQL', 'Tailwind CSS', 'Redux', 'MongoDB'],
+      placement_status: 'Placed',
+      applications_count: 2,
+      mock_interview_score: 90,
+      assessment_score: 92,
+      applications: [
+        {
+          id: 'app_priya_01',
+          company_name: 'Microsoft Azure Systems',
+          requirement_title: 'Graduate Software Engineer (Cloud & Microservices)',
+          ctc_range: '₹ 24,00,000 - ₹ 28,00,000 PA',
+          status: 'selected',
+          match_score: 92.0,
+          applied_at: new Date(Date.now() - 1 * 86400000).toISOString()
+        },
+        {
+          id: 'app_priya_02',
+          company_name: 'GSFC Limited',
+          requirement_title: 'Graduate Engineer Trainee (IT & Software)',
+          ctc_range: '₹ 9,50,000 - ₹ 12,00,000 PA',
+          status: 'selected',
+          match_score: 95.0,
+          applied_at: new Date(Date.now() - 8 * 86400000).toISOString()
+        }
+      ]
+    },
+    {
+      id: 's_vedant',
+      user_id: 'u_vedant',
+      name: 'Vedant Joshi',
+      roll_number: '21BCE012',
+      email: 'vedant@gsfc.ac.in',
+      phone: '+91 94234 56780',
+      program: 'BTech CSE',
+      branch: 'Computer Science & Engineering',
+      cgpa: 8.6,
+      ats_score: 89,
+      skills: ['C++', 'Algorithms', 'Distributed Systems', 'Go', 'Kubernetes', 'Linux'],
+      placement_status: 'In-Process',
+      applications_count: 2,
+      mock_interview_score: 88,
+      assessment_score: 90,
+      applications: [
+        {
+          id: 'app_vedant_01',
+          company_name: 'Google Cloud India',
+          requirement_title: 'Software Development Engineer — AI & Cloud Systems',
+          ctc_range: '₹ 28,00,000 - ₹ 34,00,000 PA',
+          status: 'interview',
+          match_score: 90.0,
+          applied_at: new Date(Date.now() - 2 * 86400000).toISOString()
+        },
+        {
+          id: 'app_vedant_02',
+          company_name: 'Tata Consultancy Services',
+          requirement_title: 'Data Systems & Cloud Engineering Trainee',
+          ctc_range: '₹ 9,00,000 - ₹ 11,50,000 PA',
+          status: 'shortlisted',
+          match_score: 93.0,
+          applied_at: new Date(Date.now() - 7 * 86400000).toISOString()
+        }
+      ]
+    },
+    {
+      id: 's_tanvi',
+      user_id: 'u_tanvi',
+      name: 'Tanvi Joshi',
+      roll_number: '22BCE108',
+      email: 'tanvi.j@gsfcuniversity.ac.in',
+      phone: '+91 97234 56781',
+      program: 'BTech CSE (AI & DS)',
+      branch: 'Computer Science & Engineering',
+      cgpa: 8.9,
+      ats_score: 93,
+      skills: ['PyTorch', 'Computer Vision', 'LLMs', 'Python', 'MLOps', 'FastAPI'],
+      placement_status: 'Placed',
+      applications_count: 2,
+      mock_interview_score: 93,
+      assessment_score: 95,
+      applications: [
+        {
+          id: 'app_tanvi_01',
+          company_name: 'Google Cloud India',
+          requirement_title: 'Software Development Engineer — AI & Cloud Systems',
+          ctc_range: '₹ 28,00,000 - ₹ 34,00,000 PA',
+          status: 'selected',
+          match_score: 95.0,
+          applied_at: new Date(Date.now() - 1 * 86400000).toISOString()
+        },
+        {
+          id: 'app_tanvi_02',
+          company_name: 'Microsoft Azure Systems',
+          requirement_title: 'Graduate Software Engineer (Cloud & Microservices)',
+          ctc_range: '₹ 24,00,000 - ₹ 28,00,000 PA',
+          status: 'interview',
+          match_score: 91.5,
+          applied_at: new Date(Date.now() - 3 * 86400000).toISOString()
+        }
+      ]
+    }
+  ];
+
   const fetchFacultyAnalytics = async () => {
     setLoading(true);
     try {
@@ -110,23 +307,58 @@ export default function FacultyDashboard({ currentUser, onOpenAuth }) {
         json = await res.json();
       }
 
-      // Check if client has local student applications in session to merge seamlessly
+      if (!json || !json.students || json.students.length === 0) {
+        json = {
+          department: department || 'ALL',
+          total_students: DEFAULT_STUDENTS.length,
+          avg_cgpa: '8.8',
+          avg_ats_score: '91.6',
+          placement_conversion_rate: '80.0',
+          students: [...DEFAULT_STUDENTS]
+        };
+      }
+
+      // Check all local student applications across all localStorage keys (user-scoped + global)
       try {
-        const localApps = JSON.parse(localStorage.getItem('gsfc_student_applications') || '[]');
-        if (localApps && localApps.length > 0 && json?.students) {
+        let allLocalApps = [];
+        const generic = JSON.parse(localStorage.getItem('gsfc_student_applications') || '[]');
+        if (Array.isArray(generic)) allLocalApps = [...generic];
+
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          if (k && k.startsWith('gsfc_student_applications_')) {
+            try {
+              const uApps = JSON.parse(localStorage.getItem(k) || '[]');
+              if (Array.isArray(uApps)) {
+                uApps.forEach(ua => {
+                  if (!allLocalApps.some(a => (a.requirement_id && a.requirement_id === ua.requirement_id) || (a.job_title === ua.job_title && a.company_name === ua.company_name) || a.id === ua.id)) {
+                    allLocalApps.unshift(ua);
+                  }
+                });
+              }
+            } catch(e) {}
+          }
+        }
+
+        if (allLocalApps.length > 0 && json?.students) {
           const activeUser = JSON.parse(localStorage.getItem('campushire_user') || 'null');
           const studentEmail = (activeUser?.email || '24bt04171@gsfcuniversity.ac.in').toLowerCase();
           
+          let studentFound = false;
           json.students = json.students.map(st => {
-            if ((st.email || '').toLowerCase() === studentEmail || st.id === 's_om_thakkar') {
+            const isMatch = (st.email || '').toLowerCase() === studentEmail || 
+                            st.id === 's_om_thakkar' || 
+                            (st.roll_number || '').toLowerCase().includes('24bt04171');
+            if (isMatch) {
+              studentFound = true;
               const mergedApps = [...(st.applications || [])];
-              localApps.forEach(la => {
-                const alreadyExists = mergedApps.some(a => a.requirement_title === la.requirement_title || a.id === la.id);
+              allLocalApps.forEach(la => {
+                const alreadyExists = mergedApps.some(a => (a.requirement_title === (la.requirement_title || la.job_title) && a.company_name === la.company_name) || a.id === la.id);
                 if (!alreadyExists) {
                   mergedApps.unshift({
                     id: la.id || 'app_' + Date.now(),
                     company_name: la.company_name || 'Recruiting Partner',
-                    requirement_title: la.requirement_title || 'Software Development Engineer',
+                    requirement_title: la.requirement_title || la.job_title || 'Software Development Engineer',
                     ctc_range: la.ctc_range || '₹ 24,00,000 PA',
                     status: la.status || 'applied',
                     match_score: la.match_score || st.ats_score || 94,
@@ -143,8 +375,44 @@ export default function FacultyDashboard({ currentUser, onOpenAuth }) {
             }
             return st;
           });
+
+          if (!studentFound && allLocalApps.length > 0) {
+            const formattedApps = allLocalApps.map(la => ({
+              id: la.id || 'app_' + Date.now(),
+              company_name: la.company_name || 'Recruiting Partner',
+              requirement_title: la.requirement_title || la.job_title || 'Software Development Engineer',
+              ctc_range: la.ctc_range || '₹ 24,00,000 PA',
+              status: la.status || 'applied',
+              match_score: la.match_score || 92,
+              applied_at: la.applied_at || new Date().toISOString()
+            }));
+            
+            const newStudentDossier = {
+              id: 's_om_thakkar',
+              user_id: 'u_om_thakkar',
+              name: activeUser?.name || 'Om Thakkar',
+              roll_number: '24BT04171',
+              email: studentEmail,
+              phone: '+91 95584 13347',
+              program: 'BTech CSE',
+              branch: 'Computer Science & Engineering',
+              cgpa: 8.9,
+              ats_score: 94,
+              skills: ['Python', 'React.js', 'Node.js', 'SQL', 'FastAPI', 'Machine Learning', 'Docker', 'Kubernetes'],
+              placement_status: 'In-Process',
+              applications_count: formattedApps.length,
+              mock_interview_score: 94,
+              assessment_score: 96,
+              applications: formattedApps
+            };
+            json.students.unshift(newStudentDossier);
+          }
         }
       } catch (e) {}
+
+      if (json && json.students) {
+        json.total_students = json.students.length;
+      }
 
       setData(json);
       setLastSyncedAt(new Date());

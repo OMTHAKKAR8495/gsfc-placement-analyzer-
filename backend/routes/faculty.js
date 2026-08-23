@@ -38,7 +38,15 @@ router.get('/department-analytics', (req, res) => {
 
     // Enrich each student with their activity dossier
     const enrichedStudents = students.map(st => {
-      const studentApps = applications.filter(app => app.student_id === st.id);
+      const emailSlug = (st.email || '').split('@')[0].toLowerCase();
+      const rollSlug = (st.roll_number || '').toLowerCase();
+      const studentApps = applications.filter(app => {
+        const appSid = (app.student_id || '').toLowerCase();
+        return appSid === (st.id || '').toLowerCase() ||
+               appSid === (st.user_id || '').toLowerCase() ||
+               (emailSlug && appSid.includes(emailSlug)) ||
+               (rollSlug && appSid.includes(rollSlug));
+      });
       
       // Parse skills
       let parsedSkills = [];
