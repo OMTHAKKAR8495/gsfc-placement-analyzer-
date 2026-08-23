@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { 
   Users, Award, Filter, Search, Eye, X, Briefcase, FileText, Clock,
   MessageSquare, Database, ChevronDown, ChevronUp, Building2, Download,
-  Phone, Mail, ShieldCheck, CheckCircle, XCircle, AlertCircle, Send, ExternalLink
+  Phone, Mail, ShieldCheck, CheckCircle, XCircle, AlertCircle, Send, ExternalLink,
+  RefreshCw, Check, Sparkles
 } from 'lucide-react';
 
 import QABoard from '../common/QABoard';
