@@ -488,8 +488,69 @@ export default function SettingsModal({ isOpen, onClose, currentUser, theme, onT
             {activeTab === 'account' && (
               <div className="space-y-5 animate-fadeIn">
                 <div>
-                  <h3 className="text-sm font-black uppercase text-slate-400 tracking-wider">Candidate Account & Personal Info</h3>
-                  <p className="text-xs text-slate-500">Your verified university identity registered on CampusHire AI.</p>
+                  <h3 className="text-sm font-black uppercase text-slate-400 tracking-wider">Candidate Account & Personal Identity</h3>
+                  <p className="text-xs text-slate-500">Your verified university identity, passport photo, and contact details.</p>
+                </div>
+
+                {/* 📸 PROFESSIONAL PASSPORT PHOTO (PERSONAL IDENTITY) */}
+                <div className="p-5 bg-gradient-to-r from-blue-50/90 to-indigo-50/90 dark:from-slate-800/90 dark:to-blue-950/50 rounded-3xl border-2 border-blue-200 dark:border-blue-800/80 flex flex-col sm:flex-row items-center gap-5 shadow-sm">
+                  <div className="relative group shrink-0">
+                    <div className="w-28 h-36 sm:w-32 sm:h-40 rounded-3xl overflow-hidden bg-slate-200 dark:bg-slate-700 border-3 border-blue-900 dark:border-amber-400 shadow-xl flex items-center justify-center relative ring-4 ring-blue-500/10">
+                      {avatarUrl ? (
+                        <img src={avatarUrl} alt="Candidate Passport" className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="flex flex-col items-center justify-center text-slate-400 p-3 text-center">
+                          <User className="w-12 h-12 text-blue-900 dark:text-blue-300 mb-2" />
+                          <span className="text-[10px] font-black uppercase text-slate-700 dark:text-slate-300">Passport Photo</span>
+                          <span className="text-[9px] text-slate-400 mt-0.5">3.5cm × 4.5cm</span>
+                        </div>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => photoInputRef.current?.click()}
+                      className="absolute -bottom-2 -right-2 p-2.5 bg-blue-900 hover:bg-blue-800 text-white rounded-2xl shadow-xl cursor-pointer hover:scale-110 transition-transform ring-2 ring-white dark:ring-slate-900"
+                      title="Upload New Passport Photo"
+                    >
+                      <Camera className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  <div className="flex-1 text-center sm:text-left space-y-2">
+                    <div className="flex items-center justify-center sm:justify-start gap-2">
+                      <span className="text-sm font-black text-slate-900 dark:text-slate-100">Professional Passport Size Photo</span>
+                      <span className="px-2.5 py-0.5 text-[9px] font-black uppercase rounded-md bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300">
+                        Official Identity
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+                      High-resolution formal photograph with light background. Automatically synchronized with your top navbar, admit cards, attendance sheets & stamped offer letters.
+                    </p>
+                    <div className="pt-2 flex items-center justify-center sm:justify-start gap-2.5 flex-wrap">
+                      <button
+                        type="button"
+                        onClick={() => photoInputRef.current?.click()}
+                        className="px-4 py-2 bg-gradient-to-r from-blue-900 to-indigo-900 hover:from-blue-800 hover:to-indigo-800 text-white rounded-xl text-xs font-black flex items-center gap-2 cursor-pointer shadow-md"
+                      >
+                        <UploadCloud className="w-4 h-4" />
+                        <span>{avatarUrl ? 'Change / Replace Photo' : 'Upload Passport Photo'}</span>
+                      </button>
+                      {avatarUrl && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setAvatarUrl('');
+                            localStorage.removeItem('gsfc_user_avatar');
+                            window.dispatchEvent(new CustomEvent('gsfc-avatar-updated', { detail: { avatarUrl: '' } }));
+                            showToast({ type: 'info', title: 'Your changes changed successfully', message: 'Profile photo reset to default avatar.', triggerCrackles: false });
+                          }}
+                          className="px-3 py-2 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-bold hover:bg-slate-300 cursor-pointer"
+                        >
+                          Remove Photo
+                        </button>
+                      )}
+                    </div>
+                  </div>
                 </div>
 
                 <div className="p-4 bg-blue-50 dark:bg-blue-950/30 rounded-2xl border border-blue-200 dark:border-blue-900/60 space-y-3">
@@ -580,68 +641,7 @@ export default function SettingsModal({ isOpen, onClose, currentUser, theme, onT
                       TPC Verified Dossier
                     </span>
                   </div>
-                  <p className="text-xs text-slate-500 mt-0.5">Upload and manage your official passport photo, ATS master resume, and academic certificates.</p>
-                </div>
-
-                {/* 📸 SECTION 1: PROFESSIONAL PASSPORT PHOTO UPLOADER (BIG & HIGH VISIBILITY) */}
-                <div className="p-5 bg-gradient-to-r from-blue-50/90 to-indigo-50/90 dark:from-slate-800/90 dark:to-blue-950/50 rounded-3xl border-2 border-blue-200 dark:border-blue-800/80 flex flex-col sm:flex-row items-center gap-5 shadow-sm">
-                  <div className="relative group shrink-0">
-                    <div className="w-28 h-36 sm:w-32 sm:h-40 rounded-3xl overflow-hidden bg-slate-200 dark:bg-slate-700 border-3 border-blue-900 dark:border-amber-400 shadow-xl flex items-center justify-center relative ring-4 ring-blue-500/10">
-                      {avatarUrl ? (
-                        <img src={avatarUrl} alt="Candidate Passport" className="w-full h-full object-cover" />
-                      ) : (
-                        <div className="flex flex-col items-center justify-center text-slate-400 p-3 text-center">
-                          <User className="w-12 h-12 text-blue-900 dark:text-blue-300 mb-2" />
-                          <span className="text-[10px] font-black uppercase text-slate-700 dark:text-slate-300">Passport Photo</span>
-                          <span className="text-[9px] text-slate-400 mt-0.5">3.5cm × 4.5cm</span>
-                        </div>
-                      )}
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => photoInputRef.current?.click()}
-                      className="absolute -bottom-2 -right-2 p-2.5 bg-blue-900 hover:bg-blue-800 text-white rounded-2xl shadow-xl cursor-pointer hover:scale-110 transition-transform ring-2 ring-white dark:ring-slate-900"
-                      title="Upload New Passport Photo"
-                    >
-                      <Camera className="w-4 h-4" />
-                    </button>
-                  </div>
-
-                  <div className="flex-1 text-center sm:text-left space-y-2">
-                    <div className="flex items-center justify-center sm:justify-start gap-2">
-                      <span className="text-sm font-black text-slate-900 dark:text-slate-100">Professional Passport Size Photo</span>
-                      <span className="px-2.5 py-0.5 text-[9px] font-black uppercase rounded-md bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300">
-                        Official Identity
-                      </span>
-                    </div>
-                    <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-                      High-resolution formal photograph with light background. Automatically synchronized with your top navbar, admit cards, attendance sheets & stamped offer letters.
-                    </p>
-                    <div className="pt-2 flex items-center justify-center sm:justify-start gap-2.5 flex-wrap">
-                      <button
-                        type="button"
-                        onClick={() => photoInputRef.current?.click()}
-                        className="px-4 py-2 bg-gradient-to-r from-blue-900 to-indigo-900 hover:from-blue-800 hover:to-indigo-800 text-white rounded-xl text-xs font-black flex items-center gap-2 cursor-pointer shadow-md"
-                      >
-                        <UploadCloud className="w-4 h-4" />
-                        <span>{avatarUrl ? 'Change / Replace Photo' : 'Upload Passport Photo'}</span>
-                      </button>
-                      {avatarUrl && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setAvatarUrl('');
-                            localStorage.removeItem('gsfc_user_avatar');
-                            window.dispatchEvent(new CustomEvent('gsfc-avatar-updated', { detail: { avatarUrl: '' } }));
-                            showToast({ type: 'info', title: 'Your changes changed successfully', message: 'Profile photo reset to default avatar.', triggerCrackles: false });
-                          }}
-                          className="px-3 py-2 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-bold hover:bg-slate-300 cursor-pointer"
-                        >
-                          Remove Photo
-                        </button>
-                      )}
-                    </div>
-                  </div>
+                  <p className="text-xs text-slate-500 mt-0.5">Manage and upload your official ATS master resume, academic transcripts, and professional certificates.</p>
                 </div>
 
                 {/* 📄 SECTION 2: OFFICIAL ATS RESUME UPLOADER */}
