@@ -1243,7 +1243,27 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialRole 
               </div>
 
               <div>
-                <label className="block text-xs text-slate-700 mb-1 font-bold">Password *</label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs text-slate-700 font-bold">Password *</label>
+                  {isLogin && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setViewMode('forgot-password');
+                        setResetEmail(formData.email || '');
+                        setResetRole(role);
+                        setOtpStep(1);
+                        setOtpError('');
+                        setOtpSuccessMsg('');
+                        setDevOtpBanner('');
+                      }}
+                      className="text-xs font-black text-blue-900 hover:text-blue-700 hover:underline cursor-pointer flex items-center gap-1 bg-blue-50 px-2 py-0.5 rounded-lg border border-blue-200 shadow-xs"
+                    >
+                      <Key className="w-3 h-3 text-blue-800" />
+                      <span>Forgot Password?</span>
+                    </button>
+                  )}
+                </div>
                 <div className="relative">
                   <Lock className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
                   <input
@@ -1266,28 +1286,6 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialRole 
                 </div>
               </div>
 
-              {/* Forgot Password Link Button (When in Login Mode) */}
-              {isLogin && (
-                <div className="flex items-center justify-end -mt-1">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setViewMode('forgot-password');
-                      setResetEmail(formData.email || '');
-                      setResetRole(role);
-                      setOtpStep(1);
-                      setOtpError('');
-                      setOtpSuccessMsg('');
-                      setDevOtpBanner('');
-                    }}
-                    className="text-[11px] font-bold text-blue-900 hover:text-blue-700 hover:underline cursor-pointer flex items-center gap-1"
-                  >
-                    <Key className="w-3.5 h-3.5 text-blue-800" />
-                    <span>Forgot password? Reset via OTP</span>
-                  </button>
-                </div>
-              )}
-
               <button
                 type="submit"
                 disabled={loading}
@@ -1298,18 +1296,37 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialRole 
               </button>
             </form>
 
-            {/* Toggle Mode */}
-            <div className="mt-4 text-center">
+            {/* Toggle Mode & Forgot Password Footer */}
+            <div className="mt-4 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs font-bold pt-3 border-t border-slate-200">
               <button
                 type="button"
                 onClick={() => {
                   setIsLogin(!isLogin);
                   setError('');
                 }}
-                className="text-xs font-bold text-blue-900 hover:underline"
+                className="text-blue-900 hover:underline cursor-pointer"
               >
                 {isLogin ? "Don't have an account? Sign Up" : 'Already have an account? Sign In'}
               </button>
+
+              {isLogin && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setViewMode('forgot-password');
+                    setResetEmail(formData.email || '');
+                    setResetRole(role);
+                    setOtpStep(1);
+                    setOtpError('');
+                    setOtpSuccessMsg('');
+                    setDevOtpBanner('');
+                  }}
+                  className="text-amber-800 hover:text-amber-950 hover:underline cursor-pointer flex items-center gap-1 font-black"
+                >
+                  <Key className="w-3.5 h-3.5 text-amber-700" />
+                  <span>🔑 Reset Password via OTP</span>
+                </button>
+              )}
             </div>
           </div>
         )}
