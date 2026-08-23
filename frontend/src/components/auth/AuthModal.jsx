@@ -667,22 +667,12 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialRole 
                   </button>
                 </div>
 
-                {devOtpBanner && (
-                  <div className="p-2.5 bg-amber-50 border border-amber-300 rounded-xl text-xs font-black text-amber-950 flex items-center justify-between shadow-xs">
-                    <div className="flex items-center gap-1.5">
-                      <Sparkles className="w-4 h-4 text-amber-600" />
-                      <span>Your OTP Code:</span>
-                      <span className="font-mono text-sm tracking-widest text-slate-950 bg-amber-200 px-2 py-0.5 rounded-lg ml-1">{devOtpBanner}</span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setResetOtp(devOtpBanner)}
-                      className="px-2 py-1 bg-amber-500 hover:bg-amber-600 text-slate-950 rounded-lg text-[10px] font-black cursor-pointer shadow-xs"
-                    >
-                      Auto-Fill
-                    </button>
-                  </div>
-                )}
+                <div className="p-3 bg-emerald-50 border border-emerald-300 rounded-2xl text-xs font-semibold text-emerald-950 flex items-start gap-2.5 shadow-xs">
+                  <Mail className="w-4 h-4 text-emerald-700 shrink-0 mt-0.5" />
+                  <span>
+                    A 6-digit verification code has been dispatched to your email inbox (<strong>{resetEmail}</strong>). Please check your email inbox and enter the 6-digit code below.
+                  </span>
+                </div>
 
                 <div>
                   <label className="block text-xs text-slate-700 mb-1 font-bold">6-Digit Verification OTP *</label>

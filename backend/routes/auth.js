@@ -389,6 +389,8 @@ router.get('/me', (req, res) => {
 // 🔐 OTP PASSWORD RESET ENDPOINTS
 // =========================================================================
 
+import { sendPasswordResetEmail } from '../services/mailer.js';
+
 // In-memory OTP storage with automatic TTL expiry
 const passwordResetOtpStore = new Map();
 
@@ -421,11 +423,13 @@ router.post('/forgot-password-otp', async (req, res) => {
     console.log(`Validity: 10 Minutes (Expires at: ${new Date(expiresAt).toLocaleTimeString()})`);
     console.log(`======================================================\n`);
 
+    // Dispatch real email to user's inbox
+    await sendPasswordResetEmail(normalizedEmail, otp, userRole);
+
     res.json({
       success: true,
-      message: `A 6-digit verification code has been dispatched to ${normalizedEmail}.`,
-      email: normalizedEmail,
-      devOtp: otp // Included for seamless testing & developer demo
+      message: `A 6-digit verification code has been dispatched to ${normalizedEmail}. Please check your inbox.`,
+      email: normalizedEmail
     });
   } catch (err) {
     console.error('Error generating OTP:', err);
