@@ -18,7 +18,21 @@ import SkillHeatmapModal from '../common/SkillHeatmapModal';
 import AICopilotDrawer from '../common/AICopilotDrawer';
 
 export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
-  const [activeTab, setActiveTab] = useState('overview'); // 'overview', 'predictive', 'database', 'companies', 'drives', 'applications', 'alumni_approvals', 'qa'
+  const [activeTab, setActiveTabState] = useState(() => {
+    try {
+      const saved = localStorage.getItem('gsfc_admin_active_tab');
+      return saved && ['overview', 'predictive', 'database', 'companies', 'drives', 'applications', 'alumni_approvals', 'qa'].includes(saved) ? saved : 'overview';
+    } catch(e) {
+      return 'overview';
+    }
+  });
+
+  const setActiveTab = (tab) => {
+    setActiveTabState(tab);
+    try {
+      localStorage.setItem('gsfc_admin_active_tab', tab);
+    } catch(e) {}
+  };
   const [accreditationModalOpen, setAccreditationModalOpen] = useState(false);
   const [jobFairModalOpen, setJobFairModalOpen] = useState(false);
   const [ecosystemModalOpen, setEcosystemModalOpen] = useState(false);

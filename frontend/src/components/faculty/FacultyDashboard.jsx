@@ -8,7 +8,21 @@ import {
 import QABoard from '../common/QABoard';
 
 export default function FacultyDashboard({ currentUser, onOpenAuth }) {
-  const [activeTab, setActiveTab] = useState('applications');
+  const [activeTab, setActiveTabState] = useState(() => {
+    try {
+      const saved = localStorage.getItem('gsfc_faculty_active_tab');
+      return saved && ['applications', 'qa', 'analytics', 'tracker'].includes(saved) ? saved : 'applications';
+    } catch(e) {
+      return 'applications';
+    }
+  });
+
+  const setActiveTab = (tab) => {
+    setActiveTabState(tab);
+    try {
+      localStorage.setItem('gsfc_faculty_active_tab', tab);
+    } catch(e) {}
+  };
   
   // Tracker filter states
   const [department, setDepartment] = useState('ALL');

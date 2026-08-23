@@ -235,7 +235,21 @@ export const DEFAULT_COMPANY_APPLICANTS = [
 
 export default function CompanyDashboard({ currentUser, company, onCompanyAuthSuccess, onRefreshCompany, openPostModalSignal, openApplicantsFeedSignal }) {
   const { showToast } = useToast();
-  const [activeTab, setActiveTab] = useState('my_applications'); // 'my_applications', 'requirements', 'database', 'applicants'
+  const [activeTab, setActiveTabState] = useState(() => {
+    try {
+      const saved = localStorage.getItem('gsfc_company_active_tab');
+      return saved && ['my_applications', 'requirements', 'database', 'applicants'].includes(saved) ? saved : 'my_applications';
+    } catch(e) {
+      return 'my_applications';
+    }
+  });
+
+  const setActiveTab = (tab) => {
+    setActiveTabState(tab);
+    try {
+      localStorage.setItem('gsfc_company_active_tab', tab);
+    } catch(e) {}
+  };
   const [accreditationModalOpen, setAccreditationModalOpen] = useState(false);
   const [requirements, setRequirements] = useState(DEFAULT_COMPANY_REQUIREMENTS);
   const [activeReqApplicants, setActiveReqApplicants] = useState(null);

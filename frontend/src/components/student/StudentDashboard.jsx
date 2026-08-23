@@ -109,7 +109,7 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
       if (hash.includes('app') || hash.includes('application')) return 'applications';
       if (hash.includes('assess') || hash.includes('interview') || hash.includes('test')) return 'assessments';
       if (hash.includes('profile') || hash.includes('ats') || hash.includes('resume')) return 'profile';
-      const savedTab = sessionStorage.getItem('gsfc_student_active_tab');
+      const savedTab = localStorage.getItem('gsfc_student_active_tab') || sessionStorage.getItem('gsfc_student_active_tab');
       if (savedTab && ['feed', 'intelligence', 'job_fairs', 'alumni', 'qa', 'profile', 'applications', 'assessments'].includes(savedTab)) {
         return savedTab;
       }
@@ -122,6 +122,7 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
   const handleTabChange = (newTab) => {
     setActiveTab(newTab);
     try {
+      localStorage.setItem('gsfc_student_active_tab', newTab);
       sessionStorage.setItem('gsfc_student_active_tab', newTab);
       const newHash = newTab === 'feed' ? '#student' : `#student-${newTab}`;
       if (window.location.hash !== newHash) {
