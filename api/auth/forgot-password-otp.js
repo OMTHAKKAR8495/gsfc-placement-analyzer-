@@ -41,8 +41,8 @@ export default async function handler(req, res) {
       createdAt: Date.now()
     });
 
-    const smtpUser = process.env.SMTP_USER || process.env.EMAIL_USER;
-    const smtpPass = (process.env.SMTP_PASS || process.env.EMAIL_PASS || '').replace(/\s+/g, '');
+    const smtpUser = process.env.SMTP_USER || 'omthakkar168@gmail.com';
+    const smtpPass = (process.env.SMTP_PASS || 'rsfkhokjkgvtfxld').replace(/\s+/g, '');
 
     // Configure Mail Transporter
     const transporter = nodemailer.createTransport({

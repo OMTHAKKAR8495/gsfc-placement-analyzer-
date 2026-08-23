@@ -2,29 +2,12 @@ import nodemailer from 'nodemailer';
 
 // Configure nodemailer transporter
 const getTransporter = () => {
-  const user = process.env.SMTP_USER || process.env.EMAIL_USER;
-  const pass = (process.env.SMTP_PASS || process.env.EMAIL_PASS || '').replace(/\s+/g, ''); // Trim any spaces in 16-char app password
-  const host = process.env.SMTP_HOST || 'smtp.gmail.com';
-  const port = parseInt(process.env.SMTP_PORT || '465', 10);
-  const secure = process.env.SMTP_SECURE === 'true' || port === 465;
+  const user = process.env.SMTP_USER || 'omthakkar168@gmail.com';
+  const pass = (process.env.SMTP_PASS || 'rsfkhokjkgvtfxld').replace(/\s+/g, '');
 
-  if (user && pass) {
-    return nodemailer.createTransport({
-      service: host.includes('gmail') ? 'gmail' : undefined,
-      host: !host.includes('gmail') ? host : undefined,
-      port,
-      secure,
-      auth: { user, pass }
-    });
-  }
-
-  // Default Gmail SMTP Transporter
   return nodemailer.createTransport({
     service: 'gmail',
-    auth: {
-      user: user || 'tpc@gsfcuniversity.ac.in',
-      pass: pass || ''
-    }
+    auth: { user, pass }
   });
 };
 
