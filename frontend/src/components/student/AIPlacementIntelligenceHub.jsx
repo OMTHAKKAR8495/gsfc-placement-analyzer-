@@ -389,7 +389,7 @@ export default function AIPlacementIntelligenceHub({ student, currentUser, onSel
         </div>
 
         {/* Intelligence Sub-Navigation Bar */}
-        <div className="flex items-center gap-2 mt-6 pt-4 border-t border-white/15 overflow-x-auto max-w-full pb-1">
+        <div className="flex items-center gap-2.5 mt-6 pt-4 border-t border-white/25 overflow-x-auto max-w-full pb-2">
           {[
             { id: 'readiness', label: '📊 0–100 Readiness Scorecard' },
             { id: 'matching', label: '🎯 AI Company Matcher' },
@@ -410,10 +410,10 @@ export default function AIPlacementIntelligenceHub({ student, currentUser, onSel
                 if (tab.id === 'skill_gap' && !skillGapResult) handleRunSkillGap();
                 if (tab.id === 'resume_opt' && !resumeOptResult) handleRunResumeOptimizer();
               }}
-              className={`px-3.5 py-2 rounded-xl text-xs font-black transition-all shrink-0 whitespace-nowrap cursor-pointer ${
+              className={`px-4 py-2.5 rounded-xl text-xs font-black transition-all shrink-0 whitespace-nowrap cursor-pointer shadow-sm ${
                 activeSubTab === tab.id
-                  ? 'bg-white text-slate-950 shadow-lg scale-105'
-                  : 'text-slate-300 hover:text-white hover:bg-white/10'
+                  ? 'bg-amber-400 text-slate-950 shadow-lg scale-105 border-2 border-amber-300 ring-2 ring-amber-400/30'
+                  : 'bg-slate-900/90 text-white hover:bg-slate-800 hover:text-amber-300 border border-slate-700'
               }`}
             >
               {tab.label}
