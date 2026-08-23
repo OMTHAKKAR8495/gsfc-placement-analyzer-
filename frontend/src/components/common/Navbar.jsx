@@ -26,7 +26,11 @@ export default function Navbar({ currentUser, activeRole, onRoleSwitch, onOpenAu
   const [notifModalOpen, setNotifModalOpen] = useState(false);
   const [avatarDropdownOpen, setAvatarDropdownOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
-  const [avatarUrl, setAvatarUrl] = useState(() => localStorage.getItem('gsfc_user_avatar') || currentUser?.profile?.avatar_url || '');
+  const userEmail = (currentUser?.email || currentUser?.profile?.email || '').toLowerCase();
+  const [avatarUrl, setAvatarUrl] = useState(() => {
+    if (!userEmail) return '';
+    return localStorage.getItem('gsfc_user_avatar_' + userEmail) || currentUser?.profile?.photo_url || currentUser?.profile?.avatar_url || '';
+  });
   const [readNotifIds, setReadNotifIds] = useState(() => {
     try {
       const saved = localStorage.getItem('gsfc_read_notifications');
@@ -37,22 +41,30 @@ export default function Navbar({ currentUser, activeRole, onRoleSwitch, onOpenAu
   });
 
   useEffect(() => {
+    const email = (currentUser?.email || currentUser?.profile?.email || '').toLowerCase();
+    if (!email) {
+      setAvatarUrl('');
+      return;
+    }
+    const userAvatar = localStorage.getItem('gsfc_user_avatar_' + email) || currentUser?.profile?.photo_url || currentUser?.profile?.avatar_url || '';
+    setAvatarUrl(userAvatar);
+  }, [currentUser?.email, currentUser?.id, currentUser?.profile?.avatar_url, currentUser?.profile?.photo_url]);
+
+  useEffect(() => {
     const handleAvatarUpdate = (e) => {
+      const email = (currentUser?.email || currentUser?.profile?.email || '').toLowerCase();
+      if (e.detail?.email && e.detail.email.toLowerCase() !== email) {
+        return;
+      }
       if (e.detail?.avatarUrl !== undefined) {
         setAvatarUrl(e.detail.avatarUrl);
-      } else {
-        setAvatarUrl(localStorage.getItem('gsfc_user_avatar') || '');
+      } else if (email) {
+        setAvatarUrl(localStorage.getItem('gsfc_user_avatar_' + email) || '');
       }
     };
     window.addEventListener('gsfc-avatar-updated', handleAvatarUpdate);
     return () => window.removeEventListener('gsfc-avatar-updated', handleAvatarUpdate);
-  }, []);
-
-  useEffect(() => {
-    if (currentUser?.profile?.avatar_url && !avatarUrl) {
-      setAvatarUrl(currentUser.profile.avatar_url);
-    }
-  }, [currentUser]);
+  }, [currentUser?.email]);
 
   const fetchLiveNotifications = async () => {
     try {

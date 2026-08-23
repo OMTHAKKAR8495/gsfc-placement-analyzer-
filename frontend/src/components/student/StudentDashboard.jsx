@@ -222,7 +222,8 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
   const [isEditingEmail, setIsEditingEmail] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState(() => {
     if (!currentUser) return '';
-    return localStorage.getItem('gsfc_user_avatar') || student?.avatar_url || '';
+    const email = (currentUser?.email || student?.email || '').toLowerCase();
+    return localStorage.getItem('gsfc_user_avatar_' + email) || student?.photo_url || student?.avatar_url || currentUser?.profile?.avatar_url || '';
   });
 
   // 1. Unified Student Identity & Profile Synchronization Effect
@@ -271,15 +272,20 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
       setCandidateEmail(currentUser.email);
     }
 
-    setAvatarUrl(localStorage.getItem('gsfc_user_avatar') || currentUser?.profile?.avatar_url || student?.avatar_url || '');
+    const emailAvatar = email ? (localStorage.getItem('gsfc_user_avatar_' + email) || '') : '';
+    setAvatarUrl(emailAvatar || student?.photo_url || student?.avatar_url || currentUser?.profile?.avatar_url || '');
   }, [currentUser?.id, currentUser?.email, student?.id, student?.name]);
 
   useEffect(() => {
     const handleAvatarUpdate = (e) => {
+      const email = (currentUser?.email || student?.email || '').toLowerCase();
+      if (e.detail?.email && e.detail.email.toLowerCase() !== email) {
+        return;
+      }
       if (e.detail?.avatarUrl !== undefined) {
         setAvatarUrl(e.detail.avatarUrl);
-      } else {
-        setAvatarUrl(currentUser ? (localStorage.getItem('gsfc_user_avatar') || '') : '');
+      } else if (email) {
+        setAvatarUrl(localStorage.getItem('gsfc_user_avatar_' + email) || '');
       }
     };
 

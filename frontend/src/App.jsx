@@ -248,11 +248,10 @@ export default function App() {
         const data = await res.json();
         if (data && data.user) {
           const freshUser = data.user;
-          // Restore avatar from localStorage — stored as base64, not in DB
+          // Restore avatar strictly for this user account — stored as base64, not in DB
           try {
             const userEmail = (freshUser.email || '').toLowerCase();
-            const savedAvatar = localStorage.getItem('gsfc_user_avatar_' + userEmail)
-              || localStorage.getItem('gsfc_user_avatar');
+            const savedAvatar = userEmail ? (localStorage.getItem('gsfc_user_avatar_' + userEmail) || freshUser.profile?.photo_url || '') : '';
             if (savedAvatar) {
               if (!freshUser.profile) freshUser.profile = {};
               freshUser.profile.avatar_url = savedAvatar;
@@ -316,16 +315,16 @@ export default function App() {
   const handleAuthSuccess = (userData) => {
     const userEmail = (userData?.email || userData?.profile?.email || '').toLowerCase();
     
-    // Restore avatar from localStorage (stored as base64, not in DB) — only non-DB field
+    // Restore avatar strictly for this user account (stored as base64, not in DB)
     if (userEmail) {
       try {
-        const savedAvatar = localStorage.getItem('gsfc_user_avatar_' + userEmail)
-          || localStorage.getItem('gsfc_user_avatar');
+        const savedAvatar = localStorage.getItem('gsfc_user_avatar_' + userEmail) || userData?.profile?.photo_url || '';
         if (savedAvatar) {
           if (!userData.profile) userData.profile = {};
           userData.profile.avatar_url = savedAvatar;
-          localStorage.setItem('gsfc_user_avatar', savedAvatar);
-          window.dispatchEvent(new CustomEvent('gsfc-avatar-updated', { detail: { avatarUrl: savedAvatar } }));
+          window.dispatchEvent(new CustomEvent('gsfc-avatar-updated', { detail: { avatarUrl: savedAvatar, email: userEmail } }));
+        } else {
+          window.dispatchEvent(new CustomEvent('gsfc-avatar-updated', { detail: { avatarUrl: '', email: userEmail } }));
         }
         if (userData.name) {
           localStorage.setItem('gsfc_candidate_name', userData.name);

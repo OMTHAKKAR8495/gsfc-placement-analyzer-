@@ -71,41 +71,35 @@ const getInitialLoggedStudents = () => {
   const list = [...MASTER_STUDENT_ROSTER];
   try {
     const activeUser = JSON.parse(localStorage.getItem('campushire_user') || 'null');
-    const activeAvatar = localStorage.getItem('gsfc_user_avatar');
-    const activeCandName = localStorage.getItem('gsfc_candidate_name');
 
-    if (activeUser && (activeUser.role === 'student' || !activeUser.role)) {
-      const email = activeUser.email || '24bt04171@gsfcuniversity.ac.in';
-      const existingIdx = list.findIndex(s => s.email?.toLowerCase() === email.toLowerCase());
+    if (activeUser && activeUser.role === 'student' && activeUser.email) {
+      const email = activeUser.email.toLowerCase();
+      const activeAvatar = localStorage.getItem('gsfc_user_avatar_' + email) || activeUser.profile?.photo_url || '';
+      const existingIdx = list.findIndex(s => s.email?.toLowerCase() === email);
       const studentEntry = {
         id: activeUser.id || 's_active_' + email.split('@')[0],
         user_id: activeUser.id || 'u_' + email.split('@')[0],
-        name: activeCandName || activeUser.profile?.name || activeUser.name || 'Om Thakkar',
+        name: activeUser.profile?.name || activeUser.name || 'Student Candidate',
         email: email,
-        phone: activeUser.profile?.phone || '+91 95584 13347',
-        roll_number: activeUser.profile?.roll_number || '24BT04171',
+        phone: activeUser.profile?.phone || '',
+        roll_number: activeUser.profile?.roll_number || email.split('@')[0].toUpperCase(),
         program: activeUser.profile?.program || 'BTech CSE',
         branch: activeUser.profile?.branch || 'Computer Science & Engineering',
         passing_year: activeUser.profile?.passing_year || 2026,
         admission_year: activeUser.profile?.admission_year || 2022,
-        cgpa: activeUser.profile?.cgpa || 8.9,
-        backlogs: 0,
-        skills: 'React, Node.js, Python, Fast-API, ATS Tuning',
-        ats_score: 92,
-        placement_status: 'Active Student',
-        photo_url: activeAvatar || activeUser.profile?.avatar_url || '',
-        login_credential_hint: email,
-        password_status: 'Secured with Bcrypt Hash (10 rounds)',
-        last_logged_in: 'Active Session (Online)'
+        cgpa: activeUser.profile?.cgpa || 8.5,
+        ats_score: activeUser.profile?.ats_score || 88,
+        status: 'Active Verified',
+        last_logged_in: 'Active Session (Now)',
+        photo_url: activeAvatar
       };
-
       if (existingIdx >= 0) {
         list[existingIdx] = { ...list[existingIdx], ...studentEntry };
       } else {
         list.unshift(studentEntry);
       }
     }
-  } catch (e) {}
+  } catch (err) {}
   return list;
 };
 
@@ -295,28 +289,24 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
 
       // Check current active candidate or local student profiles to inject live photos & details
       try {
-        const activeUser = JSON.parse(localStorage.getItem('campushire_user') || 'null');
-        const activeAvatar = localStorage.getItem('gsfc_user_avatar');
-        const activeCandName = localStorage.getItem('gsfc_candidate_name');
-
         const keys = Object.keys(localStorage);
         const profileKeys = keys.filter(k => k.startsWith('gsfc_user_profile_'));
 
         profileKeys.forEach(pk => {
-          const email = pk.replace('gsfc_user_profile_', '');
+          const email = pk.replace('gsfc_user_profile_', '').toLowerCase();
           const profileRaw = localStorage.getItem(pk);
-          const avatar = localStorage.getItem('gsfc_user_avatar_' + email) || (activeUser?.email === email ? activeAvatar : '');
+          const avatar = localStorage.getItem('gsfc_user_avatar_' + email) || '';
           if (profileRaw) {
             const parsed = JSON.parse(profileRaw);
             const existingIdx = stuData.findIndex(s => (s.email || s.user_email)?.toLowerCase() === email.toLowerCase());
             const studentEntry = {
               id: 's_' + email.split('@')[0],
               user_id: 'u_' + email.split('@')[0],
-              name: parsed.displayName || activeCandName || 'Om Thakkar',
+              name: parsed.displayName || 'Student Candidate',
               email: email,
               user_email: email,
-              phone: parsed.phone || '+91 95584 13347',
-              roll_number: parsed.roll_number || '24BT04171',
+              phone: parsed.phone || '',
+              roll_number: parsed.roll_number || email.split('@')[0].toUpperCase(),
               program: parsed.program || 'BTech CSE',
               branch: parsed.branch || 'Computer Science & Engineering',
               passing_year: 2026,

@@ -69,8 +69,13 @@ export default function SettingsModal({ isOpen, onClose, currentUser, theme, onT
   const [phone, setPhone] = useState('');
   const [publicProfile, setPublicProfile] = useState(true);
 
-  // 📸 Professional Passport Photo State
-  const [avatarUrl, setAvatarUrl] = useState(() => localStorage.getItem('gsfc_user_avatar') || '');
+  const userEmail = (currentUser?.email || currentUser?.profile?.email || '').toLowerCase();
+
+  // 📸 Professional Passport Photo State (Strictly scoped to current logged-in user email)
+  const [avatarUrl, setAvatarUrl] = useState(() => {
+    if (!userEmail) return '';
+    return localStorage.getItem('gsfc_user_avatar_' + userEmail) || currentUser?.profile?.photo_url || currentUser?.profile?.avatar_url || '';
+  });
   
   // 📄 Official Resume State
   const [resumeFileName, setResumeFileName] = useState(() => localStorage.getItem('gsfc_resume_name') || 'THAKKAR_OM (1).pdf');
@@ -115,33 +120,33 @@ export default function SettingsModal({ isOpen, onClose, currentUser, theme, onT
   const resumeInputRef = useRef(null);
   const certInputRef = useRef(null);
 
-  const userEmail = (currentUser?.email || currentUser?.profile?.email || '').toLowerCase();
-
   useEffect(() => {
-    // 1. Check account-specific persistent profile
+    // 1. Check account-specific persistent profile strictly for current userEmail
     let accountProfile = null;
     let accountAvatar = '';
     if (userEmail) {
       try {
         const raw = localStorage.getItem('gsfc_user_profile_' + userEmail);
         if (raw) accountProfile = JSON.parse(raw);
-        accountAvatar = localStorage.getItem('gsfc_user_avatar_' + userEmail) || '';
+        accountAvatar = localStorage.getItem('gsfc_user_avatar_' + userEmail) || currentUser?.profile?.photo_url || currentUser?.profile?.avatar_url || '';
       } catch(e) {}
     }
+
+    setAvatarUrl(accountAvatar);
 
     if (accountProfile) {
       if (accountProfile.displayName) setDisplayName(accountProfile.displayName);
       if (accountProfile.phone) setPhone(accountProfile.phone);
       if (accountProfile.targetStream) setTargetStream(accountProfile.targetStream);
-      if (accountAvatar || accountProfile.avatarUrl) {
-        setAvatarUrl(accountAvatar || accountProfile.avatarUrl);
-      }
     } else if (currentUser) {
-      setDisplayName(currentUser.profile?.name || currentUser.name || 'Thakkar Om');
-      setPhone(currentUser.profile?.phone || currentUser.phone || '+91 98765 43210');
-      if (currentUser.profile?.avatar_url && !avatarUrl) {
-        setAvatarUrl(currentUser.profile.avatar_url);
-      }
+      const defaultName = currentUser.role === 'admin' || currentUser.role === 'superadmin'
+        ? (currentUser.name || 'Admin')
+        : (currentUser.role === 'faculty' ? (currentUser.name || 'Faculty Coordinator') : (currentUser.profile?.name || currentUser.name || 'Student Candidate'));
+      setDisplayName(defaultName);
+      setPhone(currentUser.profile?.phone || currentUser.phone || '');
+    } else {
+      setDisplayName('Guest Explorer');
+      setPhone('');
     }
 
     // Load saved client settings
@@ -179,7 +184,7 @@ export default function SettingsModal({ isOpen, onClose, currentUser, theme, onT
 
   if (!isOpen) return null;
 
-  // 📸 Upload Passport-size Photo
+  // 📸 Upload Passport-size Photo (Strictly scoped to userEmail)
   const handlePhotoUpload = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -194,11 +199,10 @@ export default function SettingsModal({ isOpen, onClose, currentUser, theme, onT
       const base64Data = event.target.result;
       setAvatarUrl(base64Data);
       try {
-        localStorage.setItem('gsfc_user_avatar', base64Data);
         if (userEmail) {
           localStorage.setItem('gsfc_user_avatar_' + userEmail, base64Data);
         }
-        window.dispatchEvent(new CustomEvent('gsfc-avatar-updated', { detail: { avatarUrl: base64Data } }));
+        window.dispatchEvent(new CustomEvent('gsfc-avatar-updated', { detail: { avatarUrl: base64Data, email: userEmail } }));
       } catch (err) {}
 
       showToast({
