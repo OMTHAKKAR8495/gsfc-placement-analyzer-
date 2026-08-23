@@ -446,8 +446,8 @@ export default function SettingsModal({ isOpen, onClose, currentUser, theme, onT
           {/* Tabs Sidebar */}
           <div className="w-full sm:w-64 bg-slate-50 dark:bg-slate-950/60 p-3 sm:p-4 border-b sm:border-b-0 sm:border-r border-slate-200 dark:border-slate-800 space-y-1.5 shrink-0 overflow-x-auto sm:overflow-y-auto">
             {[
-              { id: 'documents', label: '📜 Documents & Certificates', icon: FileCheck, badge: 'Required' },
               { id: 'account', label: '👤 Profile & Personal Info', icon: User },
+              { id: 'documents', label: '📜 Documents & Certificates', icon: FileCheck, badge: 'Dossier' },
               { id: 'appearance', label: '🎨 Theme & Display', icon: Moon },
               { id: 'notifications', label: '🔔 Notifications & SMS', icon: Bell },
               { id: 'security', label: '🔒 Security & Access', icon: Shield },
@@ -484,7 +484,93 @@ export default function SettingsModal({ isOpen, onClose, currentUser, theme, onT
           {/* Content Body */}
           <div className="flex-1 p-6 overflow-y-auto max-h-[60vh] space-y-6">
             
-            {/* 1. DEDICATED DOCUMENTS & CERTIFICATES TAB */}
+            {/* 1. PROFILE & PERSONAL INFO TAB (1ST) */}
+            {activeTab === 'account' && (
+              <div className="space-y-5 animate-fadeIn">
+                <div>
+                  <h3 className="text-sm font-black uppercase text-slate-400 tracking-wider">Candidate Account & Personal Info</h3>
+                  <p className="text-xs text-slate-500">Your verified university identity registered on CampusHire AI.</p>
+                </div>
+
+                <div className="p-4 bg-blue-50 dark:bg-blue-950/30 rounded-2xl border border-blue-200 dark:border-blue-900/60 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="text-xs font-black text-blue-950 dark:text-blue-200">
+                        {currentUser?.name || currentUser?.profile?.name || 'Thakkar Om'}
+                      </div>
+                      <div className="text-[11px] font-medium text-slate-600 dark:text-slate-400">
+                        {currentUser?.email || 'student@gsfcuniversity.ac.in'}
+                      </div>
+                    </div>
+                    <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300">
+                      {currentUser?.role || 'Verified Student'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Candidate Credentials Fields */}
+                <div className="p-4 bg-slate-50 dark:bg-slate-800/80 rounded-3xl border border-slate-200 dark:border-slate-700 space-y-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Display Candidate Name</label>
+                      <input
+                        type="text"
+                        value={displayName}
+                        onChange={(e) => setDisplayName(e.target.value)}
+                        placeholder="e.g. Thakkar Om"
+                        className="w-full px-3.5 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-slate-100 focus:outline-none focus:border-blue-900"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Target Career Stream</label>
+                      <select
+                        value={targetStream}
+                        onChange={(e) => setTargetStream(e.target.value)}
+                        className="w-full px-3.5 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-slate-100 focus:outline-none focus:border-blue-900"
+                      >
+                        <option value="Software Engineering & AI">Software Engineering & AI Systems</option>
+                        <option value="Cloud Architecture & DevOps">Cloud Architecture & DevOps</option>
+                        <option value="Chemical & Petrochemical Core">Chemical & Petrochemical Core</option>
+                        <option value="Mechanical & Manufacturing">Mechanical & Manufacturing Design</option>
+                        <option value="Data Analytics & BI">Data Analytics & Business Intelligence</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Registered Mobile / WhatsApp</label>
+                    <input
+                      type="tel"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      placeholder="+91 98765 43210"
+                      className="w-full px-3.5 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-slate-100 focus:outline-none focus:border-blue-900"
+                    />
+                  </div>
+
+                  <ToggleSwitch
+                    enabled={publicProfile}
+                    onChange={(val) => {
+                      setPublicProfile(val);
+                      updateSetting('publicProfile', val);
+                      showToast({
+                        type: val ? 'success' : 'default',
+                        title: 'Your changes changed successfully',
+                        message: val ? 'Your profile card is visible to verified recruiters.' : 'Profile hidden from public recruiters.',
+                        triggerCrackles: false
+                      });
+                    }}
+                    label="Recruiter Profile Visibility"
+                    description="Allow verified corporate recruiters to view your parsed ATS skill card"
+                    icon={User}
+                    badge={publicProfile ? 'Public' : 'Private'}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* 2. DEDICATED DOCUMENTS & CERTIFICATES TAB (2ND) */}
             {activeTab === 'documents' && (
               <div className="space-y-5 animate-fadeIn">
                 <div>
@@ -633,91 +719,6 @@ export default function SettingsModal({ isOpen, onClose, currentUser, theme, onT
                       </div>
                     ))}
                   </div>
-                </div>
-              </div>
-            )}
-
-            {/* 2. ACCOUNT & PROFILE TAB */}
-            {activeTab === 'account' && (
-              <div className="space-y-5 animate-fadeIn">
-                <div>
-                  <h3 className="text-sm font-black uppercase text-slate-400 tracking-wider">Candidate Account & Personal Info</h3>
-                  <p className="text-xs text-slate-500">Your verified university identity registered on CampusHire AI.</p>
-                </div>
-
-                <div className="p-4 bg-blue-50 dark:bg-blue-950/30 rounded-2xl border border-blue-200 dark:border-blue-900/60 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="text-xs font-black text-blue-950 dark:text-blue-200">
-                        {currentUser?.name || currentUser?.profile?.name || 'Thakkar Om'}
-                      </div>
-                      <div className="text-[11px] font-medium text-slate-600 dark:text-slate-400">
-                        {currentUser?.email || 'student@gsfcuniversity.ac.in'}
-                      </div>
-                    </div>
-                    <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300">
-                      {currentUser?.role || 'Verified Student'}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Candidate Credentials Fields */}
-                <div className="p-4 bg-slate-50 dark:bg-slate-800/80 rounded-3xl border border-slate-200 dark:border-slate-700 space-y-3">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Display Candidate Name</label>
-                      <input
-                        type="text"
-                        value={displayName}
-                        onChange={(e) => setDisplayName(e.target.value)}
-                        placeholder="e.g. Thakkar Om"
-                        className="w-full px-3.5 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-slate-100 focus:outline-none focus:border-blue-900"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Target Career Stream</label>
-                      <select
-                        value={targetStream}
-                        onChange={(e) => setTargetStream(e.target.value)}
-                        className="w-full px-3.5 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-slate-100 focus:outline-none focus:border-blue-900"
-                      >
-                        <option value="Software Engineering & AI">Software Engineering & AI Systems</option>
-                        <option value="Cloud Architecture & DevOps">Cloud Architecture & DevOps</option>
-                        <option value="Chemical & Petrochemical Core">Chemical & Petrochemical Core</option>
-                        <option value="Mechanical & Manufacturing">Mechanical & Manufacturing Design</option>
-                        <option value="Data Analytics & BI">Data Analytics & Business Intelligence</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Registered Mobile / WhatsApp</label>
-                    <input
-                      type="tel"
-                      value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
-                      placeholder="+91 98765 43210"
-                      className="w-full px-3.5 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-slate-100 focus:outline-none focus:border-blue-900"
-                    />
-                  </div>
-
-                  <ToggleSwitch
-                    enabled={publicProfile}
-                    onChange={(val) => {
-                      setPublicProfile(val);
-                      updateSetting('publicProfile', val);
-                      showToast({
-                        type: val ? 'success' : 'default',
-                        title: val ? 'Visibility Enabled' : 'Visibility Private',
-                        message: val ? 'Your profile card is visible to verified recruiters.' : 'Profile hidden from public recruiters.'
-                      });
-                    }}
-                    label="Recruiter Profile Visibility"
-                    description="Allow verified corporate recruiters to view your parsed ATS skill card"
-                    icon={User}
-                    badge={publicProfile ? 'Public' : 'Private'}
-                  />
                 </div>
               </div>
             )}
