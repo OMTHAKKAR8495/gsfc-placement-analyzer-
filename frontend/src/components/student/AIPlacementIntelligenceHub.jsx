@@ -337,49 +337,49 @@ export default function AIPlacementIntelligenceHub({ student, currentUser, onSel
   return (
     <div className="space-y-6">
       {/* 🚀 Top Intelligence Hero Banner with XP & Streaks */}
-      <div className="glass-panel p-6 sm:p-8 rounded-3xl relative overflow-hidden border border-slate-200/90 shadow-xl bg-gradient-to-r from-blue-950 via-indigo-950 to-purple-950 text-white">
+      <div className="p-6 sm:p-8 rounded-3xl relative overflow-hidden shadow-2xl bg-gradient-to-r from-slate-950 via-blue-950 to-indigo-950 text-white border-2 border-blue-800/80">
         <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-          <div className="space-y-2.5">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="px-3 py-1 bg-amber-400/20 text-amber-300 border border-amber-400/40 rounded-full text-xs font-black flex items-center gap-1.5 shadow-sm">
-                <Sparkles className="w-3.5 h-3.5 text-amber-300 animate-pulse" /> GSFC AI Placement Intelligence Hub
+          <div className="space-y-3">
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <span className="px-3.5 py-1 bg-amber-400 text-slate-950 font-black rounded-full text-xs flex items-center gap-1.5 shadow-md border border-amber-300">
+                <Sparkles className="w-3.5 h-3.5 text-slate-950 fill-slate-950 animate-pulse" /> GSFC AI Placement Intelligence Hub
               </span>
-              <span className="px-3 py-1 bg-purple-500/20 text-purple-200 border border-purple-400/30 rounded-full text-xs font-black flex items-center gap-1.5">
+              <span className="px-3 py-1 bg-purple-900/90 text-purple-100 border border-purple-400/50 rounded-full text-xs font-black flex items-center gap-1.5 shadow-sm">
                 <Cpu className="w-3.5 h-3.5 text-purple-300" /> Neural Recruiter Matching Active
               </span>
             </div>
 
-            <h1 className="text-2xl sm:text-3xl font-black tracking-tight">
+            <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white">
               AI Placement Intelligence & Career Readiness Engine
             </h1>
-            <p className="text-xs sm:text-sm text-slate-300 font-medium max-w-2xl leading-relaxed">
+            <p className="text-xs sm:text-sm text-slate-200 font-medium max-w-2xl leading-relaxed">
               Personalized recruitment analytics, 0–100 readiness scoring, dynamic coding sandboxes, ATS resume optimization, and adaptive study roadmaps for GSFC students.
             </p>
           </div>
 
           {/* Gamification Stats Block */}
-          <div className="flex items-center gap-3 bg-white/10 p-3 sm:p-4 rounded-2xl border border-white/15 backdrop-blur-md shrink-0">
+          <div className="flex items-center gap-3 bg-slate-900/90 p-3.5 sm:p-4 rounded-2xl border border-slate-700/80 backdrop-blur-md shadow-xl shrink-0">
             <div className="flex items-center gap-4">
               <div className="text-center">
-                <div className="text-xs text-amber-300 font-black flex items-center justify-center gap-1">
+                <div className="text-sm text-amber-400 font-black flex items-center justify-center gap-1">
                   <Flame className="w-4 h-4 text-amber-400 fill-amber-400 animate-bounce" /> {gamificationData?.current_streak || 1} Days
                 </div>
                 <div className="text-[10px] text-slate-300 uppercase font-black tracking-wider mt-0.5">Streak</div>
               </div>
 
-              <div className="w-px h-8 bg-white/20" />
+              <div className="w-px h-8 bg-slate-700" />
 
               <div className="text-center">
-                <div className="text-xs text-emerald-300 font-black flex items-center justify-center gap-1">
+                <div className="text-sm text-emerald-400 font-black flex items-center justify-center gap-1">
                   <Trophy className="w-4 h-4 text-emerald-400 fill-emerald-400" /> {gamificationData?.total_xp || 120} XP
                 </div>
                 <div className="text-[10px] text-slate-300 uppercase font-black tracking-wider mt-0.5">Level {gamificationData?.level || 1}</div>
               </div>
 
-              <div className="w-px h-8 bg-white/20" />
+              <div className="w-px h-8 bg-slate-700" />
 
               <div className="text-center">
-                <div className="text-xs text-purple-300 font-black flex items-center justify-center gap-1">
+                <div className="text-sm text-purple-300 font-black flex items-center justify-center gap-1">
                   <Award className="w-4 h-4 text-purple-300" /> {readinessData?.overall_readiness_score || 85}%
                 </div>
                 <div className="text-[10px] text-slate-300 uppercase font-black tracking-wider mt-0.5">Readiness</div>
