@@ -168,7 +168,28 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
   }, []);
 
   const [requirementsFeed, setRequirementsFeed] = useState(DEFAULT_REQUIREMENTS_FEED);
-  const [applications, setApplications] = useState([]);
+  
+  const getInitialApplications = () => {
+    try {
+      const activeUser = JSON.parse(localStorage.getItem('campushire_user') || 'null');
+      const email = (activeUser?.email || '').toLowerCase();
+      if (email) {
+        const raw = localStorage.getItem('gsfc_student_applications_' + email) || localStorage.getItem('gsfc_student_applications');
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        }
+      }
+      const generic = localStorage.getItem('gsfc_student_applications');
+      if (generic) {
+        const parsed = JSON.parse(generic);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch(e) {}
+    return [];
+  };
+
+  const [applications, setApplications] = useState(getInitialApplications);
   const [showAllFeed, setShowAllFeed] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedBranch, setSelectedBranch] = useState('All');
@@ -294,9 +315,22 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
         const u = e.detail.user;
         const newName = u.profile?.name || u.name || '';
         if (newName) setCandidateName(newName);
+        const activeEmail = (u.email || u.profile?.email || '').toLowerCase();
+        if (activeEmail) {
+          try {
+            const raw = localStorage.getItem('gsfc_student_applications_' + activeEmail) || localStorage.getItem('gsfc_student_applications');
+            if (raw) {
+              const apps = JSON.parse(raw);
+              if (Array.isArray(apps) && apps.length > 0) {
+                setApplications(apps);
+              }
+            }
+          } catch(err) {}
+        }
       } else if (e.detail?.user === null) {
         setCandidateName('Guest Explorer');
         setAvatarUrl('');
+        setApplications([]);
       }
     };
 
@@ -456,8 +490,23 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
   };
 
   const fetchApplications = async () => {
-    const studentId = currentUser?.profile?.id || currentUser?.owner_id || student?.id || currentUser?.id;
-    if (!studentId) return;
+    const activeEmail = (currentUser?.email || student?.email || '').toLowerCase();
+    const studentId = currentUser?.profile?.id || currentUser?.owner_id || student?.id || currentUser?.id || activeEmail;
+    if (!studentId && !activeEmail) return;
+
+    let localSaved = [];
+    if (activeEmail) {
+      try {
+        const raw = localStorage.getItem('gsfc_student_applications_' + activeEmail) || localStorage.getItem('gsfc_student_applications');
+        if (raw) localSaved = JSON.parse(raw) || [];
+      } catch(e) {}
+    } else {
+      try {
+        const generic = localStorage.getItem('gsfc_student_applications');
+        if (generic) localSaved = JSON.parse(generic) || [];
+      } catch(e) {}
+    }
+
     try {
       const token = localStorage.getItem('campushire_token');
       const headers = { 'Content-Type': 'application/json' };
@@ -466,7 +515,7 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 3500);
 
-      const res = await fetch(`/api/student/applications?studentId=${studentId}`, {
+      const res = await fetch(`/api/student/applications?studentId=${encodeURIComponent(studentId)}&email=${encodeURIComponent(activeEmail)}`, {
         headers,
         signal: controller.signal
       });
@@ -474,10 +523,27 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
 
       if (res.ok) {
         const data = await res.json();
-        setApplications(Array.isArray(data) ? data : []);
+        if (Array.isArray(data) && data.length > 0) {
+          const merged = [...data];
+          localSaved.forEach(la => {
+            if (!merged.some(m => m.requirement_id === la.requirement_id || (m.job_title === la.job_title && m.company_name === la.company_name))) {
+              merged.unshift(la);
+            }
+          });
+          setApplications(merged);
+          if (activeEmail) {
+            localStorage.setItem('gsfc_student_applications_' + activeEmail, JSON.stringify(merged));
+          }
+          localStorage.setItem('gsfc_student_applications', JSON.stringify(merged));
+          return;
+        }
       }
     } catch (err) {
       // Graceful fallback
+    }
+
+    if (localSaved.length > 0) {
+      setApplications(localSaved);
     }
   };
 
@@ -858,17 +924,26 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
         id: 'app_' + Date.now(),
         requirement_id: reqId,
         requirement_title: targetReq.title,
+        job_title: targetReq.title,
         company_name: targetReq.company_name,
+        logo_url: targetReq.company_logo_url || targetReq.logo_url,
+        ctc_range: targetReq.ctc_range || '₹ 24,00,000 - ₹ 28,00,000 PA',
+        job_type: targetReq.job_type || 'Full-time',
         match_score: matchScore,
         applied_at: new Date().toISOString(),
         status: 'applied',
         applied_via: 'internal'
       };
-      setApplications(prev => [newApp, ...prev.filter(a => a.requirement_id !== reqId)]);
-      try {
-        const existing = JSON.parse(localStorage.getItem('gsfc_student_applications') || '[]');
-        localStorage.setItem('gsfc_student_applications', JSON.stringify([newApp, ...existing.filter(a => a.requirement_id !== reqId)]));
-      } catch (e) {}
+      
+      const email = (currentUser?.email || student?.email || '').toLowerCase();
+      setApplications(prev => {
+        const updated = [newApp, ...prev.filter(a => a.requirement_id !== reqId)];
+        if (email) {
+          localStorage.setItem('gsfc_student_applications_' + email, JSON.stringify(updated));
+        }
+        localStorage.setItem('gsfc_student_applications', JSON.stringify(updated));
+        return updated;
+      });
     }
 
     if (student?.id) {
