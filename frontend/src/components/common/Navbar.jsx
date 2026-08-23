@@ -270,14 +270,17 @@ export default function Navbar({ currentUser, activeRole, onRoleSwitch, onOpenAu
           {(currentUser?.role === 'faculty' || currentUser?.role === 'admin' || currentUser?.role === 'superadmin') && (
             <button
               onClick={() => onRoleSwitch('faculty')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black transition-all shrink-0 whitespace-nowrap ${
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-black transition-all shrink-0 whitespace-nowrap cursor-pointer ${
                 activeRole === 'faculty'
-                  ? 'bg-theme-gradient text-white shadow-md'
-                  : 'text-slate-700 dark:text-slate-200 hover:text-slate-900 hover:bg-slate-200/60 dark:hover:bg-slate-700'
+                  ? 'bg-emerald-700 text-white shadow-md ring-2 ring-emerald-400/40'
+                  : (currentUser?.role === 'faculty'
+                    ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm font-black animate-pulse'
+                    : 'text-slate-700 dark:text-slate-200 hover:text-slate-900 hover:bg-slate-200/60 dark:hover:bg-slate-700')
               }`}
+              title="Open Faculty Placement Hub & Candidate Application Database"
             >
-              <GraduationCap className="w-3.5 h-3.5 text-emerald-400" />
-              <span>Faculty Hub</span>
+              <GraduationCap className="w-3.5 h-3.5 text-emerald-200" />
+              <span>👩‍🏫 Faculty Hub</span>
             </button>
           )}
 

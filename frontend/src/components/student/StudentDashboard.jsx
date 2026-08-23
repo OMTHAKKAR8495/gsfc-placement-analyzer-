@@ -1749,6 +1749,28 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
                 <Award className="w-5 h-5 text-blue-900" /> My Applications Timeline
               </h2>
 
+              {currentUser?.role === 'faculty' && (
+                <div className="p-5 bg-gradient-to-r from-blue-950 via-indigo-900 to-blue-900 text-white rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs shadow-lg border border-indigo-700">
+                  <div className="space-y-1">
+                    <div className="font-black text-emerald-300 flex items-center gap-1.5 text-sm">
+                      <span>👩‍🏫 Faculty Coordinator Mode: {currentUser?.name || 'Dr. Neeshu Chaudhary'}</span>
+                    </div>
+                    <p className="text-slate-200 font-medium max-w-xl">
+                      As a Faculty Placement Advisor, you have administrative oversight to monitor all student candidates who applied to corporate drives and their verified ATS match scores.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      window.location.hash = '#faculty';
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }}
+                    className="px-5 py-2.5 bg-emerald-400 hover:bg-emerald-300 text-slate-950 font-black rounded-xl shrink-0 cursor-pointer shadow-md transition-all flex items-center gap-1.5"
+                  >
+                    <span>View Student Applied Database & ATS Scores &rarr;</span>
+                  </button>
+                </div>
+              )}
+
               {isCompanyUser && (
                 <div className="p-5 bg-blue-50 border border-blue-200 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
                   <div className="space-y-1">
@@ -1772,11 +1794,15 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
               {applications.length === 0 ? (
                 <div className="text-center py-12 space-y-2">
                   <Award className="w-12 h-12 text-slate-400 mx-auto" />
-                  <h3 className="font-black text-sm text-slate-700">No Student Applications Found</h3>
+                  <h3 className="font-black text-sm text-slate-700">
+                    {currentUser?.role === 'faculty' ? 'Faculty Account: Student Application Database Available' : 'No Student Applications Found'}
+                  </h3>
                   <p className="text-xs text-slate-500 max-w-sm mx-auto">
-                    {isCompanyUser
-                      ? 'Switch to a student profile or use the Recruiter Portal to manage candidates registered for your drives.'
-                      : 'Browse live GSFC campus requirements and click "Apply Now" to track your application submissions here.'}
+                    {currentUser?.role === 'faculty'
+                      ? 'Click the green button above or "Faculty Hub" in the top navbar to view which students applied to which companies.'
+                      : (isCompanyUser
+                        ? 'Switch to a student profile or use the Recruiter Portal to manage candidates registered for your drives.'
+                        : 'Browse live GSFC campus requirements and click "Apply Now" to track your application submissions here.')}
                   </p>
                 </div>
               ) : (
