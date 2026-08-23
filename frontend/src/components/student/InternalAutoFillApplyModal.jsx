@@ -357,6 +357,17 @@ export default function InternalAutoFillApplyModal({ isOpen, onClose, requiremen
           </button>
         </div>
 
+        {/* 🤖 AI Auto-Fill Advisory Note */}
+        <div className="bg-amber-50/90 dark:bg-amber-950/40 px-4 py-3 border-b border-amber-200 dark:border-amber-900/60 flex items-start sm:items-center gap-3 text-xs text-amber-950 dark:text-amber-200">
+          <div className="w-6 h-6 rounded-lg bg-amber-500/20 text-amber-700 dark:text-amber-400 flex items-center justify-center shrink-0 border border-amber-500/30 mt-0.5 sm:mt-0">
+            <AlertCircle className="w-4 h-4" />
+          </div>
+          <div className="leading-snug">
+            <span className="font-black text-amber-900 dark:text-amber-300">⚠️ AI Auto-Fill Notice:</span>{' '}
+            <span className="font-medium text-amber-900/90 dark:text-amber-200/90">This form is automatically pre-filled by AI. Please review and verify all details carefully before submitting your application.</span>
+          </div>
+        </div>
+
         {/* Dynamic Success Notification */}
         {autofillSuccessMsg && (
           <div className="mx-6 mt-4 p-3 bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-300 dark:border-emerald-800 rounded-2xl flex items-center gap-2 text-xs font-black text-emerald-900 dark:text-emerald-200 animate-fadeIn shadow-sm">
