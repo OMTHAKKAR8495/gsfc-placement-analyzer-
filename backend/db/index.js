@@ -422,6 +422,107 @@ function applyMigrations() {
       CREATE INDEX IF NOT EXISTS idx_qa_replies_thread ON qa_replies(thread_id);
     `);
 
+    // 9. Student Bookmarks Table
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS student_bookmarks (
+        id TEXT PRIMARY KEY,
+        student_id TEXT NOT NULL REFERENCES student_profiles(id) ON DELETE CASCADE,
+        entity_type TEXT CHECK(entity_type IN ('requirement', 'job_fair', 'company', 'question', 'resource')) NOT NULL,
+        entity_id TEXT NOT NULL,
+        notes TEXT DEFAULT '',
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(student_id, entity_type, entity_id)
+      );
+      CREATE INDEX IF NOT EXISTS idx_student_bookmarks ON student_bookmarks(student_id);
+      CREATE INDEX IF NOT EXISTS idx_student_bookmarks_entity ON student_bookmarks(entity_type, entity_id);
+    `);
+
+    // 10. Student Activity History Table
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS student_activity_history (
+        id TEXT PRIMARY KEY,
+        student_id TEXT NOT NULL REFERENCES student_profiles(id) ON DELETE CASCADE,
+        activity_type TEXT NOT NULL,
+        title TEXT NOT NULL,
+        description TEXT,
+        related_id TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE INDEX IF NOT EXISTS idx_student_activity ON student_activity_history(student_id);
+      CREATE INDEX IF NOT EXISTS idx_student_activity_created ON student_activity_history(created_at);
+    `);
+
+    // 11. Student Assessments & Test History Table
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS student_assessments (
+        id TEXT PRIMARY KEY,
+        student_id TEXT NOT NULL REFERENCES student_profiles(id) ON DELETE CASCADE,
+        assessment_title TEXT NOT NULL,
+        assessment_type TEXT CHECK(assessment_type IN ('aptitude', 'technical', 'coding', 'mock_interview', 'general')) NOT NULL,
+        requirement_id TEXT,
+        score REAL NOT NULL,
+        percentage REAL NOT NULL,
+        questions_attempted INTEGER DEFAULT 0,
+        correct_answers INTEGER DEFAULT 0,
+        incorrect_answers INTEGER DEFAULT 0,
+        time_taken_seconds INTEGER DEFAULT 0,
+        status TEXT CHECK(status IN ('in_progress', 'completed', 'evaluated')) DEFAULT 'completed',
+        feedback_json TEXT DEFAULT '{}',
+        answers_json TEXT DEFAULT '[]',
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE INDEX IF NOT EXISTS idx_student_assessments ON student_assessments(student_id);
+      CREATE INDEX IF NOT EXISTS idx_student_assessments_created ON student_assessments(created_at);
+    `);
+
+    // 12. Student Documents & Placement Dossier Table
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS student_documents (
+        id TEXT PRIMARY KEY,
+        student_id TEXT NOT NULL REFERENCES student_profiles(id) ON DELETE CASCADE,
+        document_type TEXT CHECK(document_type IN ('resume', 'marksheets', 'certifications', 'id_document', 'offer_letter', 'other')) NOT NULL,
+        file_name TEXT NOT NULL,
+        file_url TEXT NOT NULL,
+        file_size INTEGER DEFAULT 0,
+        version INTEGER DEFAULT 1,
+        is_active INTEGER DEFAULT 1,
+        uploaded_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE INDEX IF NOT EXISTS idx_student_documents ON student_documents(student_id);
+    `);
+
+    // 13. Student Notifications Table
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS student_notifications (
+        id TEXT PRIMARY KEY,
+        student_id TEXT NOT NULL,
+        notification_type TEXT NOT NULL,
+        title TEXT NOT NULL,
+        message TEXT NOT NULL,
+        is_read INTEGER DEFAULT 0,
+        related_id TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE INDEX IF NOT EXISTS idx_student_notifications ON student_notifications(student_id);
+      CREATE INDEX IF NOT EXISTS idx_student_notifications_unread ON student_notifications(student_id, is_read);
+    `);
+
+    // 14. Student Resumes & Version History Table
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS student_resumes (
+        id TEXT PRIMARY KEY,
+        student_id TEXT NOT NULL REFERENCES student_profiles(id) ON DELETE CASCADE,
+        version_name TEXT NOT NULL,
+        resume_url TEXT,
+        parsed_json TEXT,
+        ats_score INTEGER DEFAULT 0,
+        ats_feedback_json TEXT DEFAULT '[]',
+        is_active INTEGER DEFAULT 1,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE INDEX IF NOT EXISTS idx_student_resumes ON student_resumes(student_id);
+    `);
+
     // Seed Demo Alumni, Job Fairs & Q&A if not already present
     seedAlumniAndCommunityData();
 

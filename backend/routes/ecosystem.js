@@ -385,6 +385,37 @@ router.post('/assessments/submit', (req, res) => {
       totalTestCases
     );
 
+    // Persist to unified student_assessments table if candidate matches a student profile
+    try {
+      let student = null;
+      if (candidateEmail) {
+        const u = db.prepare('SELECT id FROM users WHERE email = ?').get(candidateEmail);
+        if (u) {
+          student = db.prepare('SELECT id FROM student_profiles WHERE user_id = ?').get(u.id);
+        }
+      }
+      const studentId = student?.id || req.body.student_id;
+      if (studentId) {
+        const asmtId = 'asmt_eco_' + submissionId;
+        db.prepare(`
+          INSERT OR REPLACE INTO student_assessments (
+            id, student_id, assessment_title, assessment_type, requirement_id,
+            score, percentage, questions_attempted, correct_answers, incorrect_answers,
+            time_taken_seconds, status, feedback_json, answers_json
+          ) VALUES (?, ?, ?, 'technical', ?, ?, ?, ?, ?, ?, 1200, 'completed', ?, ?)
+        `).run(
+          asmtId, studentId, assessmentRow.title || 'POD.ai Proctored Full-Stack Assessment', null,
+          totalScore, percentage, questions.length + 1,
+          Math.round((mcqScore / 15)) + (testCasesPassed === totalTestCases ? 1 : 0),
+          questions.length + 1 - (Math.round((mcqScore / 15)) + (testCasesPassed === totalTestCases ? 1 : 0)),
+          JSON.stringify({ proctoringIntegrity, codeSolution }),
+          JSON.stringify(mcqAnswers || {})
+        );
+      }
+    } catch (e) {
+      console.warn('Student assessment history link notice:', e.message);
+    }
+
     res.json({
       success: true,
       submission_id: submissionId,

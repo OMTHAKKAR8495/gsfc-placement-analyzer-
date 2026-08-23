@@ -132,6 +132,34 @@ router.post('/mock/answer', async (req, res) => {
   }
 });
 
+// Get Student's Mock Interview Sessions History
+router.get('/sessions', (req, res) => {
+  try {
+    const studentId = req.query.student_id || req.query.studentId;
+    if (!studentId) {
+      return res.status(400).json({ error: 'student_id is required' });
+    }
+
+    const sessions = db.prepare(`
+      SELECT 
+        s.*, 
+        r.title as requirement_title, 
+        r.ctc_range, 
+        c.company_name, 
+        c.logo_url
+      FROM mock_interview_sessions s
+      LEFT JOIN requirements r ON s.requirement_id = r.id
+      LEFT JOIN company_profiles c ON r.company_id = c.id
+      WHERE s.student_id = ?
+      ORDER BY s.created_at DESC
+    `).all(studentId);
+
+    res.json(sessions);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Finish session and return final readiness report card
 router.post('/mock/finish', (req, res) => {
   try {
@@ -149,6 +177,24 @@ router.post('/mock/finish', (req, res) => {
       SET feedback_json = ?, overall_score = ?, status = 'completed'
       WHERE id = ?
     `).run(JSON.stringify(summary), summary.overallScore, session_id);
+
+    // Save to student_assessments for persistent unified assessment history
+    try {
+      const asmtId = 'asmt_mock_' + session_id;
+      db.prepare(`
+        INSERT OR REPLACE INTO student_assessments (
+          id, student_id, assessment_title, assessment_type, requirement_id,
+          score, percentage, questions_attempted, correct_answers, incorrect_answers,
+          time_taken_seconds, status, feedback_json, answers_json
+        ) VALUES (?, ?, ?, 'mock_interview', ?, ?, ?, ?, ?, ?, 300, 'completed', ?, ?)
+      `).run(
+        asmtId, session.student_id, `AI Mock Interview Assessment`, session.requirement_id,
+        summary.overallScore, summary.overallScore, qaPairs.length,
+        qaPairs.filter(q => q.feedback?.score >= 70).length,
+        qaPairs.filter(q => (q.feedback?.score || 0) < 70).length,
+        JSON.stringify(summary), session.qa_pairs_json
+      );
+    } catch(e) {}
 
     res.json({
       sessionId: session_id,

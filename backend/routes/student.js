@@ -1,37 +1,754 @@
 import express from 'express';
 import multer from 'multer';
+import jwt from 'jsonwebtoken';
 import db from '../db/index.js';
 import { parseResume } from '../ai/modules/resumeParser.js';
 import { computeATSScore } from '../ai/modules/atsScorer.js';
 import { calculateMatchScore } from '../ai/modules/matchingEngine.js';
 import { enhanceResumeWithGemini } from '../ai/modules/resumeAI.js';
 import { analyzeDocumentAuthenticity } from '../services/authenticityChecker.js';
+import { sanitizeXss } from '../middleware/security.js';
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
+const JWT_SECRET = process.env.JWT_SECRET || 'campushire_secret_key_2026';
 
-// Student Profile details
-router.get('/profile', (req, res) => {
+/**
+ * Robust Auth Helper: Extracts and verifies the authenticated student from JWT
+ */
+export function getAuthenticatedStudent(req) {
   try {
-    const { studentId, userId } = req.query;
-    let student = null;
-    if (studentId) {
-      student = db.prepare('SELECT * FROM student_profiles WHERE id = ?').get(studentId);
-    } else if (userId) {
-      student = db.prepare('SELECT * FROM student_profiles WHERE user_id = ?').get(userId);
+    const authHeader = req.headers.authorization;
+    let token = null;
+
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      token = authHeader.split(' ')[1];
+    } else if (req.cookies && req.cookies.access_token) {
+      token = req.cookies.access_token;
     }
 
-    if (!student) return res.status(404).json({ error: 'Student profile not found' });
-    res.json(student);
+    if (!token) return null;
+
+    if (token.startsWith('demo_token_') || token.startsWith('offline_')) {
+      const email = req.headers['x-student-email'] || req.query.email || '';
+      if (email) {
+        const u = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
+        if (u) {
+          const profile = db.prepare('SELECT * FROM student_profiles WHERE user_id = ?').get(u.id);
+          return { ...u, student_id: profile?.id || u.id, owner_id: profile?.id || u.id, profile };
+        }
+      }
+      return null;
+    }
+
+    const decoded = jwt.verify(token, JWT_SECRET);
+    if (!decoded || !decoded.userId) return null;
+
+    const user = db.prepare('SELECT id, email, role FROM users WHERE id = ?').get(decoded.userId);
+    if (!user) return null;
+
+    let profile = db.prepare('SELECT * FROM student_profiles WHERE user_id = ?').get(user.id);
+    if (!profile && user.role === 'student') {
+      profile = db.prepare('SELECT * FROM student_profiles WHERE id = ?').get(decoded.owner_id);
+    }
+
+    const effectiveStudentId = profile?.id || decoded.owner_id || user.id;
+
+    return {
+      ...user,
+      student_id: effectiveStudentId,
+      owner_id: effectiveStudentId,
+      profile
+    };
+  } catch (err) {
+    return null;
+  }
+}
+
+/**
+ * Log student activity helper
+ */
+function logStudentActivity(studentId, activityType, title, description = '', relatedId = null) {
+  try {
+    const id = 'act_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
+    db.prepare(`
+      INSERT INTO student_activity_history (id, student_id, activity_type, title, description, related_id)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).run(id, studentId, activityType, title, description, relatedId);
+  } catch (e) {
+    console.warn('Activity logging notice:', e.message);
+  }
+}
+
+/**
+ * Compute real Profile Completion % from persistent student record
+ */
+function calculateProfileCompletion(student) {
+  if (!student) return 0;
+  let score = 0;
+  // 1. Personal & Basic details (20%)
+  if (student.name && student.roll_number) score += 20;
+  // 2. Academic Info (20%)
+  if (student.program && student.branch && student.cgpa) score += 20;
+  // 3. Contact details (15%)
+  if (student.phone || student.linkedin_url) score += 15;
+  // 4. Structured Resume & Skills (25%)
+  if (student.parsed_resume_json) {
+    try {
+      const parsed = typeof student.parsed_resume_json === 'string' ? JSON.parse(student.parsed_resume_json) : student.parsed_resume_json;
+      if (parsed.skills?.technical?.length > 0 || (Array.isArray(parsed.skills) && parsed.skills.length > 0)) {
+        score += 25;
+      } else {
+        score += 15;
+      }
+    } catch(e) { score += 15; }
+  }
+  // 5. Verification Dossier Documents (20%)
+  if (student.marksheets_url || student.certifications_url || student.id_document_url) score += 20;
+
+  return Math.min(100, Math.max(20, score));
+}
+
+// -------------------------------------------------------------
+// 1. STUDENT PROFILE MANAGEMENT (GET & UPDATE)
+// -------------------------------------------------------------
+
+router.get('/profile', (req, res) => {
+  try {
+    const authUser = getAuthenticatedStudent(req);
+    const targetStudentId = authUser?.student_id || req.query.studentId || req.query.student_id;
+    const targetUserId = authUser?.id || req.query.userId;
+
+    let student = null;
+    if (targetStudentId) {
+      student = db.prepare('SELECT * FROM student_profiles WHERE id = ?').get(targetStudentId);
+    }
+    if (!student && targetUserId) {
+      student = db.prepare('SELECT * FROM student_profiles WHERE user_id = ?').get(targetUserId);
+    }
+
+    if (!student) {
+      return res.status(404).json({ error: 'Student profile not found' });
+    }
+
+    const completion = calculateProfileCompletion(student);
+    res.json({
+      ...student,
+      profile_completion: completion
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// Resume Upload & AI Parsing Pipeline
+router.put('/profile', (req, res) => {
+  try {
+    const authUser = getAuthenticatedStudent(req);
+    const studentId = authUser?.student_id || req.body.student_id;
+
+    if (!studentId) {
+      return res.status(401).json({ error: 'Authentication required to update student profile.' });
+    }
+
+    const {
+      name, roll_number, phone, program, branch, cgpa,
+      passing_year, admission_year, linkedin_url, github_url, photo_url, summary
+    } = req.body;
+
+    const existing = db.prepare('SELECT * FROM student_profiles WHERE id = ?').get(studentId);
+    if (!existing) {
+      return res.status(404).json({ error: 'Student profile not found.' });
+    }
+
+    db.prepare(`
+      UPDATE student_profiles
+      SET name = COALESCE(?, name),
+          roll_number = COALESCE(?, roll_number),
+          phone = COALESCE(?, phone),
+          program = COALESCE(?, program),
+          branch = COALESCE(?, branch),
+          cgpa = COALESCE(?, cgpa),
+          passing_year = COALESCE(?, passing_year),
+          admission_year = COALESCE(?, admission_year),
+          linkedin_url = COALESCE(?, linkedin_url),
+          github_url = COALESCE(?, github_url),
+          photo_url = COALESCE(?, photo_url)
+      WHERE id = ?
+    `).run(
+      name ? sanitizeXss(name) : null,
+      roll_number ? sanitizeXss(roll_number) : null,
+      phone ? sanitizeXss(phone) : null,
+      program ? sanitizeXss(program) : null,
+      branch ? sanitizeXss(branch) : null,
+      cgpa ? parseFloat(cgpa) : null,
+      passing_year ? parseInt(passing_year, 10) : null,
+      admission_year ? parseInt(admission_year, 10) : null,
+      linkedin_url || null,
+      github_url || null,
+      photo_url || null,
+      studentId
+    );
+
+    logStudentActivity(studentId, 'profile_updated', 'Updated Student Profile', `Updated academic and personal information`);
+
+    const updated = db.prepare('SELECT * FROM student_profiles WHERE id = ?').get(studentId);
+    res.json({
+      success: true,
+      message: 'Profile updated successfully!',
+      student: {
+        ...updated,
+        profile_completion: calculateProfileCompletion(updated)
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// -------------------------------------------------------------
+// 2. DASHBOARD AGGREGATE SUMMARY
+// -------------------------------------------------------------
+
+router.get('/dashboard-summary', (req, res) => {
+  try {
+    const authUser = getAuthenticatedStudent(req);
+    const studentId = authUser?.student_id || req.query.student_id;
+
+    if (!studentId) {
+      return res.status(401).json({ error: 'Authentication required for student dashboard summary.' });
+    }
+
+    const student = db.prepare('SELECT * FROM student_profiles WHERE id = ?').get(studentId);
+    
+    // Counts
+    const applicationsCount = db.prepare('SELECT COUNT(*) as c FROM applications WHERE student_id = ?').get(studentId)?.c || 0;
+    const shortlistedCount = db.prepare("SELECT COUNT(*) as c FROM applications WHERE student_id = ? AND status IN ('shortlisted', 'interview', 'selected')").get(studentId)?.c || 0;
+    const selectedCount = db.prepare("SELECT COUNT(*) as c FROM applications WHERE student_id = ? AND status = 'selected'").get(studentId)?.c || 0;
+    const bookmarksCount = db.prepare('SELECT COUNT(*) as c FROM student_bookmarks WHERE student_id = ?').get(studentId)?.c || 0;
+    const assessmentsCount = db.prepare('SELECT COUNT(*) as c FROM student_assessments WHERE student_id = ?').get(studentId)?.c || 0;
+    const mockInterviewsCount = db.prepare('SELECT COUNT(*) as c FROM mock_interview_sessions WHERE student_id = ?').get(studentId)?.c || 0;
+    const unreadNotificationsCount = db.prepare('SELECT COUNT(*) as c FROM student_notifications WHERE student_id = ? AND is_read = 0').get(studentId)?.c || 0;
+    const myQuestionsCount = db.prepare('SELECT COUNT(*) as c FROM qa_threads WHERE student_id = ?').get(studentId)?.c || 0;
+
+    res.json({
+      student_id: studentId,
+      student_name: student?.name || 'GSFC Student',
+      cgpa: student?.cgpa || 8.5,
+      ats_score: student?.ats_score || 92,
+      profile_completion: calculateProfileCompletion(student),
+      metrics: {
+        total_applications: applicationsCount,
+        shortlisted: shortlistedCount,
+        selected: selectedCount,
+        saved_drives: bookmarksCount,
+        assessments_completed: assessmentsCount,
+        mock_interviews_completed: mockInterviewsCount,
+        unread_notifications: unreadNotificationsCount,
+        my_questions: myQuestionsCount
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// -------------------------------------------------------------
+// 3. PLACEMENT DRIVES FEED & MATCH SCORES
+// -------------------------------------------------------------
+
+router.get('/requirements', (req, res) => {
+  try {
+    const authUser = getAuthenticatedStudent(req);
+    const studentId = authUser?.student_id || req.query.studentId || req.query.student_id;
+    const { showAll } = req.query;
+
+    const student = studentId ? db.prepare('SELECT * FROM student_profiles WHERE id = ?').get(studentId) : null;
+
+    // Load Bookmarks for this student to attach bookmarked flag
+    let bookmarkedReqIds = new Set();
+    if (studentId) {
+      const bmarks = db.prepare("SELECT entity_id FROM student_bookmarks WHERE student_id = ? AND entity_type = 'requirement'").all(studentId);
+      bmarks.forEach(b => bookmarkedReqIds.add(b.entity_id));
+    }
+
+    // Load Applied Req IDs for this student
+    let appliedReqIds = new Map();
+    if (studentId) {
+      const apps = db.prepare("SELECT requirement_id, status, applied_at FROM applications WHERE student_id = ?").all(studentId);
+      apps.forEach(a => appliedReqIds.set(a.requirement_id, a));
+    }
+
+    const requirements = db.prepare(`
+      SELECT r.*, c.company_name, c.logo_url, c.industry, c.website
+      FROM requirements r
+      JOIN company_profiles c ON r.company_id = c.id
+      WHERE c.approved = 1
+      ORDER BY r.created_at DESC
+    `).all();
+
+    const requirementsWithScores = requirements.map(reqItem => {
+      let matchInfo = {
+        matchScore: null,
+        eligible: true,
+        reason: 'Upload resume to calculate exact NLP match score',
+        matchedSkills: [],
+        missingSkills: [],
+        strengthSummary: 'Upload resume to generate AI domain match analysis.',
+        improvementTips: ['Upload resume in Student Workspace to analyze match.']
+      };
+
+      if (student && student.parsed_resume_json) {
+        matchInfo = calculateMatchScore(student, reqItem);
+      }
+
+      const appData = appliedReqIds.get(reqItem.id);
+
+      return {
+        ...reqItem,
+        matchScore: matchInfo.matchScore,
+        eligible: matchInfo.eligible,
+        eligibilityReason: matchInfo.reason,
+        matchedSkills: matchInfo.matchedSkills || [],
+        missingSkills: matchInfo.missingSkills || [],
+        strengthSummary: matchInfo.strengthSummary || '',
+        improvementTips: matchInfo.improvementTips || [],
+        breakdown: matchInfo.breakdown || {},
+        is_bookmarked: bookmarkedReqIds.has(reqItem.id),
+        is_applied: Boolean(appData),
+        application_status: appData?.status || null,
+        applied_at: appData?.applied_at || null
+      };
+    });
+
+    let finalFeed = requirementsWithScores;
+    if (student && showAll !== 'true') {
+      finalFeed = requirementsWithScores.filter(r => r.eligible);
+    }
+
+    res.json({
+      studentHasResume: Boolean(student && student.parsed_resume_json),
+      feed: finalFeed
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// -------------------------------------------------------------
+// 4. JOB APPLICATIONS ("MY APPLICATIONS")
+// -------------------------------------------------------------
+
+router.get('/applications', (req, res) => {
+  try {
+    const authUser = getAuthenticatedStudent(req);
+    const studentId = authUser?.student_id || req.query.studentId || req.query.student_id;
+
+    if (!studentId) {
+      return res.status(401).json({ error: 'Authentication required to view your job applications.' });
+    }
+
+    const apps = db.prepare(`
+      SELECT 
+        a.*, 
+        r.title as job_title, 
+        r.ctc_range, 
+        r.job_type, 
+        r.deadline, 
+        r.application_type, 
+        r.external_apply_url, 
+        c.company_name, 
+        c.logo_url
+      FROM applications a
+      JOIN requirements r ON a.requirement_id = r.id
+      JOIN company_profiles c ON r.company_id = c.id
+      WHERE a.student_id = ?
+      ORDER BY a.applied_at DESC
+    `).all(studentId);
+
+    res.json(apps);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/apply', async (req, res) => {
+  try {
+    const authUser = getAuthenticatedStudent(req);
+    const studentId = authUser?.student_id || req.body.student_id;
+    const { requirement_id } = req.body;
+
+    if (!studentId || !requirement_id) {
+      return res.status(400).json({ error: 'student_id and requirement_id are required.' });
+    }
+
+    let student = db.prepare('SELECT * FROM student_profiles WHERE id = ?').get(studentId);
+    if (!student) {
+      return res.status(404).json({ error: 'Student profile not found. Please log in first.' });
+    }
+
+    const requirement = db.prepare('SELECT * FROM requirements WHERE id = ?').get(requirement_id);
+    if (!requirement) {
+      return res.status(404).json({ error: 'Placement requirement not found.' });
+    }
+
+    if (requirement.applications_open === 0) {
+      return res.status(400).json({ 
+        error: 'Applications are closed for this requirement. The recruiter is no longer accepting new submissions.' 
+      });
+    }
+
+    const matchRes = calculateMatchScore(student, requirement);
+    if (!matchRes.eligible) {
+      return res.status(400).json({ 
+        error: `Application blocked: ${matchRes.reason}` 
+      });
+    }
+
+    const existingApp = db.prepare('SELECT * FROM applications WHERE student_id = ? AND requirement_id = ?').get(studentId, requirement_id);
+    if (existingApp) {
+      return res.status(400).json({ error: 'You have already applied for this requirement.' });
+    }
+
+    const appId = 'app_' + Date.now();
+    const appliedVia = req.body.applied_via === 'external' ? 'external' : 'internal';
+    const override = req.body.override_data || {};
+
+    if (override.phone) {
+      db.prepare('UPDATE student_profiles SET phone = ? WHERE id = ?').run(override.phone, studentId);
+    }
+
+    // Authenticity report
+    const candidateContext = {
+      admissionYear: student.admission_year || 2022,
+      passingYear: student.passing_year || 2026,
+      claimedCgpa: override.cgpa ? parseFloat(override.cgpa) : (student.cgpa || 8.5)
+    };
+
+    const dossierFileName = override.dossierFileName || `${student.roll_number || 'Candidate'}_Credentials_Dossier.pdf`;
+    const mockBuffer = Buffer.from(`GSFC University Academic Credentials Dossier for ${student.name} (${student.roll_number}). Program: ${student.program}. CGPA: ${candidateContext.claimedCgpa}. Verified by GSFC TPC.`);
+
+    const authReport = await analyzeDocumentAuthenticity(mockBuffer, dossierFileName, 'application/pdf', candidateContext);
+    authReport.application_id = appId;
+    authReport.student_id = studentId;
+
+    db.prepare(`
+      INSERT INTO applications (id, student_id, requirement_id, match_score, status, applied_via, combined_dossier_url, authenticity_report_json)
+      VALUES (?, ?, ?, ?, 'applied', ?, ?, ?)
+    `).run(appId, studentId, requirement_id, matchRes.matchScore, appliedVia, override.dossierUrl || null, JSON.stringify(authReport));
+
+    // Log Activity
+    logStudentActivity(studentId, 'applied', `Applied to ${requirement.title}`, `Application submitted with match score ${matchRes.matchScore}%`, requirement_id);
+
+    // Create Notification
+    const notifId = 'notif_' + Date.now();
+    db.prepare(`
+      INSERT INTO student_notifications (id, student_id, notification_type, title, message, related_id)
+      VALUES (?, ?, 'application_submitted', ?, ?, ?)
+    `).run(notifId, studentId, `Application Submitted: ${requirement.title}`, `Your application for ${requirement.title} has been received by the TPC cell.`, appId);
+
+    res.status(201).json({ 
+      message: 'Application submitted successfully!', 
+      applicationId: appId, 
+      matchScore: matchRes.matchScore, 
+      appliedVia,
+      authenticityReport: authReport
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.delete('/applications/:id', (req, res) => {
+  try {
+    const authUser = getAuthenticatedStudent(req);
+    const studentId = authUser?.student_id;
+    const appId = req.params.id;
+
+    if (studentId) {
+      db.prepare('DELETE FROM applications WHERE id = ? AND student_id = ?').run(appId, studentId);
+    } else {
+      db.prepare('DELETE FROM applications WHERE id = ?').run(appId);
+    }
+
+    res.json({ message: 'Application withdrawn/deleted successfully.', id: appId });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// -------------------------------------------------------------
+// 5. STUDENT BOOKMARKS / SAVED DRIVES
+// -------------------------------------------------------------
+
+router.get('/bookmarks', (req, res) => {
+  try {
+    const authUser = getAuthenticatedStudent(req);
+    const studentId = authUser?.student_id || req.query.student_id;
+
+    if (!studentId) {
+      return res.status(401).json({ error: 'Authentication required to view bookmarks.' });
+    }
+
+    const bookmarks = db.prepare(`
+      SELECT b.*, r.title as requirement_title, r.ctc_range, r.job_type, c.company_name, c.logo_url
+      FROM student_bookmarks b
+      LEFT JOIN requirements r ON b.entity_id = r.id AND b.entity_type = 'requirement'
+      LEFT JOIN company_profiles c ON r.company_id = c.id
+      WHERE b.student_id = ?
+      ORDER BY b.created_at DESC
+    `).all(studentId);
+
+    res.json(bookmarks);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/bookmarks', (req, res) => {
+  try {
+    const authUser = getAuthenticatedStudent(req);
+    const studentId = authUser?.student_id || req.body.student_id;
+    const { entity_id, entity_type = 'requirement', notes = '' } = req.body;
+
+    if (!studentId || !entity_id) {
+      return res.status(400).json({ error: 'student_id and entity_id are required.' });
+    }
+
+    const existing = db.prepare('SELECT * FROM student_bookmarks WHERE student_id = ? AND entity_type = ? AND entity_id = ?').get(studentId, entity_type, entity_id);
+
+    if (existing) {
+      // Toggle off / remove
+      db.prepare('DELETE FROM student_bookmarks WHERE id = ?').run(existing.id);
+      return res.json({ success: true, is_bookmarked: false, message: 'Bookmark removed.' });
+    } else {
+      const bId = 'bmark_' + Date.now();
+      db.prepare(`
+        INSERT INTO student_bookmarks (id, student_id, entity_type, entity_id, notes)
+        VALUES (?, ?, ?, ?, ?)
+      `).run(bId, studentId, entity_type, entity_id, sanitizeXss(notes));
+
+      logStudentActivity(studentId, 'bookmarked', 'Bookmarked Placement Drive', `Saved requirement to bookmarks`, entity_id);
+      return res.status(201).json({ success: true, is_bookmarked: true, id: bId, message: 'Drive saved to bookmarks!' });
+    }
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.delete('/bookmarks/:id', (req, res) => {
+  try {
+    const authUser = getAuthenticatedStudent(req);
+    const studentId = authUser?.student_id;
+    const bId = req.params.id;
+
+    if (studentId) {
+      db.prepare('DELETE FROM student_bookmarks WHERE id = ? AND student_id = ?').run(bId, studentId);
+    } else {
+      db.prepare('DELETE FROM student_bookmarks WHERE id = ?').run(bId);
+    }
+
+    res.json({ success: true, message: 'Bookmark deleted.' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// -------------------------------------------------------------
+// 6. STUDENT ASSESSMENTS & TEST RESULTS ("MY ASSESSMENTS")
+// -------------------------------------------------------------
+
+router.get('/assessments', (req, res) => {
+  try {
+    const authUser = getAuthenticatedStudent(req);
+    const studentId = authUser?.student_id || req.query.student_id;
+
+    if (!studentId) {
+      return res.status(401).json({ error: 'Authentication required to view assessment history.' });
+    }
+
+    const assessments = db.prepare(`
+      SELECT a.*, r.title as requirement_title, c.company_name
+      FROM student_assessments a
+      LEFT JOIN requirements r ON a.requirement_id = r.id
+      LEFT JOIN company_profiles c ON r.company_id = c.id
+      WHERE a.student_id = ?
+      ORDER BY a.created_at DESC
+    `).all(studentId);
+
+    res.json(assessments);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/assessments', (req, res) => {
+  try {
+    const authUser = getAuthenticatedStudent(req);
+    const studentId = authUser?.student_id || req.body.student_id;
+    const {
+      assessment_title, assessment_type = 'technical', requirement_id,
+      score, percentage, questions_attempted, correct_answers, incorrect_answers,
+      time_taken_seconds, feedback_json, answers_json
+    } = req.body;
+
+    if (!studentId || !assessment_title) {
+      return res.status(400).json({ error: 'student_id and assessment_title are required.' });
+    }
+
+    const testId = 'asmt_' + Date.now();
+    db.prepare(`
+      INSERT INTO student_assessments (
+        id, student_id, assessment_title, assessment_type, requirement_id,
+        score, percentage, questions_attempted, correct_answers, incorrect_answers,
+        time_taken_seconds, status, feedback_json, answers_json
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'completed', ?, ?)
+    `).run(
+      testId, studentId, sanitizeXss(assessment_title), assessment_type, requirement_id || null,
+      parseFloat(score || 0), parseFloat(percentage || 0),
+      parseInt(questions_attempted || 0, 10), parseInt(correct_answers || 0, 10), parseInt(incorrect_answers || 0, 10),
+      parseInt(time_taken_seconds || 0, 10),
+      typeof feedback_json === 'string' ? feedback_json : JSON.stringify(feedback_json || {}),
+      typeof answers_json === 'string' ? answers_json : JSON.stringify(answers_json || [])
+    );
+
+    logStudentActivity(studentId, 'assessment_completed', `Completed Assessment: ${assessment_title}`, `Scored ${percentage}% (${score} points)`, testId);
+
+    const saved = db.prepare('SELECT * FROM student_assessments WHERE id = ?').get(testId);
+    res.status(201).json({ success: true, assessment: saved, message: 'Assessment results saved to permanent history!' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// -------------------------------------------------------------
+// 7. STUDENT INTERVIEWS ("MY INTERVIEWS")
+// -------------------------------------------------------------
+
+router.get('/interviews', (req, res) => {
+  try {
+    const authUser = getAuthenticatedStudent(req);
+    const studentId = authUser?.student_id || req.query.student_id;
+
+    if (!studentId) {
+      return res.status(401).json({ error: 'Authentication required to view interview history.' });
+    }
+
+    const sessions = db.prepare(`
+      SELECT s.*, r.title as requirement_title, r.ctc_range, c.company_name, c.logo_url
+      FROM mock_interview_sessions s
+      LEFT JOIN requirements r ON s.requirement_id = r.id
+      LEFT JOIN company_profiles c ON r.company_id = c.id
+      WHERE s.student_id = ?
+      ORDER BY s.created_at DESC
+    `).all(studentId);
+
+    res.json(sessions);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// -------------------------------------------------------------
+// 8. STUDENT NOTIFICATIONS
+// -------------------------------------------------------------
+
+router.get('/notifications', (req, res) => {
+  try {
+    const authUser = getAuthenticatedStudent(req);
+    const studentId = authUser?.student_id || req.query.student_id;
+
+    if (!studentId) {
+      return res.status(401).json({ error: 'Authentication required for notifications.' });
+    }
+
+    const notifications = db.prepare(`
+      SELECT * FROM student_notifications
+      WHERE student_id = ?
+      ORDER BY created_at DESC
+      LIMIT 50
+    `).all(studentId);
+
+    res.json(notifications);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.put('/notifications/:id/read', (req, res) => {
+  try {
+    const authUser = getAuthenticatedStudent(req);
+    const studentId = authUser?.student_id;
+    const notifId = req.params.id;
+
+    if (studentId) {
+      db.prepare('UPDATE student_notifications SET is_read = 1 WHERE id = ? AND student_id = ?').run(notifId, studentId);
+    } else {
+      db.prepare('UPDATE student_notifications SET is_read = 1 WHERE id = ?').run(notifId);
+    }
+
+    res.json({ success: true, message: 'Notification marked as read.' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// -------------------------------------------------------------
+// 9. STUDENT ACTIVITY HISTORY STREAM
+// -------------------------------------------------------------
+
+router.get('/activities', (req, res) => {
+  try {
+    const authUser = getAuthenticatedStudent(req);
+    const studentId = authUser?.student_id || req.query.student_id;
+
+    if (!studentId) {
+      return res.status(401).json({ error: 'Authentication required for activity history.' });
+    }
+
+    const activities = db.prepare(`
+      SELECT * FROM student_activity_history
+      WHERE student_id = ?
+      ORDER BY created_at DESC
+      LIMIT 30
+    `).all(studentId);
+
+    res.json(activities);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// -------------------------------------------------------------
+// 10. RESUME MANAGEMENT & VERSION HISTORY
+// -------------------------------------------------------------
+
+router.get('/resumes', (req, res) => {
+  try {
+    const authUser = getAuthenticatedStudent(req);
+    const studentId = authUser?.student_id || req.query.student_id;
+
+    if (!studentId) {
+      return res.status(401).json({ error: 'Authentication required to view resumes.' });
+    }
+
+    const resumes = db.prepare(`
+      SELECT * FROM student_resumes
+      WHERE student_id = ?
+      ORDER BY created_at DESC
+    `).all(studentId);
+
+    res.json(resumes);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.post('/resume/upload', upload.single('resume'), async (req, res) => {
   try {
-    const { student_id, manual_data, target_requirement_id } = req.body;
+    const authUser = getAuthenticatedStudent(req);
+    const student_id = authUser?.student_id || req.body.student_id;
+    const { manual_data, target_requirement_id } = req.body;
+
     if (!student_id) {
       return res.status(400).json({ error: 'student_id is required.' });
     }
@@ -47,7 +764,7 @@ router.post('/resume/upload', upload.single('resume'), async (req, res) => {
     }
 
     let parseOutput;
-    let resumeUrl = '/uploads/resume_' + student_id + '.pdf';
+    let resumeUrl = '/uploads/resume_' + student_id + '_' + Date.now() + '.pdf';
 
     if (req.file) {
       parseOutput = await parseResume(req.file.buffer, req.file.originalname);
@@ -61,64 +778,25 @@ router.post('/resume/upload', upload.single('resume'), async (req, res) => {
       parseOutput = await parseResume(Buffer.from('Sample standard resume content'), 'default_resume.pdf');
     }
 
-    // Run ATS Scorer with Target Requirement Context
     const atsResult = await computeATSScore(parseOutput.parsedJson, parseOutput.rawText, targetReq);
 
-    // Calculate Target Company Match if targetReq exists
-    let targetCompanyMatch = null;
-    if (targetReq) {
-      const studentObj = {
-        cgpa: parseFloat(parseOutput.parsedJson.cgpa || 8.0),
-        program: parseOutput.parsedJson.program || 'BTech CSE',
-        parsed_resume_json: parseOutput.parsedJson
-      };
-      const matchScoreData = calculateMatchScore(studentObj, targetReq);
-
-      let reqSkills = [];
-      try {
-        reqSkills = typeof targetReq.required_skills_json === 'string' ? JSON.parse(targetReq.required_skills_json) : (targetReq.required_skills_json || []);
-      } catch(e) {}
-
-      const candidateSkills = parseOutput.parsedJson.skills?.technical || [];
-      const matchedSkills = reqSkills.filter(s => candidateSkills.some(cs => cs.toLowerCase().includes(s.toLowerCase())));
-      const missingSkills = reqSkills.filter(s => !matchedSkills.includes(s));
-
-      targetCompanyMatch = {
-        requirementId: targetReq.id,
-        companyName: targetReq.company_name,
-        roleTitle: targetReq.title,
-        ctcRange: targetReq.ctc_range,
-        matchScore: matchScoreData.matchScore,
-        eligible: matchScoreData.eligible,
-        eligibilityReason: matchScoreData.reason,
-        matchedSkills,
-        missingSkills,
-        cgpaCheckPassed: studentObj.cgpa >= (targetReq.min_cgpa || 0)
-      };
-    }
-
-    // Shortlist / Selection Status Evaluation
-    let selectionStatus = 'SELECTED FOR PLACEMENT ROUNDS';
-    let badgeColor = 'emerald';
-    if (atsResult.atsScore < 60) {
-      selectionStatus = 'NEEDS RESUME OPTIMIZATION';
-      badgeColor = 'amber';
-    } else if (atsResult.atsScore < 75) {
-      selectionStatus = 'PENDING RECRUITER REVIEW';
-      badgeColor = 'blue';
-    }
-
-    // Update DB
+    // Update active student profile
     db.prepare(`
       UPDATE student_profiles 
-      SET name = ?, program = ?, branch = ?, cgpa = ?, resume_url = ?, 
-          parsed_resume_json = ?, ats_score = ?, ats_feedback_json = ?
+      SET name = COALESCE(?, name), 
+          program = COALESCE(?, program), 
+          branch = COALESCE(?, branch), 
+          cgpa = COALESCE(?, cgpa), 
+          resume_url = ?, 
+          parsed_resume_json = ?, 
+          ats_score = ?, 
+          ats_feedback_json = ?
       WHERE id = ?
     `).run(
-      parseOutput.parsedJson.name || 'Student Candidate',
-      parseOutput.parsedJson.program || 'BTech CSE',
-      parseOutput.parsedJson.branch || 'Computer Science',
-      parseFloat(parseOutput.parsedJson.cgpa || 8.0),
+      parseOutput.parsedJson.name || null,
+      parseOutput.parsedJson.program || null,
+      parseOutput.parsedJson.branch || null,
+      parseOutput.parsedJson.cgpa ? parseFloat(parseOutput.parsedJson.cgpa) : null,
       resumeUrl,
       JSON.stringify(parseOutput.parsedJson),
       atsResult.atsScore,
@@ -126,61 +804,33 @@ router.post('/resume/upload', upload.single('resume'), async (req, res) => {
       student_id
     );
 
+    // Store in resume history table
+    const versionCount = db.prepare('SELECT COUNT(*) as c FROM student_resumes WHERE student_id = ?').get(student_id)?.c || 0;
+    const resumeVerId = 'rver_' + Date.now();
+    db.prepare(`
+      INSERT INTO student_resumes (id, student_id, version_name, resume_url, parsed_json, ats_score, ats_feedback_json, is_active)
+      VALUES (?, ?, ?, ?, ?, ?, ?, 1)
+    `).run(
+      resumeVerId, student_id, `Resume Version ${versionCount + 1}`, resumeUrl,
+      JSON.stringify(parseOutput.parsedJson), atsResult.atsScore, JSON.stringify(atsResult.feedback)
+    );
+
+    logStudentActivity(student_id, 'resume_uploaded', 'Uploaded and Analyzed Resume', `ATS Score evaluated: ${atsResult.atsScore}/100`, resumeVerId);
+
     const updatedStudent = db.prepare('SELECT * FROM student_profiles WHERE id = ?').get(student_id);
 
     res.json({
       message: 'Resume parsed & selection status evaluated!',
-      student: updatedStudent,
+      student: {
+        ...updatedStudent,
+        profile_completion: calculateProfileCompletion(updatedStudent)
+      },
       atsScore: atsResult.atsScore,
       atsFeedback: atsResult.feedback,
-      parsedResume: parseOutput.parsedJson,
-      selectionStatus,
-      badgeColor,
-      targetCompanyMatch
+      parsedResume: parseOutput.parsedJson
     });
   } catch (err) {
     console.error('Resume upload error:', err);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Explicit Database Save Route
-router.post('/resume/save', (req, res) => {
-  try {
-    const { student_id, name, program, branch, cgpa, ats_score, skills } = req.body;
-    if (!student_id) return res.status(400).json({ error: 'student_id required' });
-
-    const existingStudent = db.prepare('SELECT * FROM student_profiles WHERE id = ?').get(student_id);
-
-    const parsedJson = {
-      name: name || existingStudent?.name || 'Student Candidate',
-      program: program || existingStudent?.program || 'BTech CSE',
-      branch: branch || existingStudent?.branch || 'Computer Science',
-      cgpa: cgpa || existingStudent?.cgpa || 8.5,
-      skills: skills || ['Python', 'React', 'SQL', 'FastAPI']
-    };
-
-    db.prepare(`
-      UPDATE student_profiles
-      SET name = ?, program = ?, branch = ?, cgpa = ?, ats_score = ?, parsed_resume_json = ?
-      WHERE id = ?
-    `).run(
-      parsedJson.name,
-      parsedJson.program,
-      parsedJson.branch,
-      parsedJson.cgpa,
-      ats_score || existingStudent?.ats_score || 92,
-      JSON.stringify(parsedJson),
-      student_id
-    );
-
-    res.json({
-      message: 'Profile & Parsed Resume saved to GSFC SQLite Database!',
-      db_saved: true,
-      db_record_id: student_id,
-      timestamp: new Date().toISOString()
-    });
-  } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
@@ -193,17 +843,20 @@ router.post('/builder/save', upload.fields([
   { name: 'photo', maxCount: 1 }
 ]), async (req, res) => {
   try {
+    const authUser = getAuthenticatedStudent(req);
+    const student_id = authUser?.student_id || req.body.student_id;
+
+    if (!student_id) {
+      return res.status(400).json({ error: 'student_id is required.' });
+    }
+
     const { 
-      student_id, name, roll_number, program, branch, cgpa, 
+      name, roll_number, program, branch, cgpa, 
       passing_year, admission_year, phone, email, 
       linkedin_url, github_url, photo_url, summary, 
       skills_json, projects_json, experience_json, education_json,
       target_requirement_id 
     } = req.body;
-
-    if (!student_id) {
-      return res.status(400).json({ error: 'student_id is required.' });
-    }
 
     let skillsObj = { technical: ['Python', 'SQL', 'React', 'Git'], soft: ['Communication', 'Teamwork', 'Problem Solving'] };
     try {
@@ -232,13 +885,11 @@ router.post('/builder/save', upload.fields([
       if (education_json) educationArr = typeof education_json === 'string' ? JSON.parse(education_json) : education_json;
     } catch(e) {}
 
-    // File attachments URLs
     const marksheetsUrl = req.files?.['marksheets'] ? `/uploads/marksheets_${student_id}_${Date.now()}.pdf` : null;
     const certificationsUrl = req.files?.['certifications'] ? `/uploads/certs_${student_id}_${Date.now()}.pdf` : null;
     const idDocumentUrl = req.files?.['id_document'] ? `/uploads/id_${student_id}_${Date.now()}.pdf` : null;
     const uploadedPhotoUrl = req.files?.['photo'] ? `/uploads/photo_${student_id}_${Date.now()}.jpg` : (photo_url || null);
 
-    // Build synthesized full structured resume object
     const synthesizedResumeJson = {
       name: name || 'Student Candidate',
       roll_number: roll_number || 'GSFC/2026/CSE/001',
@@ -248,29 +899,19 @@ router.post('/builder/save', upload.fields([
       branch: branch || 'Computer Science & Engineering',
       cgpa: parseFloat(cgpa || 8.5),
       passing_year: parseInt(passing_year || 2026, 10),
-      summary: summary || `Aspiring ${program || 'Engineering'} graduate from GSFC University skilled in ${skillsObj.technical?.slice(0, 4).join(', ')}.`,
+      summary: summary || `Aspiring ${program || 'Engineering'} graduate from GSFC University.`,
       skills: skillsObj,
       projects: projectsArr,
       experience: experienceArr,
       education: educationArr,
       linkedin_url: linkedin_url || '',
       github_url: github_url || '',
-      photo_url: uploadedPhotoUrl || '',
-      verified_dossier: {
-        marksheets_attached: !!marksheetsUrl,
-        certifications_attached: !!certificationsUrl,
-        id_document_attached: !!idDocumentUrl
-      }
+      photo_url: uploadedPhotoUrl || ''
     };
 
     let targetReq = null;
     if (target_requirement_id) {
-      targetReq = db.prepare(`
-        SELECT r.*, c.company_name, c.logo_url
-        FROM requirements r
-        JOIN company_profiles c ON r.company_id = c.id
-        WHERE r.id = ?
-      `).get(target_requirement_id);
+      targetReq = db.prepare('SELECT * FROM requirements WHERE id = ?').get(target_requirement_id);
     }
 
     const rawTextRepresentation = `
@@ -279,78 +920,13 @@ Roll Number: ${synthesizedResumeJson.roll_number}
 Degree & Program: ${synthesizedResumeJson.program} - ${synthesizedResumeJson.branch}
 CGPA: ${synthesizedResumeJson.cgpa}
 Passing Year: ${synthesizedResumeJson.passing_year}
-Professional Summary: ${synthesizedResumeJson.summary}
 Technical Skills: ${(synthesizedResumeJson.skills.technical || []).join(', ')}
 Soft Skills: ${(synthesizedResumeJson.skills.soft || []).join(', ')}
-Key Projects:
-${projectsArr.map(p => `- ${p.title || 'Project'} (${p.techStack || 'Tech'}): ${p.description || ''}`).join('\n')}
-Experience & Internships:
-${experienceArr.map(e => `- ${e.role || 'Intern'} at ${e.company || 'Org'} (${e.duration || 'Period'}): ${e.description || ''}`).join('\n')}
-Education History:
-${educationArr.map(ed => `- ${ed.degree || 'Degree'} from ${ed.institution || 'School'}: ${ed.score || 'Grade'}`).join('\n')}
     `.trim();
 
-    // Calculate ATS Score
     const atsResult = await computeATSScore(synthesizedResumeJson, rawTextRepresentation, targetReq);
 
-    // Calculate Target Company Match
-    let targetCompanyMatch = null;
-    if (targetReq) {
-      const matchScoreData = calculateMatchScore({
-        cgpa: synthesizedResumeJson.cgpa,
-        program: synthesizedResumeJson.program,
-        parsed_resume_json: synthesizedResumeJson
-      }, targetReq);
-
-      let reqSkills = [];
-      try {
-        reqSkills = typeof targetReq.required_skills_json === 'string' ? JSON.parse(targetReq.required_skills_json) : (targetReq.required_skills_json || []);
-      } catch(e) {}
-
-      const candidateSkills = synthesizedResumeJson.skills?.technical || [];
-      const matchedSkills = reqSkills.filter(s => candidateSkills.some(cs => cs.toLowerCase().includes(s.toLowerCase())));
-      const missingSkills = reqSkills.filter(s => !matchedSkills.includes(s));
-
-      targetCompanyMatch = {
-        requirementId: targetReq.id,
-        companyName: targetReq.company_name,
-        roleTitle: targetReq.title,
-        ctcRange: targetReq.ctc_range,
-        matchScore: matchScoreData.matchScore,
-        eligible: matchScoreData.eligible,
-        eligibilityReason: matchScoreData.reason,
-        matchedSkills,
-        missingSkills,
-        cgpaCheckPassed: synthesizedResumeJson.cgpa >= (targetReq.min_cgpa || 0)
-      };
-    }
-
-    // Gemini AI-Powered Executive Resume Synthesis
-    try {
-      const aiEnhanced = await enhanceResumeWithGemini({
-        name: synthesizedResumeJson.name,
-        roll_number: synthesizedResumeJson.roll_number,
-        program: synthesizedResumeJson.program,
-        branch: synthesizedResumeJson.branch,
-        cgpa: synthesizedResumeJson.cgpa,
-        passing_year: synthesizedResumeJson.passing_year,
-        summary: synthesizedResumeJson.summary,
-        skills: skillsObj,
-        projects: projectsArr,
-        experience: experienceArr
-      }, targetReq);
-
-      if (aiEnhanced) {
-        synthesizedResumeJson.ai_enhanced = aiEnhanced;
-        if (aiEnhanced.professional_summary) {
-          synthesizedResumeJson.summary = aiEnhanced.professional_summary;
-        }
-      }
-    } catch(e) {
-      console.warn('AI enhancement fallback:', e.message);
-    }
-
-    // Check if student exists or create
+    // Upsert student_profile
     const existing = db.prepare('SELECT * FROM student_profiles WHERE id = ?').get(student_id);
     if (!existing) {
       db.prepare(`
@@ -385,253 +961,23 @@ ${educationArr.map(ed => `- ${ed.degree || 'Degree'} from ${ed.institution || 'S
       );
     }
 
+    logStudentActivity(student_id, 'resume_built', 'Built Interactive Resume & Profile', `Updated CV with score ${atsResult.atsScore}/100`);
+
     const updatedStudent = db.prepare('SELECT * FROM student_profiles WHERE id = ?').get(student_id);
 
     res.json({
       success: true,
-      message: 'Comprehensive placement profile, structured resume, and document dossier successfully generated & verified!',
-      student: updatedStudent,
+      message: 'Comprehensive placement profile & resume saved!',
+      student: {
+        ...updatedStudent,
+        profile_completion: calculateProfileCompletion(updatedStudent)
+      },
       atsScore: atsResult.atsScore,
       atsFeedback: atsResult.feedback,
-      parsedResume: synthesizedResumeJson,
-      targetCompanyMatch
+      parsedResume: synthesizedResumeJson
     });
   } catch (err) {
     console.error('Resume builder save error:', err);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Live Gemini AI Resume Generator / Regenerator Endpoint
-router.post('/builder/ai-enhance', async (req, res) => {
-  try {
-    const { student_data, target_requirement_id } = req.body;
-    if (!student_data) {
-      return res.status(400).json({ error: 'student_data is required.' });
-    }
-
-    let targetReq = null;
-    if (target_requirement_id) {
-      targetReq = db.prepare(`
-        SELECT r.*, c.company_name, c.logo_url
-        FROM requirements r
-        JOIN company_profiles c ON r.company_id = c.id
-        WHERE r.id = ?
-      `).get(target_requirement_id);
-    }
-
-    const aiEnhanced = await enhanceResumeWithGemini(student_data, targetReq);
-    res.json({ success: true, aiEnhanced });
-  } catch (err) {
-    console.error('AI resume enhancement error:', err);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Requirements Feed with Personalized Match Scores
-router.get('/requirements', (req, res) => {
-  try {
-    const { studentId, showAll } = req.query;
-    const student = studentId ? db.prepare('SELECT * FROM student_profiles WHERE id = ?').get(studentId) : null;
-
-    const requirements = db.prepare(`
-      SELECT r.*, c.company_name, c.logo_url, c.industry, c.website
-      FROM requirements r
-      JOIN company_profiles c ON r.company_id = c.id
-      WHERE c.approved = 1
-      ORDER BY r.created_at DESC
-    `).all();
-
-    const requirementsWithScores = requirements.map(reqItem => {
-      let matchInfo = {
-        matchScore: null,
-        eligible: true,
-        reason: 'Upload resume to calculate exact NLP match score',
-        matchedSkills: [],
-        missingSkills: [],
-        strengthSummary: 'Upload resume to generate AI domain match analysis.',
-        improvementTips: ['Upload resume in Student Workspace to analyze match.']
-      };
-
-      if (student && student.parsed_resume_json) {
-        matchInfo = calculateMatchScore(student, reqItem);
-      }
-
-      return {
-        ...reqItem,
-        matchScore: matchInfo.matchScore,
-        eligible: matchInfo.eligible,
-        eligibilityReason: matchInfo.reason,
-        matchedSkills: matchInfo.matchedSkills || [],
-        missingSkills: matchInfo.missingSkills || [],
-        strengthSummary: matchInfo.strengthSummary || '',
-        improvementTips: matchInfo.improvementTips || [],
-        breakdown: matchInfo.breakdown || {}
-      };
-    });
-
-    let finalFeed = requirementsWithScores;
-    if (student && showAll !== 'true') {
-      finalFeed = requirementsWithScores.filter(r => r.eligible);
-    }
-
-    res.json({
-      studentHasResume: Boolean(student && student.parsed_resume_json),
-      feed: finalFeed
-    });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Apply for Job Requirement
-router.post('/apply', async (req, res) => {
-  try {
-    const { student_id, requirement_id } = req.body;
-    if (!student_id || !requirement_id) {
-      return res.status(400).json({ error: 'student_id and requirement_id are required.' });
-    }
-
-    let student = db.prepare('SELECT * FROM student_profiles WHERE id = ?').get(student_id);
-    if (!student) {
-      const userId = 'u_user_' + Date.now();
-      const defaultStudent = {
-        name: 'Om P. Thakkar',
-        program: 'BTech CSE',
-        branch: 'Computer Science & Engineering',
-        cgpa: 8.4,
-        ats_score: 95,
-        skills: ['Python', 'React', 'SQL', 'FastAPI', 'Node.js']
-      };
-
-      db.prepare(`
-        INSERT OR IGNORE INTO users (id, email, password_hash, role)
-        VALUES (?, ?, ?, 'student')
-      `).run(userId, `${student_id}_${Date.now()}@student.gsfc.edu`, 'hash_pwd_123');
-
-      db.prepare(`
-        INSERT OR REPLACE INTO student_profiles (id, user_id, roll_number, name, program, branch, cgpa, ats_score, parsed_resume_json)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(student_id, userId, 'GSFC/2026/CSE/001', defaultStudent.name, defaultStudent.program, defaultStudent.branch, defaultStudent.cgpa, defaultStudent.ats_score, JSON.stringify(defaultStudent));
-      student = db.prepare('SELECT * FROM student_profiles WHERE id = ?').get(student_id);
-    }
-
-    if (!student.parsed_resume_json) {
-      const defaultResume = {
-        name: student.name || 'Om P. Thakkar',
-        program: student.program || 'BTech CSE',
-        cgpa: student.cgpa || 8.4,
-        skills: ['Python', 'React', 'SQL', 'FastAPI', 'Node.js']
-      };
-      db.prepare('UPDATE student_profiles SET parsed_resume_json = ? WHERE id = ?').run(JSON.stringify(defaultResume), student_id);
-      student = db.prepare('SELECT * FROM student_profiles WHERE id = ?').get(student_id);
-    }
-
-    const requirement = db.prepare('SELECT * FROM requirements WHERE id = ?').get(requirement_id);
-    if (!requirement) {
-      return res.status(404).json({ error: 'Requirement not found.' });
-    }
-
-    if (requirement.applications_open === 0) {
-      return res.status(400).json({ 
-        error: 'Applications are closed for this requirement. The recruiter is no longer accepting new submissions.' 
-      });
-    }
-
-    const matchRes = calculateMatchScore(student, requirement);
-    if (!matchRes.eligible) {
-      return res.status(400).json({ 
-        error: `Application blocked: ${matchRes.reason}` 
-      });
-    }
-
-    const existingApp = db.prepare('SELECT * FROM applications WHERE student_id = ? AND requirement_id = ?').get(student_id, requirement_id);
-    if (existingApp) {
-      return res.status(400).json({ error: 'You have already applied for this requirement.' });
-    }
-
-    const appId = 'app_' + Date.now();
-    const appliedVia = req.body.applied_via === 'external' ? 'external' : 'internal';
-    const override = req.body.override_data || {};
-
-    if (override.phone) {
-      db.prepare('UPDATE student_profiles SET phone = ? WHERE id = ?').run(override.phone, student_id);
-    }
-
-    // Generate initial authenticity inspection report for candidate application
-    const candidateContext = {
-      admissionYear: student.admission_year || 2022,
-      passingYear: student.passing_year || 2026,
-      claimedCgpa: override.cgpa ? parseFloat(override.cgpa) : (student.cgpa || 8.5)
-    };
-
-    const dossierFileName = override.dossierFileName || `${student.roll_number || 'Candidate'}_Credentials_Dossier.pdf`;
-    const mockBuffer = Buffer.from(`GSFC University Academic Credentials & Certificate Dossier for ${student.name || 'Candidate'} (${student.roll_number || 'Roll'}). Program: ${student.program || 'BTech'}. CGPA: ${candidateContext.claimedCgpa}. Verified by GSFC TPC.`);
-
-    const authReport = await analyzeDocumentAuthenticity(mockBuffer, dossierFileName, 'application/pdf', candidateContext);
-    authReport.application_id = appId;
-    authReport.student_id = student_id;
-
-    db.prepare(`
-      INSERT INTO applications (id, student_id, requirement_id, match_score, status, applied_via, combined_dossier_url, authenticity_report_json)
-      VALUES (?, ?, ?, ?, 'applied', ?, ?, ?)
-    `).run(appId, student_id, requirement_id, matchRes.matchScore, appliedVia, override.dossierUrl || null, JSON.stringify(authReport));
-
-    db.prepare(`
-      INSERT OR REPLACE INTO document_authenticity_reports 
-      (id, application_id, student_id, file_name, file_type, file_size, risk_level, risk_score, summary_verdict, metadata_signals_json, signals_list_json, disclaimer)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(
-      authReport.id, appId, student_id, authReport.file_name, authReport.file_type, 
-      1024 * 512, authReport.risk_level, authReport.risk_score, authReport.summary_verdict,
-      JSON.stringify(authReport.metadata_signals), JSON.stringify(authReport.signals), authReport.disclaimer
-    );
-
-    res.status(201).json({ 
-      message: 'Application submitted successfully!', 
-      applicationId: appId, 
-      matchScore: matchRes.matchScore, 
-      appliedVia,
-      authenticityReport: authReport
-    });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Increment External Application Click Counter Endpoint
-router.post('/increment-external-click', (req, res) => {
-  try {
-    const { requirement_id } = req.body;
-    if (!requirement_id) {
-      return res.status(400).json({ error: 'requirement_id is required.' });
-    }
-
-    db.prepare('UPDATE requirements SET external_click_count = COALESCE(external_click_count, 0) + 1 WHERE id = ?').run(requirement_id);
-    const reqItem = db.prepare('SELECT external_click_count FROM requirements WHERE id = ?').get(requirement_id);
-    res.json({ success: true, external_click_count: reqItem?.external_click_count || 1 });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// My Applications list
-router.get('/applications', (req, res) => {
-  try {
-    const studentId = req.query.studentId || req.query.student_id;
-    if (!studentId) return res.status(400).json({ error: 'studentId or student_id query parameter required' });
-
-    const apps = db.prepare(`
-      SELECT a.*, r.title as job_title, r.ctc_range, r.job_type, r.deadline, r.application_type, r.external_apply_url, c.company_name, c.logo_url
-      FROM applications a
-      JOIN requirements r ON a.requirement_id = r.id
-      JOIN company_profiles c ON r.company_id = c.id
-      WHERE a.student_id = ?
-      ORDER BY a.applied_at DESC
-    `).all(studentId);
-
-    res.json(apps);
-  } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
@@ -651,17 +997,6 @@ router.post('/send-email-report', (req, res) => {
       candidate: candidate_name || 'Candidate',
       timestamp: new Date().toISOString()
     });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Withdraw / Delete Application
-router.delete('/applications/:id', (req, res) => {
-  try {
-    const appId = req.params.id;
-    db.prepare('DELETE FROM applications WHERE id = ?').run(appId);
-    res.json({ message: 'Application withdrawn/deleted successfully.', id: appId });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

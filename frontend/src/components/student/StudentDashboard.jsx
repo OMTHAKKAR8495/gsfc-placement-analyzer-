@@ -297,11 +297,17 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
   ];
 
 
+  const [bookmarkedOnly, setBookmarkedOnly] = useState(false);
+  const [bookmarkedIds, setBookmarkedIds] = useState(new Set());
+  const [assessmentsList, setAssessmentsList] = useState([]);
+  const [interviewsList, setInterviewsList] = useState([]);
+
   useEffect(() => {
     fetchFeed();
-    if (student) {
+    if (student || currentUser) {
       fetchApplications();
-      if (student.name) setCandidateName(student.name);
+      fetchAssessmentsAndInterviews();
+      if (student?.name) setCandidateName(student.name);
     }
     // Fetch 10-point placement readiness & probability
     const sId = student?.id || currentUser?.profile?.id || 'demo';
@@ -313,12 +319,19 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
 
   const fetchFeed = async () => {
     try {
-      const studentId = student?.id || '';
-      const res = await fetch(`/api/student/requirements?studentId=${studentId}&showAll=${showAllFeed}`);
+      const studentId = currentUser?.profile?.id || currentUser?.owner_id || student?.id || '';
+      const token = localStorage.getItem('campushire_token');
+      const headers = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      const res = await fetch(`/api/student/requirements?studentId=${studentId}&showAll=${showAllFeed}`, { headers });
       if (res.ok) {
         const data = await res.json();
         if (data.feed && data.feed.length > 0) {
           setRequirementsFeed(data.feed);
+          const bSet = new Set();
+          data.feed.forEach(r => { if (r.is_bookmarked) bSet.add(r.id); });
+          setBookmarkedIds(bSet);
           return;
         }
       }
@@ -331,13 +344,85 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
   };
 
   const fetchApplications = async () => {
-    if (!student?.id) return;
+    const studentId = currentUser?.profile?.id || currentUser?.owner_id || student?.id || currentUser?.id;
+    if (!studentId) return;
     try {
-      const res = await fetch(`/api/student/applications?studentId=${student.id}`);
+      const token = localStorage.getItem('campushire_token');
+      const headers = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      const res = await fetch(`/api/student/applications?studentId=${studentId}`, { headers });
       const data = await res.json();
-      setApplications(data);
+      setApplications(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error('Error fetching applications:', err);
+    }
+  };
+
+  const fetchAssessmentsAndInterviews = async () => {
+    const studentId = currentUser?.profile?.id || currentUser?.owner_id || student?.id || currentUser?.id;
+    if (!studentId) return;
+    try {
+      const token = localStorage.getItem('campushire_token');
+      const headers = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      const [asmtRes, intRes] = await Promise.all([
+        fetch(`/api/student/assessments?student_id=${studentId}`, { headers }),
+        fetch(`/api/student/interviews?student_id=${studentId}`, { headers })
+      ]);
+      if (asmtRes.ok) {
+        const asmts = await asmtRes.json();
+        setAssessmentsList(Array.isArray(asmts) ? asmts : []);
+      }
+      if (intRes.ok) {
+        const ints = await intRes.json();
+        setInterviewsList(Array.isArray(ints) ? ints : []);
+      }
+    } catch (err) {
+      console.error('Error fetching assessments:', err);
+    }
+  };
+
+  const handleToggleBookmark = async (e, reqId) => {
+    e.stopPropagation();
+    const studentId = currentUser?.profile?.id || currentUser?.owner_id || student?.id || currentUser?.id;
+    if (!studentId) {
+      if (onOpenAuthModal) onOpenAuthModal();
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('campushire_token');
+      const headers = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      const res = await fetch('/api/student/bookmarks', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          student_id: studentId,
+          entity_id: reqId,
+          entity_type: 'requirement'
+        })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setBookmarkedIds(prev => {
+          const next = new Set(prev);
+          if (data.is_bookmarked) {
+            next.add(reqId);
+            showToast({ type: 'success', title: '⭐ Saved to Bookmarks', message: 'Requirement saved to your personal dashboard.' });
+          } else {
+            next.delete(reqId);
+            showToast({ type: 'info', title: 'Bookmark Removed', message: 'Requirement removed from bookmarks.' });
+          }
+          return next;
+        });
+        setRequirementsFeed(prev => prev.map(r => r.id === reqId ? { ...r, is_bookmarked: data.is_bookmarked } : r));
+      }
+    } catch (err) {
+      console.error('Error toggling bookmark:', err);
     }
   };
 
@@ -624,7 +709,9 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
     }
 
     const matchesBranch = selectedBranch === 'All' || (Array.isArray(programs) && programs.some(p => String(p).toLowerCase().includes(selectedBranch.toLowerCase())));
-    return matchesSearch && matchesBranch;
+    const matchesBookmark = !bookmarkedOnly || (bookmarkedIds.has(r.id) || r.is_bookmarked);
+
+    return matchesSearch && matchesBranch && matchesBookmark;
   });
 
   if (mockSessionActive && mockTargetRequirement && student) {
@@ -648,70 +735,65 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
             </div>
             <div>
               <div className="text-[11px] font-black uppercase tracking-wider text-amber-300 flex items-center gap-1.5">
-                <Sparkles className="w-3.5 h-3.5" /> Corporate Recruiter Workspace Active
+                <Sparkles className="w-3.5 h-3.5" /> GSFC University Placement Engine
               </div>
-              <div className="text-sm sm:text-base font-black text-white">
-                Logged in as {currentUser.profile?.company_name || currentUser.email}
-              </div>
-              <p className="text-xs text-slate-200 font-bold mt-0.5">
-                Ready to recruit top talent from GSFC University? Click below to fill hiring requirements.
+              <h2 className="text-base sm:text-lg font-black tracking-tight mt-0.5">
+                Corporate Hiring Portal: {currentCompanyName || 'Your Organization'}
+              </h2>
+              <p className="text-xs text-blue-100 max-w-xl font-medium mt-0.5">
+                Manage your campus hiring drives, create new job openings, and review AI-ranked candidate dossiers in the dedicated Recruiter Portal.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => {
+              if (onOpenJobPost) {
+                onOpenJobPost();
+              } else {
+                window.location.hash = '#company';
+              }
+            }}
+            className="px-5 py-2.5 bg-white hover:bg-slate-100 text-blue-950 font-black text-xs rounded-2xl shadow-lg flex items-center gap-2 transition-all hover:scale-105 shrink-0 cursor-pointer"
+          >
+            <Plus className="w-4 h-4 text-blue-900" />
+            <span>+ Post New Job / Drive</span>
+          </button>
+        </div>
+      )}
+
+      {/* Main Student Header Hero */}
+      <div className="glass-panel p-6 sm:p-8 rounded-3xl relative overflow-hidden border border-slate-200/90 shadow-xl bg-gradient-to-r from-blue-900/10 via-teal-900/10 to-indigo-900/10">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="px-3 py-1 bg-blue-100 text-blue-900 border border-blue-200 rounded-full text-xs font-black flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-blue-900" /> GSFC University Placement Workspace
+              </span>
+              <span className="px-3 py-1 bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-full text-xs font-black flex items-center gap-1.5">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-800" /> {student?.program || 'BTech CSE'} ({student?.cgpa || 8.5} CGPA)
+              </span>
+            </div>
+
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+                Welcome to <span className="text-gradient">GSFC Placement Portal</span>, {candidateName}
+              </h1>
+              <p className="text-xs sm:text-sm text-slate-700 font-bold max-w-xl mt-1 leading-relaxed">
+                Smart Resume Analyzer powered by NLP & Gemini AI. Visual skill match analytics, ATS compliance evaluation, and automated interview coaching.
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto shrink-0">
-            <button
-              onClick={onOpenJobPost || (() => { window.location.hash = '#company'; })}
-              className="py-2.5 px-4 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 font-black text-xs rounded-xl shadow-lg flex items-center gap-1.5 transition-all cursor-pointer hover:scale-105"
-            >
-              <Plus className="w-4 h-4 stroke-[3]" />
-              <span>Post / Upload Job Requirement</span>
-            </button>
-            <button
-              onClick={() => { window.location.hash = '#company'; }}
-              className="py-2.5 px-3.5 bg-white/10 hover:bg-white/20 text-white font-black text-xs rounded-xl border border-white/20 transition-all cursor-pointer"
-            >
-              <span>Recruiter Portal ➔</span>
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Hero Header Section */}
-      <div className="relative overflow-hidden rounded-3xl glass-panel p-4 sm:p-8 border border-slate-200/90 shadow-xl">
-        <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-          <div>
-            <div className="flex flex-wrap items-center gap-2 mb-3">
-              <span className="px-3 py-1 bg-blue-900/10 text-blue-900 border border-blue-900/25 text-xs font-black rounded-lg flex items-center gap-1.5 shadow-sm">
-                <Sparkles className="w-3.5 h-3.5 text-blue-800" /> GSFC University Placement Workspace
-              </span>
-              {student && (
-                <span className="px-3 py-1 bg-emerald-600/10 text-emerald-800 border border-emerald-600/25 text-xs font-black rounded-lg flex items-center gap-1.5">
-                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" /> {student.program} ({student.cgpa} CGPA)
-                </span>
-              )}
-            </div>
-
-            <h1 className="text-xl sm:text-3xl lg:text-4xl font-black text-slate-900 tracking-tight leading-snug break-words">
-              Welcome to <span className="gradient-text">GSFC Placement Portal</span>, {candidateName}
-            </h1>
-            <p className="text-xs sm:text-sm text-slate-700 mt-1.5 max-w-2xl font-bold leading-relaxed">
-              Smart Resume Analyzer powered by NLP & Gemini AI. Visual skill match analytics, ATS compliance evaluation, and automated interview coaching.
-            </p>
-          </div>
-
-          {/* ATS Score Circular Meter */}
-          <div className="flex flex-wrap items-center gap-4 bg-white/90 p-4 rounded-2xl border border-slate-200/90 shadow-lg backdrop-blur-md w-full md:w-auto justify-between sm:justify-start">
+          <div className="flex items-center gap-3 bg-white/80 p-3 sm:p-4 rounded-2xl border border-slate-200/90 shadow-sm shrink-0">
             {student ? (
-              <div className="flex items-center gap-3.5">
-                <div className="relative w-14 h-14 flex items-center justify-center shrink-0">
-                  <svg className="w-full h-full transform -rotate-90">
-                    <circle cx="28" cy="28" r="22" stroke="currentColor" strokeWidth="4" className="text-slate-200" fill="transparent" />
-                    <circle
-                      cx="28" cy="28" r="22" stroke="currentColor" strokeWidth="4"
-                      strokeDasharray={138}
-                      strokeDashoffset={138 - (138 * (student.ats_score || 92)) / 100}
-                      className={`${(student.ats_score || 92) >= 85 ? 'text-blue-900' : 'text-amber-600'} transition-all duration-1000`}
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-full border-4 border-blue-900/20 flex items-center justify-center relative">
+                  <svg className="w-full h-full -rotate-90" viewBox="0 0 36 36">
+                    <path
+                      d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                      stroke="#1e3a8a"
+                      strokeWidth="3.5"
+                      strokeDasharray={`${student.ats_score || 92}, 100`}
                       strokeLinecap="round" fill="transparent"
                     />
                   </svg>
@@ -724,40 +806,20 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
                   </div>
                   <div className="flex items-center gap-2 mt-1">
                     <button
-                      onClick={() => setActiveTab('profile')}
-                      className="text-[10px] text-blue-800 hover:underline font-extrabold block"
+                      onClick={() => handleTabChange('profile')}
+                      className="text-[10px] text-blue-800 hover:underline font-extrabold block cursor-pointer"
                     >
                       View Breakdown &rarr;
                     </button>
                     <span className="text-slate-300">•</span>
                     <button
                       onClick={() => setResumePromptOpen(true)}
-                      className="text-[10px] text-blue-600 hover:text-blue-800 font-black flex items-center gap-0.5"
+                      className="text-[10px] text-blue-600 hover:text-blue-800 font-black flex items-center gap-0.5 cursor-pointer"
                     >
-                      <Sparkles className="w-2.5 h-2.5" />
-                      <span>Re-Check ATS</span>
+                      <Sparkles className="w-2.5 h-2.5" /> Re-Check ATS
                     </button>
                   </div>
                 </div>
-              </div>
-            ) : isCompanyUser ? (
-              <div className="text-xs text-slate-700 font-semibold space-y-2.5 min-w-[210px]">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="font-black text-sm text-slate-900 flex items-center gap-1.5 truncate">
-                    <Building2 className="w-4 h-4 text-blue-900 shrink-0" />
-                    <span className="truncate">{currentCompanyName || 'Recruiter'}</span>
-                  </div>
-                  <span className="px-2 py-0.5 bg-blue-100 text-blue-900 border border-blue-200 text-[10px] font-black rounded-md shrink-0 whitespace-nowrap">
-                    🏢 Recruiter
-                  </span>
-                </div>
-                <button
-                  onClick={() => { window.location.hash = '#company'; }}
-                  className="w-full py-2 px-3 bg-gradient-to-r from-blue-900 via-indigo-900 to-amber-600 hover:from-blue-800 hover:to-amber-500 text-white rounded-xl text-xs font-black flex items-center justify-center gap-1.5 shadow-md transition-all cursor-pointer whitespace-nowrap"
-                >
-                  <span>Open Recruiter Portal</span>
-                  <ArrowRight className="w-3.5 h-3.5 shrink-0" />
-                </button>
               </div>
             ) : (
               <div className="text-xs text-slate-700 font-semibold">
@@ -833,13 +895,6 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
           </button>
 
           <button
-            onClick={() => setCopilotOpen(true)}
-            className="flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl text-xs font-black transition-all shrink-0 whitespace-nowrap bg-purple-900 hover:bg-purple-800 text-white shadow-md border border-purple-400/40 hover:scale-105 cursor-pointer"
-          >
-            <Sparkles className="w-4 h-4 text-amber-300 animate-pulse" /> 🤖 AI Career Copilot
-          </button>
-
-          <button
             onClick={() => handleTabChange('applications')}
             className={`flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl text-xs font-black transition-all shrink-0 whitespace-nowrap cursor-pointer ${
               activeTab === 'applications'
@@ -848,6 +903,24 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
             }`}
           >
             <Award className="w-4 h-4" /> My Applications ({applications.length})
+          </button>
+
+          <button
+            onClick={() => handleTabChange('assessments')}
+            className={`flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl text-xs font-black transition-all shrink-0 whitespace-nowrap cursor-pointer ${
+              activeTab === 'assessments'
+                ? 'bg-theme-gradient text-white shadow-lg'
+                : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100/80'
+            }`}
+          >
+            <CheckCircle2 className="w-4 h-4 text-emerald-400" /> My Assessments & Tests ({assessmentsList.length + interviewsList.length})
+          </button>
+
+          <button
+            onClick={() => setCopilotOpen(true)}
+            className="flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl text-xs font-black transition-all shrink-0 whitespace-nowrap bg-purple-900 hover:bg-purple-800 text-white shadow-md border border-purple-400/40 hover:scale-105 cursor-pointer"
+          >
+            <Sparkles className="w-4 h-4 text-amber-300 animate-pulse" /> 🤖 AI Career Copilot
           </button>
         </div>
       </div>
@@ -886,13 +959,23 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
                   </select>
                 </div>
 
-                <div className="flex items-center gap-3 justify-between md:justify-end">
+                <div className="flex items-center gap-3 justify-between md:justify-end flex-wrap">
+                  <label className="flex items-center gap-1.5 text-xs font-black text-slate-800 cursor-pointer select-none bg-amber-50 px-3 py-1.5 rounded-xl border border-amber-200 text-amber-900 shadow-sm">
+                    <input
+                      type="checkbox"
+                      checked={bookmarkedOnly}
+                      onChange={(e) => setBookmarkedOnly(e.target.checked)}
+                      className="rounded border-amber-400 text-amber-600 focus:ring-amber-500 w-3.5 h-3.5 cursor-pointer"
+                    />
+                    <span>⭐ Saved / Bookmarked</span>
+                  </label>
+
                   <label className="flex items-center gap-2 text-xs font-black text-slate-800 cursor-pointer select-none">
                     <input
                       type="checkbox"
                       checked={showAllFeed}
                       onChange={(e) => setShowAllFeed(e.target.checked)}
-                      className="rounded border-slate-300 text-blue-900 focus:ring-blue-900 w-4 h-4"
+                      className="rounded border-slate-300 text-blue-900 focus:ring-blue-900 w-4 h-4 cursor-pointer"
                     />
                     Show Ineligible Roles
                   </label>
@@ -919,7 +1002,7 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
                             <div className="flex items-center gap-2 flex-wrap">
                               <h3 className="font-black text-sm text-slate-900 group-hover:text-blue-900 transition-colors leading-tight">{req.title}</h3>
                               {req.applications_open === 0 && (
-                                <span className="px-2 py-0.5 bg-rose-100 dark:bg-rose-950/50 border border-rose-300 dark:border-rose-800 text-rose-800 dark:text-rose-300 text-[10px] font-black rounded-lg flex items-center gap-1 shadow-sm">
+                                <span className="px-2 py-0.5 bg-rose-100 text-rose-800 border border-rose-300 text-[10px] font-black rounded-lg flex items-center gap-1 shadow-sm">
                                   🔒 Applications Closed
                                 </span>
                               )}
@@ -928,44 +1011,59 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
                           </div>
                         </div>
 
-                        {req.matchScore !== null ? (
-                          <div 
-                            onClick={() => setSelectedMatchBreakdown(req)}
-                            className={`px-3 py-1.5 rounded-2xl border text-center font-black text-xs shrink-0 shadow-sm cursor-pointer hover:scale-105 transition-all ${
-                              !req.eligible
-                                ? 'bg-red-50 border-red-200 text-red-700'
-                                : req.matchScore >= 85
-                                ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
-                                : req.matchScore >= 70
-                                ? 'bg-blue-50 border-blue-200 text-blue-900'
-                                : 'bg-amber-50 border-amber-200 text-amber-900'
+                        <div className="flex items-center gap-2 shrink-0">
+                          <button
+                            type="button"
+                            onClick={(e) => handleToggleBookmark(e, req.id)}
+                            className={`p-2 rounded-xl border transition-all cursor-pointer shadow-sm shrink-0 flex items-center justify-center ${
+                              bookmarkedIds.has(req.id) || req.is_bookmarked
+                                ? 'bg-amber-100 text-amber-900 border-amber-300'
+                                : 'bg-white text-slate-400 hover:text-amber-600 border-slate-200'
                             }`}
-                            title="Click to view AI Match Breakdown & Skill Analysis"
+                            title={bookmarkedIds.has(req.id) || req.is_bookmarked ? 'Remove Bookmark' : 'Bookmark / Save Drive'}
                           >
-                            <div className="text-[9px] uppercase font-black tracking-wider opacity-80 flex items-center gap-1 justify-center">
-                              <Sparkles className="w-2.5 h-2.5" /> NLP Match
-                            </div>
-                            <div className="text-xs font-black">
-                              {req.eligible ? `${req.matchScore}% Match` : 'Ineligible'}
-                            </div>
-                          </div>
-                        ) : (
-                          <button 
-                            onClick={() => {
-                              if (onOpenAuthModal) onOpenAuthModal();
-                              else showToast({
-                                type: 'info',
-                                title: 'Resume Needed',
-                                message: 'Please upload your resume in the Student Workspace to calculate your personalized NLP match score.',
-                                triggerCrackles: false
-                              });
-                            }}
-                            className="px-3 py-1.5 rounded-2xl border border-amber-400/50 bg-amber-50 text-amber-900 font-black text-[11px] shrink-0 shadow-sm hover:bg-amber-100 flex items-center gap-1.5 cursor-pointer transition-all"
-                          >
-                            <Sparkles className="w-3.5 h-3.5 text-amber-600 animate-pulse" />
-                            <span>Upload Resume for Match %</span>
+                            <Bookmark className={`w-4 h-4 ${bookmarkedIds.has(req.id) || req.is_bookmarked ? 'fill-amber-500 text-amber-600' : ''}`} />
                           </button>
-                        )}
+
+                          {req.matchScore !== null ? (
+                            <div 
+                              onClick={() => setSelectedMatchBreakdown(req)}
+                              className={`px-3 py-1.5 rounded-2xl border text-center font-black text-xs shrink-0 shadow-sm cursor-pointer hover:scale-105 transition-all ${
+                                !req.eligible
+                                  ? 'bg-red-50 border-red-200 text-red-700'
+                                  : req.matchScore >= 85
+                                  ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                                  : req.matchScore >= 70
+                                  ? 'bg-blue-50 border-blue-200 text-blue-900'
+                                  : 'bg-amber-50 border-amber-200 text-amber-900'
+                              }`}
+                              title="Click to view AI Match Breakdown & Skill Analysis"
+                            >
+                              <div className="text-[9px] uppercase font-black tracking-wider opacity-80 flex items-center gap-1 justify-center">
+                                <Sparkles className="w-2.5 h-2.5" /> NLP Match
+                              </div>
+                              <div className="text-xs font-black">
+                                {req.eligible ? `${req.matchScore}% Match` : 'Ineligible'}
+                              </div>
+                            </div>
+                          ) : (
+                            <button 
+                              onClick={() => {
+                                if (onOpenAuthModal) onOpenAuthModal();
+                                else showToast({
+                                  type: 'info',
+                                  title: 'Resume Needed',
+                                  message: 'Please upload your resume in the Student Workspace to calculate your personalized NLP match score.',
+                                  triggerCrackles: false
+                                });
+                              }}
+                              className="px-3 py-1.5 rounded-2xl border border-amber-400/50 bg-amber-50 text-amber-900 font-black text-[11px] shrink-0 shadow-sm hover:bg-amber-100 flex items-center gap-1.5 cursor-pointer transition-all"
+                            >
+                              <Sparkles className="w-3.5 h-3.5 text-amber-600 animate-pulse" />
+                              <span>Match %</span>
+                            </button>
+                          )}
+                        </div>
                       </div>
 
                       <p className="text-xs text-slate-700 leading-relaxed font-semibold line-clamp-2">{req.job_description}</p>
@@ -1508,6 +1606,144 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
                 currentUser={currentUser}
                 onOpenAuth={onOpenAuthModal}
               />
+            </div>
+          )}
+
+          {activeTab === 'assessments' && (
+            <div className="glass-panel p-4 sm:p-6 rounded-3xl border border-slate-200/90 space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-4">
+                <div className="space-y-1">
+                  <div className="inline-flex items-center gap-2 px-3 py-1 bg-emerald-100 text-emerald-800 rounded-full text-xs font-black border border-emerald-200">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>Verified Assessment & Interview History</span>
+                  </div>
+                  <h2 className="text-xl font-black text-slate-900">
+                    My Technical Tests & AI Mock Interviews
+                  </h2>
+                  <p className="text-xs text-slate-600 font-medium">
+                    Permanent assessment scorecards, proctoring integrity records, and AI mock interview feedback stored in your GSFC account.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    onClick={() => setEcosystemModalOpen(true)}
+                    className="px-4 py-2.5 bg-theme-gradient text-white rounded-xl text-xs font-black shadow-md hover:scale-105 transition-transform flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <Code className="w-4 h-4" />
+                    <span>Take Proctored Test</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Assessment Records */}
+              <div className="space-y-4">
+                <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                  <Award className="w-4 h-4 text-emerald-600" />
+                  <span>Proctored Test Results ({assessmentsList.length})</span>
+                </h3>
+
+                {assessmentsList.length === 0 ? (
+                  <div className="p-8 text-center glass-panel rounded-2xl border border-slate-200 space-y-2">
+                    <CheckCircle2 className="w-10 h-10 text-slate-300 mx-auto" />
+                    <h4 className="text-sm font-black text-slate-700">No Assessment Records Yet</h4>
+                    <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                      Complete proctored coding and aptitude assessments to verify your skills for corporate recruiter shortlists.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {assessmentsList.map(asmt => (
+                      <div key={asmt.id} className="glass-card p-4 rounded-2xl border border-slate-200/90 space-y-3">
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded text-[10px] font-black uppercase">
+                              {asmt.assessment_type || 'technical'}
+                            </span>
+                            <h4 className="text-sm font-black text-slate-900 mt-1 leading-snug">
+                              {asmt.assessment_title}
+                            </h4>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <span className="text-base font-black text-emerald-700">
+                              {asmt.percentage}%
+                            </span>
+                            <div className="text-[10px] text-slate-500 font-bold">
+                              {asmt.score} pts
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-3 gap-2 bg-slate-100/90 p-2.5 rounded-xl text-[11px] font-bold text-slate-700">
+                          <div>
+                            <span className="text-slate-400 block text-[9px] uppercase font-black">Attempted</span>
+                            <span>{asmt.questions_attempted || 0} Qs</span>
+                          </div>
+                          <div>
+                            <span className="text-slate-400 block text-[9px] uppercase font-black">Correct</span>
+                            <span className="text-emerald-600 font-black">{asmt.correct_answers || 0}</span>
+                          </div>
+                          <div>
+                            <span className="text-slate-400 block text-[9px] uppercase font-black">Status</span>
+                            <span className="text-blue-600 font-black uppercase text-[10px]">{asmt.status}</span>
+                          </div>
+                        </div>
+
+                        <div className="text-[10px] text-slate-400 font-medium">
+                          Submitted: {new Date(asmt.created_at || Date.now()).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' })}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Mock Interview Records */}
+              <div className="space-y-4 pt-4 border-t border-slate-200">
+                <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                  <Play className="w-4 h-4 text-blue-600" />
+                  <span>AI Mock Interview Sessions ({interviewsList.length})</span>
+                </h3>
+
+                {interviewsList.length === 0 ? (
+                  <div className="p-8 text-center glass-panel rounded-2xl border border-slate-200 space-y-2">
+                    <Play className="w-10 h-10 text-slate-300 mx-auto" />
+                    <h4 className="text-sm font-black text-slate-700">No Mock Interviews Attempted Yet</h4>
+                    <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                      Practice role-specific interview questions on any Live Drive to receive AI coaching and readiness scoring.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {interviewsList.map(session => (
+                      <div key={session.id} className="glass-card p-4 rounded-2xl border border-slate-200/90 space-y-3">
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <span className="px-2 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 rounded text-[10px] font-black uppercase">
+                              {session.company_name || 'Corporate Drive'}
+                            </span>
+                            <h4 className="text-sm font-black text-slate-900 mt-1 leading-snug">
+                              {session.requirement_title || 'Role Interview'}
+                            </h4>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <span className="text-base font-black text-blue-700">
+                              {session.overall_score || 85}%
+                            </span>
+                            <div className="text-[10px] text-slate-500 font-bold">
+                              Overall Readiness
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="text-[10px] text-slate-400 font-medium">
+                          Completed: {new Date(session.created_at || Date.now()).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' })}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>
