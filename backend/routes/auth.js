@@ -144,6 +144,8 @@ router.post('/login', AuthRateLimiter.loginLimiter, async (req, res) => {
       email.toLowerCase().includes('c_');
     const isAdminEmail = email.toLowerCase().includes('admin') || email.toLowerCase().includes('tpc');
     const isFacultyEmail = email.toLowerCase().includes('faculty') ||
+      email.toLowerCase().includes('gsfcuniversityfaculty') ||
+      email.toLowerCase().includes('neeshuchaudhary') ||
       email.toLowerCase().includes('prof.') ||
       email.toLowerCase().includes('dr.') ||
       email.toLowerCase().includes('hod') ||

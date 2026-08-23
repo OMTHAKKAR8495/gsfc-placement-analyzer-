@@ -228,7 +228,23 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialRole 
   if (!isOpen) return null;
 
   const handleChange = (e) => {
-    setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+
+    // Auto-detect faculty role when email has 'gsfcuniversityfaculty' or 'faculty'
+    if (name === 'email') {
+      const lower = value.toLowerCase();
+      if (lower.includes('gsfcuniversityfaculty') || lower.includes('faculty') || lower.includes('neeshuchaudhary')) {
+        setRole('faculty');
+        setError('');
+      } else if (lower.includes('admin') || lower.includes('tpc')) {
+        setRole('admin');
+        setError('');
+      } else if (lower.includes('recruiter') || lower.includes('company') || lower.includes('gsfclimited')) {
+        setRole('company');
+        setError('');
+      }
+    }
   };
 
   const handleRoleChange = (newRole) => {
@@ -248,7 +264,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialRole 
       .join(' ');
     const effectiveName = userName?.trim() || (formattedEmailName || 'Student Candidate');
 
-    const isFaculty = userRole === 'faculty' || rawEmail.includes('faculty');
+    const isFaculty = userRole === 'faculty' || rawEmail.includes('faculty') || rawEmail.includes('gsfcuniversityfaculty') || rawEmail.includes('neeshuchaudhary');
     const isSuperAdmin = userRole === 'superadmin' || rawEmail.includes('superadmin');
     const isAlumni = userRole === 'alumni' || rawEmail.includes('alumni');
     const isCompany = userRole === 'company' || rawEmail.includes('hr') || rawEmail.includes('company') || rawEmail.includes('recruiter') || rawEmail.includes('gsfclimited');
@@ -277,16 +293,19 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialRole 
     }
 
     if (resolvedRole === 'faculty') {
+      const isNeeshu = rawEmail.includes('neeshuchaudhary');
+      const facultyName = isNeeshu ? 'Dr. Neeshu Chaudhary' : (effectiveName || 'Dr. Faculty Coordinator');
+      const facultyEmail = isNeeshu ? 'neeshuchaudhary@gsfcuniversityfaculty.ac.in' : (userEmail || 'faculty.cse@gsfcuniversity.ac.in');
       return {
-        id: 'u_' + emailPrefix,
-        name: effectiveName || 'Dr. Faculty Coordinator',
-        email: userEmail || 'faculty.cse@gsfcuniversity.ac.in',
+        id: 'u_' + (isNeeshu ? 'neeshu_chaudhary' : emailPrefix),
+        name: facultyName,
+        email: facultyEmail,
         role: 'faculty',
-        owner_id: 'f_' + emailPrefix,
-        department: 'BTech CSE & IT',
+        owner_id: 'f_' + (isNeeshu ? 'neeshu_chaudhary' : emailPrefix),
+        department: 'Computer Science & Engineering',
         profile: {
-          id: 'f_' + emailPrefix,
-          name: effectiveName || 'Dr. Faculty Coordinator',
+          id: 'f_' + (isNeeshu ? 'neeshu_chaudhary' : emailPrefix),
+          name: facultyName,
           department: 'Computer Science & Engineering',
           designation: 'Faculty Placement Coordinator'
         }
@@ -1221,7 +1240,15 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialRole 
                     value={formData.email}
                     onChange={handleChange}
                     required
-                    placeholder="name@gsfcuniversity.ac.in"
+                    placeholder={
+                      role === 'faculty' 
+                        ? 'neeshuchaudhary@gsfcuniversityfaculty.ac.in' 
+                        : role === 'admin' 
+                        ? 'admin@gsfcuniversity.ac.in' 
+                        : role === 'company' 
+                        ? 'recruiter@gsfclimited.com' 
+                        : 'name@gsfcuniversity.ac.in'
+                    }
                     className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 font-bold focus:outline-none focus:border-blue-900"
                   />
                 </div>

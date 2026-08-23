@@ -648,6 +648,22 @@ function applyMigrations() {
       const passHash = bcrypt.hashSync('password123', 10);
       db.prepare("INSERT INTO users (id, email, password_hash, role) VALUES (?, ?, ?, ?)").run('u_admin_gsfc', 'admin@gsfcuniversity.ac.in', passHash, 'admin');
     }
+
+    // Ensure Official GSFC Faculty Account: Dr. Neeshu Chaudhary
+    const facultyUser = db.prepare("SELECT * FROM users WHERE email = 'neeshuchaudhary@gsfcuniversityfaculty.ac.in'").get();
+    const facultyPassHash = bcrypt.hashSync('NEESHUCHAUDHARY@8495', 10);
+    if (!facultyUser) {
+      db.prepare("INSERT INTO users (id, email, password_hash, role) VALUES (?, ?, ?, ?)").run(
+        'u_faculty_neeshu',
+        'neeshuchaudhary@gsfcuniversityfaculty.ac.in',
+        facultyPassHash,
+        'faculty'
+      );
+    } else {
+      db.prepare("UPDATE users SET password_hash = ?, role = 'faculty' WHERE email = 'neeshuchaudhary@gsfcuniversityfaculty.ac.in'").run(
+        facultyPassHash
+      );
+    }
   } catch (err) {
     console.error('Migration notice:', err.message);
   }
