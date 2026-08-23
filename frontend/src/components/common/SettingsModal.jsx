@@ -4,13 +4,63 @@ import {
   X, Settings, User, Bell, Shield, Moon, Sun, Monitor, 
   Download, Trash2, Key, Check, CheckCircle2, AlertCircle, 
   Sparkles, HelpCircle, FileText, Smartphone, Mail, Globe, 
-  ExternalLink, Lock, Eye, EyeOff, RefreshCw 
+  ExternalLink, Lock, Eye, EyeOff, RefreshCw, Zap, Eye as EyeIcon, Minimize2 
 } from 'lucide-react';
 import { useToast } from '../../context/ToastContext';
 
+function ToggleSwitch({ enabled, onChange, label, description, icon: Icon, badge }) {
+  return (
+    <div 
+      onClick={() => onChange(!enabled)}
+      className={`flex items-center justify-between p-3.5 rounded-2xl border transition-all cursor-pointer select-none ${
+        enabled 
+          ? 'bg-blue-50/90 dark:bg-blue-950/40 border-blue-300 dark:border-blue-800 shadow-xs' 
+          : 'bg-slate-50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800'
+      }`}
+    >
+      <div className="flex items-start sm:items-center gap-3 min-w-0 pr-3">
+        {Icon && (
+          <div className={`p-2 rounded-xl shrink-0 transition-colors ${enabled ? 'bg-blue-900 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-500'}`}>
+            <Icon className="w-4 h-4" />
+          </div>
+        )}
+        <div>
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-black text-slate-900 dark:text-slate-100">{label}</span>
+            {badge && (
+              <span className={`px-1.5 py-0.5 text-[9px] font-black uppercase rounded-md ${
+                enabled ? 'bg-blue-200 text-blue-900 dark:bg-blue-900 dark:text-blue-200' : 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300'
+              }`}>
+                {badge}
+              </span>
+            )}
+          </div>
+          {description && <div className="text-[11px] text-slate-500 leading-tight mt-0.5">{description}</div>}
+        </div>
+      </div>
+
+      {/* iOS Style Pill Switch */}
+      <button
+        type="button"
+        role="switch"
+        aria-checked={enabled}
+        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+          enabled ? 'bg-blue-900' : 'bg-slate-300 dark:bg-slate-700'
+        }`}
+      >
+        <span
+          className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
+            enabled ? 'translate-x-5' : 'translate-x-0'
+          }`}
+        />
+      </button>
+    </div>
+  );
+}
+
 export default function SettingsModal({ isOpen, onClose, currentUser, theme, onToggleTheme, onOpenAuth }) {
   const { showToast } = useToast();
-  const [activeTab, setActiveTab] = useState('account');
+  const [activeTab, setActiveTab] = useState('appearance');
   
   // Account & Profile State
   const [displayName, setDisplayName] = useState('');
@@ -51,9 +101,18 @@ export default function SettingsModal({ isOpen, onClose, currentUser, theme, onT
       if (saved.notifShortlists !== undefined) setNotifShortlists(saved.notifShortlists);
       if (saved.notifWhatsApp !== undefined) setNotifWhatsApp(saved.notifWhatsApp);
       if (saved.notifDailyAi !== undefined) setNotifDailyAi(saved.notifDailyAi);
-      if (saved.compactDensity !== undefined) setCompactDensity(saved.compactDensity);
-      if (saved.highContrast !== undefined) setHighContrast(saved.highContrast);
-      if (saved.reducedMotion !== undefined) setReducedMotion(saved.reducedMotion);
+      if (saved.compactDensity !== undefined) {
+        setCompactDensity(saved.compactDensity);
+        document.documentElement.classList.toggle('compact-density', Boolean(saved.compactDensity));
+      }
+      if (saved.highContrast !== undefined) {
+        setHighContrast(saved.highContrast);
+        document.documentElement.classList.toggle('high-contrast', Boolean(saved.highContrast));
+      }
+      if (saved.reducedMotion !== undefined) {
+        setReducedMotion(saved.reducedMotion);
+        document.documentElement.classList.toggle('reduce-motion', Boolean(saved.reducedMotion));
+      }
     } catch(e) {}
   }, [currentUser, isOpen]);
 
@@ -67,6 +126,58 @@ export default function SettingsModal({ isOpen, onClose, currentUser, theme, onT
   }, [isOpen, onClose]);
 
   if (!isOpen) return null;
+
+  const updateSetting = (key, val, className = null) => {
+    try {
+      const current = JSON.parse(localStorage.getItem('gsfc_user_settings') || '{}');
+      current[key] = val;
+      localStorage.setItem('gsfc_user_settings', JSON.stringify(current));
+      
+      if (className) {
+        document.documentElement.classList.toggle(className, Boolean(val));
+      }
+    } catch(e) {}
+  };
+
+  const handleToggleCompact = (val) => {
+    setCompactDensity(val);
+    updateSetting('compactDensity', val, 'compact-density');
+    showToast({
+      type: val ? 'info' : 'default',
+      title: val ? '📐 Compact Density Enabled' : '📐 Standard Density Restored',
+      message: val ? 'Cards and tables are now packed tightly with optimized padding.' : 'Standard card spacing restored.'
+    });
+  };
+
+  const handleToggleHighContrast = (val) => {
+    setHighContrast(val);
+    updateSetting('highContrast', val, 'high-contrast');
+    showToast({
+      type: val ? 'info' : 'default',
+      title: val ? '👁️ High Contrast Mode Enabled' : '👁️ Standard Contrast Restored',
+      message: val ? 'Font weights, borders, and color contrasts enhanced.' : 'Standard theme contrast restored.'
+    });
+  };
+
+  const handleToggleReducedMotion = (val) => {
+    setReducedMotion(val);
+    updateSetting('reducedMotion', val, 'reduce-motion');
+    showToast({
+      type: val ? 'info' : 'default',
+      title: val ? '⚡ Reduced Motion Enabled' : '⚡ Smooth Animations Restored',
+      message: val ? 'Animations and transitions disabled for maximum performance.' : 'Dynamic micro-animations active.'
+    });
+  };
+
+  const handleToggleNotif = (key, val, setter, label) => {
+    setter(val);
+    updateSetting(key, val);
+    showToast({
+      type: val ? 'success' : 'default',
+      title: `${label} ${val ? 'Enabled' : 'Muted'}`,
+      message: `Your alert preference has been updated immediately.`
+    });
+  };
 
   const handleSaveSettings = () => {
     setSavingSettings(true);
@@ -87,10 +198,14 @@ export default function SettingsModal({ isOpen, onClose, currentUser, theme, onT
 
     try {
       localStorage.setItem('gsfc_user_settings', JSON.stringify(settingsObj));
+      document.documentElement.classList.toggle('compact-density', Boolean(compactDensity));
+      document.documentElement.classList.toggle('high-contrast', Boolean(highContrast));
+      document.documentElement.classList.toggle('reduce-motion', Boolean(reducedMotion));
+
       showToast({
         type: 'success',
-        title: '⚙️ Settings Saved',
-        message: 'Your portal preferences have been successfully updated.',
+        title: '⚙️ Settings Applied & Saved',
+        message: 'All preferences are actively applied across your workspace.',
         triggerCrackles: true
       });
     } catch(e) {}
@@ -98,7 +213,7 @@ export default function SettingsModal({ isOpen, onClose, currentUser, theme, onT
     setTimeout(() => {
       setSavingSettings(false);
       onClose();
-    }, 600);
+    }, 500);
   };
 
   const handleExportData = () => {
@@ -156,7 +271,7 @@ export default function SettingsModal({ isOpen, onClose, currentUser, theme, onT
                 </span>
               </div>
               <h2 className="text-xl font-black">Platform & Account Settings</h2>
-              <p className="text-xs text-slate-300 font-medium">Manage preferences, notifications, security & display</p>
+              <p className="text-xs text-slate-300 font-medium">Manage live workspace display, alerts, security & layout</p>
             </div>
           </div>
           <button 
@@ -172,8 +287,8 @@ export default function SettingsModal({ isOpen, onClose, currentUser, theme, onT
           {/* Tabs Sidebar */}
           <div className="w-full sm:w-60 bg-slate-50 dark:bg-slate-950/60 p-3 sm:p-4 border-b sm:border-b-0 sm:border-r border-slate-200 dark:border-slate-800 space-y-1 shrink-0 overflow-x-auto sm:overflow-y-auto">
             {[
-              { id: 'account', label: '👤 Account & Profile', icon: User },
               { id: 'appearance', label: '🎨 Theme & Display', icon: Moon },
+              { id: 'account', label: '👤 Account & Profile', icon: User },
               { id: 'notifications', label: '🔔 Notifications & SMS', icon: Bell },
               { id: 'security', label: '🔒 Security & Access', icon: Shield },
               { id: 'data', label: '📄 Data & Exports', icon: Download },
@@ -200,7 +315,76 @@ export default function SettingsModal({ isOpen, onClose, currentUser, theme, onT
           {/* Content Body */}
           <div className="flex-1 p-6 overflow-y-auto max-h-[60vh] space-y-6">
             
-            {/* 1. ACCOUNT & PROFILE */}
+            {/* 1. THEME & DISPLAY (DEFAULT TAB FOR IMMEDIATE VISUAL FEEDBACK) */}
+            {activeTab === 'appearance' && (
+              <div className="space-y-4 animate-fadeIn">
+                <div>
+                  <h3 className="text-sm font-black uppercase text-slate-400 tracking-wider">Appearance & Workspace Layout</h3>
+                  <p className="text-xs text-slate-500">Live customization of interface density, high-contrast, and themes.</p>
+                </div>
+
+                {/* Theme Selector */}
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => { if (theme !== 'light' && onToggleTheme) onToggleTheme(); }}
+                    className={`p-4 rounded-2xl border flex flex-col items-center gap-2 cursor-pointer transition-all ${
+                      theme === 'light'
+                        ? 'bg-blue-50 border-blue-500 text-blue-900 shadow-md ring-2 ring-blue-500/20'
+                        : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-slate-400'
+                    }`}
+                  >
+                    <Sun className="w-6 h-6 text-amber-500" />
+                    <span className="text-xs font-black">Light Mode</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => { if (theme !== 'dark' && onToggleTheme) onToggleTheme(); }}
+                    className={`p-4 rounded-2xl border flex flex-col items-center gap-2 cursor-pointer transition-all ${
+                      theme === 'dark'
+                        ? 'bg-indigo-950 border-indigo-500 text-white shadow-md ring-2 ring-indigo-500/20'
+                        : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-slate-400'
+                    }`}
+                  >
+                    <Moon className="w-6 h-6 text-indigo-400" />
+                    <span className="text-xs font-black">Dark Mode</span>
+                  </button>
+                </div>
+
+                {/* Live Functional Toggles */}
+                <div className="space-y-2.5 pt-2">
+                  <ToggleSwitch
+                    enabled={compactDensity}
+                    onChange={handleToggleCompact}
+                    label="Compact Table & Card Density"
+                    description="Condense drive cards, tables, and listings to display more information on screen"
+                    icon={Minimize2}
+                    badge={compactDensity ? 'Active' : 'Off'}
+                  />
+
+                  <ToggleSwitch
+                    enabled={highContrast}
+                    onChange={handleToggleHighContrast}
+                    label="High Contrast Text & Borders"
+                    description="Enhance text contrast, font weights, and border visibility for maximum readability"
+                    icon={EyeIcon}
+                    badge={highContrast ? 'Active' : 'Off'}
+                  />
+
+                  <ToggleSwitch
+                    enabled={reducedMotion}
+                    onChange={handleToggleReducedMotion}
+                    label="Reduce Animation Motion"
+                    description="Disable pulsing and gradient keyframes for instant, high-speed page performance"
+                    icon={Zap}
+                    badge={reducedMotion ? 'Active' : 'Off'}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* 2. ACCOUNT & PROFILE */}
             {activeTab === 'account' && (
               <div className="space-y-4 animate-fadeIn">
                 <div>
@@ -262,95 +446,22 @@ export default function SettingsModal({ isOpen, onClose, currentUser, theme, onT
                     />
                   </div>
 
-                  <div className="flex items-center justify-between p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-700">
-                    <div>
-                      <div className="text-xs font-bold text-slate-900 dark:text-slate-100">Recruiter Profile Visibility</div>
-                      <div className="text-[11px] text-slate-500">Allow verified corporate recruiters to view your parsed ATS skill card</div>
-                    </div>
-                    <input
-                      type="checkbox"
-                      checked={publicProfile}
-                      onChange={(e) => setPublicProfile(e.target.checked)}
-                      className="w-4 h-4 accent-blue-900 cursor-pointer"
-                    />
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* 2. THEME & DISPLAY */}
-            {activeTab === 'appearance' && (
-              <div className="space-y-4 animate-fadeIn">
-                <div>
-                  <h3 className="text-sm font-black uppercase text-slate-400 tracking-wider">Appearance & Workspace Layout</h3>
-                  <p className="text-xs text-slate-500">Customize the visual presentation and interface density.</p>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <button
-                    onClick={() => { if (theme !== 'light' && onToggleTheme) onToggleTheme(); }}
-                    className={`p-4 rounded-2xl border flex flex-col items-center gap-2 cursor-pointer transition-all ${
-                      theme === 'light'
-                        ? 'bg-blue-50 border-blue-500 text-blue-900 shadow-md'
-                        : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300'
-                    }`}
-                  >
-                    <Sun className="w-6 h-6 text-amber-500" />
-                    <span className="text-xs font-black">Light Mode</span>
-                  </button>
-
-                  <button
-                    onClick={() => { if (theme !== 'dark' && onToggleTheme) onToggleTheme(); }}
-                    className={`p-4 rounded-2xl border flex flex-col items-center gap-2 cursor-pointer transition-all ${
-                      theme === 'dark'
-                        ? 'bg-indigo-950 border-indigo-500 text-white shadow-md'
-                        : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300'
-                    }`}
-                  >
-                    <Moon className="w-6 h-6 text-indigo-400" />
-                    <span className="text-xs font-black">Dark Mode</span>
-                  </button>
-                </div>
-
-                <div className="space-y-2 pt-2">
-                  <div className="flex items-center justify-between p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-700">
-                    <div>
-                      <div className="text-xs font-bold text-slate-900 dark:text-slate-100">Compact Table & Card Density</div>
-                      <div className="text-[11px] text-slate-500">Condense drive cards and listings to display more information on screen</div>
-                    </div>
-                    <input
-                      type="checkbox"
-                      checked={compactDensity}
-                      onChange={(e) => setCompactDensity(e.target.checked)}
-                      className="w-4 h-4 accent-blue-900 cursor-pointer"
-                    />
-                  </div>
-
-                  <div className="flex items-center justify-between p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-700">
-                    <div>
-                      <div className="text-xs font-bold text-slate-900 dark:text-slate-100">High Contrast Text</div>
-                      <div className="text-[11px] text-slate-500">Enhance font weights and color borders for maximum readability</div>
-                    </div>
-                    <input
-                      type="checkbox"
-                      checked={highContrast}
-                      onChange={(e) => setHighContrast(e.target.checked)}
-                      className="w-4 h-4 accent-blue-900 cursor-pointer"
-                    />
-                  </div>
-
-                  <div className="flex items-center justify-between p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-700">
-                    <div>
-                      <div className="text-xs font-bold text-slate-900 dark:text-slate-100">Reduce Animation Motion</div>
-                      <div className="text-[11px] text-slate-500">Disable pulsing and gradient animations for smoother browser performance</div>
-                    </div>
-                    <input
-                      type="checkbox"
-                      checked={reducedMotion}
-                      onChange={(e) => setReducedMotion(e.target.checked)}
-                      className="w-4 h-4 accent-blue-900 cursor-pointer"
-                    />
-                  </div>
+                  <ToggleSwitch
+                    enabled={publicProfile}
+                    onChange={(val) => {
+                      setPublicProfile(val);
+                      updateSetting('publicProfile', val);
+                      showToast({
+                        type: val ? 'success' : 'default',
+                        title: val ? 'Visibility Enabled' : 'Visibility Private',
+                        message: val ? 'Your profile card is visible to verified recruiters.' : 'Profile hidden from public recruiters.'
+                      });
+                    }}
+                    label="Recruiter Profile Visibility"
+                    description="Allow verified corporate recruiters to view your parsed ATS skill card"
+                    icon={User}
+                    badge={publicProfile ? 'Public' : 'Private'}
+                  />
                 </div>
               </div>
             )}
@@ -363,70 +474,42 @@ export default function SettingsModal({ isOpen, onClose, currentUser, theme, onT
                   <p className="text-xs text-slate-500">Control how and when the TPC Cell contacts you regarding opportunities.</p>
                 </div>
 
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-700">
-                    <div className="flex items-center gap-3">
-                      <Mail className="w-4 h-4 text-blue-600 shrink-0" />
-                      <div>
-                        <div className="text-xs font-bold text-slate-900 dark:text-slate-100">Campus Placement Drives Email Digest</div>
-                        <div className="text-[11px] text-slate-500">Receive email notifications when eligible corporate requirements arrive</div>
-                      </div>
-                    </div>
-                    <input
-                      type="checkbox"
-                      checked={notifDrives}
-                      onChange={(e) => setNotifDrives(e.target.checked)}
-                      className="w-4 h-4 accent-blue-900 cursor-pointer"
-                    />
-                  </div>
+                <div className="space-y-2.5">
+                  <ToggleSwitch
+                    enabled={notifDrives}
+                    onChange={(val) => handleToggleNotif('notifDrives', val, setNotifDrives, 'Placement Drives Digest')}
+                    label="Campus Placement Drives Email Digest"
+                    description="Receive email notifications when eligible corporate requirements arrive"
+                    icon={Mail}
+                    badge={notifDrives ? 'Active' : 'Muted'}
+                  />
 
-                  <div className="flex items-center justify-between p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-700">
-                    <div className="flex items-center gap-3">
-                      <Sparkles className="w-4 h-4 text-amber-500 shrink-0" />
-                      <div>
-                        <div className="text-xs font-bold text-slate-900 dark:text-slate-100">Shortlist & Interview Schedule Alerts</div>
-                        <div className="text-[11px] text-slate-500">Instant high-priority notification when you are shortlisted by a recruiter</div>
-                      </div>
-                    </div>
-                    <input
-                      type="checkbox"
-                      checked={notifShortlists}
-                      onChange={(e) => setNotifShortlists(e.target.checked)}
-                      className="w-4 h-4 accent-blue-900 cursor-pointer"
-                    />
-                  </div>
+                  <ToggleSwitch
+                    enabled={notifShortlists}
+                    onChange={(val) => handleToggleNotif('notifShortlists', val, setNotifShortlists, 'Shortlist Alerts')}
+                    label="Shortlist & Interview Schedule Alerts"
+                    description="Instant high-priority notification when you are shortlisted by a recruiter"
+                    icon={Sparkles}
+                    badge={notifShortlists ? 'Active' : 'Muted'}
+                  />
 
-                  <div className="flex items-center justify-between p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-700">
-                    <div className="flex items-center gap-3">
-                      <Smartphone className="w-4 h-4 text-emerald-600 shrink-0" />
-                      <div>
-                        <div className="text-xs font-bold text-slate-900 dark:text-slate-100">WhatsApp Urgent Drive Broadcasts</div>
-                        <div className="text-[11px] text-slate-500">Receive urgent reporting time, hall tickets & venue updates on WhatsApp</div>
-                      </div>
-                    </div>
-                    <input
-                      type="checkbox"
-                      checked={notifWhatsApp}
-                      onChange={(e) => setNotifWhatsApp(e.target.checked)}
-                      className="w-4 h-4 accent-blue-900 cursor-pointer"
-                    />
-                  </div>
+                  <ToggleSwitch
+                    enabled={notifWhatsApp}
+                    onChange={(val) => handleToggleNotif('notifWhatsApp', val, setNotifWhatsApp, 'WhatsApp Updates')}
+                    label="WhatsApp Urgent Drive Broadcasts"
+                    description="Receive urgent reporting time, hall tickets & venue updates on WhatsApp"
+                    icon={Smartphone}
+                    badge={notifWhatsApp ? 'Active' : 'Muted'}
+                  />
 
-                  <div className="flex items-center justify-between p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-700">
-                    <div className="flex items-center gap-3">
-                      <Sparkles className="w-4 h-4 text-purple-500 shrink-0" />
-                      <div>
-                        <div className="text-xs font-bold text-slate-900 dark:text-slate-100">Daily AI Placement Preparation Reminders</div>
-                        <div className="text-[11px] text-slate-500">Daily study recommendations and streak preservation reminders</div>
-                      </div>
-                    </div>
-                    <input
-                      type="checkbox"
-                      checked={notifDailyAi}
-                      onChange={(e) => setNotifDailyAi(e.target.checked)}
-                      className="w-4 h-4 accent-blue-900 cursor-pointer"
-                    />
-                  </div>
+                  <ToggleSwitch
+                    enabled={notifDailyAi}
+                    onChange={(val) => handleToggleNotif('notifDailyAi', val, setNotifDailyAi, 'Daily AI Coach')}
+                    label="Daily AI Placement Preparation Reminders"
+                    description="Daily study recommendations and streak preservation reminders"
+                    icon={Sparkles}
+                    badge={notifDailyAi ? 'Active' : 'Muted'}
+                  />
                 </div>
               </div>
             )}

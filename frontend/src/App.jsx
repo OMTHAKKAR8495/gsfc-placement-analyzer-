@@ -119,7 +119,17 @@ export default function App() {
     checkCurrentUser();
 
     // Set light / dark mode class and dynamic theme hue on document element
-    document.documentElement.className = theme;
+    try {
+      const savedSettings = JSON.parse(localStorage.getItem('gsfc_user_settings') || '{}');
+      const classes = [theme];
+      if (savedSettings.compactDensity) classes.push('compact-density');
+      if (savedSettings.highContrast) classes.push('high-contrast');
+      if (savedSettings.reducedMotion) classes.push('reduce-motion');
+      document.documentElement.className = classes.join(' ');
+    } catch(e) {
+      document.documentElement.className = theme;
+    }
+
     localStorage.setItem('theme', theme);
     document.documentElement.style.setProperty('--theme-hue', themeHue);
     document.documentElement.setAttribute('data-theme-hue', themeHue);

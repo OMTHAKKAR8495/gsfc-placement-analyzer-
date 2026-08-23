@@ -336,3 +336,96 @@ html.dark ::-webkit-scrollbar-track {
     display: table-footer-group !important;
   }
 }
+
+/* ========================================================================= */
+/* 🎛️ PORTAL SETTINGS UTILITIES                                            */
+/* ========================================================================= */
+
+/* 1. Compact Density Mode */
+html.compact-density body,
+body.compact-density {
+  font-size: 13px;
+}
+
+html.compact-density .p-6 {
+  padding: 1rem !important;
+}
+
+html.compact-density .p-5 {
+  padding: 0.85rem !important;
+}
+
+html.compact-density .p-4 {
+  padding: 0.75rem !important;
+}
+
+html.compact-density .py-6 {
+  padding-top: 0.85rem !important;
+  padding-bottom: 0.85rem !important;
+}
+
+html.compact-density .gap-6 {
+  gap: 0.85rem !important;
+}
+
+html.compact-density .gap-4 {
+  gap: 0.65rem !important;
+}
+
+html.compact-density .space-y-6 > :not([hidden]) ~ :not([hidden]) {
+  margin-top: 0.85rem !important;
+}
+
+html.compact-density .space-y-4 > :not([hidden]) ~ :not([hidden]) {
+  margin-top: 0.65rem !important;
+}
+
+html.compact-density .rounded-3xl {
+  border-radius: 1rem !important;
+}
+
+/* 2. High Contrast Mode */
+html.high-contrast body,
+body.high-contrast {
+  font-weight: 600 !important;
+}
+
+html.high-contrast:not(.dark) {
+  --text-heading: #000000 !important;
+  --text-body: #0f172a !important;
+}
+
+html.high-contrast.dark {
+  --text-heading: #ffffff !important;
+  --text-body: #f8fafc !important;
+}
+
+html.high-contrast .border-slate-200,
+html.high-contrast .border-slate-300,
+html.high-contrast .border-slate-700,
+html.high-contrast .border-slate-800 {
+  border-color: #475569 !important;
+  border-width: 1.5px !important;
+}
+
+html.high-contrast .text-slate-500,
+html.high-contrast .text-slate-400 {
+  color: #1e293b !important;
+}
+
+html.high-contrast.dark .text-slate-500,
+html.high-contrast.dark .text-slate-400 {
+  color: #e2e8f0 !important;
+}
+
+/* 3. Reduced Motion Mode */
+html.reduce-motion *,
+html.reduce-motion *::before,
+html.reduce-motion *::after,
+body.reduce-motion *,
+body.reduce-motion *::before,
+body.reduce-motion *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+}
