@@ -199,6 +199,7 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
     return student?.name || 'Thakkar Om';
   });
   const [candidateEmail, setCandidateEmail] = useState('thakkar_om@gmail.com');
+  const [candidatePhone, setCandidatePhone] = useState('');
   const [isEditingName, setIsEditingName] = useState(false);
   const [isEditingEmail, setIsEditingEmail] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState(() => {
