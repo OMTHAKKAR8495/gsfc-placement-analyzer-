@@ -2025,7 +2025,7 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
         isOpen={internalApplyModalOpen}
         onClose={() => setInternalApplyModalOpen(false)}
         requirement={selectedReqForApply}
-        student={student}
+        student={student || currentUser?.profile || currentUser}
         onSubmitApplication={(reqId, formData) => handleApply(reqId, formData)}
       />
 

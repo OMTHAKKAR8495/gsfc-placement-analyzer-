@@ -55,12 +55,16 @@ export default function InternalAutoFillApplyModal({ isOpen, onClose, requiremen
     return '';
   };
 
+  const cleanStr = (val, fallback) => {
+    if (typeof val === 'string' && val.trim().length > 0) return val.trim();
+    if (typeof val === 'number' && !isNaN(val)) return val;
+    return fallback;
+  };
+
   // Extract / Populate data from student profile & resume
   const populateFromResumeData = (candidateData = student, customFileName = null, parsedApiData = null) => {
-    if (!candidateData && !parsedApiData) return;
-
     let parsed = parsedApiData || {};
-    if (!parsedApiData) {
+    if (!parsedApiData && candidateData) {
       try {
         parsed = typeof candidateData.parsed_resume_json === 'string'
           ? JSON.parse(candidateData.parsed_resume_json || '{}')
@@ -77,13 +81,13 @@ export default function InternalAutoFillApplyModal({ isOpen, onClose, requiremen
     }
 
     const nameFromFileName = customFileName ? parseNameFromFilename(customFileName) : '';
-    const rollNo = candidateData?.roll_number || parsed.roll_number || (candidateData?.email ? candidateData.email.split('@')[0] : '');
+    const rollNo = cleanStr(candidateData?.roll_number, cleanStr(parsed.roll_number, cleanStr(candidateData?.email ? candidateData.email.split('@')[0] : '', '')));
     const isCSE = rollNo.toLowerCase().includes('bce') || rollNo.toLowerCase().includes('bt') || (candidateData?.email && candidateData.email.includes('cse'));
     const isChem = rollNo.toLowerCase().includes('bch') || (candidateData?.email && candidateData.email.includes('chem'));
     const isMech = rollNo.toLowerCase().includes('bme') || (candidateData?.email && candidateData.email.includes('mech'));
 
-    const derivedProgram = parsed.program || candidateData?.program || (isCSE ? 'B.Tech CSE' : isChem ? 'B.Tech Chemical' : isMech ? 'B.Tech Mechanical' : 'B.Tech CSE & IT');
-    const derivedBranch = parsed.branch || candidateData?.branch || (isCSE ? 'Computer Science & Engineering' : isChem ? 'Chemical Engineering' : isMech ? 'Mechanical Engineering' : 'Computer Science & Engineering');
+    const derivedProgram = cleanStr(parsed.program, cleanStr(candidateData?.program, isCSE ? 'B.Tech CSE' : isChem ? 'B.Tech Chemical' : isMech ? 'B.Tech Mechanical' : 'B.Tech CSE & IT'));
+    const derivedBranch = cleanStr(parsed.branch, cleanStr(candidateData?.branch, isCSE ? 'Computer Science & Engineering' : isChem ? 'Chemical Engineering' : isMech ? 'Mechanical Engineering' : 'Computer Science & Engineering'));
 
     const defaultSkills = isChem
       ? 'Process Simulation, Aspen Plus, Chemical Reaction Engineering, Mass Transfer, Plant Safety'
@@ -104,23 +108,28 @@ export default function InternalAutoFillApplyModal({ isOpen, onClose, requiremen
       ? parsed.projects.map(p => p.title || p.name || p).join('; ')
       : 'AI Placement Intelligence Platform; Distributed Microservices Engine; Cloud Data Warehouse';
 
-    const finalName = nameFromFileName || parsed.name || candidateData?.name || (candidateData?.email ? candidateData.email.split('@')[0] : 'Om Thakkar');
+    const finalName = cleanStr(nameFromFileName, cleanStr(parsed.name, cleanStr(candidateData?.name, 'Om Thakkar')));
+    const finalEmail = cleanStr(parsed.email, cleanStr(candidateData?.email, 'om.thakkar@gsfcuniversity.ac.in'));
+    const finalPhone = cleanStr(parsed.phone, cleanStr(candidateData?.phone, '+91 95584 13347'));
+    const finalCgpa = (parsed.cgpa && !isNaN(parsed.cgpa)) ? parsed.cgpa : (candidateData?.cgpa && !isNaN(candidateData.cgpa) ? candidateData.cgpa : 8.8);
+    const finalSkills = cleanStr(skillsList, defaultSkills);
+    const finalProjects = cleanStr(projList, 'AI Placement Intelligence Platform; Distributed Microservices Engine; Cloud Data Warehouse');
 
     setFormData({
       name: finalName,
-      email: parsed.email || candidateData?.email || 'student@gsfcuniversity.ac.in',
-      phone: parsed.phone || candidateData?.phone || '+91 95584 13347',
+      email: finalEmail,
+      phone: finalPhone,
       program: derivedProgram,
       branch: derivedBranch,
-      cgpa: parsed.cgpa || candidateData?.cgpa || 8.8,
-      skills: skillsList,
-      projectsSummary: projList
+      cgpa: finalCgpa,
+      skills: finalSkills,
+      projectsSummary: finalProjects
     });
 
     if (customFileName) {
       setDossierFileName(customFileName);
     } else if (!dossierFileName) {
-      setDossierFileName(rollNo ? `${rollNo}_Verified_Dossier.pdf` : 'Candidate_Academic_Dossier.pdf');
+      setDossierFileName(rollNo ? `${rollNo}_Verified_Dossier.pdf` : (customFileName || 'THAKKAR_OM_Verified_Dossier.pdf'));
       setDossierFileSize('1.45 MB');
     }
 
@@ -129,8 +138,8 @@ export default function InternalAutoFillApplyModal({ isOpen, onClose, requiremen
   };
 
   useEffect(() => {
-    if (student && isOpen) {
-      populateFromResumeData(student);
+    if (isOpen) {
+      populateFromResumeData(student || {});
     }
   }, [student, isOpen]);
 
@@ -180,6 +189,7 @@ export default function InternalAutoFillApplyModal({ isOpen, onClose, requiremen
     }, 2700);
 
     // Async backend call with fallback
+    let parsedApiData = null;
     try {
       const uploadData = new FormData();
       uploadData.append('resume', file);
@@ -195,20 +205,16 @@ export default function InternalAutoFillApplyModal({ isOpen, onClose, requiremen
 
       if (res.ok) {
         const data = await res.json();
-        setTimeout(() => {
-          setIsParsingResume(false);
-          populateFromResumeData(student, file.name, data.parsedResume);
-        }, 3200);
-        return;
+        parsedApiData = data.parsedResume;
       }
     } catch (err) {
       console.warn('Backend parser network notice:', err);
     }
 
-    // Fallback extraction completion
+    // Complete extraction and populate form
     setTimeout(() => {
       setIsParsingResume(false);
-      populateFromResumeData(student, file.name);
+      populateFromResumeData(student || {}, file.name, parsedApiData);
     }, 3200);
   };
 
