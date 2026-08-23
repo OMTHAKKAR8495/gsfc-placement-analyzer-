@@ -1004,47 +1004,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialRole 
               </div>
             </div>
 
-            {/* Quick Demo Fill Buttons */}
-            <div className="mt-2 p-3 bg-blue-50/80 rounded-2xl border border-blue-200">
-              <div className="text-[11px] font-black text-blue-900 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                <Sparkles className="w-3.5 h-3.5 text-blue-800" />
-                Quick Demo 1-Click Login:
-              </div>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                <button
-                  type="button"
-                  onClick={() => fillDemoAccount('student')}
-                  className="py-2.5 px-2 bg-blue-900 hover:bg-blue-800 text-white rounded-xl text-xs font-black transition-all shadow-sm flex items-center justify-center gap-1.5"
-                >
-                  <User className="w-3.5 h-3.5" />
-                  <span>Student</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => fillDemoAccount('company')}
-                  className="py-2.5 px-2 bg-indigo-900 hover:bg-indigo-800 text-white rounded-xl text-xs font-black transition-all shadow-sm flex items-center justify-center gap-1.5"
-                >
-                  <Building className="w-3.5 h-3.5" />
-                  <span>Company Recruiter</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => fillDemoAccount('faculty')}
-                  className="py-2.5 px-2 bg-emerald-700 hover:bg-emerald-600 text-white rounded-xl text-xs font-black transition-all shadow-sm flex items-center justify-center gap-1.5"
-                >
-                  <Shield className="w-3.5 h-3.5" />
-                  <span>Faculty</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => fillDemoAccount('admin')}
-                  className="py-2.5 px-2 bg-amber-600 hover:bg-amber-500 text-white rounded-xl text-xs font-black transition-all shadow-sm flex items-center justify-center gap-1.5"
-                >
-                  <Shield className="w-3.5 h-3.5" />
-                  <span>Admin</span>
-                </button>
-              </div>
-            </div>
+
 
             {/* Active Role Selector: 4 Main Portals (Student, Company Recruiter, Faculty, Admin) */}
             <div className="mt-4 p-3 bg-slate-50 border border-slate-200 rounded-2xl">
