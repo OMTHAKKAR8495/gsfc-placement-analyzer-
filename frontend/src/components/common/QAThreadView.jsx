@@ -90,8 +90,8 @@ export default function QAThreadView({ threadId, onClose, currentUser, onOpenAut
     setLoading(false);
   };
 
-  const handlePostReply = async (e) => {
-    e.preventDefault();
+  const handlePostReply = async (e, andResolve = false) => {
+    if (e && e.preventDefault) e.preventDefault();
     if (!replyText.trim() || submittingReply) return;
 
     if (!currentUser) {
@@ -135,11 +135,23 @@ export default function QAThreadView({ threadId, onClose, currentUser, onOpenAut
       }
     } catch (err) {}
 
+    // If andResolve is true, also resolve thread
+    if (andResolve) {
+      try {
+        await fetch(`/api/qa/threads/${threadId}/resolve`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: 'resolved' })
+        });
+      } catch (err) {}
+    }
+
     // Update state and local storage
     setThread(prev => {
       const updatedReplies = [...(prev?.replies || []), newReply];
       const updatedThread = {
         ...prev,
+        status: andResolve ? 'resolved' : prev.status,
         replies: updatedReplies,
         replies_count: updatedReplies.length
       };
@@ -205,17 +217,16 @@ export default function QAThreadView({ threadId, onClose, currentUser, onOpenAut
     }
   };
 
-  if (!threadId) return null;
-
-  const isTpoOrAdmin = currentUser?.role === 'admin';
+  const isFaculty = currentUser?.role === 'faculty';
+  const isTpoOrAdmin = currentUser?.role === 'admin' || currentUser?.role === 'superadmin';
   const isOriginalAuthor = 
     currentUser?.owner_id === thread?.student_id || 
     currentUser?.id === thread?.student_id || 
     currentUser?.profile?.id === thread?.student_id ||
     (currentUser?.name && thread?.student_name && currentUser.name.toLowerCase() === thread.student_name.toLowerCase()) ||
     thread?.student_id === 'guest_student';
-  const canResolve = isTpoOrAdmin; // Only TPO Directorate / Admin can mark resolved
-  const canDelete = isTpoOrAdmin || isOriginalAuthor;
+  const canResolve = isFaculty || isTpoOrAdmin || isOriginalAuthor;
+  const canDelete = isFaculty || isTpoOrAdmin || isOriginalAuthor;
 
   return (
     <div 
@@ -436,7 +447,20 @@ export default function QAThreadView({ threadId, onClose, currentUser, onOpenAut
                   className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-xs text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 leading-relaxed"
                 />
 
-                <div className="flex justify-end">
+                <div className="flex items-center justify-end gap-2 flex-wrap">
+                  {canResolve && thread.status !== 'resolved' && (
+                    <button
+                      type="button"
+                      disabled={submittingReply || !replyText.trim()}
+                      onClick={(e) => handlePostReply(e, true)}
+                      className="px-4 py-2.5 rounded-xl text-xs font-black bg-emerald-700 hover:bg-emerald-600 text-white shadow-md flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50"
+                      title="Post this reply and mark the question as Resolved"
+                    >
+                      <CheckCircle2 className="w-4 h-4 text-emerald-300" />
+                      <span>Post Reply & Mark Resolved</span>
+                    </button>
+                  )}
+
                   <button
                     type="submit"
                     disabled={submittingReply || !replyText.trim()}
