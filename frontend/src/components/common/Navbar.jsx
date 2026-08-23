@@ -8,6 +8,13 @@ import AICopilotDrawer from './AICopilotDrawer';
 import FacultyGuidedDemoModal from './FacultyGuidedDemoModal';
 import SettingsModal from './SettingsModal';
 
+const getInitials = (val) => {
+  if (typeof val === 'string' && val.trim()) {
+    return val.trim().substring(0, 2).toUpperCase();
+  }
+  return 'GS';
+};
+
 export default function Navbar({ currentUser, activeRole, onRoleSwitch, onOpenAuth, onLogout, theme, onToggleTheme, onOpenJobPost, onOpenApplicantsFeed }) {
   const [downloadModalOpen, setDownloadModalOpen] = useState(false);
   const [ecosystemModalOpen, setEcosystemModalOpen] = useState(false);
@@ -345,11 +352,11 @@ export default function Navbar({ currentUser, activeRole, onRoleSwitch, onOpenAu
                     <img src={avatarUrl} alt="Candidate Profile" className="w-full h-full object-cover" />
                   ) : (
                     <div className="w-full h-full bg-gradient-to-tr from-blue-900 to-indigo-700 text-white font-black text-xs flex items-center justify-center">
-                      {(currentUser.profile?.name || currentUser.name || currentUser.email || 'GS').substring(0, 2).toUpperCase()}
+                      {getInitials(currentUser?.profile?.name || currentUser?.name || currentUser?.email)}
                     </div>
                   )}
                 </div>
-                <span className="absolute -bottom-1 -right-1 px-1 py-0.2 rounded-md bg-emerald-500 text-white text-[7px] font-black uppercase tracking-wider border border-white dark:border-slate-900 shadow-xs">
+                <span className="absolute -bottom-1 -right-1 px-1 py-0.5 rounded-md bg-emerald-500 text-white text-[7px] font-black uppercase tracking-wider border border-white dark:border-slate-900 shadow-xs">
                   VERIFIED
                 </span>
               </button>
@@ -583,7 +590,7 @@ export default function Navbar({ currentUser, activeRole, onRoleSwitch, onOpenAu
                     <img src={avatarUrl} alt="Profile" className="w-full h-full object-cover" />
                   ) : (
                     <div className="w-full h-full bg-gradient-to-tr from-blue-900 to-indigo-700 text-white font-black text-xs flex items-center justify-center">
-                      {(currentUser.profile?.name || currentUser.name || currentUser.email || 'GS').substring(0, 2).toUpperCase()}
+                      {getInitials(currentUser?.profile?.name || currentUser?.name || currentUser?.email)}
                     </div>
                   )}
                 </div>

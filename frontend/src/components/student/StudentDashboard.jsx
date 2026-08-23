@@ -794,7 +794,7 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
                   <img src={avatarUrl} alt="Candidate Portrait" className="w-full h-full object-cover" />
                 ) : (
                   <div className="w-full h-full bg-gradient-to-tr from-blue-900 via-indigo-900 to-amber-600 text-white font-black text-2xl flex items-center justify-center">
-                    {(candidateName || 'GS').substring(0, 2).toUpperCase()}
+                    {typeof candidateName === 'string' && candidateName.trim() ? candidateName.trim().substring(0, 2).toUpperCase() : 'GS'}
                   </div>
                 )}
               </div>
