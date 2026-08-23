@@ -342,11 +342,9 @@ router.get('/requirements', (req, res) => {
 router.get('/applications', (req, res) => {
   try {
     const authUser = getAuthenticatedStudent(req);
-    const studentId = authUser?.student_id || req.query.studentId || req.query.student_id;
-
-    if (!studentId) {
-      return res.status(401).json({ error: 'Authentication required to view your job applications.' });
-    }
+    const rawStudentId = authUser?.student_id || req.query.studentId || req.query.student_id;
+    const queryEmail = (req.query.email || authUser?.email || '').toLowerCase();
+    const derivedLocalId = queryEmail ? ('s_' + queryEmail.split('@')[0].replace(/[^a-z0-9_]/g, '_')) : '';
 
     const apps = db.prepare(`
       SELECT 
@@ -362,9 +360,20 @@ router.get('/applications', (req, res) => {
       FROM applications a
       JOIN requirements r ON a.requirement_id = r.id
       JOIN company_profiles c ON r.company_id = c.id
-      WHERE a.student_id = ?
+      WHERE a.student_id = ? 
+         OR (a.student_id = ? AND ? != '')
+         OR a.student_id IN (
+           SELECT sp.id FROM student_profiles sp 
+           LEFT JOIN users u ON sp.user_id = u.id 
+           WHERE sp.user_id = ? OR (u.email = ? AND ? != '')
+         )
       ORDER BY a.applied_at DESC
-    `).all(studentId);
+    `).all(
+      rawStudentId || '', 
+      derivedLocalId || '', derivedLocalId || '',
+      rawStudentId || '', 
+      queryEmail || '', queryEmail || ''
+    );
 
     res.json(apps);
   } catch (err) {
@@ -375,14 +384,20 @@ router.get('/applications', (req, res) => {
 router.post('/apply', async (req, res) => {
   try {
     const authUser = getAuthenticatedStudent(req);
-    const studentId = authUser?.student_id || req.body.student_id || 's_rahul_verma';
+    const userEmail = (authUser?.email || req.body.email || '').toLowerCase();
+    const derivedId = userEmail ? ('s_' + userEmail.split('@')[0].replace(/[^a-z0-9_]/g, '_')) : 's_guest';
+    const studentId = authUser?.student_id || req.body.student_id || derivedId;
     const { requirement_id } = req.body;
 
     if (!requirement_id) {
       return res.status(400).json({ error: 'requirement_id is required.' });
     }
 
-    let student = db.prepare('SELECT * FROM student_profiles WHERE id = ? OR user_id = ? OR email = ?').get(
+    let student = db.prepare(`
+      SELECT sp.*, u.email FROM student_profiles sp
+      LEFT JOIN users u ON sp.user_id = u.id
+      WHERE sp.id = ? OR sp.user_id = ? OR u.email = ?
+    `).get(
       studentId, 
       studentId, 
       req.body.email || authUser?.email || ''
@@ -392,12 +407,11 @@ router.post('/apply', async (req, res) => {
       // Auto-provision profile record for newly logged-in student
       const resolvedId = studentId || 's_' + Date.now();
       const resolvedName = authUser?.name || req.body.candidate_name || 'Om Thakkar';
-      const resolvedEmail = authUser?.email || req.body.email || '24bt04171@gsfcuniversity.ac.in';
       try {
         db.prepare(`
-          INSERT INTO student_profiles (id, user_id, name, email, roll_number, program, branch, passing_year, admission_year, cgpa, backlogs, skills, verified, profile_completion, created_at, updated_at)
-          VALUES (?, ?, ?, ?, '24BCE101', 'BTech CSE', 'Computer Science & Engineering', 2026, 2022, 8.8, 0, 'React, Node.js, Python, SQL', 1, 100, datetime('now'), datetime('now'))
-        `).run(resolvedId, resolvedId, resolvedName, resolvedEmail);
+          INSERT INTO student_profiles (id, user_id, name, roll_number, program, branch, passing_year, admission_year, cgpa, backlogs, skills, verified, profile_completion, created_at, updated_at)
+          VALUES (?, ?, ?, '24BCE101', 'BTech CSE', 'Computer Science & Engineering', 2026, 2022, 8.8, 0, 'React, Node.js, Python, SQL', 1, 100, datetime('now'), datetime('now'))
+        `).run(resolvedId, resolvedId, resolvedName);
         student = db.prepare('SELECT * FROM student_profiles WHERE id = ?').get(resolvedId);
       } catch (e) {
         student = db.prepare('SELECT * FROM student_profiles LIMIT 1').get();
@@ -483,6 +497,7 @@ router.post('/apply', async (req, res) => {
       authenticityReport: authReport
     });
   } catch (err) {
+    console.error('ERROR IN POST /apply:', err.stack || err);
     res.status(500).json({ error: err.message });
   }
 });

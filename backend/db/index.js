@@ -1370,8 +1370,16 @@ function seedMultiYearStudents() {
     }
   ];
 
+  // Guard check: if multi-year students already exist, never re-seed or overwrite!
+  try {
+    const existingCount = db.prepare("SELECT COUNT(*) as c FROM student_profiles WHERE id LIKE 's_batch_%'").get()?.c || 0;
+    if (existingCount > 0) {
+      return;
+    }
+  } catch (e) {}
+
   for (const st of multiYearDataset) {
-    db.prepare(`INSERT OR REPLACE INTO users (id, email, password_hash, role) VALUES (?, ?, ?, 'student')`)
+    db.prepare(`INSERT OR IGNORE INTO users (id, email, password_hash, role) VALUES (?, ?, ?, 'student')`)
       .run(st.userId, `${st.roll.toLowerCase()}@gsfcuniversity.ac.in`, passwordHash);
 
     const parsedJson = JSON.stringify({
@@ -1390,7 +1398,7 @@ function seedMultiYearStudents() {
     });
 
     db.prepare(`
-      INSERT OR REPLACE INTO student_profiles 
+      INSERT OR IGNORE INTO student_profiles 
       (id, user_id, roll_number, name, program, branch, cgpa, resume_url, parsed_resume_json, ats_score, ats_feedback_json, admission_year, passing_year, batch_year)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(

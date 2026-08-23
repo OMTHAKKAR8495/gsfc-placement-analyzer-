@@ -105,7 +105,23 @@ export default function AIPlacementIntelligenceHub({ student, currentUser, onSel
   const [activeFlashcardIndex, setActiveFlashcardIndex] = useState(0);
   const [flashcardFlipped, setFlashcardFlipped] = useState(false);
 
-  const studentId = currentUser?.profile?.id || currentUser?.owner_id || student?.id || 's_rahul_verma';
+  const resolveStudentId = (user, std) => {
+    if (user?.profile?.id) return user.profile.id;
+    if (std?.id) return std.id;
+    if (user?.owner_id) return user.owner_id;
+    if (user?.id) {
+      if (typeof user.id === 'string' && user.id.startsWith('s_')) return user.id;
+      if (typeof user.id === 'string' && user.id.startsWith('u_')) return 's_' + user.id.replace(/^u_/, '');
+      return user.id;
+    }
+    const email = (user?.email || user?.profile?.email || std?.email || '').toLowerCase();
+    if (email) {
+      return 's_' + email.split('@')[0].replace(/[^a-z0-9_]/g, '_');
+    }
+    return 's_guest';
+  };
+
+  const studentId = resolveStudentId(currentUser, student);
   const token = localStorage.getItem('campushire_token');
   const authHeaders = {
     'Content-Type': 'application/json',

@@ -96,6 +96,22 @@ export const DEFAULT_REQUIREMENTS_FEED = [
   }
 ];
 
+export const resolveStudentId = (user, student) => {
+  if (user?.profile?.id) return user.profile.id;
+  if (student?.id) return student.id;
+  if (user?.owner_id) return user.owner_id;
+  if (user?.id) {
+    if (typeof user.id === 'string' && user.id.startsWith('s_')) return user.id;
+    if (typeof user.id === 'string' && user.id.startsWith('u_')) return 's_' + user.id.replace(/^u_/, '');
+    return user.id;
+  }
+  const email = (user?.email || user?.profile?.email || student?.email || '').toLowerCase();
+  if (email) {
+    return 's_' + email.split('@')[0].replace(/[^a-z0-9_]/g, '_');
+  }
+  return 's_guest';
+};
+
 export default function StudentDashboard({ student, currentUser, onUpdateStudent, onOpenAuthModal, onOpenJobPost }) {
   const { showToast, triggerCelebrationCrackles } = useToast();
 
@@ -459,7 +475,7 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
 
   const fetchFeed = async () => {
     try {
-      const studentId = currentUser?.profile?.id || currentUser?.owner_id || student?.id || '';
+      const studentId = resolveStudentId(currentUser, student);
       const token = localStorage.getItem('campushire_token');
       const headers = { 'Content-Type': 'application/json' };
       if (token) headers['Authorization'] = `Bearer ${token}`;
@@ -467,7 +483,7 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 3500);
 
-      const res = await fetch(`/api/student/requirements?studentId=${studentId}&showAll=${showAllFeed}`, {
+      const res = await fetch(`/api/student/requirements?studentId=${encodeURIComponent(studentId)}&showAll=${showAllFeed}`, {
         headers,
         signal: controller.signal
       });
@@ -490,8 +506,8 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
   };
 
   const fetchApplications = async () => {
+    const studentId = resolveStudentId(currentUser, student);
     const activeEmail = (currentUser?.email || student?.email || '').toLowerCase();
-    const studentId = currentUser?.profile?.id || currentUser?.owner_id || student?.id || currentUser?.id || activeEmail;
     if (!studentId && !activeEmail) return;
 
     let localSaved = [];
@@ -548,7 +564,7 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
   };
 
   const fetchAssessmentsAndInterviews = async () => {
-    const studentId = currentUser?.profile?.id || currentUser?.owner_id || student?.id || currentUser?.id;
+    const studentId = resolveStudentId(currentUser, student);
     if (!studentId) return;
     try {
       const token = localStorage.getItem('campushire_token');
@@ -559,8 +575,8 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
       const timeout = setTimeout(() => controller.abort(), 3500);
 
       const [asmtRes, intRes] = await Promise.all([
-        fetch(`/api/student/assessments?student_id=${studentId}`, { headers, signal: controller.signal }).catch(() => null),
-        fetch(`/api/student/interviews?student_id=${studentId}`, { headers, signal: controller.signal }).catch(() => null)
+        fetch(`/api/student/assessments?student_id=${encodeURIComponent(studentId)}`, { headers, signal: controller.signal }).catch(() => null),
+        fetch(`/api/student/interviews?student_id=${encodeURIComponent(studentId)}`, { headers, signal: controller.signal }).catch(() => null)
       ]);
       clearTimeout(timeout);
 
@@ -579,8 +595,8 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
 
   const handleToggleBookmark = async (e, reqId) => {
     e.stopPropagation();
-    const studentId = currentUser?.profile?.id || currentUser?.owner_id || student?.id || currentUser?.id;
-    if (!studentId) {
+    const studentId = resolveStudentId(currentUser, student);
+    if (!studentId || !currentUser) {
       if (onOpenAuthModal) onOpenAuthModal();
       return;
     }
@@ -808,7 +824,7 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
       return;
     }
 
-    const studentId = currentUser?.profile?.id || currentUser?.owner_id || student?.id || 's_rahul_verma';
+    const studentId = resolveStudentId(currentUser, student);
     const token = localStorage.getItem('campushire_token');
     const targetReq = requirementsFeed.find(r => r.id === reqId);
 
@@ -850,17 +866,24 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
         id: 'app_' + Date.now(),
         requirement_id: reqId,
         requirement_title: targetReq.title,
+        job_title: targetReq.title,
         company_name: targetReq.company_name,
+        logo_url: targetReq.company_logo_url || targetReq.logo_url,
         match_score: matchScore,
-        applied_at: new Date().toISOString().split('T')[0],
+        applied_at: new Date().toISOString(),
         status: 'applied',
         applied_via: 'external'
       };
-      setApplications(prev => [newApp, ...prev.filter(a => a.requirement_id !== reqId)]);
-      try {
-        const existing = JSON.parse(localStorage.getItem('gsfc_student_applications') || '[]');
-        localStorage.setItem('gsfc_student_applications', JSON.stringify([newApp, ...existing.filter(a => a.requirement_id !== reqId)]));
-      } catch (e) {}
+      
+      const email = (currentUser?.email || student?.email || '').toLowerCase();
+      setApplications(prev => {
+        const updated = [newApp, ...prev.filter(a => a.requirement_id !== reqId)];
+        if (email) {
+          localStorage.setItem('gsfc_student_applications_' + email, JSON.stringify(updated));
+        }
+        localStorage.setItem('gsfc_student_applications', JSON.stringify(updated));
+        return updated;
+      });
     }
     fetchApplications();
     fetchFeed();
@@ -880,7 +903,7 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
       return;
     }
 
-    const studentId = currentUser?.profile?.id || currentUser?.owner_id || student?.id || 's_rahul_verma';
+    const studentId = resolveStudentId(currentUser, student);
     const token = localStorage.getItem('campushire_token');
     const targetReq = requirementsFeed.find(r => r.id === reqId);
 

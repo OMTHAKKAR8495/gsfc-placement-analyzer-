@@ -133,7 +133,8 @@ app.use((err, req, res, next) => {
   });
 });
 
-if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
+const isMain = process.argv[1] && (fileURLToPath(import.meta.url) === process.argv[1] || process.argv[1].endsWith('backend/index.js') || process.argv[1].endsWith('index.js'));
+if (isMain && !process.env.VERCEL) {
   app.listen(PORT, () => {
     console.log(`🚀 CampusHire AI Backend Server running at http://localhost:${PORT}`);
   });
