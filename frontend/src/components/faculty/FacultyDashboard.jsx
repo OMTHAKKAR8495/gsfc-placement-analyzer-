@@ -8,6 +8,268 @@ import {
 
 import QABoard from '../common/QABoard';
 
+const DEFAULT_STUDENTS = [
+  {
+    id: 's_om_thakkar',
+    user_id: 'u_om_thakkar',
+    name: 'Om Thakkar',
+    roll_number: '24BT04171',
+    email: '24bt04171@gsfcuniversity.ac.in',
+    phone: '+91 95584 13347',
+    program: 'BTech CSE',
+    branch: 'Computer Science & Engineering',
+    cgpa: 8.9,
+    ats_score: 94,
+    skills: ['Python', 'React.js', 'Node.js', 'SQL', 'FastAPI', 'Machine Learning', 'Docker', 'Kubernetes'],
+    placement_status: 'Placed',
+    applications_count: 3,
+    mock_interview_score: 94,
+    assessment_score: 96,
+    applications: [
+      {
+        id: 'app_om_01',
+        company_name: 'Google Cloud India',
+        requirement_title: 'Software Development Engineer — AI & Cloud Systems',
+        ctc_range: '₹ 28,00,000 - ₹ 34,00,000 PA',
+        status: 'selected',
+        match_score: 94.5,
+        applied_at: new Date(Date.now() - 2 * 86400000).toISOString()
+      },
+      {
+        id: 'app_om_02',
+        company_name: 'Microsoft Azure Systems',
+        requirement_title: 'Graduate Software Engineer (Cloud & Microservices)',
+        ctc_range: '₹ 24,00,000 - ₹ 28,00,000 PA',
+        status: 'interview',
+        match_score: 91.0,
+        applied_at: new Date(Date.now() - 4 * 86400000).toISOString()
+      },
+      {
+        id: 'app_om_03',
+        company_name: 'GSFC Limited',
+        requirement_title: 'Graduate Engineer Trainee (IT & Software)',
+        ctc_range: '₹ 9,50,000 - ₹ 12,00,000 PA',
+        status: 'shortlisted',
+        match_score: 96.0,
+        applied_at: new Date(Date.now() - 6 * 86400000).toISOString()
+      }
+    ]
+  },
+  {
+    id: 's_arav',
+    user_id: 'u_arav',
+    name: 'Arav Sharma',
+    roll_number: '21BCE045',
+    email: 'arav.sharma@gsfcuniversity.ac.in',
+    phone: '+91 98765 43210',
+    program: 'BTech CSE',
+    branch: 'Computer Science & Engineering',
+    cgpa: 8.8,
+    ats_score: 92,
+    skills: ['Python', 'Django', 'PostgreSQL', 'Docker', 'AWS', 'TensorFlow', 'REST APIs'],
+    placement_status: 'Placed',
+    applications_count: 2,
+    mock_interview_score: 91,
+    assessment_score: 93,
+    applications: [
+      {
+        id: 'app_arav_01',
+        company_name: 'Google Cloud India',
+        requirement_title: 'Software Development Engineer — AI & Cloud Systems',
+        ctc_range: '₹ 28,00,000 - ₹ 34,00,000 PA',
+        status: 'selected',
+        match_score: 93.0,
+        applied_at: new Date(Date.now() - 3 * 86400000).toISOString()
+      },
+      {
+        id: 'app_arav_02',
+        company_name: 'Amazon Web Services',
+        requirement_title: 'Cloud DevOps Trainee Engineer',
+        ctc_range: '₹ 22,00,000 - ₹ 26,00,000 PA',
+        status: 'interview',
+        match_score: 89.5,
+        applied_at: new Date(Date.now() - 5 * 86400000).toISOString()
+      }
+    ]
+  },
+  {
+    id: 's_priya',
+    user_id: 'u_priya',
+    name: 'Priya Patel',
+    roll_number: '21BCE088',
+    email: 'priya.patel@gsfcuniversity.ac.in',
+    phone: '+91 91234 56789',
+    program: 'BTech CSE',
+    branch: 'Computer Science & Engineering',
+    cgpa: 8.7,
+    ats_score: 90,
+    skills: ['React.js', 'Next.js', 'Node.js', 'GraphQL', 'Tailwind CSS', 'Redux', 'MongoDB'],
+    placement_status: 'Placed',
+    applications_count: 2,
+    mock_interview_score: 90,
+    assessment_score: 92,
+    applications: [
+      {
+        id: 'app_priya_01',
+        company_name: 'Microsoft Azure Systems',
+        requirement_title: 'Graduate Software Engineer (Cloud & Microservices)',
+        ctc_range: '₹ 24,00,000 - ₹ 28,00,000 PA',
+        status: 'selected',
+        match_score: 92.0,
+        applied_at: new Date(Date.now() - 1 * 86400000).toISOString()
+      },
+      {
+        id: 'app_priya_02',
+        company_name: 'GSFC Limited',
+        requirement_title: 'Graduate Engineer Trainee (IT & Software)',
+        ctc_range: '₹ 9,50,000 - ₹ 12,00,000 PA',
+        status: 'selected',
+        match_score: 95.0,
+        applied_at: new Date(Date.now() - 8 * 86400000).toISOString()
+      }
+    ]
+  },
+  {
+    id: 's_vedant',
+    user_id: 'u_vedant',
+    name: 'Vedant Joshi',
+    roll_number: '21BCE012',
+    email: 'vedant@gsfc.ac.in',
+    phone: '+91 94234 56780',
+    program: 'BTech CSE',
+    branch: 'Computer Science & Engineering',
+    cgpa: 8.6,
+    ats_score: 89,
+    skills: ['C++', 'Algorithms', 'Distributed Systems', 'Go', 'Kubernetes', 'Linux'],
+    placement_status: 'In-Process',
+    applications_count: 2,
+    mock_interview_score: 88,
+    assessment_score: 90,
+    applications: [
+      {
+        id: 'app_vedant_01',
+        company_name: 'Google Cloud India',
+        requirement_title: 'Software Development Engineer — AI & Cloud Systems',
+        ctc_range: '₹ 28,00,000 - ₹ 34,00,000 PA',
+        status: 'interview',
+        match_score: 90.0,
+        applied_at: new Date(Date.now() - 2 * 86400000).toISOString()
+      },
+      {
+        id: 'app_vedant_02',
+        company_name: 'Tata Consultancy Services',
+        requirement_title: 'Data Systems & Cloud Engineering Trainee',
+        ctc_range: '₹ 9,00,000 - ₹ 11,50,000 PA',
+        status: 'shortlisted',
+        match_score: 93.0,
+        applied_at: new Date(Date.now() - 7 * 86400000).toISOString()
+      }
+    ]
+  },
+  {
+    id: 's_tanvi',
+    user_id: 'u_tanvi',
+    name: 'Tanvi Joshi',
+    roll_number: '22BCE108',
+    email: 'tanvi.j@gsfcuniversity.ac.in',
+    phone: '+91 97234 56781',
+    program: 'BTech CSE (AI & DS)',
+    branch: 'Computer Science & Engineering',
+    cgpa: 8.9,
+    ats_score: 93,
+    skills: ['PyTorch', 'Computer Vision', 'LLMs', 'Python', 'MLOps', 'FastAPI'],
+    placement_status: 'Placed',
+    applications_count: 2,
+    mock_interview_score: 93,
+    assessment_score: 95,
+    applications: [
+      {
+        id: 'app_tanvi_01',
+        company_name: 'Google Cloud India',
+        requirement_title: 'Software Development Engineer — AI & Cloud Systems',
+        ctc_range: '₹ 28,00,000 - ₹ 34,00,000 PA',
+        status: 'selected',
+        match_score: 95.0,
+        applied_at: new Date(Date.now() - 1 * 86400000).toISOString()
+      },
+      {
+        id: 'app_tanvi_02',
+        company_name: 'Microsoft Azure Systems',
+        requirement_title: 'Graduate Software Engineer (Cloud & Microservices)',
+        ctc_range: '₹ 24,00,000 - ₹ 28,00,000 PA',
+        status: 'interview',
+        match_score: 91.5,
+        applied_at: new Date(Date.now() - 3 * 86400000).toISOString()
+      }
+    ]
+  }
+];
+
+function getInitialFacultyData() {
+  try {
+    let localApps = [];
+    const generic = JSON.parse(localStorage.getItem('gsfc_student_applications') || '[]');
+    if (Array.isArray(generic)) localApps = [...generic];
+
+    if (typeof localStorage !== 'undefined') {
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && k.startsWith('gsfc_student_applications_')) {
+          try {
+            const uApps = JSON.parse(localStorage.getItem(k) || '[]');
+            if (Array.isArray(uApps)) {
+              uApps.forEach(ua => {
+                if (!localApps.some(a => (a.requirement_id && a.requirement_id === ua.requirement_id) || (a.job_title === ua.job_title && a.company_name === ua.company_name) || a.id === ua.id)) {
+                  localApps.unshift(ua);
+                }
+              });
+            }
+          } catch(e) {}
+        }
+      }
+    }
+
+    const students = DEFAULT_STUDENTS.map(st => {
+      if (st.id === 's_om_thakkar' && localApps.length > 0) {
+        const merged = [...st.applications];
+        localApps.forEach(la => {
+          if (!merged.some(m => (m.requirement_title === (la.requirement_title || la.job_title) && m.company_name === la.company_name) || m.id === la.id)) {
+            merged.unshift({
+              id: la.id || 'app_' + Date.now(),
+              company_name: la.company_name || 'Recruiting Partner',
+              requirement_title: la.requirement_title || la.job_title || 'Software Development Engineer',
+              ctc_range: la.ctc_range || '₹ 24,00,000 PA',
+              status: la.status || 'applied',
+              match_score: la.match_score || 94,
+              applied_at: la.applied_at || new Date().toISOString()
+            });
+          }
+        });
+        return { ...st, applications: merged, applications_count: merged.length };
+      }
+      return st;
+    });
+
+    return {
+      department: 'ALL',
+      total_students: students.length,
+      avg_cgpa: '8.8',
+      avg_ats_score: '91.6',
+      placement_conversion_rate: '80.0',
+      students
+    };
+  } catch(e) {
+    return {
+      department: 'ALL',
+      total_students: DEFAULT_STUDENTS.length,
+      avg_cgpa: '8.8',
+      avg_ats_score: '91.6',
+      placement_conversion_rate: '80.0',
+      students: DEFAULT_STUDENTS
+    };
+  }
+}
+
 export default function FacultyDashboard({ currentUser, onOpenAuth }) {
   const [activeTab, setActiveTabState] = useState(() => {
     try {
@@ -33,7 +295,7 @@ export default function FacultyDashboard({ currentUser, onOpenAuth }) {
   const [placementStatus, setPlacementStatus] = useState('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   
-  const [data, setData] = useState(null);
+  const [data, setData] = useState(getInitialFacultyData);
   const [loading, setLoading] = useState(false);
   const [lastSyncedAt, setLastSyncedAt] = useState(() => new Date());
   const [assignedSuccessMsg, setAssignedSuccessMsg] = useState('');
@@ -99,203 +361,6 @@ export default function FacultyDashboard({ currentUser, onOpenAuth }) {
       return { full: 'Recorded', relative: 'Active', isRecent: false };
     }
   };
-
-  const DEFAULT_STUDENTS = [
-    {
-      id: 's_om_thakkar',
-      user_id: 'u_om_thakkar',
-      name: 'Om Thakkar',
-      roll_number: '24BT04171',
-      email: '24bt04171@gsfcuniversity.ac.in',
-      phone: '+91 95584 13347',
-      program: 'BTech CSE',
-      branch: 'Computer Science & Engineering',
-      cgpa: 8.9,
-      ats_score: 94,
-      skills: ['Python', 'React.js', 'Node.js', 'SQL', 'FastAPI', 'Machine Learning', 'Docker', 'Kubernetes'],
-      placement_status: 'Placed',
-      applications_count: 3,
-      mock_interview_score: 94,
-      assessment_score: 96,
-      applications: [
-        {
-          id: 'app_om_01',
-          company_name: 'Google Cloud India',
-          requirement_title: 'Software Development Engineer — AI & Cloud Systems',
-          ctc_range: '₹ 28,00,000 - ₹ 34,00,000 PA',
-          status: 'selected',
-          match_score: 94.5,
-          applied_at: new Date(Date.now() - 2 * 86400000).toISOString()
-        },
-        {
-          id: 'app_om_02',
-          company_name: 'Microsoft Azure Systems',
-          requirement_title: 'Graduate Software Engineer (Cloud & Microservices)',
-          ctc_range: '₹ 24,00,000 - ₹ 28,00,000 PA',
-          status: 'interview',
-          match_score: 91.0,
-          applied_at: new Date(Date.now() - 4 * 86400000).toISOString()
-        },
-        {
-          id: 'app_om_03',
-          company_name: 'GSFC Limited',
-          requirement_title: 'Graduate Engineer Trainee (IT & Software)',
-          ctc_range: '₹ 9,50,000 - ₹ 12,00,000 PA',
-          status: 'shortlisted',
-          match_score: 96.0,
-          applied_at: new Date(Date.now() - 6 * 86400000).toISOString()
-        }
-      ]
-    },
-    {
-      id: 's_arav',
-      user_id: 'u_arav',
-      name: 'Arav Sharma',
-      roll_number: '21BCE045',
-      email: 'arav.sharma@gsfcuniversity.ac.in',
-      phone: '+91 98765 43210',
-      program: 'BTech CSE',
-      branch: 'Computer Science & Engineering',
-      cgpa: 8.8,
-      ats_score: 92,
-      skills: ['Python', 'Django', 'PostgreSQL', 'Docker', 'AWS', 'TensorFlow', 'REST APIs'],
-      placement_status: 'Placed',
-      applications_count: 2,
-      mock_interview_score: 91,
-      assessment_score: 93,
-      applications: [
-        {
-          id: 'app_arav_01',
-          company_name: 'Google Cloud India',
-          requirement_title: 'Software Development Engineer — AI & Cloud Systems',
-          ctc_range: '₹ 28,00,000 - ₹ 34,00,000 PA',
-          status: 'selected',
-          match_score: 93.0,
-          applied_at: new Date(Date.now() - 3 * 86400000).toISOString()
-        },
-        {
-          id: 'app_arav_02',
-          company_name: 'Amazon Web Services',
-          requirement_title: 'Cloud DevOps Trainee Engineer',
-          ctc_range: '₹ 22,00,000 - ₹ 26,00,000 PA',
-          status: 'interview',
-          match_score: 89.5,
-          applied_at: new Date(Date.now() - 5 * 86400000).toISOString()
-        }
-      ]
-    },
-    {
-      id: 's_priya',
-      user_id: 'u_priya',
-      name: 'Priya Patel',
-      roll_number: '21BCE088',
-      email: 'priya.patel@gsfcuniversity.ac.in',
-      phone: '+91 91234 56789',
-      program: 'BTech CSE',
-      branch: 'Computer Science & Engineering',
-      cgpa: 8.7,
-      ats_score: 90,
-      skills: ['React.js', 'Next.js', 'Node.js', 'GraphQL', 'Tailwind CSS', 'Redux', 'MongoDB'],
-      placement_status: 'Placed',
-      applications_count: 2,
-      mock_interview_score: 90,
-      assessment_score: 92,
-      applications: [
-        {
-          id: 'app_priya_01',
-          company_name: 'Microsoft Azure Systems',
-          requirement_title: 'Graduate Software Engineer (Cloud & Microservices)',
-          ctc_range: '₹ 24,00,000 - ₹ 28,00,000 PA',
-          status: 'selected',
-          match_score: 92.0,
-          applied_at: new Date(Date.now() - 1 * 86400000).toISOString()
-        },
-        {
-          id: 'app_priya_02',
-          company_name: 'GSFC Limited',
-          requirement_title: 'Graduate Engineer Trainee (IT & Software)',
-          ctc_range: '₹ 9,50,000 - ₹ 12,00,000 PA',
-          status: 'selected',
-          match_score: 95.0,
-          applied_at: new Date(Date.now() - 8 * 86400000).toISOString()
-        }
-      ]
-    },
-    {
-      id: 's_vedant',
-      user_id: 'u_vedant',
-      name: 'Vedant Joshi',
-      roll_number: '21BCE012',
-      email: 'vedant@gsfc.ac.in',
-      phone: '+91 94234 56780',
-      program: 'BTech CSE',
-      branch: 'Computer Science & Engineering',
-      cgpa: 8.6,
-      ats_score: 89,
-      skills: ['C++', 'Algorithms', 'Distributed Systems', 'Go', 'Kubernetes', 'Linux'],
-      placement_status: 'In-Process',
-      applications_count: 2,
-      mock_interview_score: 88,
-      assessment_score: 90,
-      applications: [
-        {
-          id: 'app_vedant_01',
-          company_name: 'Google Cloud India',
-          requirement_title: 'Software Development Engineer — AI & Cloud Systems',
-          ctc_range: '₹ 28,00,000 - ₹ 34,00,000 PA',
-          status: 'interview',
-          match_score: 90.0,
-          applied_at: new Date(Date.now() - 2 * 86400000).toISOString()
-        },
-        {
-          id: 'app_vedant_02',
-          company_name: 'Tata Consultancy Services',
-          requirement_title: 'Data Systems & Cloud Engineering Trainee',
-          ctc_range: '₹ 9,00,000 - ₹ 11,50,000 PA',
-          status: 'shortlisted',
-          match_score: 93.0,
-          applied_at: new Date(Date.now() - 7 * 86400000).toISOString()
-        }
-      ]
-    },
-    {
-      id: 's_tanvi',
-      user_id: 'u_tanvi',
-      name: 'Tanvi Joshi',
-      roll_number: '22BCE108',
-      email: 'tanvi.j@gsfcuniversity.ac.in',
-      phone: '+91 97234 56781',
-      program: 'BTech CSE (AI & DS)',
-      branch: 'Computer Science & Engineering',
-      cgpa: 8.9,
-      ats_score: 93,
-      skills: ['PyTorch', 'Computer Vision', 'LLMs', 'Python', 'MLOps', 'FastAPI'],
-      placement_status: 'Placed',
-      applications_count: 2,
-      mock_interview_score: 93,
-      assessment_score: 95,
-      applications: [
-        {
-          id: 'app_tanvi_01',
-          company_name: 'Google Cloud India',
-          requirement_title: 'Software Development Engineer — AI & Cloud Systems',
-          ctc_range: '₹ 28,00,000 - ₹ 34,00,000 PA',
-          status: 'selected',
-          match_score: 95.0,
-          applied_at: new Date(Date.now() - 1 * 86400000).toISOString()
-        },
-        {
-          id: 'app_tanvi_02',
-          company_name: 'Microsoft Azure Systems',
-          requirement_title: 'Graduate Software Engineer (Cloud & Microservices)',
-          ctc_range: '₹ 24,00,000 - ₹ 28,00,000 PA',
-          status: 'interview',
-          match_score: 91.5,
-          applied_at: new Date(Date.now() - 3 * 86400000).toISOString()
-        }
-      ]
-    }
-  ];
 
   const fetchFacultyAnalytics = async () => {
     setLoading(true);
