@@ -624,6 +624,20 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
   const currentCompanyName = currentUser?.profile?.company_name || currentUser?.name || '';
 
   const handleApplyClick = async (reqItem) => {
+    // 1. Mandatory Student Authentication Check
+    if (!currentUser) {
+      showToast({
+        type: 'warning',
+        title: '🔐 Sign In Required',
+        message: 'Please sign into your GSFC University student account to submit placement applications.',
+        triggerCrackles: false
+      });
+      if (typeof onOpenAuthModal === 'function') {
+        onOpenAuthModal();
+      }
+      return;
+    }
+
     if (isCompanyUser) {
       showToast({
         type: 'warning',
@@ -655,19 +669,44 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
   };
 
   const handleConfirmExternalApply = async (reqId) => {
-    const studentId = student?.id || 's_arav';
+    if (!currentUser) {
+      showToast({
+        type: 'warning',
+        title: '🔐 Sign In Required',
+        message: 'Please sign in to track external applications.',
+        triggerCrackles: false
+      });
+      if (typeof onOpenAuthModal === 'function') onOpenAuthModal();
+      return;
+    }
+
+    const studentId = currentUser?.profile?.id || currentUser?.owner_id || student?.id || 's_arav';
+    const token = localStorage.getItem('campushire_token');
+    const targetReq = requirementsFeed.find(r => r.id === reqId);
+
     try {
       const res = await fetch('/api/student/apply', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
         body: JSON.stringify({
           student_id: studentId,
           requirement_id: reqId,
           applied_via: 'external'
         })
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to record external application');
+
+      let data = {};
+      try {
+        const text = await res.text();
+        data = text ? JSON.parse(text) : {};
+      } catch (e) {
+        data = {};
+      }
+
+      if (!res.ok) throw new Error(data.error || data.message || 'Failed to record external application');
 
       showToast({
         type: 'celebration',
@@ -687,12 +726,29 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
   };
 
   const handleApply = async (reqId, formOverrideData) => {
-    const studentId = student?.id || 's_rahul_verma';
+    if (!currentUser) {
+      showToast({
+        type: 'warning',
+        title: '🔐 Sign In Required',
+        message: 'Please sign into your GSFC University student account to submit placement applications.',
+        triggerCrackles: false
+      });
+      if (typeof onOpenAuthModal === 'function') {
+        onOpenAuthModal();
+      }
+      return;
+    }
+
+    const studentId = currentUser?.profile?.id || currentUser?.owner_id || student?.id || 's_rahul_verma';
+    const token = localStorage.getItem('campushire_token');
 
     try {
       const res = await fetch('/api/student/apply', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
         body: JSON.stringify({
           student_id: studentId,
           requirement_id: reqId,
@@ -700,8 +756,16 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
           override_data: formOverrideData
         })
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to submit application');
+
+      let data = {};
+      try {
+        const text = await res.text();
+        data = text ? JSON.parse(text) : {};
+      } catch (e) {
+        data = {};
+      }
+
+      if (!res.ok) throw new Error(data.error || data.message || 'Failed to submit application');
 
       const targetReq = requirementsFeed.find(r => r.id === reqId);
 
