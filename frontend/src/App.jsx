@@ -12,6 +12,7 @@ import AIBugChatbotWidget from './components/common/AIBugChatbotWidget';
 import ErrorBoundary from './components/common/ErrorBoundary';
 import { ToastProvider } from './context/ToastContext';
 import { Eye, EyeOff, Sparkles, ChevronDown, ArrowDown, Sun, Moon, WifiOff } from 'lucide-react';
+import { Capacitor } from '@capacitor/core';
 import { App as CapacitorApp } from '@capacitor/app';
 import { StatusBar, Style } from '@capacitor/status-bar';
 import { Network } from '@capacitor/network';
@@ -62,6 +63,10 @@ export default function App() {
   const [themeHue, setThemeHue] = useState(() => localStorage.getItem('gsfc_theme_hue') || '215');
 
   useEffect(() => {
+    if (!Capacitor.isNativePlatform()) {
+      return;
+    }
+
     // Hide native splash screen once React mounts
     SplashScreen.hide().catch(() => {});
 

@@ -56,19 +56,29 @@ export default function Navbar({ currentUser, activeRole, onRoleSwitch, onOpenAu
   const fetchLiveNotifications = async () => {
     try {
       const email = currentUser?.email || currentUser?.profile?.email || '';
-      const res = await fetch(`/api/notifications/feed?email=${encodeURIComponent(email)}`);
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3000);
+
+      const res = await fetch(`/api/notifications/feed?email=${encodeURIComponent(email)}`, {
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
       if (res.ok) {
         const data = await res.json();
         setNotifications(Array.isArray(data) ? data : []);
       }
     } catch (err) {
-      console.error('Error polling notification feed:', err);
+      // Graceful offline fallback without logging errors
     }
   };
 
   useEffect(() => {
     fetchLiveNotifications();
-    const interval = setInterval(fetchLiveNotifications, 15000);
+    const interval = setInterval(() => {
+      if (!document.hidden) {
+        fetchLiveNotifications();
+      }
+    }, 20000);
     return () => clearInterval(interval);
   }, [currentUser]);
 
