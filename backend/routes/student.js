@@ -189,6 +189,7 @@ router.put('/profile', (req, res) => {
       studentId
     );
 
+    // Name is stored in student_profiles only (users table has no name column)
     logStudentActivity(studentId, 'profile_updated', 'Updated Student Profile', `Updated academic and personal information`);
 
     const updated = db.prepare('SELECT * FROM student_profiles WHERE id = ?').get(studentId);

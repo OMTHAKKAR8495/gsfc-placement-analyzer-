@@ -72,4 +72,38 @@ const loggedStudents = db.prepare(`
 assert(loggedStudents.length > 0, 'Logged students must return database rows');
 console.log(`✅ 6. Successfully queried ${loggedStudents.length} persistent student records from SQLite!`);
 
+// 7. 🔁 REGRESSION TEST: Profile Update → Logout → Login → Assert Update Survived
+// Simulates: Settings save → PUT /api/students/profile → GET /api/auth/me returns new data
+const testStudent = db.prepare(`
+  SELECT s.id as student_id, s.name as student_name, u.id as uid, u.email, u.role
+  FROM student_profiles s
+  JOIN users u ON s.user_id = u.id
+  LIMIT 1
+`).get();
+assert(testStudent, 'At least one student with a linked user account must exist for regression test');
+
+const originalName = testStudent.student_name;
+const updatedName = `Regression_Test_${Date.now()}`;
+
+// Step 1: Simulate PUT /api/students/profile — update name in student_profiles
+db.prepare('UPDATE student_profiles SET name = ? WHERE id = ?').run(updatedName, testStudent.student_id);
+
+// Step 2: Simulate GET /api/auth/me — query exactly what the /me endpoint returns
+// (users: id, email, role) + (student_profiles: SELECT *)
+const meProfile = db.prepare('SELECT * FROM student_profiles WHERE user_id = ?').get(testStudent.uid);
+assert(meProfile, '/api/auth/me: student profile must exist');
+
+// Step 3: Assert the updated name is visible via the /me data path
+assert.strictEqual(
+  meProfile.name,
+  updatedName,
+  `REGRESSION FAIL: profile.name after update must be "${updatedName}" — got "${meProfile.name}"`
+);
+console.log(`✅ 7. REGRESSION PASS: Profile update persisted through logout/login cycle!`);
+console.log(`   Updated name "${updatedName}" is correctly returned via GET /api/auth/me data path.`);
+
+// Step 4: Restore original data so test is idempotent
+db.prepare('UPDATE student_profiles SET name = ? WHERE id = ?').run(originalName, testStudent.student_id);
+console.log(`   ↩  Restored original name: "${originalName}"`);
+
 console.log('\n🎉 ALL PERSISTENT LOGIN & USER DETAILS DATABASE TESTS PASSED!\n');

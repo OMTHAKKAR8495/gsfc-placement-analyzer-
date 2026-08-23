@@ -238,18 +238,30 @@ export default function App() {
       if (res.ok) {
         const data = await res.json();
         if (data && data.user) {
-          setCurrentUser(data.user);
-          localStorage.setItem('campushire_user', JSON.stringify(data.user));
+          const freshUser = data.user;
+          // Restore avatar from localStorage — stored as base64, not in DB
+          try {
+            const userEmail = (freshUser.email || '').toLowerCase();
+            const savedAvatar = localStorage.getItem('gsfc_user_avatar_' + userEmail)
+              || localStorage.getItem('gsfc_user_avatar');
+            if (savedAvatar) {
+              if (!freshUser.profile) freshUser.profile = {};
+              freshUser.profile.avatar_url = savedAvatar;
+            }
+          } catch(e) {}
+
+          setCurrentUser(freshUser);
+          localStorage.setItem('campushire_user', JSON.stringify(freshUser));
           
           const currentHash = window.location.hash.replace('#', '');
-          if (isRoleAllowedInWorkspace(data.user, currentHash)) {
+          if (isRoleAllowedInWorkspace(freshUser, currentHash)) {
             const base = resolveBaseWorkspace(currentHash);
             setActiveRole(base);
             localStorage.setItem('gsfc_active_workspace', base);
           } else {
-            const defaultRoleWorkspace = data.user.role === 'faculty' 
+            const defaultRoleWorkspace = freshUser.role === 'faculty' 
               ? 'faculty' 
-              : (data.user.role === 'superadmin' ? 'superadmin' : (data.user.role === 'company' ? 'company' : (data.user.role === 'admin' ? 'admin' : 'student')));
+              : (freshUser.role === 'superadmin' ? 'superadmin' : (freshUser.role === 'company' ? 'company' : (freshUser.role === 'admin' ? 'admin' : 'student')));
             setActiveRole(defaultRoleWorkspace);
             localStorage.setItem('gsfc_active_workspace', defaultRoleWorkspace);
             window.history.replaceState(null, '', `#${defaultRoleWorkspace}`);
@@ -295,36 +307,17 @@ export default function App() {
   const handleAuthSuccess = (userData) => {
     const userEmail = (userData?.email || userData?.profile?.email || '').toLowerCase();
     
-    // Check if there is a saved customized profile or avatar for this specific user account
+    // Restore avatar from localStorage (stored as base64, not in DB) — only non-DB field
     if (userEmail) {
       try {
-        const savedProfileRaw = localStorage.getItem('gsfc_user_profile_' + userEmail);
-        const savedAvatar = localStorage.getItem('gsfc_user_avatar_' + userEmail);
-
-        if (savedProfileRaw) {
-          const profile = JSON.parse(savedProfileRaw);
-          if (profile.displayName) {
-            userData.name = profile.displayName;
-            if (!userData.profile) userData.profile = {};
-            userData.profile.name = profile.displayName;
-          }
-          if (profile.phone) {
-            if (!userData.profile) userData.profile = {};
-            userData.profile.phone = profile.phone;
-          }
-          if (profile.targetStream) {
-            if (!userData.profile) userData.profile = {};
-            userData.profile.targetStream = profile.targetStream;
-          }
-        }
-
+        const savedAvatar = localStorage.getItem('gsfc_user_avatar_' + userEmail)
+          || localStorage.getItem('gsfc_user_avatar');
         if (savedAvatar) {
           if (!userData.profile) userData.profile = {};
           userData.profile.avatar_url = savedAvatar;
           localStorage.setItem('gsfc_user_avatar', savedAvatar);
           window.dispatchEvent(new CustomEvent('gsfc-avatar-updated', { detail: { avatarUrl: savedAvatar } }));
         }
-
         if (userData.name) {
           localStorage.setItem('gsfc_candidate_name', userData.name);
         }

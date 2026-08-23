@@ -335,11 +335,11 @@ export default function SettingsModal({ isOpen, onClose, currentUser, theme, onT
     });
   };
 
-  const handleSaveSettings = () => {
+  const handleSaveSettings = async () => {
     setSavingSettings(true);
     const trimmedName = (displayName || '').trim();
 
-    // 1. Sync User Object & Real-time Session Across Platform
+    // 1. Optimistic UI update — write to localStorage immediately so UI feels instant
     try {
       const savedUserStr = localStorage.getItem('campushire_user');
       let savedUser = savedUserStr ? JSON.parse(savedUserStr) : (currentUser || {});
@@ -357,7 +357,7 @@ export default function SettingsModal({ isOpen, onClose, currentUser, theme, onT
       localStorage.setItem('gsfc_candidate_name', trimmedName);
       if (avatarUrl) localStorage.setItem('gsfc_user_avatar', avatarUrl);
 
-      // Save permanently into per-account persistent storage
+      // Per-account cache (UI layer only — NOT the source of truth)
       if (userEmail) {
         const accountProfile = {
           displayName: trimmedName,
@@ -381,7 +381,7 @@ export default function SettingsModal({ isOpen, onClose, currentUser, theme, onT
       }
     } catch(e) {}
 
-    // 2. Persist Settings Object
+    // 2. Persist Settings Object (notifications, appearance — client-only preferences)
     const settingsObj = {
       displayName: trimmedName,
       targetStream,
@@ -402,14 +402,81 @@ export default function SettingsModal({ isOpen, onClose, currentUser, theme, onT
       document.documentElement.classList.toggle('compact-density', Boolean(compactDensity));
       document.documentElement.classList.toggle('high-contrast', Boolean(highContrast));
       document.documentElement.classList.toggle('reduce-motion', Boolean(reducedMotion));
+    } catch(e) {}
 
+    // 3. ✅ PERSIST TO BACKEND DATABASE — the source of truth
+    // This ensures changes survive logout/login and are returned by GET /api/auth/me
+    try {
+      const token = localStorage.getItem('campushire_token');
+      if (token && !token.startsWith('demo_token_') && !token.startsWith('offline_')) {
+        const profilePayload = {
+          name: trimmedName || undefined,
+          phone: phone || undefined,
+          photo_url: avatarUrl || undefined,
+          branch: targetStream || undefined,
+        };
+
+        const apiRes = await fetch('/api/students/profile', {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify(profilePayload)
+        });
+
+        if (apiRes.ok) {
+          const apiData = await apiRes.json();
+          // Merge the authoritative backend record back into localStorage cache
+          // so /api/auth/me and our local state are in perfect sync
+          if (apiData.student) {
+            try {
+              const savedUserStr = localStorage.getItem('campushire_user');
+              let savedUser = savedUserStr ? JSON.parse(savedUserStr) : {};
+              if (!savedUser.profile) savedUser.profile = {};
+              savedUser.profile.name = apiData.student.name || savedUser.profile.name;
+              savedUser.profile.phone = apiData.student.phone || savedUser.profile.phone;
+              savedUser.profile.photo_url = apiData.student.photo_url || savedUser.profile.photo_url;
+              savedUser.profile.branch = apiData.student.branch || savedUser.profile.branch;
+              savedUser.name = savedUser.profile.name || savedUser.name;
+              localStorage.setItem('campushire_user', JSON.stringify(savedUser));
+              window.dispatchEvent(new CustomEvent('gsfc-user-updated', { detail: { user: savedUser } }));
+            } catch(e) {}
+          }
+          showToast({
+            type: 'success',
+            title: 'Profile saved to database ✓',
+            message: 'All changes are now persistent and will survive logout/login.',
+            triggerCrackles: false
+          });
+        } else {
+          // Non-2xx response — backend rejected update (e.g. validation error)
+          const errData = await apiRes.json().catch(() => ({}));
+          showToast({
+            type: 'warning',
+            title: 'Settings saved locally',
+            message: errData.error || 'Could not reach the server. Changes saved in browser cache.',
+            triggerCrackles: false
+          });
+        }
+      } else {
+        // Demo/offline session — localStorage only is acceptable
+        showToast({
+          type: 'success',
+          title: 'Your changes saved successfully',
+          message: 'All profile details, documents & display preferences are saved.',
+          triggerCrackles: false
+        });
+      }
+    } catch(netErr) {
+      // Network failure — localStorage cache is still up to date
       showToast({
-        type: 'success',
-        title: 'Your changes changed successfully',
-        message: 'All profile details, documents & display preferences are saved.',
+        type: 'warning',
+        title: 'Settings saved locally',
+        message: 'Offline or server unreachable. Changes are cached and will sync when reconnected.',
         triggerCrackles: false
       });
-    } catch(e) {}
+    }
 
     setTimeout(() => {
       setSavingSettings(false);
