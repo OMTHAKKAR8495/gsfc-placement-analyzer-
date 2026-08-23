@@ -3,7 +3,7 @@ import {
   ShieldCheck, CheckCircle2, XCircle, BarChart3, Download, Building, Users, 
   Briefcase, FileSpreadsheet, Sparkles, TrendingUp, PieChart, Database, Search, 
   Printer, CheckCircle, Trash2, Calendar, Filter, SlidersHorizontal, Layers, 
-  CheckSquare, Square, RefreshCw, Eye, GraduationCap, Award, Check, FileText, X, HelpCircle, Globe, Sliders, MapPin
+  CheckSquare, Square, RefreshCw, Eye, EyeOff, GraduationCap, Award, Check, FileText, X, HelpCircle, Globe, Sliders, MapPin
 } from 'lucide-react';
 import ReportPDFModal from '../common/ReportPDFModal';
 import BatchPDFReportModal from './BatchPDFReportModal';
@@ -36,6 +36,7 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
   // Admin Authentication Lock Screen State
   const [adminEmail, setAdminEmail] = useState('');
   const [adminPassword, setAdminPassword] = useState('');
+  const [showAdminPassword, setShowAdminPassword] = useState(false);
   const [loggingIn, setLoggingIn] = useState(false);
   const [loginError, setLoginError] = useState('');
 
@@ -614,14 +615,24 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
             <label className="block text-[11px] font-black text-amber-400 uppercase tracking-wider mb-1">
               Admin Password
             </label>
-            <input
-              type="password"
-              required
-              value={adminPassword}
-              onChange={(e) => setAdminPassword(e.target.value)}
-              placeholder="••••••••••••"
-              className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-xs font-bold text-white focus:outline-none focus:border-amber-400 placeholder-slate-500"
-            />
+            <div className="relative">
+              <input
+                type={showAdminPassword ? 'text' : 'password'}
+                required
+                value={adminPassword}
+                onChange={(e) => setAdminPassword(e.target.value)}
+                placeholder="••••••••••••"
+                className="w-full pl-3.5 pr-10 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-xs font-bold text-white focus:outline-none focus:border-amber-400 placeholder-slate-500"
+              />
+              <button
+                type="button"
+                onClick={() => setShowAdminPassword(prev => !prev)}
+                className="absolute right-3 top-3 text-slate-400 hover:text-amber-400 p-0.5 rounded focus:outline-none cursor-pointer"
+                title={showAdminPassword ? 'Hide Password' : 'Show Password'}
+              >
+                {showAdminPassword ? <EyeOff className="w-4 h-4 text-amber-400" /> : <Eye className="w-4 h-4 text-slate-400" />}
+              </button>
+            </div>
           </div>
 
           <button
