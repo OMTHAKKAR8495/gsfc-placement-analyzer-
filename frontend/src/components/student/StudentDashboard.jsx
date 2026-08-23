@@ -789,16 +789,16 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
           <div className="flex items-start sm:items-center gap-4 sm:gap-5">
             {/* Candidate Big Passport Photo Frame */}
             <div className="relative group shrink-0">
-              <div className="w-16 h-20 sm:w-20 sm:h-24 rounded-2xl overflow-hidden border-2 border-blue-900 dark:border-amber-400 bg-white dark:bg-slate-800 shadow-md flex items-center justify-center ring-2 ring-blue-500/20">
+              <div className="w-20 h-26 sm:w-24 sm:h-32 rounded-3xl overflow-hidden border-3 border-blue-900 dark:border-amber-400 bg-white dark:bg-slate-800 shadow-xl flex items-center justify-center ring-4 ring-blue-500/15 transition-transform group-hover:scale-105">
                 {avatarUrl ? (
                   <img src={avatarUrl} alt="Candidate Portrait" className="w-full h-full object-cover" />
                 ) : (
-                  <div className="w-full h-full bg-gradient-to-tr from-blue-900 via-indigo-900 to-amber-600 text-white font-black text-xl flex items-center justify-center">
+                  <div className="w-full h-full bg-gradient-to-tr from-blue-900 via-indigo-900 to-amber-600 text-white font-black text-2xl flex items-center justify-center">
                     {(candidateName || 'GS').substring(0, 2).toUpperCase()}
                   </div>
                 )}
               </div>
-              <span className="absolute -bottom-1 -right-1 px-1.5 py-0.5 rounded-full bg-emerald-500 text-white text-[8px] font-black tracking-wider uppercase border border-white shadow-xs">
+              <span className="absolute -bottom-1 -right-1 px-2 py-0.5 rounded-full bg-emerald-500 text-white text-[9px] font-black tracking-wider uppercase border-2 border-white dark:border-slate-900 shadow-md">
                 VERIFIED
               </span>
             </div>

@@ -121,8 +121,8 @@ export default function Navbar({ currentUser, activeRole, onRoleSwitch, onOpenAu
   };
 
   return (
-    <header className="sticky top-0 z-50 w-full glass-panel border-b border-slate-200/90 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl shadow-sm transition-colors duration-300">
-      <div className="w-full max-w-[1700px] mx-auto px-2 sm:px-4 lg:px-6 min-h-[4rem] py-2 flex items-center justify-between gap-1.5 sm:gap-3">
+    <header className="sticky top-0 z-50 w-full glass-panel border-b border-slate-200/90 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl shadow-md transition-colors duration-300">
+      <div className="w-full max-w-[1750px] mx-auto px-3 sm:px-6 lg:px-8 min-h-[5.2rem] py-3 flex items-center justify-between gap-2.5 sm:gap-4">
         
         {/* GSFC Official Logo Header */}
         <div 
@@ -133,7 +133,7 @@ export default function Navbar({ currentUser, activeRole, onRoleSwitch, onOpenAu
           <img 
             src="/gsfc-logo-official.png" 
             alt="GSFC University Logo - Education Re-Envisioned" 
-            className="h-10 sm:h-14 w-auto object-contain group-hover:scale-105 transition-transform" 
+            className="h-12 sm:h-16 w-auto object-contain group-hover:scale-105 transition-transform" 
             onError={(e) => {
               e.target.onerror = null;
               e.target.src = '/gsfc-logo-official.jpg';
@@ -332,28 +332,30 @@ export default function Navbar({ currentUser, activeRole, onRoleSwitch, onOpenAu
 
           {/* 🔑 SIGN IN / USER PROFILE & SIGN OUT BUTTON */}
           {currentUser ? (
-            <div className="flex items-center gap-2.5 pl-1 border-l border-slate-200 dark:border-slate-700">
-              {/* Profile Avatar Image (Big & High Visibility) */}
+            <div className="flex items-center gap-3 pl-2 border-l border-slate-200 dark:border-slate-700">
+              {/* Profile Avatar Image (Big Passport Portrait Style) */}
               <button
                 type="button"
                 onClick={() => setSettingsModalOpen(true)}
                 className="relative group cursor-pointer shrink-0"
-                title="Account Settings & Profile Photo (Click to Change)"
+                title="Account Settings & Passport Photo (Click to Change)"
               >
-                <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl overflow-hidden border-2 border-blue-900 dark:border-amber-400 bg-slate-200 dark:bg-slate-700 flex items-center justify-center shadow-md transition-all group-hover:scale-105 ring-2 ring-blue-500/20">
+                <div className="w-11 h-14 sm:w-12 sm:h-15 rounded-2xl overflow-hidden border-2 border-blue-900 dark:border-amber-400 bg-slate-200 dark:bg-slate-700 flex items-center justify-center shadow-lg transition-all group-hover:scale-105 ring-2 ring-blue-500/20">
                   {avatarUrl ? (
                     <img src={avatarUrl} alt="Candidate Profile" className="w-full h-full object-cover" />
                   ) : (
-                    <div className="w-full h-full bg-gradient-to-tr from-blue-900 to-indigo-700 text-white font-black text-sm flex items-center justify-center">
+                    <div className="w-full h-full bg-gradient-to-tr from-blue-900 to-indigo-700 text-white font-black text-xs flex items-center justify-center">
                       {(currentUser.profile?.name || currentUser.name || currentUser.email || 'GS').substring(0, 2).toUpperCase()}
                     </div>
                   )}
                 </div>
-                <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-500 border-2 border-white dark:border-slate-900 shadow-xs" />
+                <span className="absolute -bottom-1 -right-1 px-1 py-0.2 rounded-md bg-emerald-500 text-white text-[7px] font-black uppercase tracking-wider border border-white dark:border-slate-900 shadow-xs">
+                  VERIFIED
+                </span>
               </button>
 
               <div className="text-right hidden xl:block">
-                <div className="text-xs font-black text-slate-900 dark:text-slate-100 truncate max-w-[110px]">
+                <div className="text-xs font-black text-slate-900 dark:text-slate-100 truncate max-w-[120px]">
                   {currentUser.profile?.name || currentUser.name || currentUser.email}
                 </div>
                 <div className="text-[9px] font-black text-emerald-600 uppercase tracking-wider flex items-center justify-end gap-1">
