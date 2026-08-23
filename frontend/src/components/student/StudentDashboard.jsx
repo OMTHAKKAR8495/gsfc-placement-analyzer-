@@ -199,7 +199,25 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
     return student?.name || 'Thakkar Om';
   });
   const [candidateEmail, setCandidateEmail] = useState('thakkar_om@gmail.com');
-  const [candidatePhone, setCandidatePhone] = useState('');
+  const [candidatePhone, setCandidatePhone] = useState(() => {
+    if (!currentUser) return '';
+    try {
+      const savedUserStr = localStorage.getItem('campushire_user');
+      if (savedUserStr) {
+        const u = JSON.parse(savedUserStr);
+        if (u.profile?.phone || u.phone) return u.profile?.phone || u.phone;
+      }
+      const email = (currentUser?.email || student?.email || '').toLowerCase();
+      if (email) {
+        const raw = localStorage.getItem('gsfc_user_profile_' + email);
+        if (raw) {
+          const custom = JSON.parse(raw);
+          if (custom.phone) return custom.phone;
+        }
+      }
+    } catch(e) {}
+    return student?.phone || '+91 95584 13347';
+  });
   const [isEditingName, setIsEditingName] = useState(false);
   const [isEditingEmail, setIsEditingEmail] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState(() => {
@@ -1623,7 +1641,7 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
                     <div className="flex items-center justify-between">
                       <span className="text-slate-500 block text-[10px] font-black uppercase">Contact Email & Phone</span>
                       <button onClick={() => setIsEditingEmail(!isEditingEmail)} className="text-[10px] text-blue-900 hover:underline font-black">
-                        {isEditingEmail ? 'Save' : 'Edit Email'}
+                        {isEditingEmail ? 'Done' : 'Edit Email'}
                       </button>
                     </div>
                     {isEditingEmail ? (
@@ -1636,7 +1654,12 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
                         autoFocus
                       />
                     ) : (
-                      <span className="text-blue-900 font-black text-xs block truncate mt-0.5">{candidateEmail}</span>
+                      <div className="mt-0.5 space-y-0.5">
+                        <span className="text-blue-900 font-black text-xs block truncate">{candidateEmail}</span>
+                        {candidatePhone && (
+                          <span className="text-slate-600 font-bold text-[11px] block">{candidatePhone}</span>
+                        )}
+                      </div>
                     )}
                   </div>
 
@@ -1732,6 +1755,7 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
                               setSelectedStudentOffer({
                                 candidate_name: student?.name || candidateName,
                                 candidate_email: student?.email || candidateEmail,
+                                candidate_phone: candidatePhone || student?.phone || currentUser?.profile?.phone || '+91 95584 13347',
                                 candidate_roll: student?.roll_number || 'GSFC/2026/CSE/001',
                                 job_title: app.job_title,
                                 company_name: app.company_name,
@@ -2198,7 +2222,12 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
         isOpen={internalApplyModalOpen}
         onClose={() => setInternalApplyModalOpen(false)}
         requirement={selectedReqForApply}
-        student={student || currentUser?.profile || currentUser}
+        student={{
+          ...(student || currentUser?.profile || currentUser || {}),
+          name: candidateName || student?.name || currentUser?.profile?.name || currentUser?.name,
+          email: candidateEmail || student?.email || currentUser?.email,
+          phone: candidatePhone || student?.phone || currentUser?.profile?.phone || currentUser?.phone,
+        }}
         onSubmitApplication={(reqId, formData) => handleApply(reqId, formData)}
       />
 
