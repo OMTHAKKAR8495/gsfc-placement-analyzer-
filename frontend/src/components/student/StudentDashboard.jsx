@@ -225,77 +225,14 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
     return localStorage.getItem('gsfc_user_avatar') || student?.avatar_url || '';
   });
 
+  // 1. Unified Student Identity & Profile Synchronization Effect
   useEffect(() => {
     if (!currentUser) {
       setCandidateName('Guest Explorer');
       setAvatarUrl('');
-    } else {
-      const name = currentUser.profile?.name || currentUser.name || student?.name || 'Thakkar Om';
-      setCandidateName(name);
-      setAvatarUrl(localStorage.getItem('gsfc_user_avatar') || currentUser.profile?.avatar_url || student?.avatar_url || '');
+      return;
     }
-  }, [currentUser, student]);
 
-  useEffect(() => {
-    const handleAvatarUpdate = (e) => {
-      if (e.detail?.avatarUrl !== undefined) {
-        setAvatarUrl(e.detail.avatarUrl);
-      } else {
-        setAvatarUrl(currentUser ? (localStorage.getItem('gsfc_user_avatar') || '') : '');
-      }
-    };
-
-    const handleUserUpdate = (e) => {
-      if (e.detail?.user) {
-        const u = e.detail.user;
-        const newName = u.profile?.name || u.name || '';
-        if (newName) setCandidateName(newName);
-      } else if (e.detail?.user === null) {
-        setCandidateName('Guest Explorer');
-        setAvatarUrl('');
-      }
-    };
-
-    window.addEventListener('gsfc-avatar-updated', handleAvatarUpdate);
-    window.addEventListener('gsfc-user-updated', handleUserUpdate);
-    return () => {
-      window.removeEventListener('gsfc-avatar-updated', handleAvatarUpdate);
-      window.removeEventListener('gsfc-user-updated', handleUserUpdate);
-    };
-  }, [currentUser]);
-
-  // Selected Match Breakdown Modal State
-  const [selectedMatchBreakdown, setSelectedMatchBreakdown] = useState(null);
-  // Mail Modal & PDF Report Modal State
-  const [mailModalOpen, setMailModalOpen] = useState(false);
-  const [pdfReportModalOpen, setPdfReportModalOpen] = useState(false);
-  const [ecosystemModalOpen, setEcosystemModalOpen] = useState(false);
-  const [mailRecipient, setMailRecipient] = useState(candidateEmail);
-  const [mailSentSuccess, setMailSentSuccess] = useState(false);
-
-  // Database Save State
-  const [savingToDb, setSavingToDb] = useState(false);
-  const [dbSaveConfirmation, setDbSaveConfirmation] = useState(null);
-
-  // AI Mock Interview state
-  const [mockSessionActive, setMockSessionActive] = useState(false);
-  const [mockTargetRequirement, setMockTargetRequirement] = useState(null);
-
-  // Stamped Offer Letter State
-  const [studentOfferLetterOpen, setStudentOfferLetterOpen] = useState(false);
-  const [selectedStudentOffer, setSelectedStudentOffer] = useState(null);
-
-  // AI Copilot & Placement Readiness Intelligence State
-  const [copilotOpen, setCopilotOpen] = useState(false);
-  const [readinessData, setReadinessData] = useState(null);
-
-  // Apply Branching State
-  const [selectedReqForApply, setSelectedReqForApply] = useState(null);
-  const [internalApplyModalOpen, setInternalApplyModalOpen] = useState(false);
-  const [externalConfirmModalOpen, setExternalConfirmModalOpen] = useState(false);
-
-  // Sync candidate fields dynamically when currentUser or student changes
-  useEffect(() => {
     const email = (currentUser?.email || student?.email || '').toLowerCase();
     let customProfile = null;
     if (email) {
@@ -333,7 +270,67 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
     if (currentUser?.email) {
       setCandidateEmail(currentUser.email);
     }
-  }, [currentUser, student]);
+
+    setAvatarUrl(localStorage.getItem('gsfc_user_avatar') || currentUser?.profile?.avatar_url || student?.avatar_url || '');
+  }, [currentUser?.id, currentUser?.email, student?.id, student?.name]);
+
+  useEffect(() => {
+    const handleAvatarUpdate = (e) => {
+      if (e.detail?.avatarUrl !== undefined) {
+        setAvatarUrl(e.detail.avatarUrl);
+      } else {
+        setAvatarUrl(currentUser ? (localStorage.getItem('gsfc_user_avatar') || '') : '');
+      }
+    };
+
+    const handleUserUpdate = (e) => {
+      if (e.detail?.user) {
+        const u = e.detail.user;
+        const newName = u.profile?.name || u.name || '';
+        if (newName) setCandidateName(newName);
+      } else if (e.detail?.user === null) {
+        setCandidateName('Guest Explorer');
+        setAvatarUrl('');
+      }
+    };
+
+    window.addEventListener('gsfc-avatar-updated', handleAvatarUpdate);
+    window.addEventListener('gsfc-user-updated', handleUserUpdate);
+    return () => {
+      window.removeEventListener('gsfc-avatar-updated', handleAvatarUpdate);
+      window.removeEventListener('gsfc-user-updated', handleUserUpdate);
+    };
+  }, []);
+
+  // Selected Match Breakdown Modal State
+  const [selectedMatchBreakdown, setSelectedMatchBreakdown] = useState(null);
+  // Mail Modal & PDF Report Modal State
+  const [mailModalOpen, setMailModalOpen] = useState(false);
+  const [pdfReportModalOpen, setPdfReportModalOpen] = useState(false);
+  const [ecosystemModalOpen, setEcosystemModalOpen] = useState(false);
+  const [mailRecipient, setMailRecipient] = useState(candidateEmail);
+  const [mailSentSuccess, setMailSentSuccess] = useState(false);
+
+  // Database Save State
+  const [savingToDb, setSavingToDb] = useState(false);
+  const [dbSaveConfirmation, setDbSaveConfirmation] = useState(null);
+
+  // AI Mock Interview state
+  const [mockSessionActive, setMockSessionActive] = useState(false);
+  const [mockTargetRequirement, setMockTargetRequirement] = useState(null);
+
+  // Stamped Offer Letter State
+  const [studentOfferLetterOpen, setStudentOfferLetterOpen] = useState(false);
+  const [selectedStudentOffer, setSelectedStudentOffer] = useState(null);
+
+  // AI Copilot & Placement Readiness Intelligence State
+  const [copilotOpen, setCopilotOpen] = useState(false);
+  const [readinessData, setReadinessData] = useState(null);
+
+  // Apply Branching State
+  const [selectedReqForApply, setSelectedReqForApply] = useState(null);
+  const [internalApplyModalOpen, setInternalApplyModalOpen] = useState(false);
+  const [externalConfirmModalOpen, setExternalConfirmModalOpen] = useState(false);
 
   useEffect(() => {
     if (currentUser && (currentUser.role === 'student' || !currentUser.role)) {
@@ -355,50 +352,45 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
       window.removeEventListener('open-resume-upload', handleOpenUpload);
       window.removeEventListener('open-resume-builder', handleOpenBuilder);
     };
-  }, [currentUser]);
+  }, []);
 
   const handleWithdrawApplication = async (appId) => {
-    if (!window.confirm('Are you sure you want to withdraw/delete your application?')) return;
+    if (!window.confirm('Are you sure you want to withdraw this campus placement application?')) return;
     try {
       const res = await fetch(`/api/student/applications/${appId}`, { method: 'DELETE' });
-      const data = await res.json();
       if (res.ok) {
-        setApplications(prev => prev.filter(a => a.id !== appId));
         showToast({
-          type: 'info',
+          type: 'default',
           title: 'Application Withdrawn',
-          message: 'Your placement application was removed from the active register.',
-          triggerCrackles: false
+          message: 'Your application has been safely retracted from the recruiter pipeline.'
         });
-      } else {
-        showToast({
-          type: 'error',
-          title: 'Withdrawal Failed',
-          message: data.error || 'Failed to withdraw application',
-          triggerCrackles: false
-        });
+        fetchApplications();
       }
     } catch (err) {
       console.error('Error withdrawing application:', err);
     }
   };
 
+  const [candidateResumeUrl, setCandidateResumeUrl] = useState('/uploads/sample_resume.pdf');
+  const [resumeData, setResumeData] = useState(null);
+  const [atsScore, setAtsScore] = useState(88);
+  const [atsFeedback, setAtsFeedback] = useState([]);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState('');
+  const [enhancedResume, setEnhancedResume] = useState(null);
+  const [enhancing, setEnhancing] = useState(false);
+  const [selectedLocation, setSelectedLocation] = useState('All');
+  const [minMatch, setMinMatch] = useState(0);
+  const [minSalary, setMinSalary] = useState(0);
+  const [showIneligible, setShowIneligible] = useState(false);
+  const [showHighCtcOnly, setShowHighCtcOnly] = useState(false);
 
-  const placementTips = [
-    '💡 Tip 1: Quantifiable metrics like "Boosted database speed by 35%" increase ATS score by 40%!',
-    '🚀 Fact: Over 85% of GSFC BTech CSE graduates secured PPO & placement offers in 2025!',
-    '🎯 Tip 2: Listing Python, React, and SQL directly matches high-demand corporate drives.',
-    '🔮 AI Engine: Gemini NLP is vectorizing technical skills & calculating ATS match index...'
+  const ANALYZING_TIPS = [
+    '⚡ Scanning 45+ Industry Keywords & Role Competencies',
+    '🔍 Cross-referencing GSFC Technical Skill Taxonomy & Projects',
+    '📊 Evaluating ATS Match Index & CGPA Cutoffs',
+    '✨ Generating Role Recommendations & Skill Gap Analysis'
   ];
-
-
-  const analysisStages = [
-    '📄 Stage 1: Extracting PDF Text & Candidate Credentials',
-    '🔍 Stage 2: Gemini NLP Vectorizing Technical & Soft Skills',
-    '📊 Stage 3: Evaluating ATS Match Index & CGPA Cutoffs',
-    '✨ Stage 4: Generating Role Recommendations & Skill Gap Analysis'
-  ];
-
 
   const [bookmarkedOnly, setBookmarkedOnly] = useState(false);
   const [bookmarkedIds, setBookmarkedIds] = useState(new Set());
@@ -410,15 +402,20 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
     if (student || currentUser) {
       fetchApplications();
       fetchAssessmentsAndInterviews();
-      if (student?.name) setCandidateName(student.name);
     }
-    // Fetch 10-point placement readiness & probability
+    // Fetch 10-point placement readiness & probability with timeout guard
     const sId = student?.id || currentUser?.profile?.id || 'demo';
-    fetch(`/api/intelligence/readiness/${sId}`)
-      .then(r => r.json())
-      .then(data => setReadinessData(data))
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 3000);
+    fetch(`/api/intelligence/readiness/${sId}`, { signal: controller.signal })
+      .then(r => {
+        clearTimeout(timeout);
+        return r.ok ? r.json() : null;
+      })
+      .then(data => { if (data) setReadinessData(data); })
       .catch(() => {});
-  }, [student?.id, showAllFeed, currentUser?.id, currentUser?.email]);
+    return () => { clearTimeout(timeout); controller.abort(); };
+  }, [student?.id, showAllFeed, currentUser?.id]);
 
   const fetchFeed = async () => {
     try {
@@ -427,10 +424,18 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
       const headers = { 'Content-Type': 'application/json' };
       if (token) headers['Authorization'] = `Bearer ${token}`;
 
-      const res = await fetch(`/api/student/requirements?studentId=${studentId}&showAll=${showAllFeed}`, { headers });
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 3500);
+
+      const res = await fetch(`/api/student/requirements?studentId=${studentId}&showAll=${showAllFeed}`, {
+        headers,
+        signal: controller.signal
+      });
+      clearTimeout(timeout);
+
       if (res.ok) {
         const data = await res.json();
-        if (data.feed && data.feed.length > 0) {
+        if (data && data.feed && data.feed.length > 0) {
           setRequirementsFeed(data.feed);
           const bSet = new Set();
           data.feed.forEach(r => { if (r.is_bookmarked) bSet.add(r.id); });
@@ -438,10 +443,8 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
           return;
         }
       }
-      // If API fails or is empty on Vercel preview, use standard placement feed
       setRequirementsFeed(DEFAULT_REQUIREMENTS_FEED);
     } catch (err) {
-      console.warn('Network fallback: loading default GSFC campus drives feed.');
       setRequirementsFeed(DEFAULT_REQUIREMENTS_FEED);
     }
   };
@@ -454,11 +457,21 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
       const headers = { 'Content-Type': 'application/json' };
       if (token) headers['Authorization'] = `Bearer ${token}`;
 
-      const res = await fetch(`/api/student/applications?studentId=${studentId}`, { headers });
-      const data = await res.json();
-      setApplications(Array.isArray(data) ? data : []);
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 3500);
+
+      const res = await fetch(`/api/student/applications?studentId=${studentId}`, {
+        headers,
+        signal: controller.signal
+      });
+      clearTimeout(timeout);
+
+      if (res.ok) {
+        const data = await res.json();
+        setApplications(Array.isArray(data) ? data : []);
+      }
     } catch (err) {
-      console.error('Error fetching applications:', err);
+      // Graceful fallback
     }
   };
 
@@ -470,20 +483,25 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
       const headers = { 'Content-Type': 'application/json' };
       if (token) headers['Authorization'] = `Bearer ${token}`;
 
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 3500);
+
       const [asmtRes, intRes] = await Promise.all([
-        fetch(`/api/student/assessments?student_id=${studentId}`, { headers }),
-        fetch(`/api/student/interviews?student_id=${studentId}`, { headers })
+        fetch(`/api/student/assessments?student_id=${studentId}`, { headers, signal: controller.signal }).catch(() => null),
+        fetch(`/api/student/interviews?student_id=${studentId}`, { headers, signal: controller.signal }).catch(() => null)
       ]);
-      if (asmtRes.ok) {
+      clearTimeout(timeout);
+
+      if (asmtRes && asmtRes.ok) {
         const asmts = await asmtRes.json();
         setAssessmentsList(Array.isArray(asmts) ? asmts : []);
       }
-      if (intRes.ok) {
+      if (intRes && intRes.ok) {
         const ints = await intRes.json();
         setInterviewsList(Array.isArray(ints) ? ints : []);
       }
     } catch (err) {
-      console.error('Error fetching assessments:', err);
+      // Graceful fallback
     }
   };
 

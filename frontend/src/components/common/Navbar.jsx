@@ -79,9 +79,9 @@ export default function Navbar({ currentUser, activeRole, onRoleSwitch, onOpenAu
       if (!document.hidden) {
         fetchLiveNotifications();
       }
-    }, 20000);
+    }, 45000);
     return () => clearInterval(interval);
-  }, [currentUser]);
+  }, [currentUser?.email]);
 
   const handleMarkAllRead = () => {
     const allIds = new Set([...readNotifIds, ...notifications.map(n => n.id)]);

@@ -659,7 +659,7 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
     window.addEventListener('student-database-updated', handleStudentSync);
     window.addEventListener('storage', handleStudentSync);
 
-    // Live 15-second auto-sync interval (Only when tab is active)
+    // Live 30-second auto-sync interval (Only when tab is active)
     const interval = setInterval(() => {
       if (document.hidden) return;
       if (currentUser?.role === 'admin' || !currentUser) {
@@ -668,14 +668,14 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
         fetchMasterData();
         fetchLoggedUsers();
       }
-    }, 15000);
+    }, 30000);
 
     return () => {
       clearInterval(interval);
       window.removeEventListener('student-database-updated', handleStudentSync);
       window.removeEventListener('storage', handleStudentSync);
     };
-  }, [currentUser]);
+  }, [currentUser?.id, currentUser?.role]);
 
   const handleAdminLogin = async (e) => {
     e.preventDefault();
