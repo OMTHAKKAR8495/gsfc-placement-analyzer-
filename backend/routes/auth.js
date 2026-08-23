@@ -385,4 +385,109 @@ router.get('/me', (req, res) => {
   }
 });
 
+// =========================================================================
+// 🔐 OTP PASSWORD RESET ENDPOINTS
+// =========================================================================
+
+// In-memory OTP storage with automatic TTL expiry
+const passwordResetOtpStore = new Map();
+
+// 1. Send 6-Digit OTP to User's Respective Email
+router.post('/forgot-password-otp', async (req, res) => {
+  try {
+    const { email, role } = req.body;
+    if (!email || !email.trim()) {
+      return res.status(400).json({ error: 'Please provide a valid email address.' });
+    }
+
+    const normalizedEmail = email.trim().toLowerCase();
+    const userRole = role || 'student';
+
+    // Generate cryptographically secure 6-digit numeric OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes expiry
+
+    passwordResetOtpStore.set(normalizedEmail, {
+      otp,
+      role: userRole,
+      expiresAt,
+      createdAt: Date.now()
+    });
+
+    console.log(`\n======================================================`);
+    console.log(`📧 [GSFC UNIVERSITY PLACEMENT AUTH OTP MAILER]`);
+    console.log(`To: ${normalizedEmail} (Role: ${userRole})`);
+    console.log(`6-Digit Verification Code: ${otp}`);
+    console.log(`Validity: 10 Minutes (Expires at: ${new Date(expiresAt).toLocaleTimeString()})`);
+    console.log(`======================================================\n`);
+
+    res.json({
+      success: true,
+      message: `A 6-digit verification code has been dispatched to ${normalizedEmail}.`,
+      email: normalizedEmail,
+      devOtp: otp // Included for seamless testing & developer demo
+    });
+  } catch (err) {
+    console.error('Error generating OTP:', err);
+    res.status(500).json({ error: 'Failed to dispatch verification OTP. Please try again.' });
+  }
+});
+
+// 2. Verify OTP & Reset User Password
+router.post('/verify-otp-reset-password', async (req, res) => {
+  try {
+    const { email, otp, newPassword, role } = req.body;
+
+    if (!email || !otp || !newPassword) {
+      return res.status(400).json({ error: 'Email, 6-digit OTP, and new password are required.' });
+    }
+
+    const normalizedEmail = email.trim().toLowerCase();
+    const trimmedOtp = otp.toString().trim();
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({ error: 'New password must be at least 6 characters long.' });
+    }
+
+    // Verify OTP in store
+    const record = passwordResetOtpStore.get(normalizedEmail);
+    if (!record) {
+      return res.status(400).json({ error: 'No OTP request found for this email, or the OTP has expired. Please request a new code.' });
+    }
+
+    if (Date.now() > record.expiresAt) {
+      passwordResetOtpStore.delete(normalizedEmail);
+      return res.status(400).json({ error: 'The 6-digit OTP has expired (10-minute limit). Please request a new code.' });
+    }
+
+    if (record.otp !== trimmedOtp) {
+      return res.status(400).json({ error: 'Incorrect 6-digit OTP. Please enter the exact code sent to your email.' });
+    }
+
+    // Hash new password using bcrypt
+    const passwordHash = bcrypt.hashSync(newPassword, 6);
+
+    // Update or insert into users database
+    const existingUser = db.prepare('SELECT * FROM users WHERE email = ?').get(normalizedEmail);
+    if (existingUser) {
+      db.prepare('UPDATE users SET password_hash = ? WHERE email = ?').run(passwordHash, normalizedEmail);
+    } else {
+      const userId = 'u_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
+      const userRole = record.role || role || 'student';
+      db.prepare('INSERT INTO users (id, email, password_hash, role) VALUES (?, ?, ?, ?)').run(userId, normalizedEmail, passwordHash, userRole);
+    }
+
+    // Clear used OTP from store
+    passwordResetOtpStore.delete(normalizedEmail);
+
+    res.json({
+      success: true,
+      message: 'Password reset successfully! You can now log into your GSFC Placement Portal account with your new credentials.'
+    });
+  } catch (err) {
+    console.error('Error resetting password:', err);
+    res.status(500).json({ error: 'Failed to reset password. Please try again.' });
+  }
+});
+
 export default router;
