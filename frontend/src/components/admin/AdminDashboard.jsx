@@ -867,173 +867,189 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
         </div>
       </div>
 
-      {/* Navigation Segment: Overview vs Candidate Database */}
-      <div className="flex items-center gap-3 bg-white/90 p-2 rounded-2xl border border-slate-200 shadow-sm max-w-full overflow-x-auto">
-        <button
-          onClick={() => setActiveTab('overview')}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black transition-all shrink-0 ${
-            activeTab === 'overview'
-              ? 'bg-theme-gradient text-white shadow-md'
-              : 'text-slate-700 hover:bg-slate-100'
-          }`}
-        >
-          <BarChart3 className="w-4 h-4" /> Governance
-        </button>
+      {/* Command Center 2-Tier Navigation Hub */}
+      <div className="space-y-3">
+        {/* Tier 1: Core Portal Tabs */}
+        <div className="glass-panel p-2.5 sm:p-3 rounded-2xl border border-slate-200 shadow-md">
+          <div className="flex items-center gap-1.5 text-[11px] font-black text-slate-500 uppercase tracking-wider mb-2 px-1">
+            <BarChart3 className="w-3.5 h-3.5 text-blue-900" /> TPC Core Data & Governance Views
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={() => setActiveTab('overview')}
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                activeTab === 'overview'
+                  ? 'bg-blue-900 text-white shadow-md ring-2 ring-blue-400/40'
+                  : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100'
+              }`}
+            >
+              <BarChart3 className="w-3.5 h-3.5" /> Governance
+            </button>
 
-        <button
-          onClick={() => setActiveTab('predictive')}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black transition-all shrink-0 ${
-            activeTab === 'predictive'
-              ? 'bg-theme-gradient text-white shadow-md'
-              : 'text-slate-700 hover:bg-slate-100'
-          }`}
-        >
-          <Sparkles className="w-4 h-4 text-indigo-400" /> 🔮 AI Predictive Forecast
-        </button>
+            <button
+              onClick={() => setActiveTab('logged_students')}
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                activeTab === 'logged_students'
+                  ? 'bg-blue-900 text-white shadow-md ring-2 ring-blue-400/40'
+                  : 'bg-blue-50 text-blue-950 border border-blue-200 hover:bg-blue-100'
+              }`}
+            >
+              <GraduationCap className="w-3.5 h-3.5 text-blue-700" /> 🎓 Logged Students ({filteredLoggedStudents.length})
+            </button>
 
-        <button
-          onClick={() => setJobFairModalOpen(true)}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black transition-all shrink-0 bg-purple-50 text-purple-950 border border-purple-200 hover:bg-purple-100 cursor-pointer shadow-xs"
-        >
-          <Calendar className="w-4 h-4 text-purple-600" /> 🎪 Job Fair Manager
-        </button>
+            <button
+              onClick={() => setActiveTab('logged_faculty')}
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                activeTab === 'logged_faculty'
+                  ? 'bg-emerald-800 text-white shadow-md ring-2 ring-emerald-400/40'
+                  : 'bg-emerald-50 text-emerald-950 border border-emerald-200 hover:bg-emerald-100'
+              }`}
+            >
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-700" /> 👩‍🏫 Faculty Logged Data ({filteredLoggedFaculty.length})
+            </button>
 
-        <button
-          onClick={() => setEcosystemModalOpen(true)}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black transition-all shrink-0 bg-gradient-to-r from-blue-900 via-indigo-900 to-amber-600 hover:from-blue-800 hover:to-amber-500 text-white cursor-pointer shadow-md border border-amber-400/40"
-        >
-          <Globe className="w-4 h-4 text-amber-300 animate-pulse" /> 🌐 Enterprise Suite
-        </button>
+            <button
+              onClick={() => setActiveTab('database')}
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                activeTab === 'database'
+                  ? 'bg-blue-900 text-white shadow-md ring-2 ring-blue-400/40'
+                  : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100'
+              }`}
+            >
+              <Database className="w-3.5 h-3.5 text-amber-600" /> 🗄️ Candidate Database ({filteredCandidates.length})
+            </button>
 
-        <button
-          onClick={() => setCopilotOpen(true)}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black transition-all shrink-0 bg-purple-900 hover:bg-purple-800 text-white cursor-pointer shadow-md border border-purple-400/30"
-        >
-          <Sparkles className="w-4 h-4 text-amber-300 animate-pulse" /> 🤖 AI TPO Copilot
-        </button>
+            <button
+              onClick={() => setActiveTab('companies')}
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                activeTab === 'companies'
+                  ? 'bg-blue-900 text-white shadow-md ring-2 ring-blue-400/40'
+                  : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100'
+              }`}
+            >
+              <Building className="w-3.5 h-3.5 text-amber-600" /> 🏢 Recruiters ({allCompaniesList.length})
+            </button>
 
-        <button
-          onClick={() => setWhatIfModalOpen(true)}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black transition-all shrink-0 bg-indigo-900 hover:bg-indigo-800 text-white cursor-pointer shadow-md border border-indigo-400/30"
-        >
-          <Sliders className="w-4 h-4 text-amber-300" /> 🔮 What-If Simulator
-        </button>
+            <button
+              onClick={() => setActiveTab('drives')}
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                activeTab === 'drives'
+                  ? 'bg-blue-900 text-white shadow-md ring-2 ring-blue-400/40'
+                  : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100'
+              }`}
+            >
+              <Briefcase className="w-3.5 h-3.5 text-emerald-600" /> 💼 Drives ({allDrivesList.length})
+            </button>
 
-        <button
-          onClick={() => setHeatmapModalOpen(true)}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black transition-all shrink-0 bg-teal-900 hover:bg-teal-800 text-white cursor-pointer shadow-md border border-teal-400/30"
-        >
-          <Layers className="w-4 h-4 text-amber-300" /> 🗺️ Skill Heatmap
-        </button>
+            <button
+              onClick={() => setActiveTab('applications')}
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                activeTab === 'applications'
+                  ? 'bg-blue-900 text-white shadow-md ring-2 ring-blue-400/40'
+                  : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100'
+              }`}
+            >
+              <Users className="w-3.5 h-3.5 text-indigo-600" /> 📄 Applications ({allApplicationsList.length})
+            </button>
 
-        <button
-          onClick={() => setActiveTab('alumni_approvals')}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black transition-all shrink-0 ${
-            activeTab === 'alumni_approvals'
-              ? 'bg-theme-gradient text-white shadow-md'
-              : 'text-slate-700 hover:bg-slate-100'
-          }`}
-        >
-          <GraduationCap className="w-4 h-4 text-blue-500" /> 🎓 Alumni Approvals ({pendingAlumni.length})
-        </button>
+            <button
+              onClick={() => setActiveTab('alumni_approvals')}
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                activeTab === 'alumni_approvals'
+                  ? 'bg-blue-900 text-white shadow-md ring-2 ring-blue-400/40'
+                  : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100'
+              }`}
+            >
+              <GraduationCap className="w-3.5 h-3.5 text-blue-600" /> 🎓 Alumni ({pendingAlumni.length})
+            </button>
 
-        <button
-          onClick={() => setActiveTab('qa')}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black transition-all shrink-0 ${
-            activeTab === 'qa'
-              ? 'bg-theme-gradient text-white shadow-md'
-              : 'text-slate-700 hover:bg-slate-100'
-          }`}
-        >
-          <HelpCircle className="w-4 h-4 text-cyan-500" /> 💬 Q&A Moderation
-        </button>
+            <button
+              onClick={() => setActiveTab('qa')}
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                activeTab === 'qa'
+                  ? 'bg-blue-900 text-white shadow-md ring-2 ring-blue-400/40'
+                  : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100'
+              }`}
+            >
+              <HelpCircle className="w-3.5 h-3.5 text-cyan-600" /> 💬 Q&A Moderation
+            </button>
 
-        <button
-          onClick={() => setActiveTab('logged_students')}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black transition-all shrink-0 cursor-pointer ${
-            activeTab === 'logged_students'
-              ? 'bg-blue-900 text-white shadow-md ring-2 ring-blue-400/50'
-              : 'bg-blue-50 text-blue-950 border border-blue-200 hover:bg-blue-100'
-          }`}
-        >
-          <GraduationCap className="w-4 h-4 text-blue-600" /> 🎓 Logged Students ({filteredLoggedStudents.length})
-        </button>
+            <button
+              onClick={() => {
+                setActiveTab('search');
+                fetchGlobalSearch(searchQuery);
+              }}
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                activeTab === 'search'
+                  ? 'bg-blue-900 text-white shadow-md ring-2 ring-blue-400/40'
+                  : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100'
+              }`}
+            >
+              <Search className="w-3.5 h-3.5 text-cyan-600" /> 🔍 Cross-Tenant Search
+            </button>
+          </div>
+        </div>
 
-        <button
-          onClick={() => setActiveTab('logged_faculty')}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black transition-all shrink-0 cursor-pointer ${
-            activeTab === 'logged_faculty'
-              ? 'bg-emerald-800 text-white shadow-md ring-2 ring-emerald-400/50'
-              : 'bg-emerald-50 text-emerald-950 border border-emerald-200 hover:bg-emerald-100'
-          }`}
-        >
-          <ShieldCheck className="w-4 h-4 text-emerald-600" /> 👩‍🏫 Faculty Logged Data ({filteredLoggedFaculty.length})
-        </button>
+        {/* Tier 2: AI & Executive Tooling Launchers */}
+        <div className="glass-panel p-2.5 sm:p-3 rounded-2xl border border-slate-200 shadow-md">
+          <div className="flex items-center gap-1.5 text-[11px] font-black text-amber-700 uppercase tracking-wider mb-2 px-1">
+            <Sparkles className="w-3.5 h-3.5 text-amber-600" /> AI Intelligence & Accreditation Tools
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={() => setActiveTab('predictive')}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                activeTab === 'predictive'
+                  ? 'bg-indigo-900 text-white shadow-md'
+                  : 'bg-indigo-50 text-indigo-950 border border-indigo-200 hover:bg-indigo-100'
+              }`}
+            >
+              <Sparkles className="w-3.5 h-3.5 text-indigo-600" /> 🔮 AI Forecast
+            </button>
 
-        <button
-          onClick={() => setActiveTab('database')}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black transition-all shrink-0 ${
-            activeTab === 'database'
-              ? 'bg-theme-gradient text-white shadow-md'
-              : 'text-slate-700 hover:bg-slate-100'
-          }`}
-        >
-          <Database className="w-4 h-4 text-amber-400" /> 🗄️ Candidate Database ({filteredCandidates.length})
-        </button>
+            <button
+              onClick={() => setJobFairModalOpen(true)}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-black transition-all bg-purple-50 text-purple-950 border border-purple-200 hover:bg-purple-100 cursor-pointer shadow-xs"
+            >
+              <Calendar className="w-3.5 h-3.5 text-purple-600" /> 🎪 Job Fair Manager
+            </button>
 
-        <button
-          onClick={() => setActiveTab('companies')}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black transition-all shrink-0 ${
-            activeTab === 'companies'
-              ? 'bg-theme-gradient text-white shadow-md'
-              : 'text-slate-700 hover:bg-slate-100'
-          }`}
-        >
-          <Building className="w-4 h-4 text-amber-500" /> 🏢 Recruiters ({allCompaniesList.length})
-        </button>
+            <button
+              onClick={() => setEcosystemModalOpen(true)}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-black transition-all bg-gradient-to-r from-blue-900 via-indigo-900 to-amber-600 hover:from-blue-800 text-white cursor-pointer shadow-sm border border-amber-400/40"
+            >
+              <Globe className="w-3.5 h-3.5 text-amber-300" /> 🌐 Enterprise Suite
+            </button>
 
-        <button
-          onClick={() => setActiveTab('drives')}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black transition-all shrink-0 ${
-            activeTab === 'drives'
-              ? 'bg-theme-gradient text-white shadow-md'
-              : 'text-slate-700 hover:bg-slate-100'
-          }`}
-        >
-          <Briefcase className="w-4 h-4 text-emerald-400" /> 💼 Drives ({allDrivesList.length})
-        </button>
+            <button
+              onClick={() => setCopilotOpen(true)}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-black transition-all bg-purple-900 hover:bg-purple-800 text-white cursor-pointer shadow-sm"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-amber-300" /> 🤖 AI TPO Copilot
+            </button>
 
-        <button
-          onClick={() => setActiveTab('applications')}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black transition-all shrink-0 ${
-            activeTab === 'applications'
-              ? 'bg-theme-gradient text-white shadow-md'
-              : 'text-slate-700 hover:bg-slate-100'
-          }`}
-        >
-          <Users className="w-4 h-4 text-indigo-400" /> 📄 Applications ({allApplicationsList.length})
-        </button>
+            <button
+              onClick={() => setWhatIfModalOpen(true)}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-black transition-all bg-indigo-900 hover:bg-indigo-800 text-white cursor-pointer shadow-sm"
+            >
+              <Sliders className="w-3.5 h-3.5 text-amber-300" /> 🔮 What-If Simulator
+            </button>
 
-        <button
-          onClick={() => {
-            setActiveTab('search');
-            fetchGlobalSearch(searchQuery);
-          }}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black transition-all shrink-0 ${
-            activeTab === 'search'
-              ? 'bg-theme-gradient text-white shadow-md'
-              : 'text-slate-700 hover:bg-slate-100'
-          }`}
-        >
-          <Search className="w-4 h-4 text-cyan-400" /> 🔍 Cross-Tenant Search
-        </button>
+            <button
+              onClick={() => setHeatmapModalOpen(true)}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-black transition-all bg-teal-900 hover:bg-teal-800 text-white cursor-pointer shadow-sm"
+            >
+              <Layers className="w-3.5 h-3.5 text-amber-300" /> 🗺️ Skill Heatmap
+            </button>
 
-        <button
-          onClick={() => setAccreditationModalOpen(true)}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black transition-all shrink-0 bg-amber-50 text-amber-950 border border-amber-300 hover:bg-amber-100 cursor-pointer shadow-xs"
-        >
-          <Award className="w-4 h-4 text-amber-600 stroke-[2.5]" /> 🏆 NAAC / NIRF
-        </button>
+            <button
+              onClick={() => setAccreditationModalOpen(true)}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-black transition-all bg-amber-50 text-amber-950 border border-amber-300 hover:bg-amber-100 cursor-pointer shadow-xs"
+            >
+              <Award className="w-3.5 h-3.5 text-amber-600 stroke-[2.5]" /> 🏆 NAAC / NIRF
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* VIEW: LOGGED STUDENTS DIRECTORY & CREDENTIAL AUDIT VAULT */}
