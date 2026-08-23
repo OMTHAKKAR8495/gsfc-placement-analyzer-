@@ -129,10 +129,13 @@ CREATE TABLE IF NOT EXISTS mock_interview_sessions (
 
 CREATE TABLE IF NOT EXISTS admin_audit_logs (
     id TEXT PRIMARY KEY,
-    admin_id TEXT NOT NULL,
-    viewed_entity_type TEXT CHECK(viewed_entity_type IN ('student', 'company', 'requirement', 'application', 'eval_result')) NOT NULL,
-    viewed_entity_id TEXT NOT NULL,
-    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+    admin_user_id TEXT NOT NULL,
+    admin_email TEXT NOT NULL,
+    action TEXT NOT NULL,
+    target_entity_type TEXT,
+    target_entity_id TEXT,
+    details_json TEXT DEFAULT '{}',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS interview_evaluations (

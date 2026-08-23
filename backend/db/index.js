@@ -664,6 +664,176 @@ function applyMigrations() {
         facultyPassHash
       );
     }
+
+    // 18. Persistent User Login History & Audit Table
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS user_login_history (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        role TEXT NOT NULL,
+        email TEXT NOT NULL,
+        login_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        logout_at DATETIME,
+        session_status TEXT DEFAULT 'active' CHECK(session_status IN ('active', 'ended', 'expired', 'unknown')),
+        ip_address TEXT,
+        user_agent TEXT,
+        device_type TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE INDEX IF NOT EXISTS idx_login_user_id ON user_login_history(user_id);
+      CREATE INDEX IF NOT EXISTS idx_login_role ON user_login_history(role);
+      CREATE INDEX IF NOT EXISTS idx_login_timestamp ON user_login_history(login_at);
+    `);
+
+    // 19. Persistent User Activity Timeline Table
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS user_activity_timeline (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        role TEXT NOT NULL,
+        activity_type TEXT NOT NULL,
+        title TEXT NOT NULL,
+        description TEXT,
+        metadata_json TEXT DEFAULT '{}',
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE INDEX IF NOT EXISTS idx_activity_user_id ON user_activity_timeline(user_id);
+      CREATE INDEX IF NOT EXISTS idx_activity_created_at ON user_activity_timeline(created_at);
+    `);
+
+    // 20. Comprehensive Admin Audit Logs Table Migration
+    const auditCols = db.prepare("PRAGMA table_info(admin_audit_logs)").all().map(c => c.name);
+    if (!auditCols.includes('admin_user_id')) {
+      db.exec("DROP TABLE IF EXISTS admin_audit_logs");
+      db.exec(`
+        CREATE TABLE admin_audit_logs (
+          id TEXT PRIMARY KEY,
+          admin_user_id TEXT NOT NULL,
+          admin_email TEXT NOT NULL,
+          action TEXT NOT NULL,
+          target_entity_type TEXT,
+          target_entity_id TEXT,
+          details_json TEXT DEFAULT '{}',
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+    }
+    db.exec(`
+      CREATE INDEX IF NOT EXISTS idx_audit_admin_id ON admin_audit_logs(admin_user_id);
+      CREATE INDEX IF NOT EXISTS idx_audit_created_at ON admin_audit_logs(created_at);
+    `);
+
+    // 21. Faculty Profiles Table
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS faculty_profiles (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        email TEXT UNIQUE NOT NULL,
+        phone TEXT,
+        department TEXT NOT NULL,
+        designation TEXT NOT NULL,
+        assigned_batches TEXT,
+        photo_url TEXT,
+        status TEXT DEFAULT 'Active Verified',
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE INDEX IF NOT EXISTS idx_faculty_user_id ON faculty_profiles(user_id);
+    `);
+
+    // Ensure users table tracking columns
+    const userCols = db.prepare("PRAGMA table_info(users)").all().map(c => c.name);
+    if (!userCols.includes('last_login_at')) {
+      db.exec("ALTER TABLE users ADD COLUMN last_login_at DATETIME");
+    }
+    if (!userCols.includes('login_count')) {
+      db.exec("ALTER TABLE users ADD COLUMN login_count INTEGER DEFAULT 1");
+    }
+    if (!userCols.includes('last_logout_at')) {
+      db.exec("ALTER TABLE users ADD COLUMN last_logout_at DATETIME");
+    }
+    if (!userCols.includes('current_session_status')) {
+      db.exec("ALTER TABLE users ADD COLUMN current_session_status TEXT DEFAULT 'active'");
+    }
+    if (!userCols.includes('last_seen_at')) {
+      db.exec("ALTER TABLE users ADD COLUMN last_seen_at DATETIME");
+    }
+
+    // Ensure student_profiles table tracking columns
+    const studProfileCols = db.prepare("PRAGMA table_info(student_profiles)").all().map(c => c.name);
+    if (!studProfileCols.includes('semester')) {
+      db.exec("ALTER TABLE student_profiles ADD COLUMN semester INTEGER DEFAULT 7");
+    }
+    if (!studProfileCols.includes('division')) {
+      db.exec("ALTER TABLE student_profiles ADD COLUMN division TEXT DEFAULT 'A'");
+    }
+    if (!studProfileCols.includes('profile_completion_pct')) {
+      db.exec("ALTER TABLE student_profiles ADD COLUMN profile_completion_pct INTEGER DEFAULT 85");
+    }
+    if (!studProfileCols.includes('last_login_at')) {
+      db.exec("ALTER TABLE student_profiles ADD COLUMN last_login_at DATETIME");
+    }
+    if (!studProfileCols.includes('login_count')) {
+      db.exec("ALTER TABLE student_profiles ADD COLUMN login_count INTEGER DEFAULT 1");
+    }
+    if (!studProfileCols.includes('last_logout_at')) {
+      db.exec("ALTER TABLE student_profiles ADD COLUMN last_logout_at DATETIME");
+    }
+    if (!studProfileCols.includes('current_session_status')) {
+      db.exec("ALTER TABLE student_profiles ADD COLUMN current_session_status TEXT DEFAULT 'active'");
+    }
+    if (!studProfileCols.includes('last_seen_at')) {
+      db.exec("ALTER TABLE student_profiles ADD COLUMN last_seen_at DATETIME");
+    }
+
+    // Seed Faculty Profiles
+    const facultyCount = db.prepare("SELECT count(*) as c FROM faculty_profiles").get()?.c || 0;
+    if (facultyCount === 0) {
+      db.prepare(`
+        INSERT INTO faculty_profiles (id, user_id, name, email, phone, department, designation, assigned_batches, photo_url, status)
+        VALUES 
+        ('f_neeshu', 'u_faculty_neeshu', 'Dr. Neeshu Chaudhary', 'neeshuchaudhary@gsfcuniversityfaculty.ac.in', '+91 95584 13347', 'Computer Science & Engineering', 'Faculty Placement Coordinator & Assistant Professor', 'BTech CSE & IT (2022-2026, 2023-2027)', '', 'Active Verified'),
+        ('f_rajesh', 'u_faculty_rajesh', 'Dr. Rajesh Sharma', 'rajesh.sharma@gsfcuniversityfaculty.ac.in', '+91 98888 77777', 'Chemical Engineering', 'Senior Faculty Placement Advisor', 'BTech Chemical & Mechanical (2022-2026)', '', 'Active Verified')
+      `).run();
+    }
+
+    // Seed Initial Login History and Activity Timeline if empty
+    const loginHistoryCount = db.prepare("SELECT count(*) as c FROM user_login_history").get()?.c || 0;
+    if (loginHistoryCount === 0) {
+      const initialLogins = [
+        { id: 'log_stu_01', user_id: 'u_student_24bt04171', role: 'student', email: '24bt04171@gsfcuniversity.ac.in', login_at: '2026-08-23 11:45:00', session_status: 'active', ip_address: '192.168.1.42', user_agent: 'Chrome 128 / macOS', device_type: 'Desktop' },
+        { id: 'log_stu_02', user_id: 'u_student_vedant', role: 'student', email: 'vedant@gmail.com', login_at: '2026-08-23 10:15:00', session_status: 'active', ip_address: '192.168.1.88', user_agent: 'Chrome 128 / Windows 11', device_type: 'Desktop' },
+        { id: 'log_stu_03', user_id: 'u_student_arav', role: 'student', email: 'arav.sharma@gsfcuniversity.ac.in', login_at: '2026-08-23 09:30:00', session_status: 'ended', logout_at: '2026-08-23 10:45:00', ip_address: '192.168.1.105', user_agent: 'Safari / iPhone 15', device_type: 'Mobile' },
+        { id: 'log_fac_01', user_id: 'u_faculty_neeshu', role: 'faculty', email: 'neeshuchaudhary@gsfcuniversityfaculty.ac.in', login_at: '2026-08-23 08:30:00', session_status: 'active', ip_address: '10.0.1.12', user_agent: 'Chrome 128 / macOS Sequoia', device_type: 'Desktop' },
+        { id: 'log_fac_02', user_id: 'u_faculty_rajesh', role: 'faculty', email: 'rajesh.sharma@gsfcuniversityfaculty.ac.in', login_at: '2026-08-23 09:00:00', session_status: 'ended', logout_at: '2026-08-23 10:30:00', ip_address: '10.0.1.18', user_agent: 'Edge 128 / Windows 11', device_type: 'Desktop' }
+      ];
+
+      const insertLoginStmt = db.prepare(`
+        INSERT INTO user_login_history (id, user_id, role, email, login_at, logout_at, session_status, ip_address, user_agent, device_type)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `);
+
+      for (const lg of initialLogins) {
+        insertLoginStmt.run(lg.id, lg.user_id, lg.role, lg.email, lg.login_at, lg.logout_at || null, lg.session_status, lg.ip_address, lg.user_agent, lg.device_type);
+      }
+
+      const initialActivities = [
+        { id: 'act_01', user_id: 'u_student_24bt04171', role: 'student', activity_type: 'LOGIN', title: 'Student Portal Sign-In', description: 'Logged into GSFC Student Placement Workspace via University SSO', metadata_json: JSON.stringify({ ip: '192.168.1.42', client: 'Desktop' }) },
+        { id: 'act_02', user_id: 'u_student_24bt04171', role: 'student', activity_type: 'RESUME_UPLOADED', title: 'Resume Uploaded & ATS Analyzed', description: 'Updated technical resume. ATS Match Score: 92%', metadata_json: JSON.stringify({ ats_score: 92, target_role: 'Software Engineer' }) },
+        { id: 'act_03', user_id: 'u_student_24bt04171', role: 'student', activity_type: 'APPLICATION_SUBMITTED', title: 'Application Submitted', description: 'Applied for GSFC Limited - Graduate Engineer Trainee', metadata_json: JSON.stringify({ company: 'GSFC Limited', role: 'GET Software' }) },
+        { id: 'act_04', user_id: 'u_faculty_neeshu', role: 'faculty', activity_type: 'LOGIN', title: 'Faculty Portal Sign-In', description: 'Logged into GSFC Faculty Placement Hub', metadata_json: JSON.stringify({ ip: '10.0.1.12', client: 'Desktop' }) },
+        { id: 'act_05', user_id: 'u_faculty_neeshu', role: 'faculty', activity_type: 'STUDENT_VERIFICATION', title: 'Student Dossiers Verified', description: 'Endorsed 18 candidate profiles for BTech CSE 2026 Batch', metadata_json: JSON.stringify({ batch: '2022-2026', count: 18 }) }
+      ];
+
+      const insertActStmt = db.prepare(`
+        INSERT INTO user_activity_timeline (id, user_id, role, activity_type, title, description, metadata_json)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `);
+
+      for (const act of initialActivities) {
+        insertActStmt.run(act.id, act.user_id, act.role, act.activity_type, act.title, act.description, act.metadata_json);
+      }
+    }
   } catch (err) {
     console.error('Migration notice:', err.message);
   }

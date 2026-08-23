@@ -7,6 +7,62 @@ import { validatePasswordPolicy, AuthRateLimiter } from '../middleware/security.
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'campushire_secret_key_2026';
 
+// Persistent Login Event & Activity Timeline Recorder
+export function recordUserLoginEvent(user, req, profile = null) {
+  try {
+    if (!user || !user.id) return null;
+    const loginId = 'log_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
+    const rawIp = req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '127.0.0.1';
+    const ip = typeof rawIp === 'string' ? rawIp.split(',')[0].trim() : '127.0.0.1';
+    const userAgent = req.headers['user-agent'] || 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)';
+    const deviceType = /mobile|android|iphone|ipad/i.test(userAgent) ? 'Mobile' : 'Desktop';
+
+    // 1. Insert into user_login_history
+    db.prepare(`
+      INSERT INTO user_login_history (id, user_id, role, email, login_at, session_status, ip_address, user_agent, device_type)
+      VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, 'active', ?, ?, ?)
+    `).run(loginId, user.id, user.role, user.email, ip, userAgent, deviceType);
+
+    // 2. Update users table
+    db.prepare(`
+      UPDATE users 
+      SET last_login_at = CURRENT_TIMESTAMP,
+          login_count = COALESCE(login_count, 0) + 1,
+          current_session_status = 'active',
+          last_seen_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `).run(user.id);
+
+    // 3. Update student_profiles if student
+    if (user.role === 'student') {
+      db.prepare(`
+        UPDATE student_profiles 
+        SET last_login_at = CURRENT_TIMESTAMP,
+            login_count = COALESCE(login_count, 0) + 1,
+            current_session_status = 'active',
+            last_seen_at = CURRENT_TIMESTAMP
+        WHERE user_id = ?
+      `).run(user.id);
+    }
+
+    // 4. Insert into user_activity_timeline
+    const actId = 'act_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
+    const portalName = user.role === 'student' ? 'Student Placement Workspace' : user.role === 'faculty' ? 'Faculty Placement Hub' : 'CampusHire Portal';
+    const actTitle = `${user.role.toUpperCase()} Sign-In`;
+    const actDesc = `Logged into ${portalName} (${deviceType})`;
+    
+    db.prepare(`
+      INSERT INTO user_activity_timeline (id, user_id, role, activity_type, title, description, metadata_json)
+      VALUES (?, ?, ?, 'LOGIN', ?, ?, ?)
+    `).run(actId, user.id, user.role, actTitle, actDesc, JSON.stringify({ ip, userAgent, deviceType, loginId }));
+
+    return loginId;
+  } catch (err) {
+    console.error('Error recording user login event:', err.message);
+    return null;
+  }
+}
+
 // Register User (Rate Limited + Password Policy Enforced)
 router.post('/register', AuthRateLimiter.registerLimiter, async (req, res) => {
   try {
@@ -56,6 +112,9 @@ router.post('/register', AuthRateLimiter.registerLimiter, async (req, res) => {
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)
       `).run(alumniId, userId, name || 'GSFC Alumni', req.body.batch_year || '2020-2024', company_name || req.body.company || 'Industry Partner', req.body.designation || 'Software Engineer', req.body.linkedin_url || '', req.body.bio || '', 0);
     }
+
+    const createdUser = { id: userId, email, role };
+    recordUserLoginEvent(createdUser, req);
 
     const token = jwt.sign({ userId, email, role, owner_id: ownerId }, JWT_SECRET, { expiresIn: '7d' });
     const csrfToken = 'csrf_' + Math.random().toString(36).substring(2);
@@ -220,6 +279,8 @@ router.post('/login', AuthRateLimiter.loginLimiter, async (req, res) => {
       ownerId = profile?.id || user.id;
     }
 
+    recordUserLoginEvent(user, req, profile);
+
     const token = jwt.sign({ userId: user.id, email: user.email, role: user.role, owner_id: ownerId }, JWT_SECRET, { expiresIn: '7d' });
     const csrfToken = 'csrf_' + Math.random().toString(36).substring(2);
 
@@ -302,21 +363,22 @@ router.post('/google', async (req, res) => {
         ownerId = userId;
       }
 
-      user = { id: userId, email: targetEmail, role, owner_id: ownerId };
+      user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
     } else {
+      ownerId = user.id;
       if (user.role === 'student') {
         profile = db.prepare('SELECT * FROM student_profiles WHERE user_id = ?').get(user.id);
-        ownerId = profile ? profile.id : user.id;
+        if (profile) ownerId = profile.id;
       } else if (user.role === 'company') {
         profile = db.prepare('SELECT * FROM company_profiles WHERE user_id = ?').get(user.id);
-        ownerId = profile ? profile.id : user.id;
+        if (profile) ownerId = profile.id;
       } else if (user.role === 'alumni') {
         profile = db.prepare('SELECT * FROM alumni_profiles WHERE user_id = ?').get(user.id);
-        ownerId = profile ? profile.id : user.id;
-      } else {
-        ownerId = user.id;
+        if (profile) ownerId = profile.id;
       }
     }
+
+    recordUserLoginEvent(user, req, profile);
 
     const token = jwt.sign({ userId: user.id, email: user.email, role: user.role, owner_id: ownerId }, JWT_SECRET, { expiresIn: '7d' });
     const csrfToken = 'csrf_' + Math.random().toString(36).substring(2);
@@ -343,6 +405,110 @@ router.post('/google', async (req, res) => {
   } catch (err) {
     console.error('Google Auth Error:', err);
     res.status(500).json({ error: err.message });
+  }
+});
+
+// Logout & Session Close Endpoint
+router.post('/logout', (req, res) => {
+  try {
+    const { userId, email } = req.body;
+    const authHeader = req.headers.authorization;
+    let targetUserId = userId;
+
+    if (!targetUserId && authHeader && authHeader.startsWith('Bearer ')) {
+      try {
+        const decoded = jwt.verify(authHeader.split(' ')[1], JWT_SECRET);
+        targetUserId = decoded.userId;
+      } catch (e) {}
+    }
+
+    if (targetUserId) {
+      db.prepare(`
+        UPDATE users 
+        SET last_logout_at = CURRENT_TIMESTAMP,
+            current_session_status = 'ended',
+            last_seen_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+      `).run(targetUserId);
+
+      db.prepare(`
+        UPDATE student_profiles 
+        SET last_logout_at = CURRENT_TIMESTAMP,
+            current_session_status = 'ended',
+            last_seen_at = CURRENT_TIMESTAMP
+        WHERE user_id = ?
+      `).run(targetUserId);
+
+      db.prepare(`
+        UPDATE user_login_history 
+        SET logout_at = CURRENT_TIMESTAMP,
+            session_status = 'ended'
+        WHERE user_id = ? AND session_status = 'active'
+      `).run(targetUserId);
+
+      const actId = 'act_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
+      db.prepare(`
+        INSERT INTO user_activity_timeline (id, user_id, role, activity_type, title, description)
+        VALUES (?, ?, 'user', 'LOGOUT', 'User Logged Out', 'Session terminated gracefully')
+      `).run(actId, targetUserId);
+    } else if (email) {
+      const user = db.prepare('SELECT id FROM users WHERE email = ?').get(email);
+      if (user) {
+        db.prepare(`
+          UPDATE users 
+          SET last_logout_at = CURRENT_TIMESTAMP,
+              current_session_status = 'ended',
+              last_seen_at = CURRENT_TIMESTAMP
+          WHERE id = ?
+        `).run(user.id);
+
+        db.prepare(`
+          UPDATE user_login_history 
+          SET logout_at = CURRENT_TIMESTAMP,
+              session_status = 'ended'
+          WHERE user_id = ? AND session_status = 'active'
+        `).run(user.id);
+      }
+    }
+
+    res.clearCookie('access_token');
+    res.clearCookie('csrf_token');
+    res.json({ success: true, message: 'Logged out successfully' });
+  } catch (err) {
+    console.error('Logout error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Real-Time Session Heartbeat Endpoint
+router.post('/heartbeat', (req, res) => {
+  try {
+    const { userId, email } = req.body;
+    if (userId) {
+      db.prepare(`
+        UPDATE users 
+        SET last_seen_at = CURRENT_TIMESTAMP,
+            current_session_status = 'active'
+        WHERE id = ?
+      `).run(userId);
+
+      db.prepare(`
+        UPDATE student_profiles 
+        SET last_seen_at = CURRENT_TIMESTAMP,
+            current_session_status = 'active'
+        WHERE user_id = ?
+      `).run(userId);
+    } else if (email) {
+      db.prepare(`
+        UPDATE users 
+        SET last_seen_at = CURRENT_TIMESTAMP,
+            current_session_status = 'active'
+        WHERE email = ?
+      `).run(email);
+    }
+    res.json({ status: 'alive' });
+  } catch (e) {
+    res.json({ status: 'ok' });
   }
 });
 
