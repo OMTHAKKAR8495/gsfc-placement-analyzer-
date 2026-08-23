@@ -523,8 +523,124 @@ function applyMigrations() {
       CREATE INDEX IF NOT EXISTS idx_student_resumes ON student_resumes(student_id);
     `);
 
+    // 15. Student Placement Preparation Plans Table
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS student_preparation_plans (
+        id TEXT PRIMARY KEY,
+        student_id TEXT NOT NULL REFERENCES student_profiles(id) ON DELETE CASCADE,
+        target_company TEXT NOT NULL,
+        target_role TEXT NOT NULL,
+        deadline_date TEXT,
+        total_days INTEGER DEFAULT 30,
+        days_json TEXT NOT NULL,
+        progress_percentage INTEGER DEFAULT 0,
+        status TEXT DEFAULT 'active',
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE INDEX IF NOT EXISTS idx_prep_plans_student ON student_preparation_plans(student_id);
+    `);
+
+    // 16. Student Coding Sandbox Submissions Table
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS student_coding_submissions (
+        id TEXT PRIMARY KEY,
+        student_id TEXT NOT NULL REFERENCES student_profiles(id) ON DELETE CASCADE,
+        problem_id TEXT NOT NULL,
+        problem_title TEXT NOT NULL,
+        difficulty TEXT NOT NULL,
+        company TEXT,
+        language TEXT DEFAULT 'javascript',
+        code TEXT NOT NULL,
+        test_cases_passed INTEGER DEFAULT 0,
+        total_test_cases INTEGER DEFAULT 0,
+        execution_time_ms INTEGER DEFAULT 0,
+        complexity_analysis_json TEXT,
+        status TEXT DEFAULT 'accepted',
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE INDEX IF NOT EXISTS idx_coding_sub_student ON student_coding_submissions(student_id);
+    `);
+
+    // 17. Student Communication & GD Practices Table
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS student_communication_practices (
+        id TEXT PRIMARY KEY,
+        student_id TEXT NOT NULL REFERENCES student_profiles(id) ON DELETE CASCADE,
+        practice_type TEXT NOT NULL, -- 'hr_question', 'gd_topic', 'behavioral_star', 'technical_explanation'
+        topic_or_question TEXT NOT NULL,
+        student_response TEXT NOT NULL,
+        feedback_json TEXT NOT NULL,
+        score INTEGER DEFAULT 80,
+        fluency_score INTEGER DEFAULT 80,
+        structure_score INTEGER DEFAULT 80,
+        clarity_score INTEGER DEFAULT 80,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE INDEX IF NOT EXISTS idx_comm_practices_student ON student_communication_practices(student_id);
+    `);
+
+    // 18. Student AI Study Generator Materials Table
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS student_study_materials (
+        id TEXT PRIMARY KEY,
+        student_id TEXT NOT NULL REFERENCES student_profiles(id) ON DELETE CASCADE,
+        title TEXT NOT NULL,
+        category TEXT NOT NULL, -- 'mcq_quiz', 'flashcards', 'revision_notes', 'interview_cheat_sheet'
+        company TEXT,
+        difficulty TEXT DEFAULT 'Medium',
+        content_json TEXT NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE INDEX IF NOT EXISTS idx_study_materials_student ON student_study_materials(student_id);
+    `);
+
+    // 19. Student Placement Gamification (XP, Streaks & Badges) Table
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS student_gamification (
+        student_id TEXT PRIMARY KEY REFERENCES student_profiles(id) ON DELETE CASCADE,
+        total_xp INTEGER DEFAULT 120,
+        level INTEGER DEFAULT 1,
+        current_streak INTEGER DEFAULT 1,
+        highest_streak INTEGER DEFAULT 1,
+        last_active_date TEXT DEFAULT (DATE('now')),
+        badges_json TEXT DEFAULT '[]',
+        achievements_json TEXT DEFAULT '[]',
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    // 20. Placement Risk Alerts Table (TPC Admin Monitored)
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS placement_risk_alerts (
+        id TEXT PRIMARY KEY,
+        student_id TEXT REFERENCES student_profiles(id) ON DELETE SET NULL,
+        risk_type TEXT NOT NULL, -- 'eligible_not_applied', 'incomplete_profile', 'missing_resume', 'low_assessment_score', 'approaching_deadline'
+        severity TEXT DEFAULT 'medium', -- 'low', 'medium', 'high', 'critical'
+        title TEXT NOT NULL,
+        description TEXT NOT NULL,
+        requirement_id TEXT REFERENCES requirements(id) ON DELETE SET NULL,
+        is_resolved INTEGER DEFAULT 0,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE INDEX IF NOT EXISTS idx_risk_alerts_unresolved ON placement_risk_alerts(is_resolved, severity);
+    `);
+
+    // 21. GSFC Placement Knowledge Base / RAG Documents Table
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS placement_rag_documents (
+        id TEXT PRIMARY KEY,
+        title TEXT NOT NULL,
+        category TEXT NOT NULL, -- 'policy', 'eligibility', 'dream_tier', 'tpc_guidelines', 'faq', 'company_policy'
+        content TEXT NOT NULL,
+        tags_json TEXT DEFAULT '[]',
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
     // Seed Demo Alumni, Job Fairs & Q&A if not already present
     seedAlumniAndCommunityData();
+    seedPlacementIntelligenceData();
 
     // Ensure GSFC Admin accounts exist
     const adminUser = db.prepare("SELECT * FROM users WHERE email = 'admin@gsfcuniversity.ac.in'").get();
@@ -534,6 +650,106 @@ function applyMigrations() {
     }
   } catch (err) {
     console.error('Migration notice:', err.message);
+  }
+}
+
+function seedPlacementIntelligenceData() {
+  try {
+    // Seed GSFC RAG Documents if empty
+    const docCount = db.prepare('SELECT count(*) as c FROM placement_rag_documents').get()?.c || 0;
+    if (docCount === 0) {
+      const docs = [
+        {
+          id: 'rag_policy_01',
+          title: 'GSFC University Campus Placement Eligibility & One-Job Policy 2026',
+          category: 'policy',
+          content: 'According to GSFC University TPC Placement Policy 2026: 1. A student who secures an offer of CTC >= 6.0 LPA is considered Placed and may only apply for "Dream Tier" companies offering >= 12.0 LPA. 2. Minimum CGPA of 6.0 with zero active backlogs is required for university placement drive registration. 3. 80% attendance in placement training conclaves is mandatory.',
+          tags: ['policy', 'eligibility', 'dream_tier', 'backlogs']
+        },
+        {
+          id: 'rag_dream_tier_02',
+          title: 'GSFC University Dream Tier & Super Dream Tier Categorization',
+          category: 'dream_tier',
+          content: 'Company tiers at GSFC University: Regular Tier (< 6.0 LPA), Core Engineering Tier (6.0 - 9.0 LPA), Dream Tier (9.0 - 14.0 LPA), Super Dream Tier (>= 15.0 LPA). Students with an existing Regular offer can sit for Dream and Super Dream drives.',
+          tags: ['tiers', 'ctc', 'super_dream', 'rules']
+        },
+        {
+          id: 'rag_tpc_process_03',
+          title: 'Official Selection Process & Code of Conduct for Campus Drives',
+          category: 'tpc_guidelines',
+          content: 'Dress Code: Formal business attire with GSFC identity badge is mandatory for physical interviews at Vigyan Bhavan. Online Assessments: Anti-cheat proctoring rules enforce strict zero tab switches and single screen mode. Any candidate found impersonating or using unauthorized tools will be debarred from campus placements.',
+          tags: ['conduct', 'dress_code', 'proctoring', 'vigyan_bhavan']
+        },
+        {
+          id: 'rag_internship_04',
+          title: 'Final Year 8th Semester Industry Internship Guidelines (PPO Policy)',
+          category: 'policy',
+          content: 'Students receiving a 6-month pre-placement internship offer (PPO) during the 8th semester are eligible for full academic credit transfer. Monthly progress reports endorsed by the corporate mentor must be submitted to the GSFC Faculty Coordinator.',
+          tags: ['internship', 'ppo', 'credit_transfer', '8th_semester']
+        },
+        {
+          id: 'rag_faqs_05',
+          title: 'Frequently Asked Questions (FAQs) for Graduating Batches (2025-2026)',
+          category: 'faq',
+          content: 'Q: Can I apply for both IT and Core Chemical companies? A: Dual branch students or CSE/IT/Chemical students meeting the specific CGPA and branch matrix in the job post may apply. Q: When are offer letters stamped? A: Official GSFC University offer letters are stamped and issued by the TPC Dean after recruiter confirmation.',
+          tags: ['faq', 'branch_eligibility', 'stamped_offer']
+        }
+      ];
+
+      const insertDoc = db.prepare(`
+        INSERT INTO placement_rag_documents (id, title, category, content, tags_json)
+        VALUES (?, ?, ?, ?, ?)
+      `);
+      for (const d of docs) {
+        insertDoc.run(d.id, d.title, d.category, d.content, JSON.stringify(d.tags));
+      }
+    }
+
+    // Seed Initial Placement Risk Alerts if empty
+    const alertCount = db.prepare('SELECT count(*) as c FROM placement_risk_alerts').get()?.c || 0;
+    if (alertCount === 0) {
+      const seedAlerts = [
+        {
+          id: 'risk_01',
+          student_id: 's_arav',
+          risk_type: 'eligible_not_applied',
+          severity: 'high',
+          title: 'High Match Candidate Has Not Applied: Google Cloud Conclave',
+          description: 'Arav Sharma matches 92% of required skills for Google Cloud India (Cutoff: 8.0 CGPA, Arav: 8.8 CGPA) but has not submitted his application with 48h remaining.',
+          requirement_id: 'req_google_sde_2026'
+        },
+        {
+          id: 'risk_02',
+          student_id: 's_rahul_verma',
+          risk_type: 'missing_resume',
+          severity: 'medium',
+          title: 'Profile Missing Final Semester Marksheets Verification',
+          description: 'Rahul Verma has a high ATS score but lacks verified semester 7 marksheets in his dossier vault.',
+          requirement_id: null
+        },
+        {
+          id: 'risk_03',
+          student_id: 's_ananya',
+          risk_type: 'low_assessment_score',
+          severity: 'medium',
+          title: 'DSA Coding Sandbox Score Below Cutoff: Ananya Deshmukh',
+          description: 'Ananya scored 45% in Dynamic Programming mock evaluation. Recommended for Adaptive Remedial Assessment.',
+          requirement_id: null
+        }
+      ];
+
+      const insertAlert = db.prepare(`
+        INSERT INTO placement_risk_alerts (id, student_id, risk_type, severity, title, description, requirement_id, is_resolved)
+        VALUES (?, ?, ?, ?, ?, ?, ?, 0)
+      `);
+      for (const a of seedAlerts) {
+        try {
+          insertAlert.run(a.id, a.student_id, a.risk_type, a.severity, a.title, a.description, a.requirement_id);
+        } catch(e) {}
+      }
+    }
+  } catch (err) {
+    console.error('Seed placement intelligence data notice:', err.message);
   }
 }
 

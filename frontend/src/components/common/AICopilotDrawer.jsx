@@ -77,9 +77,13 @@ export default function AICopilotDrawer({
         ? { query: textToSend, history: messages.slice(-4) }
         : { query: textToSend, studentId: currentUser?.profile?.id || currentUser?.id };
 
+      const token = localStorage.getItem('campushire_token');
+      const headers = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
       const res = await fetch(endpoint, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify(payload)
       });
 

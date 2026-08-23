@@ -14,6 +14,7 @@ import ResumeUploadPromptModal from './ResumeUploadPromptModal';
 import ResumeBuilderAndDossierModal from './ResumeBuilderAndDossierModal';
 import EcosystemHubModal from '../common/EcosystemHubModal';
 import AICopilotDrawer from '../common/AICopilotDrawer';
+import AIPlacementIntelligenceHub from './AIPlacementIntelligenceHub';
 import { useToast } from '../../context/ToastContext';
 
 export const DEFAULT_REQUIREMENTS_FEED = [
@@ -101,13 +102,15 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
   const getInitialTab = () => {
     try {
       const hash = (window.location.hash || '').toLowerCase();
+      if (hash.includes('intelligence') || hash.includes('copilot') || hash.includes('readiness') || hash.includes('sandbox')) return 'intelligence';
       if (hash.includes('qa') || hash.includes('community') || hash.includes('doubt')) return 'qa';
       if (hash.includes('job_fair') || hash.includes('conclave') || hash.includes('pool')) return 'job_fairs';
       if (hash.includes('alumni') || hash.includes('mentorship')) return 'alumni';
       if (hash.includes('app') || hash.includes('application')) return 'applications';
+      if (hash.includes('assess') || hash.includes('interview') || hash.includes('test')) return 'assessments';
       if (hash.includes('profile') || hash.includes('ats') || hash.includes('resume')) return 'profile';
       const savedTab = sessionStorage.getItem('gsfc_student_active_tab');
-      if (savedTab && ['feed', 'job_fairs', 'alumni', 'qa', 'profile', 'applications'].includes(savedTab)) {
+      if (savedTab && ['feed', 'intelligence', 'job_fairs', 'alumni', 'qa', 'profile', 'applications', 'assessments'].includes(savedTab)) {
         return savedTab;
       }
     } catch(e) {}
@@ -130,7 +133,10 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
   useEffect(() => {
     const handleHashSync = () => {
       const hash = (window.location.hash || '').toLowerCase();
-      if (hash.includes('qa') || hash.includes('community') || hash.includes('doubt')) {
+      if (hash.includes('intelligence') || hash.includes('copilot') || hash.includes('readiness') || hash.includes('sandbox')) {
+        setActiveTab('intelligence');
+        sessionStorage.setItem('gsfc_student_active_tab', 'intelligence');
+      } else if (hash.includes('qa') || hash.includes('community') || hash.includes('doubt')) {
         setActiveTab('qa');
         sessionStorage.setItem('gsfc_student_active_tab', 'qa');
       } else if (hash.includes('job_fair') || hash.includes('conclave') || hash.includes('pool')) {
@@ -142,6 +148,9 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
       } else if (hash.includes('app') || hash.includes('application')) {
         setActiveTab('applications');
         sessionStorage.setItem('gsfc_student_active_tab', 'applications');
+      } else if (hash.includes('assess') || hash.includes('interview') || hash.includes('test')) {
+        setActiveTab('assessments');
+        sessionStorage.setItem('gsfc_student_active_tab', 'assessments');
       } else if (hash.includes('profile') || hash.includes('ats') || hash.includes('resume')) {
         setActiveTab('profile');
         sessionStorage.setItem('gsfc_student_active_tab', 'profile');
@@ -841,6 +850,17 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
             }`}
           >
             <Briefcase className="w-4 h-4" /> Live Drives
+          </button>
+
+          <button
+            onClick={() => handleTabChange('intelligence')}
+            className={`flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl text-xs font-black transition-all shrink-0 whitespace-nowrap cursor-pointer ${
+              activeTab === 'intelligence'
+                ? 'bg-gradient-to-r from-blue-900 via-indigo-900 to-purple-900 text-white shadow-lg scale-105 border border-purple-400/40'
+                : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100/80'
+            }`}
+          >
+            <Sparkles className="w-4 h-4 text-purple-400 animate-pulse" /> 🚀 AI Placement Intelligence Hub
           </button>
 
           <button
@@ -1745,6 +1765,17 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
                 )}
               </div>
             </div>
+          )}
+
+          {activeTab === 'intelligence' && (
+            <AIPlacementIntelligenceHub
+              student={student}
+              currentUser={currentUser}
+              onSelectTargetRequirement={(req) => {
+                handleTabChange('feed');
+                setSearchQuery(req.title || req.company_name);
+              }}
+            />
           )}
         </div>
 

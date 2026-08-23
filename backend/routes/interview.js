@@ -46,19 +46,79 @@ router.post('/generate', AuthRateLimiter.aiFeatureLimiter, async (req, res) => {
 // Start AI Mock Interview Session
 router.post('/mock/start', async (req, res) => {
   try {
-    const { student_id, requirement_id } = req.body;
-    if (!student_id || !requirement_id) {
-      return res.status(400).json({ error: 'student_id and requirement_id are required.' });
+    const { student_id, requirement_id, interview_mode = 'general', target_company } = req.body;
+    if (!student_id) {
+      return res.status(400).json({ error: 'student_id is required.' });
     }
 
-    const requirement = db.prepare('SELECT * FROM requirements WHERE id = ?').get(requirement_id);
+    let requirement = requirement_id ? db.prepare('SELECT * FROM requirements WHERE id = ?').get(requirement_id) : null;
     const student = db.prepare('SELECT * FROM student_profiles WHERE id = ?').get(student_id);
 
-    if (!requirement || !student) {
-      return res.status(404).json({ error: 'Requirement or Student not found.' });
+    if (!requirement) {
+      requirement = {
+        id: requirement_id || 'req_custom',
+        title: `${target_company || 'Tier 1 Corporate'} ${interview_mode.toUpperCase()} Round`,
+        company_name: target_company || 'Placement Partner',
+        required_skills_json: '["Python", "SQL", "React", "System Design", "Problem Solving"]',
+        job_description: `Campus interview round for ${interview_mode} evaluation.`
+      };
     }
 
-    const questions = await generateInterviewQuestions(requirement, student);
+    let questions = await generateInterviewQuestions(requirement, student || { name: 'Candidate' });
+
+    // Filter or customize by mode
+    if (interview_mode === 'hr') {
+      questions = [
+        {
+          id: 'hr_1',
+          category: 'HR & Cultural Fit',
+          question: 'Tell me about yourself, your academic background at GSFC University, and why you are interested in this role.',
+          expectedKeyPoints: ['Clear self introduction', 'Academic projects highlight', 'Company alignment']
+        },
+        {
+          id: 'hr_2',
+          category: 'HR & Conflict Resolution',
+          question: 'Describe a situation where you had a disagreement with a team member during a project. How did you resolve it?',
+          expectedKeyPoints: ['Empathy and listening', 'Focus on objective outcome', 'Constructive consensus']
+        },
+        {
+          id: 'hr_3',
+          category: 'HR & Career Vision',
+          question: 'Where do you see yourself in the next 3 to 5 years, and how does this organization fit into your long-term career goals?',
+          expectedKeyPoints: ['Technical growth ambition', 'Continuous learning mindset', 'Value creation']
+        }
+      ];
+    } else if (interview_mode === 'behavioral') {
+      questions = [
+        {
+          id: 'beh_1',
+          category: 'Behavioral STAR',
+          question: 'Tell me about a time you had to deliver a critical project under an extremely tight deadline.',
+          expectedKeyPoints: ['Situation setup', 'Specific task responsibility', 'Decisive action taken', 'Measurable positive result']
+        },
+        {
+          id: 'beh_2',
+          category: 'Behavioral STAR',
+          question: 'Give an example of a failure or setback you experienced and what key lessons you learned from it.',
+          expectedKeyPoints: ['Accountability', 'Root cause analysis', 'Remedial action', 'Long-term learning']
+        }
+      ];
+    } else if (interview_mode === 'project_based') {
+      questions = [
+        {
+          id: 'proj_1',
+          category: 'Project Defense',
+          question: 'Walk me through the high-level architecture of your most impactful university project. Why did you choose your technology stack?',
+          expectedKeyPoints: ['Architecture diagram explanation', 'Tech stack justification', 'Data flow clarity']
+        },
+        {
+          id: 'proj_2',
+          category: 'Project Deep-Dive',
+          question: 'What was the single most difficult technical roadblock you solved in that project, and how did you verify the fix?',
+          expectedKeyPoints: ['Debugging methodology', 'Concurrency or data persistence fix', 'Unit/integration testing']
+        }
+      ];
+    }
 
     const sessionId = 'mock_' + Date.now();
     const qaPairs = questions.map(q => ({
@@ -73,12 +133,13 @@ router.post('/mock/start', async (req, res) => {
     db.prepare(`
       INSERT INTO mock_interview_sessions (id, student_id, requirement_id, qa_pairs_json, status)
       VALUES (?, ?, ?, ?, 'in_progress')
-    `).run(sessionId, student_id, requirement_id, JSON.stringify(qaPairs));
+    `).run(sessionId, student_id, requirement.id || requirement_id || 'req_custom', JSON.stringify(qaPairs));
 
     res.json({
       sessionId,
       requirementTitle: requirement.title,
       companyName: requirement.company_name,
+      interviewMode: interview_mode,
       totalQuestions: questions.length,
       currentQuestionIndex: 0,
       qaPairs
