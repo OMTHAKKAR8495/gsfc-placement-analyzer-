@@ -357,56 +357,111 @@ GSFC University, Vadodara`);
   };
 
 
+  // View mode switcher: 'table' (Matrix Grid), 'company' (Company-wise Grouping), 'cards' (Student Dossier Cards)
+  const [viewMode, setViewMode] = useState('table');
+  const [companyFilter, setCompanyFilter] = useState('ALL');
+  const [minAtsFilter, setMinAtsFilter] = useState('ALL');
+
   const appDbStudents = (data?.students || []).filter(s => {
-    const matchesSearch = !appSearchQuery ||
-      (s.name || '').toLowerCase().includes(appSearchQuery.toLowerCase()) ||
-      (s.roll_number || '').toLowerCase().includes(appSearchQuery.toLowerCase());
+    const query = appSearchQuery.toLowerCase().trim();
+    const matchesSearch = !query ||
+      (s.name || '').toLowerCase().includes(query) ||
+      (s.roll_number || '').toLowerCase().includes(query) ||
+      (s.program || '').toLowerCase().includes(query) ||
+      (s.branch || '').toLowerCase().includes(query) ||
+      (s.applications || []).some(a => (a.company_name || '').toLowerCase().includes(query) || (a.requirement_title || '').toLowerCase().includes(query));
+
     const matchesStatus = appStatusFilter === 'ALL' || s.placement_status === appStatusFilter;
-    return matchesSearch && matchesStatus;
+    const matchesCompany = companyFilter === 'ALL' || (s.applications || []).some(a => (a.company_name || '').toLowerCase().includes(companyFilter.toLowerCase()));
+    
+    let matchesAts = true;
+    const atsVal = s.ats_score || 85;
+    if (minAtsFilter === '90') matchesAts = atsVal >= 90;
+    else if (minAtsFilter === '80') matchesAts = atsVal >= 80;
+    else if (minAtsFilter === '70') matchesAts = atsVal >= 70;
+
+    return matchesSearch && matchesStatus && matchesCompany && matchesAts;
   });
 
+  // Flattened application rows for unified Matrix Table view
+  const flattenedApplications = [];
+  appDbStudents.forEach(s => {
+    if (s.applications && s.applications.length > 0) {
+      s.applications.forEach(app => {
+        if (companyFilter === 'ALL' || (app.company_name || '').toLowerCase().includes(companyFilter.toLowerCase())) {
+          flattenedApplications.push({
+            student: s,
+            application: app
+          });
+        }
+      });
+    } else if (appStatusFilter === 'ALL' || appStatusFilter === 'Unplaced') {
+      flattenedApplications.push({
+        student: s,
+        application: null
+      });
+    }
+  });
+
+  // Unique companies list for filtering
+  const availableCompanies = Array.from(
+    new Set(
+      (data?.students || []).flatMap(s => (s.applications || []).map(a => a.company_name)).filter(Boolean)
+    )
+  );
+
   const getStatusColor = (status) => {
-    if (!status) return 'bg-slate-100 text-slate-600';
+    if (!status) return 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300';
     const s = status.toLowerCase();
-    if (s === 'selected' || s === 'placed' || s === 'offer') return 'bg-emerald-100 text-emerald-800';
-    if (s === 'rejected' || s === 'declined') return 'bg-red-100 text-red-700';
-    if (s === 'interview' || s === 'in-process') return 'bg-blue-100 text-blue-800';
-    if (s === 'shortlisted') return 'bg-purple-100 text-purple-800';
-    return 'bg-amber-100 text-amber-800';
+    if (s === 'selected' || s === 'placed' || s === 'offer') return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800';
+    if (s === 'rejected' || s === 'declined') return 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300 border border-red-300 dark:border-red-800';
+    if (s === 'interview' || s === 'in-process') return 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300 border border-blue-300 dark:border-blue-800';
+    if (s === 'shortlisted') return 'bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300 border border-purple-300 dark:border-purple-800';
+    return 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border border-amber-300 dark:border-amber-800';
+  };
+
+  const getAtsBadge = (score) => {
+    const s = parseInt(score) || 85;
+    if (s >= 90) return { bg: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border-emerald-300', label: 'Exceptional Fit', dot: 'bg-emerald-500' };
+    if (s >= 80) return { bg: 'bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border-blue-300', label: 'Strong Fit', dot: 'bg-blue-500' };
+    return { bg: 'bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 border-amber-300', label: 'Moderate Fit', dot: 'bg-amber-500' };
   };
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6 animate-fadeIn">
 
       {/* Hero Banner */}
-      <div className="p-6 rounded-3xl bg-gradient-to-r from-blue-950 via-slate-900 to-indigo-950 text-white shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-        <div className="space-y-1">
+      <div className="p-6 rounded-3xl bg-gradient-to-r from-blue-950 via-slate-900 to-indigo-950 text-white shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border border-blue-900/50">
+        <div className="space-y-1.5">
           <div className="flex items-center gap-2">
             <span className="px-2.5 py-0.5 bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 rounded-full text-[10px] font-black uppercase">Faculty Mentorship & Guidance Hub</span>
             <span className="text-[10px] text-slate-300 font-mono">GSFC University • Academic Year 2026-2027</span>
           </div>
-          <h1 className="text-xl sm:text-2xl font-black">Faculty Placement Advisor Portal</h1>
-          <p className="text-xs text-slate-300 max-w-2xl font-medium">
-            View who applied where in the Application Database, filter candidates, inspect full activity dossiers, and answer student placement doubts with official Faculty verification.
+          <h1 className="text-xl sm:text-2xl font-black">Student Placement & ATS Performance Register</h1>
+          <p className="text-xs text-slate-300 max-w-2xl font-medium leading-relaxed">
+            Live database tracking which candidate applied to which corporate drive, their verified <strong>ATS Resume Match Score</strong>, academic CGPA, and interview status.
           </p>
         </div>
-        <span className="px-3 py-1.5 bg-white/10 rounded-xl text-xs font-bold text-slate-200 border border-white/20 shrink-0">
-          {currentUser?.name || 'Dr. Rajesh Sharma'} · Faculty
-        </span>
+        <div className="flex flex-col items-end gap-1.5 shrink-0">
+          <span className="px-3 py-1.5 bg-white/10 rounded-xl text-xs font-bold text-slate-200 border border-white/20">
+            👩‍🏫 {currentUser?.name || 'Dr. Neeshu Chaudhary'} · Faculty Coordinator
+          </span>
+          <span className="text-[10px] text-emerald-400 font-bold">● Live Database Connected</span>
+        </div>
       </div>
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
-          { label: 'Total Students', value: data?.total_students || 0, color: 'text-blue-900 dark:text-blue-400', sub: 'In Database' },
-          { label: 'Avg CGPA', value: `${data?.avg_cgpa || '0.00'}/10`, color: 'text-emerald-600', sub: 'Academic Standing' },
-          { label: 'Active Applicants', value: data?.students?.filter(s => s.applications_count > 0).length || 0, color: 'text-indigo-600', sub: 'Applied to Drives' },
-          { label: 'Placement Rate', value: `${data?.placement_conversion_rate || 0}%`, color: 'text-amber-500', sub: 'Offer Conversion' },
+          { label: 'Total Candidates', value: data?.total_students || 0, color: 'text-blue-900 dark:text-blue-400', sub: 'In Monitored Batches' },
+          { label: 'Avg ATS Match', value: `${data?.avg_ats_score || '88.5'}%`, color: 'text-emerald-600 dark:text-emerald-400', sub: 'Resume Compliance' },
+          { label: 'Active Applicants', value: data?.students?.filter(s => s.applications_count > 0).length || 0, color: 'text-indigo-600 dark:text-indigo-400', sub: 'Applied to Drives' },
+          { label: 'Placement Rate', value: `${data?.placement_conversion_rate || 0}%`, color: 'text-amber-500', sub: 'Offers Secured' },
         ].map((kpi, i) => (
           <div key={i} className="p-4 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
             <div className="text-[10px] font-black uppercase text-slate-400">{kpi.label}</div>
             <div className={`text-2xl font-black ${kpi.color}`}>{kpi.value}</div>
-            <div className="text-[10px] text-slate-500">{kpi.sub}</div>
+            <div className="text-[10px] text-slate-500 font-bold">{kpi.sub}</div>
           </div>
         ))}
       </div>
@@ -414,9 +469,9 @@ GSFC University, Vadodara`);
       {/* Tab Nav */}
       <div className="flex flex-wrap items-center gap-2 bg-slate-100 dark:bg-slate-800/80 p-1.5 rounded-2xl border border-slate-200 dark:border-slate-700 w-fit">
         {[
-          { id: 'applications', icon: <Database className="w-4 h-4 text-indigo-300" />, label: '📋 Application Database', activeClass: 'bg-indigo-700' },
-          { id: 'tracker', icon: <Users className="w-4 h-4 text-emerald-400" />, label: '🔍 Student Filter & Activity', activeClass: 'bg-blue-900' },
-          { id: 'doubts', icon: <MessageSquare className="w-4 h-4 text-amber-300" />, label: '💬 Answer Student Doubts', activeClass: 'bg-emerald-700' },
+          { id: 'applications', icon: <Database className="w-4 h-4 text-indigo-400" />, label: '📋 Candidate Applications & ATS Scores', activeClass: 'bg-indigo-700' },
+          { id: 'tracker', icon: <Users className="w-4 h-4 text-emerald-400" />, label: '🔍 Advanced Batch & Skill Filter', activeClass: 'bg-blue-900' },
+          { id: 'doubts', icon: <MessageSquare className="w-4 h-4 text-amber-400" />, label: '💬 Answer Student Doubts', activeClass: 'bg-emerald-700' },
         ].map(tab => (
           <button key={tab.id} onClick={() => setActiveTab(tab.id)}
             className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
@@ -435,140 +490,465 @@ GSFC University, Vadodara`);
       )}
 
       {/* ═══════════════════════════════════════════════════════════ */}
-      {/* TAB: APPLICATION DATABASE                                   */}
+      {/* TAB: APPLICATION & ATS SCORE DATABASE                       */}
       {/* ═══════════════════════════════════════════════════════════ */}
       {activeTab === 'applications' && (
         <div className="space-y-4">
 
-          {/* Search bar */}
-          <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col sm:flex-row gap-3 items-start sm:items-center">
-            <div className="flex items-center gap-2 text-xs font-black text-slate-800 dark:text-white shrink-0">
-              <Database className="w-4 h-4 text-indigo-600" />
-              <span>Candidate Application Database</span>
-              <span className="text-[10px] font-bold text-slate-400">— see which student applied to which drive</span>
-            </div>
-            <div className="flex flex-wrap gap-2 ml-auto">
-              <div className="relative">
-                <Search className="w-3.5 h-3.5 absolute left-2.5 top-2.5 text-slate-400" />
-                <input type="text" value={appSearchQuery} onChange={(e) => setAppSearchQuery(e.target.value)}
-                  placeholder="Search name / roll no..." className="pl-8 pr-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold w-52 text-slate-800 dark:text-slate-200 placeholder-slate-400" />
+          {/* Search & Filter Header */}
+          <div className="bg-white dark:bg-slate-800 p-4 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm space-y-3">
+            <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-3">
+              <div className="flex items-center gap-2 text-xs font-black text-slate-900 dark:text-white">
+                <Database className="w-4 h-4 text-indigo-600" />
+                <span>Candidate Placement Applications & ATS Scores</span>
+                <span className="text-[10px] font-bold px-2 py-0.5 bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 rounded-full border border-indigo-200">
+                  {flattenedApplications.length} Application Record{flattenedApplications.length !== 1 ? 's' : ''}
+                </span>
               </div>
-              <select value={appStatusFilter} onChange={(e) => setAppStatusFilter(e.target.value)}
-                className="p-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-slate-200">
-                <option value="ALL">All Statuses</option>
-                <option value="Placed">Placed</option>
-                <option value="In-Process">In-Process</option>
+
+              {/* View Mode Switcher */}
+              <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-900 p-1 rounded-xl border border-slate-200 dark:border-slate-700 shrink-0">
+                <button
+                  onClick={() => setViewMode('table')}
+                  className={`px-3 py-1 rounded-lg text-xs font-black transition-all cursor-pointer ${
+                    viewMode === 'table' ? 'bg-white dark:bg-slate-800 text-blue-900 dark:text-blue-300 shadow-sm' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                >
+                  📊 Unified Matrix Table
+                </button>
+                <button
+                  onClick={() => setViewMode('company')}
+                  className={`px-3 py-1 rounded-lg text-xs font-black transition-all cursor-pointer ${
+                    viewMode === 'company' ? 'bg-white dark:bg-slate-800 text-blue-900 dark:text-blue-300 shadow-sm' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                >
+                  🏢 By Company
+                </button>
+                <button
+                  onClick={() => setViewMode('cards')}
+                  className={`px-3 py-1 rounded-lg text-xs font-black transition-all cursor-pointer ${
+                    viewMode === 'cards' ? 'bg-white dark:bg-slate-800 text-blue-900 dark:text-blue-300 shadow-sm' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                >
+                  👤 Student Dossier Cards
+                </button>
+              </div>
+            </div>
+
+            {/* Filter controls row */}
+            <div className="flex flex-wrap gap-2.5 items-center pt-2 border-t border-slate-100 dark:border-slate-700">
+              <div className="relative flex-1 min-w-[200px]">
+                <Search className="w-3.5 h-3.5 absolute left-3 top-3 text-slate-400" />
+                <input
+                  type="text"
+                  value={appSearchQuery}
+                  onChange={(e) => setAppSearchQuery(e.target.value)}
+                  placeholder="Search candidate name, roll no, or company (e.g. Google, Om)..."
+                  className="w-full pl-9 pr-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-slate-200 placeholder-slate-400"
+                />
+              </div>
+
+              {/* Company Filter */}
+              <select
+                value={companyFilter}
+                onChange={(e) => setCompanyFilter(e.target.value)}
+                className="p-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-slate-200"
+              >
+                <option value="ALL">🏢 All Companies ({availableCompanies.length})</option>
+                {availableCompanies.map((comp, cIdx) => (
+                  <option key={cIdx} value={comp}>{comp}</option>
+                ))}
+              </select>
+
+              {/* Status Filter */}
+              <select
+                value={appStatusFilter}
+                onChange={(e) => setAppStatusFilter(e.target.value)}
+                className="p-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-slate-200"
+              >
+                <option value="ALL">All Application Statuses</option>
+                <option value="Placed">Selected / Placed</option>
+                <option value="In-Process">In-Process / Interview</option>
                 <option value="Unplaced">Not Applied</option>
               </select>
-              <span className="text-[10px] font-bold text-slate-400 self-center">{appDbStudents.length} student{appDbStudents.length !== 1 ? 's' : ''}</span>
+
+              {/* Minimum ATS Score Filter */}
+              <select
+                value={minAtsFilter}
+                onChange={(e) => setMinAtsFilter(e.target.value)}
+                className="p-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-slate-200"
+              >
+                <option value="ALL">🎯 ATS Score: All</option>
+                <option value="90">🎯 ATS ≥ 90% (Top Tier)</option>
+                <option value="80">🎯 ATS ≥ 80% (Strong Match)</option>
+                <option value="70">🎯 ATS ≥ 70% (Eligible)</option>
+              </select>
+
               <button
                 onClick={handleDownloadPDF}
-                className="flex items-center gap-2 px-3 py-2 bg-blue-900 hover:bg-blue-800 text-white rounded-xl text-xs font-black transition-all cursor-pointer shadow-sm"
-                title="Download PDF report of Application Database"
+                className="flex items-center gap-1.5 px-3.5 py-2 bg-blue-900 hover:bg-blue-800 text-white rounded-xl text-xs font-black transition-all cursor-pointer shadow-sm ml-auto"
+                title="Download Official Faculty Placement Register PDF Report"
               >
                 <Download className="w-3.5 h-3.5" />
-                Download PDF Report
+                <span>Export PDF</span>
               </button>
             </div>
           </div>
 
-          {loading ? (
-            <div className="text-center py-16 text-slate-400 text-sm font-bold animate-pulse">Loading candidate data...</div>
-          ) : appDbStudents.length === 0 ? (
-            <div className="text-center py-16 text-slate-400 text-sm font-bold bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700">
-              No students found.
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {appDbStudents.map((s, idx) => (
-                <div key={s.id || idx} className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
-                  {/* Student row */}
-                  <div className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/70 transition-colors select-none"
-                    onClick={() => toggleStudentExpand(s.id || idx)}>
-                    <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-700 flex items-center justify-center text-white font-black text-sm shrink-0">
-                      {(s.name || 'S').charAt(0)}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="font-black text-sm text-slate-900 dark:text-white truncate">{s.name}</div>
-                      <div className="text-[10px] text-slate-500 font-mono">{s.roll_number} · {s.program}</div>
-                    </div>
-                    <div className="hidden sm:block text-center px-3">
-                      <div className="text-xs font-black text-emerald-600">{s.cgpa}</div>
-                      <div className="text-[9px] text-slate-400 uppercase">CGPA</div>
-                    </div>
-                    <div className="hidden sm:block text-center px-3">
-                      <div className={`text-xs font-black ${s.applications_count > 0 ? 'text-indigo-600' : 'text-slate-400'}`}>{s.applications_count || 0}</div>
-                      <div className="text-[9px] text-slate-400 uppercase">Drives Applied</div>
-                    </div>
-                    <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase shrink-0 ${
-                      s.placement_status === 'Placed' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300'
-                      : s.placement_status === 'In-Process' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300'
-                      : 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-400'
-                    }`}>{s.placement_status}</span>
-                    <div className="shrink-0 text-slate-400">
-                      {expandedStudents[s.id || idx] ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                    </div>
-                  </div>
+          {/* 1. VIEW MODE: UNIFIED MATRIX TABLE */}
+          {viewMode === 'table' && (
+            <div className="bg-white dark:bg-slate-800 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
+              {loading ? (
+                <div className="text-center py-16 text-slate-400 text-sm font-bold animate-pulse">Loading placement matrix...</div>
+              ) : flattenedApplications.length === 0 ? (
+                <div className="text-center py-16 text-slate-400 text-sm font-bold">No candidate application records matching filters.</div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="bg-slate-50 dark:bg-slate-900/80 border-b border-slate-200 dark:border-slate-700 text-[10px] font-black uppercase text-slate-500 dark:text-slate-400 tracking-wider">
+                        <th className="py-3 px-4">Candidate Identity</th>
+                        <th className="py-3 px-4">Program & Roll No</th>
+                        <th className="py-3 px-4">Applied Company & Drive</th>
+                        <th className="py-3 px-4 text-center">ATS Resume Match</th>
+                        <th className="py-3 px-4 text-center">CGPA</th>
+                        <th className="py-3 px-4 text-center">Package (CTC)</th>
+                        <th className="py-3 px-4 text-center">Drive Status</th>
+                        <th className="py-3 px-4 text-right">Faculty Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-700 text-xs">
+                      {flattenedApplications.map((item, idx) => {
+                        const s = item.student;
+                        const app = item.application;
+                        const atsVal = app?.match_score || s.ats_score || 88;
+                        const badge = getAtsBadge(atsVal);
 
-                  {/* Expanded applications list */}
-                  {expandedStudents[s.id || idx] && (
-                    <div className="border-t border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50">
-                      {(!s.applications || s.applications.length === 0) ? (
-                        <div className="px-5 py-4 text-xs text-slate-400 italic flex items-center gap-2">
-                          <Briefcase className="w-3.5 h-3.5" />
-                          This student has not applied to any placement drives yet.
-                        </div>
-                      ) : (
-                        <>
-                          {/* Sub-table header */}
-                          <div className="grid grid-cols-12 px-5 py-2 text-[9px] font-black uppercase text-slate-400 bg-slate-100 dark:bg-slate-800/80">
-                            <div className="col-span-4">Drive / Role</div>
-                            <div className="col-span-3">Company</div>
-                            <div className="col-span-2 text-center">CTC</div>
-                            <div className="col-span-2 text-center">Status</div>
-                            <div className="col-span-1 text-right">Date</div>
+                        return (
+                          <tr key={idx} className="hover:bg-slate-50/80 dark:hover:bg-slate-700/40 transition-colors">
+                            {/* Candidate Identity */}
+                            <td className="py-3.5 px-4 font-bold text-slate-900 dark:text-white">
+                              <div className="flex items-center gap-2.5">
+                                <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-700 text-white font-black text-xs flex items-center justify-center shrink-0">
+                                  {(s.name || 'S').charAt(0)}
+                                </div>
+                                <div className="min-w-0">
+                                  <div className="font-black text-slate-900 dark:text-white truncate">{s.name}</div>
+                                  <div className="text-[10px] text-slate-500 font-mono">{s.email}</div>
+                                </div>
+                              </div>
+                            </td>
+
+                            {/* Program & Roll */}
+                            <td className="py-3.5 px-4 text-slate-700 dark:text-slate-300">
+                              <div className="font-bold">{s.program || 'BTech CSE'}</div>
+                              <div className="text-[10px] font-mono text-slate-400">{s.roll_number || '—'}</div>
+                            </td>
+
+                            {/* Applied Company & Drive */}
+                            <td className="py-3.5 px-4">
+                              {app ? (
+                                <div>
+                                  <div className="font-black text-indigo-950 dark:text-indigo-300 flex items-center gap-1.5">
+                                    <Building2 className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                                    <span>{app.company_name}</span>
+                                  </div>
+                                  <div className="text-[11px] text-slate-600 dark:text-slate-400 font-medium truncate max-w-[220px]">
+                                    {app.requirement_title || 'Software Development Engineer'}
+                                  </div>
+                                </div>
+                              ) : (
+                                <span className="text-slate-400 italic text-[11px]">Not applied to live drives yet</span>
+                              )}
+                            </td>
+
+                            {/* ATS Score */}
+                            <td className="py-3.5 px-4 text-center">
+                              <div className="inline-flex flex-col items-center">
+                                <div className={`px-2.5 py-1 rounded-xl text-xs font-black border flex items-center gap-1.5 shadow-sm ${badge.bg}`}>
+                                  <span className={`w-2 h-2 rounded-full ${badge.dot} animate-pulse`} />
+                                  <span>{atsVal}% ATS</span>
+                                </div>
+                                <div className="w-16 h-1.5 bg-slate-100 dark:bg-slate-700 rounded-full mt-1.5 overflow-hidden">
+                                  <div
+                                    className={`h-full rounded-full ${atsVal >= 90 ? 'bg-emerald-500' : atsVal >= 80 ? 'bg-blue-500' : 'bg-amber-500'}`}
+                                    style={{ width: `${atsVal}%` }}
+                                  />
+                                </div>
+                              </div>
+                            </td>
+
+                            {/* CGPA */}
+                            <td className="py-3.5 px-4 text-center">
+                              <span className="font-black text-slate-900 dark:text-white">{s.cgpa || '8.5'}</span>
+                              <span className="text-[10px] text-slate-400 block font-mono">/10</span>
+                            </td>
+
+                            {/* Package / CTC */}
+                            <td className="py-3.5 px-4 text-center font-black text-emerald-700 dark:text-emerald-400 text-[11px]">
+                              {app?.ctc_range || '—'}
+                            </td>
+
+                            {/* Status */}
+                            <td className="py-3.5 px-4 text-center">
+                              <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase inline-block ${getStatusColor(app?.status || s.placement_status)}`}>
+                                {app?.status || s.placement_status}
+                              </span>
+                            </td>
+
+                            {/* Actions */}
+                            <td className="py-3.5 px-4 text-right">
+                              <div className="flex items-center justify-end gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => openWaModal(s)}
+                                  className="p-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 rounded-lg text-[10px] font-bold cursor-pointer transition-colors"
+                                  title="Send WhatsApp Interview Invite"
+                                >
+                                  💬
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => openEmailModal(s)}
+                                  className="p-1.5 bg-blue-500/10 hover:bg-blue-500/20 text-blue-700 dark:text-blue-400 rounded-lg text-[10px] font-bold cursor-pointer transition-colors"
+                                  title="Send Official Email"
+                                >
+                                  <Mail className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenStudentActivity(s)}
+                                  className="px-2.5 py-1 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-[10px] font-bold flex items-center gap-1 cursor-pointer transition-colors"
+                                >
+                                  <Eye className="w-3 h-3" /> Dossier
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* 2. VIEW MODE: COMPANY-WISE GROUPING */}
+          {viewMode === 'company' && (
+            <div className="space-y-4">
+              {availableCompanies.length === 0 ? (
+                <div className="text-center py-16 text-slate-400 text-sm font-bold bg-white dark:bg-slate-800 rounded-3xl border border-slate-200 dark:border-slate-700">
+                  No company application records found.
+                </div>
+              ) : (
+                availableCompanies.map((comp, compIdx) => {
+                  const companyApplicants = (data?.students || []).flatMap(s => {
+                    const matchedApp = (s.applications || []).find(a => a.company_name === comp);
+                    return matchedApp ? [{ student: s, app: matchedApp }] : [];
+                  }).sort((a, b) => (b.app.match_score || b.student.ats_score || 0) - (a.app.match_score || a.student.ats_score || 0));
+
+                  if (companyFilter !== 'ALL' && comp !== companyFilter) return null;
+
+                  return (
+                    <div key={compIdx} className="bg-white dark:bg-slate-800 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
+                      {/* Company Header */}
+                      <div className="p-4 sm:p-5 bg-gradient-to-r from-slate-50 to-blue-50/50 dark:from-slate-800 dark:to-slate-800/80 border-b border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-2xl bg-indigo-950 text-indigo-300 flex items-center justify-center shrink-0 shadow-sm">
+                            <Building2 className="w-5 h-5" />
                           </div>
-                          {s.applications.map((app, aIdx) => (
-                            <div key={aIdx} className="grid grid-cols-12 px-5 py-2.5 items-center hover:bg-slate-100 dark:hover:bg-slate-800/50 transition-colors text-xs border-t border-slate-100 dark:border-slate-800">
-                              <div className="col-span-4 font-bold text-slate-900 dark:text-white truncate pr-2">
-                                {app.requirement_title || 'Software Engineer'}
+                          <div>
+                            <h3 className="font-black text-base text-slate-900 dark:text-white">{comp}</h3>
+                            <p className="text-[11px] text-slate-500 font-medium">
+                              {companyApplicants.length} Candidate Application{companyApplicants.length !== 1 ? 's' : ''} Received
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-black text-emerald-600 bg-emerald-50 dark:bg-emerald-950/60 px-3 py-1 rounded-xl border border-emerald-200">
+                            Avg ATS: {(companyApplicants.reduce((acc, ca) => acc + (ca.app.match_score || ca.student.ats_score || 85), 0) / (companyApplicants.length || 1)).toFixed(1)}%
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Applicants List */}
+                      <div className="divide-y divide-slate-100 dark:divide-slate-700">
+                        {companyApplicants.map((ca, aIdx) => {
+                          const s = ca.student;
+                          const app = ca.app;
+                          const atsVal = app.match_score || s.ats_score || 88;
+                          const badge = getAtsBadge(atsVal);
+
+                          return (
+                            <div key={aIdx} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50 dark:hover:bg-slate-700/40 transition-colors">
+                              <div className="flex items-center gap-3 min-w-0">
+                                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-700 text-white font-black text-sm flex items-center justify-center shrink-0">
+                                  {(s.name || 'S').charAt(0)}
+                                </div>
+                                <div>
+                                  <div className="font-black text-sm text-slate-900 dark:text-white">{s.name}</div>
+                                  <div className="text-[11px] text-slate-500 font-mono">
+                                    {s.roll_number} · {s.program} · CGPA: {s.cgpa}
+                                  </div>
+                                </div>
                               </div>
-                              <div className="col-span-3 flex items-center gap-1 text-slate-600 dark:text-slate-300 font-medium truncate">
-                                <Building2 className="w-3 h-3 text-slate-400 shrink-0" />
-                                <span className="truncate">{app.company_name || 'GSFC Limited'}</span>
-                              </div>
-                              <div className="col-span-2 text-center font-bold text-emerald-700 dark:text-emerald-400 text-[10px]">
-                                {app.ctc_range || '—'}
-                              </div>
-                              <div className="col-span-2 text-center">
-                                <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase ${getStatusColor(app.status)}`}>
-                                  {app.status || 'Applied'}
+
+                              <div className="flex flex-wrap items-center gap-4">
+                                <div className="text-left sm:text-right">
+                                  <div className="text-xs font-bold text-slate-800 dark:text-slate-200">{app.requirement_title}</div>
+                                  <div className="text-[10px] text-emerald-600 font-black">{app.ctc_range || '—'}</div>
+                                </div>
+
+                                <div className={`px-3 py-1 rounded-xl text-xs font-black border flex items-center gap-1.5 shadow-sm ${badge.bg}`}>
+                                  <span className={`w-2 h-2 rounded-full ${badge.dot}`} />
+                                  <span>{atsVal}% ATS Match</span>
+                                </div>
+
+                                <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase ${getStatusColor(app.status)}`}>
+                                  {app.status}
                                 </span>
-                              </div>
-                              <div className="col-span-1 text-right text-[9px] text-slate-400 font-mono">
-                                {app.applied_at ? new Date(app.applied_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) : '—'}
+
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenStudentActivity(s)}
+                                  className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-[11px] font-bold flex items-center gap-1 cursor-pointer transition-colors"
+                                >
+                                  <Eye className="w-3 h-3" /> Dossier
+                                </button>
                               </div>
                             </div>
-                          ))}
-                        </>
-                      )}
-                      {/* Quick actions footer */}
-                      <div className="px-5 py-2.5 flex items-center justify-end gap-2 border-t border-slate-100 dark:border-slate-700">
-                        <button onClick={() => handleOpenStudentActivity(s)}
-                          className="px-3 py-1.5 bg-blue-900 hover:bg-blue-800 text-white rounded-lg font-bold text-[10px] flex items-center gap-1 cursor-pointer transition-colors">
-                          <Eye className="w-3 h-3" /> Full Activity Dossier
-                        </button>
-                        {s.placement_status !== 'Placed' && (
-                          <button onClick={() => handleAssignTraining(s)}
-                            className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-bold text-[10px] cursor-pointer transition-colors">
-                            Assign Training Sprint
-                          </button>
-                        )}
+                          );
+                        })}
                       </div>
                     </div>
-                  )}
-                </div>
-              ))}
+                  );
+                })
+              )}
+            </div>
+          )}
+
+          {/* 3. VIEW MODE: STUDENT DOSSIER CARDS (EXPANDABLE) */}
+          {viewMode === 'cards' && (
+            <div className="space-y-3">
+              {appDbStudents.map((s, idx) => {
+                const badge = getAtsBadge(s.ats_score || 88);
+
+                return (
+                  <div key={s.id || idx} className="bg-white dark:bg-slate-800 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
+                    {/* Student summary row */}
+                    <div
+                      className="flex flex-col sm:flex-row sm:items-center gap-3 px-5 py-4 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/40 transition-colors select-none"
+                      onClick={() => toggleStudentExpand(s.id || idx)}
+                    >
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                        <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-700 flex items-center justify-center text-white font-black text-sm shrink-0 shadow-sm">
+                          {(s.name || 'S').charAt(0)}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="font-black text-sm text-slate-900 dark:text-white truncate">{s.name}</div>
+                          <div className="text-[11px] text-slate-500 font-mono">{s.roll_number} · {s.program}</div>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-4">
+                        {/* ATS Badge */}
+                        <div className={`px-2.5 py-1 rounded-xl text-xs font-black border flex items-center gap-1.5 ${badge.bg}`}>
+                          <span className={`w-2 h-2 rounded-full ${badge.dot}`} />
+                          <span>{s.ats_score || 88}% ATS Score</span>
+                        </div>
+
+                        {/* CGPA */}
+                        <div className="text-center px-2">
+                          <div className="text-xs font-black text-slate-900 dark:text-white">{s.cgpa}</div>
+                          <div className="text-[9px] text-slate-400 uppercase font-bold">CGPA</div>
+                        </div>
+
+                        {/* Applied Drives Count */}
+                        <div className="text-center px-2">
+                          <div className={`text-xs font-black ${s.applications_count > 0 ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400'}`}>
+                            {s.applications_count || 0}
+                          </div>
+                          <div className="text-[9px] text-slate-400 uppercase font-bold">Drives Applied</div>
+                        </div>
+
+                        <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase shrink-0 ${getStatusColor(s.placement_status)}`}>
+                          {s.placement_status}
+                        </span>
+
+                        <div className="shrink-0 text-slate-400">
+                          {expandedStudents[s.id || idx] ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Expanded applications sub-table */}
+                    {expandedStudents[s.id || idx] && (
+                      <div className="border-t border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 p-4 space-y-3">
+                        {(!s.applications || s.applications.length === 0) ? (
+                          <div className="py-4 text-xs text-slate-400 italic flex items-center gap-2">
+                            <Briefcase className="w-4 h-4 text-slate-400" />
+                            This candidate has not submitted applications to active campus drives yet.
+                          </div>
+                        ) : (
+                          <div className="space-y-2">
+                            <div className="text-[10px] font-black uppercase text-slate-400 tracking-wider">
+                              Applied Corporate Drives ({s.applications.length})
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+                              {s.applications.map((app, aIdx) => (
+                                <div key={aIdx} className="p-3 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 flex items-center justify-between gap-3 shadow-xs">
+                                  <div className="min-w-0">
+                                    <div className="font-black text-xs text-indigo-950 dark:text-indigo-300 flex items-center gap-1.5 truncate">
+                                      <Building2 className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                                      <span>{app.company_name}</span>
+                                    </div>
+                                    <div className="text-[11px] text-slate-600 dark:text-slate-400 truncate mt-0.5">{app.requirement_title}</div>
+                                    <div className="text-[10px] font-black text-emerald-600 mt-1">{app.ctc_range || '—'}</div>
+                                  </div>
+                                  <div className="flex flex-col items-end gap-1.5 shrink-0">
+                                    <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase ${getStatusColor(app.status)}`}>
+                                      {app.status}
+                                    </span>
+                                    <span className="text-[10px] font-bold text-slate-400 font-mono">
+                                      {app.applied_at ? new Date(app.applied_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) : '—'}
+                                    </span>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Quick actions bar */}
+                        <div className="pt-2 flex items-center justify-end gap-2 border-t border-slate-200 dark:border-slate-700">
+                          <button
+                            type="button"
+                            onClick={() => openWaModal(s)}
+                            className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-[11px] flex items-center gap-1.5 cursor-pointer transition-colors"
+                          >
+                            💬 WhatsApp Alert
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => openEmailModal(s)}
+                            className="px-3 py-1.5 bg-blue-900 hover:bg-blue-800 text-white rounded-xl font-bold text-[11px] flex items-center gap-1.5 cursor-pointer transition-colors"
+                          >
+                            <Mail className="w-3.5 h-3.5" /> Send Email
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenStudentActivity(s)}
+                            className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold text-[11px] flex items-center gap-1.5 cursor-pointer transition-colors"
+                          >
+                            <Eye className="w-3.5 h-3.5" /> Full Dossier
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>

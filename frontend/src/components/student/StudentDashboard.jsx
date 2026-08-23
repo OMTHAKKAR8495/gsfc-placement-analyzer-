@@ -961,6 +961,38 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
         </div>
       )}
 
+      {currentUser?.role === 'faculty' && (
+        <div className="bg-gradient-to-r from-blue-950 via-indigo-900 to-blue-900 p-4 sm:p-5 rounded-3xl text-white shadow-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border border-blue-400/30 animate-in fade-in">
+          <div className="flex items-center gap-3.5">
+            <div className="w-12 h-12 rounded-2xl bg-white/10 flex items-center justify-center font-black shrink-0 border border-white/20 shadow-md text-xl">
+              👩‍🏫
+            </div>
+            <div>
+              <div className="text-[11px] font-black uppercase tracking-wider text-emerald-300 flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5" /> GSFC University Faculty Portal
+              </div>
+              <h2 className="text-base sm:text-lg font-black tracking-tight mt-0.5">
+                Faculty Placement Hub: Student Applications & ATS Scores
+              </h2>
+              <p className="text-xs text-blue-100 max-w-xl font-medium mt-0.5">
+                Inspect which candidate applied to which corporate drive, evaluate ATS Resume Match scores, view dossiers, and dispatch interview alerts.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              window.location.hash = '#faculty';
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+            className="px-5 py-2.5 bg-emerald-400 hover:bg-emerald-300 text-slate-950 font-black text-xs rounded-2xl shadow-lg flex items-center gap-2 transition-all hover:scale-105 shrink-0 cursor-pointer"
+          >
+            <span>Open Faculty Hub & ATS Matrix</span>
+            <ArrowRight className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
       {/* Main Student Header Hero */}
       <div className="glass-panel p-6 sm:p-8 rounded-3xl relative overflow-hidden border border-slate-200/90 shadow-xl bg-gradient-to-r from-blue-900/10 via-teal-900/10 to-indigo-900/10">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
