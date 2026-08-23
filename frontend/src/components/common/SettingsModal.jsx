@@ -444,9 +444,10 @@ export default function SettingsModal({ isOpen, onClose, currentUser, theme, onT
         {/* Modal Layout: Sidebar Tabs + Content Panel */}
         <div className="flex flex-col sm:flex-row flex-1 overflow-hidden">
           {/* Tabs Sidebar */}
-          <div className="w-full sm:w-60 bg-slate-50 dark:bg-slate-950/60 p-3 sm:p-4 border-b sm:border-b-0 sm:border-r border-slate-200 dark:border-slate-800 space-y-1 shrink-0 overflow-x-auto sm:overflow-y-auto">
+          <div className="w-full sm:w-64 bg-slate-50 dark:bg-slate-950/60 p-3 sm:p-4 border-b sm:border-b-0 sm:border-r border-slate-200 dark:border-slate-800 space-y-1.5 shrink-0 overflow-x-auto sm:overflow-y-auto">
             {[
-              { id: 'account', label: '👤 Profile & Documents', icon: User },
+              { id: 'documents', label: '📜 Documents & Certificates', icon: FileCheck, badge: 'Required' },
+              { id: 'account', label: '👤 Profile & Personal Info', icon: User },
               { id: 'appearance', label: '🎨 Theme & Display', icon: Moon },
               { id: 'notifications', label: '🔔 Notifications & SMS', icon: Bell },
               { id: 'security', label: '🔒 Security & Access', icon: Shield },
@@ -458,14 +459,23 @@ export default function SettingsModal({ isOpen, onClose, currentUser, theme, onT
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer text-left ${
+                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer text-left ${
                     activeTab === tab.id
                       ? 'bg-blue-900 text-white shadow-md'
                       : 'text-slate-700 dark:text-slate-300 hover:bg-slate-200/70 dark:hover:bg-slate-800'
                   }`}
                 >
-                  <Icon className="w-4 h-4 shrink-0" />
-                  <span className="truncate">{tab.label}</span>
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <Icon className="w-4 h-4 shrink-0" />
+                    <span className="truncate">{tab.label}</span>
+                  </div>
+                  {tab.badge && (
+                    <span className={`px-1.5 py-0.5 rounded-md text-[8px] uppercase tracking-wider font-black shrink-0 ${
+                      activeTab === tab.id ? 'bg-amber-400 text-slate-950' : 'bg-blue-100 text-blue-900 dark:bg-blue-950 dark:text-blue-200'
+                    }`}>
+                      {tab.badge}
+                    </span>
+                  )}
                 </button>
               );
             })}
@@ -474,12 +484,17 @@ export default function SettingsModal({ isOpen, onClose, currentUser, theme, onT
           {/* Content Body */}
           <div className="flex-1 p-6 overflow-y-auto max-h-[60vh] space-y-6">
             
-            {/* 1. ACCOUNT & PROFILE WITH PASSPORT PHOTO, RESUME & CERTIFICATE UPLOADS */}
-            {activeTab === 'account' && (
+            {/* 1. DEDICATED DOCUMENTS & CERTIFICATES TAB */}
+            {activeTab === 'documents' && (
               <div className="space-y-5 animate-fadeIn">
                 <div>
-                  <h3 className="text-sm font-black uppercase text-slate-400 tracking-wider">Candidate Profile & Verified Documents</h3>
-                  <p className="text-xs text-slate-500">Upload your professional photo, master ATS resume, and academic certificates.</p>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-sm font-black uppercase text-slate-400 tracking-wider">Candidate Documents & Credentials</h3>
+                    <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-amber-100 text-amber-900 border border-amber-300">
+                      TPC Verified Dossier
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-0.5">Upload and manage your official passport photo, ATS master resume, and academic certificates.</p>
                 </div>
 
                 {/* 📸 SECTION 1: PROFESSIONAL PASSPORT PHOTO UPLOADER (BIG & HIGH VISIBILITY) */}
@@ -617,6 +632,32 @@ export default function SettingsModal({ isOpen, onClose, currentUser, theme, onT
                         </button>
                       </div>
                     ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* 2. ACCOUNT & PROFILE TAB */}
+            {activeTab === 'account' && (
+              <div className="space-y-5 animate-fadeIn">
+                <div>
+                  <h3 className="text-sm font-black uppercase text-slate-400 tracking-wider">Candidate Account & Personal Info</h3>
+                  <p className="text-xs text-slate-500">Your verified university identity registered on CampusHire AI.</p>
+                </div>
+
+                <div className="p-4 bg-blue-50 dark:bg-blue-950/30 rounded-2xl border border-blue-200 dark:border-blue-900/60 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="text-xs font-black text-blue-950 dark:text-blue-200">
+                        {currentUser?.name || currentUser?.profile?.name || 'Thakkar Om'}
+                      </div>
+                      <div className="text-[11px] font-medium text-slate-600 dark:text-slate-400">
+                        {currentUser?.email || 'student@gsfcuniversity.ac.in'}
+                      </div>
+                    </div>
+                    <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300">
+                      {currentUser?.role || 'Verified Student'}
+                    </span>
                   </div>
                 </div>
 
