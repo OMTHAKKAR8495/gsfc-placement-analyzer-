@@ -175,9 +175,11 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
   const [selectedCompanyForDrives, setSelectedCompanyForDrives] = useState(null);
 
   // Logged Students & Logged Faculty Audit States (Instantly Initialized)
+  const [navFilter, setNavFilter] = useState('all'); // 'all' | 'core' | 'ai' | 'fest'
   const [loggedStudentsList, setLoggedStudentsList] = useState(getInitialLoggedStudents);
   const [loggedFacultyList, setLoggedFacultyList] = useState(getInitialLoggedFaculty);
   const [loggedStudentSearch, setLoggedStudentSearch] = useState('');
+
   const [loggedFacultySearch, setLoggedFacultySearch] = useState('');
   const [studentProgramFilter, setStudentProgramFilter] = useState('All');
   const [studentBatchFilter, setStudentBatchFilter] = useState('All');
@@ -1493,349 +1495,400 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+    <div className="w-full max-w-[1680px] mx-auto px-2.5 sm:px-6 py-3 sm:py-5 space-y-3.5">
+
       {/* Executive Command Banner */}
-      <div className="glass-panel p-6 sm:p-8 rounded-3xl border border-slate-200/90 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 relative overflow-hidden">
+      <div className="glass-panel p-3.5 sm:p-4 rounded-2xl border border-slate-200/90 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 relative overflow-hidden shadow-sm">
         <div>
-          <div className="flex items-center gap-2 mb-2">
-            <span className="px-3 py-1 bg-blue-900/10 text-blue-900 border border-blue-900/25 text-xs font-black rounded-lg flex items-center gap-1.5 shadow-sm">
-              <ShieldCheck className="w-3.5 h-3.5 text-blue-900" /> GSFC TPC Command Center
+          <div className="flex items-center gap-2 mb-1">
+            <span className="px-2.5 py-0.5 bg-blue-900/10 text-blue-900 border border-blue-900/25 text-[10px] font-black rounded-md flex items-center gap-1 shadow-xs">
+              <ShieldCheck className="w-3 h-3 text-blue-900" /> GSFC TPC Command Center
             </span>
           </div>
-          <h1 className="text-3xl font-black text-slate-900 tracking-tight">
+          <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
             Placement <span className="gradient-text">Analytics & Governance</span>
           </h1>
-          <p className="text-xs sm:text-sm text-slate-600 mt-1 max-w-2xl font-bold leading-relaxed">
-            Verify corporate recruiter signups, monitor real-time program placement conversion funnels, and export accreditation metrics.
+          <p className="text-[11px] sm:text-xs text-slate-600 font-bold leading-tight">
+            Verify recruiter signups, monitor real-time conversion funnels, and manage campus events & passes.
           </p>
         </div>
 
         <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap shrink-0">
           <button
             onClick={() => setActiveTab('entry_logs')}
-            className="py-2.5 px-3.5 bg-gradient-to-r from-emerald-600 via-teal-700 to-blue-900 hover:from-emerald-500 hover:to-teal-600 text-white font-black text-xs rounded-xl shadow-md flex items-center gap-1.5 transition-all cursor-pointer hover:scale-105 shrink-0"
+            className="py-2 px-3 bg-gradient-to-r from-emerald-600 via-teal-700 to-blue-900 hover:from-emerald-500 hover:to-teal-600 text-white font-black text-xs rounded-xl shadow-md flex items-center gap-1.5 transition-all cursor-pointer hover:scale-105 shrink-0"
             title="Open Live Gate QR Scanner Terminal"
           >
-            <QrCode className="w-4 h-4 text-emerald-300" /> 
+            <QrCode className="w-3.5 h-3.5 text-emerald-300" /> 
             <span>Scan Gate Pass</span>
           </button>
 
           <button
             onClick={() => setAccreditationModalOpen(true)}
-            className="py-2.5 px-3.5 bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:from-amber-400 hover:to-orange-400 text-slate-950 font-black text-xs rounded-xl shadow-md flex items-center gap-1.5 transition-all cursor-pointer hover:scale-105 shrink-0"
+            className="py-2 px-3 bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:from-amber-400 hover:to-orange-400 text-slate-950 font-black text-xs rounded-xl shadow-md flex items-center gap-1.5 transition-all cursor-pointer hover:scale-105 shrink-0"
             title="Open Official NAAC & NIRF Accreditation Hub"
           >
-            <Award className="w-4 h-4 text-slate-950 stroke-[2.5]" /> 
+            <Award className="w-3.5 h-3.5 text-slate-950 stroke-[2.5]" /> 
             <span>NAAC & NIRF Hub</span>
           </button>
 
           <button
             onClick={downloadReport}
-            className="py-2.5 px-3.5 bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 hover:from-blue-800 hover:to-indigo-800 text-white font-black text-xs rounded-xl shadow-md flex items-center gap-1.5 transition-all cursor-pointer hover:scale-105 shrink-0"
+            className="py-2 px-3 bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 hover:from-blue-800 hover:to-indigo-800 text-white font-black text-xs rounded-xl shadow-md flex items-center gap-1.5 transition-all cursor-pointer hover:scale-105 shrink-0"
             title="Export Master TPC Analytics CSV"
           >
-            <Download className="w-4 h-4" /> 
+            <Download className="w-3.5 h-3.5" /> 
             <span>Export CSV</span>
           </button>
         </div>
       </div>
 
-
-
-      {/* Command Center 2-Tier Navigation Hub */}
-      <div className="space-y-3">
-        {/* Tier 1: Core Portal Tabs */}
-        <div className="glass-panel p-2.5 sm:p-3 rounded-2xl border border-slate-200 shadow-md">
-          <div className="flex items-center gap-1.5 text-[11px] font-black text-slate-500 uppercase tracking-wider mb-2 px-1">
-            <BarChart3 className="w-3.5 h-3.5 text-blue-900" /> TPC Core Data & Governance Views
-          </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
-            <button
-              onClick={() => setActiveTab('overview')}
-              className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-black transition-all cursor-pointer text-center ${
-                activeTab === 'overview'
-                  ? 'bg-blue-900 text-white shadow-md ring-2 ring-blue-400/40'
-                  : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100'
-              }`}
-            >
-              <BarChart3 className="w-3.5 h-3.5 shrink-0" /> <span className="truncate">Governance</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('logged_students')}
-              className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-black transition-all cursor-pointer text-center ${
-                activeTab === 'logged_students'
-                  ? 'bg-blue-900 text-white shadow-md ring-2 ring-blue-400/40'
-                  : 'bg-blue-50 text-blue-950 border border-blue-200 hover:bg-blue-100'
-              }`}
-            >
-              <GraduationCap className="w-3.5 h-3.5 text-blue-700 shrink-0" /> <span className="truncate">🎓 Students ({filteredLoggedStudents.length})</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('logged_faculty')}
-              className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-black transition-all cursor-pointer text-center ${
-                activeTab === 'logged_faculty'
-                  ? 'bg-emerald-800 text-white shadow-md ring-2 ring-emerald-400/40'
-                  : 'bg-emerald-50 text-emerald-950 border border-emerald-200 hover:bg-emerald-100'
-              }`}
-            >
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-700 shrink-0" /> <span className="truncate">👩‍🏫 Faculty ({filteredLoggedFaculty.length})</span>
-            </button>
-
-            <button
-              onClick={() => {
-                setActiveTab('login_history');
-                fetchLoginHistory(1);
-              }}
-              className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-black transition-all cursor-pointer text-center ${
-                activeTab === 'login_history'
-                  ? 'bg-purple-900 text-white shadow-md ring-2 ring-purple-400/40'
-                  : 'bg-purple-50 text-purple-950 border border-purple-200 hover:bg-purple-100'
-              }`}
-            >
-              <History className="w-3.5 h-3.5 text-purple-700 shrink-0" /> <span className="truncate">📜 Login History</span>
-            </button>
-
-            <button
-              onClick={() => {
-                setActiveTab('audit_logs');
-                fetchAdminAuditLogs(1);
-              }}
-              className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-black transition-all cursor-pointer text-center ${
-                activeTab === 'audit_logs'
-                  ? 'bg-slate-900 text-white shadow-md ring-2 ring-slate-400/40'
-                  : 'bg-slate-100 text-slate-900 border border-slate-300 hover:bg-slate-200'
-              }`}
-            >
-              <ShieldCheck className="w-3.5 h-3.5 text-slate-700 shrink-0" /> <span className="truncate">🛡️ Admin Audit</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('database')}
-              className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-black transition-all cursor-pointer text-center ${
-                activeTab === 'database'
-                  ? 'bg-blue-900 text-white shadow-md ring-2 ring-blue-400/40'
-                  : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100'
-              }`}
-            >
-              <Database className="w-3.5 h-3.5 text-amber-600 shrink-0" /> <span className="truncate">🗄️ Database ({filteredCandidates.length})</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('companies')}
-              className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-black transition-all cursor-pointer text-center ${
-                activeTab === 'companies'
-                  ? 'bg-blue-900 text-white shadow-md ring-2 ring-blue-400/40'
-                  : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100'
-              }`}
-            >
-              <Building className="w-3.5 h-3.5 text-amber-600 shrink-0" /> <span className="truncate">🏢 Recruiters ({allCompaniesList.length})</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('drives')}
-              className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-black transition-all cursor-pointer text-center ${
-                activeTab === 'drives'
-                  ? 'bg-blue-900 text-white shadow-md ring-2 ring-blue-400/40'
-                  : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100'
-              }`}
-            >
-              <Briefcase className="w-3.5 h-3.5 text-emerald-600 shrink-0" /> <span className="truncate">💼 Drives ({allDrivesList.length})</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('applications')}
-              className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-black transition-all cursor-pointer text-center ${
-                activeTab === 'applications'
-                  ? 'bg-blue-900 text-white shadow-md ring-2 ring-blue-400/40'
-                  : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100'
-              }`}
-            >
-              <Users className="w-3.5 h-3.5 text-indigo-600 shrink-0" /> <span className="truncate">📄 Applications ({allApplicationsList.length})</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('alumni_approvals')}
-              className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-black transition-all cursor-pointer text-center ${
-                activeTab === 'alumni_approvals'
-                  ? 'bg-blue-900 text-white shadow-md ring-2 ring-blue-400/40'
-                  : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100'
-              }`}
-            >
-              <GraduationCap className="w-3.5 h-3.5 text-blue-600 shrink-0" /> <span className="truncate">🎓 Alumni ({pendingAlumni.length})</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('qa')}
-              className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-black transition-all cursor-pointer text-center ${
-                activeTab === 'qa'
-                  ? 'bg-blue-900 text-white shadow-md ring-2 ring-blue-400/40'
-                  : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100'
-              }`}
-            >
-              <HelpCircle className="w-3.5 h-3.5 text-cyan-600 shrink-0" /> <span className="truncate">💬 Q&A</span>
-            </button>
-
-            <button
-              onClick={() => {
-                setActiveTab('search');
-                fetchGlobalSearch(searchQuery);
-              }}
-              className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-black transition-all cursor-pointer text-center ${
-                activeTab === 'search'
-                  ? 'bg-blue-900 text-white shadow-md ring-2 ring-blue-400/40'
-                  : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100'
-              }`}
-            >
-              <Search className="w-3.5 h-3.5 text-cyan-600 shrink-0" /> <span className="truncate">🔍 Search</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Tier 2: AI & Executive Tooling Launchers */}
-        <div className="glass-panel p-2.5 sm:p-3 rounded-2xl border border-slate-200 shadow-md">
-          <div className="flex items-center gap-1.5 text-[11px] font-black text-amber-700 uppercase tracking-wider mb-2 px-1">
-            <Sparkles className="w-3.5 h-3.5 text-amber-600" /> AI Intelligence & Accreditation Tools
-          </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-2">
-            <button
-              onClick={() => setActiveTab('predictive')}
-              className={`flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer text-center ${
-                activeTab === 'predictive'
-                  ? 'bg-indigo-900 text-white shadow-md'
-                  : 'bg-indigo-50 text-indigo-950 border border-indigo-200 hover:bg-indigo-100'
-              }`}
-            >
-              <Sparkles className="w-3.5 h-3.5 text-indigo-600 shrink-0" /> <span className="truncate">🔮 AI Forecast</span>
-            </button>
-
-            <button
-              onClick={() => setJobFairModalOpen(true)}
-              className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black transition-all bg-purple-50 text-purple-950 border border-purple-200 hover:bg-purple-100 cursor-pointer shadow-xs text-center"
-            >
-              <Calendar className="w-3.5 h-3.5 text-purple-600 shrink-0" /> <span className="truncate">🎪 Job Fair</span>
-            </button>
-
-            <button
-              onClick={() => setEcosystemModalOpen(true)}
-              className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black transition-all bg-gradient-to-r from-blue-900 via-indigo-900 to-amber-600 hover:from-blue-800 text-white cursor-pointer shadow-sm border border-amber-400/40 text-center"
-            >
-              <Globe className="w-3.5 h-3.5 text-amber-300 shrink-0" /> <span className="truncate">🌐 Enterprise</span>
-            </button>
-
-            <button
-              onClick={() => setCopilotOpen(true)}
-              className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black transition-all bg-purple-900 hover:bg-purple-800 text-white cursor-pointer shadow-sm text-center"
-            >
-              <Sparkles className="w-3.5 h-3.5 text-amber-300 shrink-0" /> <span className="truncate">🤖 Copilot</span>
-            </button>
-
-            <button
-              onClick={() => setWhatIfModalOpen(true)}
-              className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black transition-all bg-indigo-900 hover:bg-indigo-800 text-white cursor-pointer shadow-sm text-center"
-            >
-              <Sliders className="w-3.5 h-3.5 text-amber-300 shrink-0" /> <span className="truncate">🔮 What-If</span>
-            </button>
-
-            <button
-              onClick={() => setHeatmapModalOpen(true)}
-              className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black transition-all bg-teal-900 hover:bg-teal-800 text-white cursor-pointer shadow-sm text-center"
-            >
-              <Layers className="w-3.5 h-3.5 text-amber-300 shrink-0" /> <span className="truncate">🗺️ Heatmap</span>
-            </button>
-
-            <button
-              onClick={() => setAccreditationModalOpen(true)}
-              className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black transition-all bg-amber-50 text-amber-950 border border-amber-300 hover:bg-amber-100 cursor-pointer shadow-xs text-center"
-            >
-              <Award className="w-3.5 h-3.5 text-amber-600 stroke-[2.5] shrink-0" /> <span className="truncate">🏆 NAAC/NIRF</span>
-            </button>
-          </div>
-        </div>
-
-
-        {/* Tier 3: Fest, Public Pass & QR Scanner Modules */}
-        <div className="glass-panel p-2.5 sm:p-3 rounded-2xl border border-indigo-200 dark:border-indigo-900/60 bg-gradient-to-r from-indigo-50/60 via-blue-50/40 to-slate-50 dark:from-indigo-950/30 dark:via-blue-950/20 dark:to-slate-900/40 shadow-md">
-          <div className="flex items-center justify-between gap-1.5 text-[11px] font-black text-indigo-900 dark:text-indigo-300 uppercase tracking-wider mb-2 px-1">
-            <span className="flex items-center gap-1.5"><Sparkles className="w-3.5 h-3.5 text-amber-500" /> Fest Management, Digital QR Passes & Gate Security</span>
-            <span className="text-[10px] bg-amber-500/20 text-amber-700 dark:text-amber-300 px-2 py-0.5 rounded-full font-bold">New Module</span>
-          </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
-            <button
-              onClick={() => setActiveTab('events')}
-              className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-black transition-all cursor-pointer text-center ${
-                activeTab === 'events'
-                  ? 'bg-gradient-to-r from-blue-900 to-indigo-900 text-white shadow-md ring-2 ring-indigo-400/40'
-                  : 'bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 border border-indigo-200 dark:border-indigo-800 hover:bg-indigo-50 dark:hover:bg-indigo-950'
-              }`}
-            >
-              <Sparkles className="w-3.5 h-3.5 text-amber-400 shrink-0" /> 
-              <span className="truncate">🎪 Fests & Events</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('external_candidates')}
-              className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-black transition-all cursor-pointer text-center ${
-                activeTab === 'external_candidates'
-                  ? 'bg-gradient-to-r from-blue-900 to-indigo-900 text-white shadow-md ring-2 ring-indigo-400/40'
-                  : 'bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 border border-indigo-200 dark:border-indigo-800 hover:bg-indigo-50 dark:hover:bg-indigo-950'
-              }`}
-            >
-              <Users className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 shrink-0" /> 
-              <span className="truncate">🎟️ Registrations</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('entry_logs')}
-              className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-black transition-all cursor-pointer text-center ${
-                activeTab === 'entry_logs'
-                  ? 'bg-gradient-to-r from-blue-900 to-indigo-900 text-white shadow-md ring-2 ring-indigo-400/40'
-                  : 'bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 border border-indigo-200 dark:border-indigo-800 hover:bg-indigo-50 dark:hover:bg-indigo-950'
-              }`}
-            >
-              <QrCode className="w-3.5 h-3.5 text-emerald-500 shrink-0" /> 
-              <span className="truncate">⚡ QR Scanner</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('security_staff')}
-              className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-black transition-all cursor-pointer text-center ${
-                activeTab === 'security_staff'
-                  ? 'bg-gradient-to-r from-blue-900 to-indigo-900 text-white shadow-md ring-2 ring-indigo-400/40'
-                  : 'bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 border border-indigo-200 dark:border-indigo-800 hover:bg-indigo-50 dark:hover:bg-indigo-950'
-              }`}
-            >
-              <ShieldCheck className="w-3.5 h-3.5 text-amber-500 shrink-0" /> 
-              <span className="truncate">🛡️ Security Staff</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('online_meetings')}
-              className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-black transition-all cursor-pointer text-center ${
-                activeTab === 'online_meetings'
-                  ? 'bg-gradient-to-r from-blue-900 to-indigo-900 text-white shadow-md ring-2 ring-indigo-400/40'
-                  : 'bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 border border-indigo-200 dark:border-indigo-800 hover:bg-indigo-50 dark:hover:bg-indigo-950'
-              }`}
-            >
-              <Video className="w-3.5 h-3.5 text-indigo-400 shrink-0" /> 
-              <span className="truncate">📹 Meetings</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('subscription_plans')}
-              className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-black transition-all cursor-pointer text-center ${
-                activeTab === 'subscription_plans'
-                  ? 'bg-gradient-to-r from-amber-500 via-amber-600 to-yellow-500 text-slate-950 shadow-md ring-2 ring-amber-400/40 font-black'
-                  : 'bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 border border-amber-200 dark:border-amber-800 hover:bg-amber-50 dark:hover:bg-amber-950'
-              }`}
-            >
-              <Crown className="w-3.5 h-3.5 text-amber-500 shrink-0" /> 
-              <span className="truncate">💳 Recruiter Plans</span>
-            </button>
-          </div>
+      {/* Category Pill Switcher */}
+      <div className="flex items-center justify-between gap-2 p-1.5 bg-slate-100/90 dark:bg-slate-800/90 backdrop-blur-md rounded-2xl border border-slate-200 dark:border-slate-700 shadow-inner">
+        <div className="flex items-center gap-1.5 overflow-x-auto py-0.5 no-scrollbar w-full">
+          <button
+            onClick={() => setNavFilter('all')}
+            className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all shrink-0 cursor-pointer ${
+              navFilter === 'all'
+                ? 'bg-blue-900 text-white shadow-md'
+                : 'text-slate-700 dark:text-slate-200 hover:bg-slate-200/60 dark:hover:bg-slate-700'
+            }`}
+          >
+            🌐 All Modules (25)
+          </button>
+          <button
+            onClick={() => setNavFilter('core')}
+            className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all shrink-0 cursor-pointer ${
+              navFilter === 'core'
+                ? 'bg-blue-900 text-white shadow-md'
+                : 'text-slate-700 dark:text-slate-200 hover:bg-slate-200/60 dark:hover:bg-slate-700'
+            }`}
+          >
+            📊 Core Governance (12)
+          </button>
+          <button
+            onClick={() => setNavFilter('ai')}
+            className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all shrink-0 cursor-pointer ${
+              navFilter === 'ai'
+                ? 'bg-purple-900 text-white shadow-md'
+                : 'text-slate-700 dark:text-slate-200 hover:bg-slate-200/60 dark:hover:bg-slate-700'
+            }`}
+          >
+            🤖 AI & Accreditation (7)
+          </button>
+          <button
+            onClick={() => setNavFilter('fest')}
+            className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all shrink-0 cursor-pointer ${
+              navFilter === 'fest'
+                ? 'bg-amber-600 text-white shadow-md'
+                : 'text-slate-700 dark:text-slate-200 hover:bg-slate-200/60 dark:hover:bg-slate-700'
+            }`}
+          >
+            🎪 Fest, Passes & Plans (6)
+          </button>
         </div>
       </div>
+
+      {/* Command Center Navigation Hub */}
+      <div className="space-y-2.5">
+        {/* Tier 1: Core Portal Tabs */}
+        {(navFilter === 'all' || navFilter === 'core') && (
+          <div className="glass-panel p-2.5 rounded-2xl border border-slate-200 shadow-sm">
+            <div className="flex items-center gap-1.5 text-[10px] font-black text-slate-500 uppercase tracking-wider mb-1.5 px-1">
+              <BarChart3 className="w-3 h-3 text-blue-900" /> TPC Core Data & Governance Views
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-1.5">
+              <button
+                onClick={() => setActiveTab('overview')}
+                className={`flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer text-center ${
+                  activeTab === 'overview'
+                    ? 'bg-blue-900 text-white shadow-md ring-2 ring-blue-400/40'
+                    : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100'
+                }`}
+              >
+                <BarChart3 className="w-3.5 h-3.5 shrink-0" /> <span className="truncate">Governance</span>
+              </button>
+
+              <button
+                onClick={() => setActiveTab('logged_students')}
+                className={`flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer text-center ${
+                  activeTab === 'logged_students'
+                    ? 'bg-blue-900 text-white shadow-md ring-2 ring-blue-400/40'
+                    : 'bg-blue-50 text-blue-950 border border-blue-200 hover:bg-blue-100'
+                }`}
+              >
+                <GraduationCap className="w-3.5 h-3.5 text-blue-700 shrink-0" /> <span className="truncate">🎓 Students ({filteredLoggedStudents.length})</span>
+              </button>
+
+              <button
+                onClick={() => setActiveTab('logged_faculty')}
+                className={`flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer text-center ${
+                  activeTab === 'logged_faculty'
+                    ? 'bg-emerald-800 text-white shadow-md ring-2 ring-emerald-400/40'
+                    : 'bg-emerald-50 text-emerald-950 border border-emerald-200 hover:bg-emerald-100'
+                }`}
+              >
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-700 shrink-0" /> <span className="truncate">👩‍🏫 Faculty ({filteredLoggedFaculty.length})</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setActiveTab('login_history');
+                  fetchLoginHistory(1);
+                }}
+                className={`flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer text-center ${
+                  activeTab === 'login_history'
+                    ? 'bg-purple-900 text-white shadow-md ring-2 ring-purple-400/40'
+                    : 'bg-purple-50 text-purple-950 border border-purple-200 hover:bg-purple-100'
+                }`}
+              >
+                <History className="w-3.5 h-3.5 text-purple-700 shrink-0" /> <span className="truncate">📜 Login History</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setActiveTab('audit_logs');
+                  fetchAdminAuditLogs(1);
+                }}
+                className={`flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer text-center ${
+                  activeTab === 'audit_logs'
+                    ? 'bg-slate-900 text-white shadow-md ring-2 ring-slate-400/40'
+                    : 'bg-slate-100 text-slate-900 border border-slate-300 hover:bg-slate-200'
+                }`}
+              >
+                <ShieldCheck className="w-3.5 h-3.5 text-slate-700 shrink-0" /> <span className="truncate">🛡️ Admin Audit</span>
+              </button>
+
+              <button
+                onClick={() => setActiveTab('database')}
+                className={`flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer text-center ${
+                  activeTab === 'database'
+                    ? 'bg-blue-900 text-white shadow-md ring-2 ring-blue-400/40'
+                    : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100'
+                }`}
+              >
+                <Database className="w-3.5 h-3.5 text-amber-600 shrink-0" /> <span className="truncate">🗄️ Database ({filteredCandidates.length})</span>
+              </button>
+
+              <button
+                onClick={() => setActiveTab('companies')}
+                className={`flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer text-center ${
+                  activeTab === 'companies'
+                    ? 'bg-blue-900 text-white shadow-md ring-2 ring-blue-400/40'
+                    : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100'
+                }`}
+              >
+                <Building className="w-3.5 h-3.5 text-amber-600 shrink-0" /> <span className="truncate">🏢 Recruiters ({allCompaniesList.length})</span>
+              </button>
+
+              <button
+                onClick={() => setActiveTab('drives')}
+                className={`flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer text-center ${
+                  activeTab === 'drives'
+                    ? 'bg-blue-900 text-white shadow-md ring-2 ring-blue-400/40'
+                    : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100'
+                }`}
+              >
+                <Briefcase className="w-3.5 h-3.5 text-emerald-600 shrink-0" /> <span className="truncate">💼 Drives ({allDrivesList.length})</span>
+              </button>
+
+              <button
+                onClick={() => setActiveTab('applications')}
+                className={`flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer text-center ${
+                  activeTab === 'applications'
+                    ? 'bg-blue-900 text-white shadow-md ring-2 ring-blue-400/40'
+                    : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100'
+                }`}
+              >
+                <Users className="w-3.5 h-3.5 text-indigo-600 shrink-0" /> <span className="truncate">📄 Applications ({allApplicationsList.length})</span>
+              </button>
+
+              <button
+                onClick={() => setActiveTab('alumni_approvals')}
+                className={`flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer text-center ${
+                  activeTab === 'alumni_approvals'
+                    ? 'bg-blue-900 text-white shadow-md ring-2 ring-blue-400/40'
+                    : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100'
+                }`}
+              >
+                <GraduationCap className="w-3.5 h-3.5 text-blue-600 shrink-0" /> <span className="truncate">🎓 Alumni ({pendingAlumni.length})</span>
+              </button>
+
+              <button
+                onClick={() => setActiveTab('qa')}
+                className={`flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer text-center ${
+                  activeTab === 'qa'
+                    ? 'bg-blue-900 text-white shadow-md ring-2 ring-blue-400/40'
+                    : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100'
+                }`}
+              >
+                <HelpCircle className="w-3.5 h-3.5 text-cyan-600 shrink-0" /> <span className="truncate">💬 Q&A</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setActiveTab('search');
+                  fetchGlobalSearch(searchQuery);
+                }}
+                className={`flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer text-center ${
+                  activeTab === 'search'
+                    ? 'bg-blue-900 text-white shadow-md ring-2 ring-blue-400/40'
+                    : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100'
+                }`}
+              >
+                <Search className="w-3.5 h-3.5 text-cyan-600 shrink-0" /> <span className="truncate">🔍 Search</span>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Tier 2: AI & Executive Tooling Launchers */}
+        {(navFilter === 'all' || navFilter === 'ai') && (
+          <div className="glass-panel p-2.5 rounded-2xl border border-slate-200 shadow-sm">
+            <div className="flex items-center gap-1.5 text-[10px] font-black text-amber-700 uppercase tracking-wider mb-1.5 px-1">
+              <Sparkles className="w-3 h-3 text-amber-600" /> AI Intelligence & Accreditation Tools
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-1.5">
+              <button
+                onClick={() => setActiveTab('predictive')}
+                className={`flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer text-center ${
+                  activeTab === 'predictive'
+                    ? 'bg-indigo-900 text-white shadow-md'
+                    : 'bg-indigo-50 text-indigo-950 border border-indigo-200 hover:bg-indigo-100'
+                }`}
+              >
+                <Sparkles className="w-3.5 h-3.5 text-indigo-600 shrink-0" /> <span className="truncate">🔮 AI Forecast</span>
+              </button>
+
+              <button
+                onClick={() => setJobFairModalOpen(true)}
+                className="flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-black transition-all bg-purple-50 text-purple-950 border border-purple-200 hover:bg-purple-100 cursor-pointer shadow-xs text-center"
+              >
+                <Calendar className="w-3.5 h-3.5 text-purple-600 shrink-0" /> <span className="truncate">🎪 Job Fair</span>
+              </button>
+
+              <button
+                onClick={() => setEcosystemModalOpen(true)}
+                className="flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-black transition-all bg-gradient-to-r from-blue-900 via-indigo-900 to-amber-600 hover:from-blue-800 text-white cursor-pointer shadow-sm border border-amber-400/40 text-center"
+              >
+                <Globe className="w-3.5 h-3.5 text-amber-300 shrink-0" /> <span className="truncate">🌐 Enterprise</span>
+              </button>
+
+              <button
+                onClick={() => setCopilotOpen(true)}
+                className="flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-black transition-all bg-purple-900 hover:bg-purple-800 text-white cursor-pointer shadow-sm text-center"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-amber-300 shrink-0" /> <span className="truncate">🤖 Copilot</span>
+              </button>
+
+              <button
+                onClick={() => setWhatIfModalOpen(true)}
+                className="flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-black transition-all bg-indigo-900 hover:bg-indigo-800 text-white cursor-pointer shadow-sm text-center"
+              >
+                <Sliders className="w-3.5 h-3.5 text-amber-300 shrink-0" /> <span className="truncate">🔮 What-If</span>
+              </button>
+
+              <button
+                onClick={() => setHeatmapModalOpen(true)}
+                className="flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-black transition-all bg-teal-900 hover:bg-teal-800 text-white cursor-pointer shadow-sm text-center"
+              >
+                <Layers className="w-3.5 h-3.5 text-amber-300 shrink-0" /> <span className="truncate">🗺️ Heatmap</span>
+              </button>
+
+              <button
+                onClick={() => setAccreditationModalOpen(true)}
+                className="flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-black transition-all bg-amber-50 text-amber-950 border border-amber-300 hover:bg-amber-100 cursor-pointer shadow-xs text-center"
+              >
+                <Award className="w-3.5 h-3.5 text-amber-600 stroke-[2.5] shrink-0" /> <span className="truncate">🏆 NAAC/NIRF</span>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Tier 3: Fest, Public Pass & QR Scanner Modules */}
+        {(navFilter === 'all' || navFilter === 'fest') && (
+          <div className="glass-panel p-2.5 rounded-2xl border border-indigo-200 dark:border-indigo-900/60 bg-gradient-to-r from-indigo-50/60 via-blue-50/40 to-slate-50 dark:from-indigo-950/30 dark:via-blue-950/20 dark:to-slate-900/40 shadow-sm">
+            <div className="flex items-center justify-between gap-1.5 text-[10px] font-black text-indigo-900 dark:text-indigo-300 uppercase tracking-wider mb-1.5 px-1">
+              <span className="flex items-center gap-1"><Sparkles className="w-3 h-3 text-amber-500" /> Fest Management, Digital QR Passes & Gate Security</span>
+              <span className="text-[9px] bg-amber-500/20 text-amber-700 dark:text-amber-300 px-2 py-0.5 rounded-full font-bold">Live Hub</span>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-1.5">
+              <button
+                onClick={() => setActiveTab('events')}
+                className={`flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer text-center ${
+                  activeTab === 'events'
+                    ? 'bg-gradient-to-r from-blue-900 to-indigo-900 text-white shadow-md ring-2 ring-indigo-400/40'
+                    : 'bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 border border-indigo-200 dark:border-indigo-800 hover:bg-indigo-50 dark:hover:bg-indigo-950'
+                }`}
+              >
+                <Sparkles className="w-3.5 h-3.5 text-amber-400 shrink-0" /> 
+                <span className="truncate">🎪 Fests & Events</span>
+              </button>
+
+              <button
+                onClick={() => setActiveTab('external_candidates')}
+                className={`flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer text-center ${
+                  activeTab === 'external_candidates'
+                    ? 'bg-gradient-to-r from-blue-900 to-indigo-900 text-white shadow-md ring-2 ring-indigo-400/40'
+                    : 'bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 border border-indigo-200 dark:border-indigo-800 hover:bg-indigo-50 dark:hover:bg-indigo-950'
+                }`}
+              >
+                <Users className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 shrink-0" /> 
+                <span className="truncate">🎟️ Registrations</span>
+              </button>
+
+              <button
+                onClick={() => setActiveTab('entry_logs')}
+                className={`flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer text-center ${
+                  activeTab === 'entry_logs'
+                    ? 'bg-gradient-to-r from-blue-900 to-indigo-900 text-white shadow-md ring-2 ring-indigo-400/40'
+                    : 'bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 border border-indigo-200 dark:border-indigo-800 hover:bg-indigo-50 dark:hover:bg-indigo-950'
+                }`}
+              >
+                <QrCode className="w-3.5 h-3.5 text-emerald-500 shrink-0" /> 
+                <span className="truncate">⚡ QR Scanner</span>
+              </button>
+
+              <button
+                onClick={() => setActiveTab('security_staff')}
+                className={`flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer text-center ${
+                  activeTab === 'security_staff'
+                    ? 'bg-gradient-to-r from-blue-900 to-indigo-900 text-white shadow-md ring-2 ring-indigo-400/40'
+                    : 'bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 border border-indigo-200 dark:border-indigo-800 hover:bg-indigo-50 dark:hover:bg-indigo-950'
+                }`}
+              >
+                <ShieldCheck className="w-3.5 h-3.5 text-amber-500 shrink-0" /> 
+                <span className="truncate">🛡️ Security Staff</span>
+              </button>
+
+              <button
+                onClick={() => setActiveTab('online_meetings')}
+                className={`flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer text-center ${
+                  activeTab === 'online_meetings'
+                    ? 'bg-gradient-to-r from-blue-900 to-indigo-900 text-white shadow-md ring-2 ring-indigo-400/40'
+                    : 'bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 border border-indigo-200 dark:border-indigo-800 hover:bg-indigo-50 dark:hover:bg-indigo-950'
+                }`}
+              >
+                <Video className="w-3.5 h-3.5 text-indigo-400 shrink-0" /> 
+                <span className="truncate">📹 Meetings</span>
+              </button>
+
+              <button
+                onClick={() => setActiveTab('subscription_plans')}
+                className={`flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer text-center ${
+                  activeTab === 'subscription_plans'
+                    ? 'bg-gradient-to-r from-amber-500 via-amber-600 to-yellow-500 text-slate-950 shadow-md ring-2 ring-amber-400/40 font-black'
+                    : 'bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 border border-amber-200 dark:border-amber-800 hover:bg-amber-50 dark:hover:bg-amber-950'
+                }`}
+              >
+                <Crown className="w-3.5 h-3.5 text-amber-500 shrink-0" /> 
+                <span className="truncate">💳 Recruiter Plans</span>
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
 
 
 {/* PASSWORD RESET CONFIRMATION TOAST */}
