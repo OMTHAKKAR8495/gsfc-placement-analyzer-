@@ -46,13 +46,32 @@ const GOOGLE_ACCOUNTS_PRESETS = [
     avatar: 'PP',
     color: 'bg-blue-800',
     status: 'Verified Alumni Mentor'
+  },
+  {
+    name: 'Kavya Sharma',
+    email: 'fest_attendee@msu.ac.in',
+    program: 'Fest Guest (MS University Vadodara)',
+    roll_number: 'GSFC-PASS-ANV-101',
+    avatar: 'KS',
+    color: 'bg-amber-600',
+    status: '🎪 Verified Fest Attendee'
+  },
+  {
+    name: 'Officer Vikram Singh',
+    email: 'security_gate1@gsfc.ac.in',
+    program: 'Security Desk (Main Gate A)',
+    roll_number: 'SEC-OFFICER-01',
+    avatar: 'VS',
+    color: 'bg-purple-900',
+    status: '🛡️ Campus Security Desk'
   }
 ];
 
 export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialRole = 'student' }) {
   const [viewMode, setViewMode] = useState('auth'); // 'auth' | 'forgot-password'
   const [isLogin, setIsLogin] = useState(true);
-  const [role, setRole] = useState(initialRole || 'student'); // student, company, faculty, admin, alumni
+  const [role, setRole] = useState(initialRole || 'student'); // student, company, faculty, admin, alumni, security, fest
+
   const [googleLoading, setGoogleLoading] = useState(false);
   const [showGoogleAccountPicker, setShowGoogleAccountPicker] = useState(false);
   const [customGoogleInputOpen, setCustomGoogleInputOpen] = useState(false);
@@ -280,10 +299,30 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialRole 
     const isCompany = userRole === 'company' || rawEmail.includes('hr') || rawEmail.includes('company') || rawEmail.includes('recruiter') || rawEmail.includes('gsfclimited');
     const isAdmin = userRole === 'admin' || rawEmail.includes('admin') || rawEmail.includes('tpc');
     const isSecurity = userRole === 'security' || rawEmail.includes('security') || rawEmail.includes('guard');
+    const isFest = userRole === 'fest' || rawEmail.includes('fest') || rawEmail.includes('guest') || rawEmail.includes('msu') || rawEmail.includes('parul') || rawEmail.includes('external');
     
-    const resolvedRole = isSuperAdmin ? 'superadmin' : (isAdmin ? 'admin' : (isFaculty ? 'faculty' : (isSecurity ? 'security' : (isAlumni ? 'alumni' : (isCompany ? 'company' : 'student')))));
+    const resolvedRole = isSuperAdmin ? 'superadmin' : (isAdmin ? 'admin' : (isFaculty ? 'faculty' : (isSecurity ? 'security' : (isFest ? 'fest' : (isAlumni ? 'alumni' : (isCompany ? 'company' : 'student'))))));
+
+    if (resolvedRole === 'fest') {
+      return {
+        id: 'u_fest_' + emailPrefix,
+        name: effectiveName || 'Kavya Sharma',
+        email: userEmail || 'kavya.sharma@msu.ac.in',
+        role: 'fest',
+        owner_id: 'ext_' + emailPrefix,
+        organization: 'MS University Vadodara',
+        profile: {
+          id: 'ext_' + emailPrefix,
+          name: effectiveName || 'Kavya Sharma',
+          organization: 'MS University Vadodara',
+          city: 'Vadodara',
+          phone: '+91 98765 43210'
+        }
+      };
+    }
 
     if (resolvedRole === 'security') {
+
       return {
         id: 'u_' + emailPrefix,
         name: effectiveName || 'Officer Vikram Singh',
@@ -1182,11 +1221,11 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialRole 
                   {isLogin ? '1. Select Portal Role to Sign In' : '1. Select Account Role to Register'}
                 </label>
                 <span className="text-[10px] font-black px-2 py-0.5 rounded-md bg-blue-100 text-blue-900 border border-blue-200">
-                  Target: {role === 'student' ? 'Student' : role === 'company' ? 'Recruiter' : role === 'faculty' ? 'Faculty' : role === 'security' ? 'Security Staff' : role === 'admin' ? 'TPC Admin' : 'Alumni'}
+                  Target: {role === 'student' ? 'Student' : role === 'company' ? 'Recruiter' : role === 'fest' ? '🎪 Fest Guest' : role === 'faculty' ? 'Faculty' : role === 'security' ? 'Security Staff' : role === 'admin' ? 'TPC Admin' : 'Alumni'}
                 </span>
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2">
                 <button
                   type="button"
                   onClick={() => handleRoleChange('student')}
@@ -1213,15 +1252,15 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialRole 
                 </button>
                 <button
                   type="button"
-                  onClick={() => handleRoleChange('faculty')}
+                  onClick={() => handleRoleChange('fest')}
                   className={`py-2.5 px-2 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 border transition-all cursor-pointer ${
-                    role === 'faculty'
-                      ? 'bg-emerald-700 text-white border-emerald-700 shadow-md ring-2 ring-emerald-400/50 scale-[1.02]'
+                    role === 'fest'
+                      ? 'bg-amber-600 text-white border-amber-600 shadow-md ring-2 ring-amber-400/50 scale-[1.02]'
                       : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100'
                   }`}
                 >
-                  <Shield className="w-3.5 h-3.5" />
-                  <span>Faculty</span>
+                  <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                  <span>Fest Guest</span>
                 </button>
                 <button
                   type="button"
@@ -1232,15 +1271,27 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialRole 
                       : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100'
                   }`}
                 >
-                  <Shield className="w-3.5 h-3.5" />
+                  <ShieldCheck className="w-3.5 h-3.5" />
                   <span>Security</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleRoleChange('faculty')}
+                  className={`py-2.5 px-2 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 border transition-all cursor-pointer ${
+                    role === 'faculty'
+                      ? 'bg-emerald-700 text-white border-emerald-700 shadow-md ring-2 ring-emerald-400/50 scale-[1.02]'
+                      : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100'
+                  }`}
+                >
+                  <GraduationCap className="w-3.5 h-3.5" />
+                  <span>Faculty</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => handleRoleChange('admin')}
                   className={`py-2.5 px-2 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 border transition-all cursor-pointer ${
                     role === 'admin'
-                      ? 'bg-amber-600 text-white border-amber-600 shadow-md ring-2 ring-amber-400/50 scale-[1.02]'
+                      ? 'bg-slate-900 text-white border-slate-900 shadow-md ring-2 ring-slate-400/50 scale-[1.02]'
                       : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100'
                   }`}
                 >
@@ -1248,6 +1299,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialRole 
                   <span>Admin</span>
                 </button>
               </div>
+
             </div>
 
             {/* Form */}
@@ -1392,6 +1444,49 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialRole 
                 </div>
               )}
 
+              {!isLogin && role === 'fest' && (
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-xs text-slate-700 mb-1 font-bold">Full Name *</label>
+                    <input
+                      type="text"
+                      name="name"
+                      value={formData.name}
+                      onChange={handleChange}
+                      required
+                      placeholder="e.g. Kavya Sharma"
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 font-bold focus:outline-none focus:border-blue-900"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs text-slate-700 mb-1 font-bold">College / Institution *</label>
+                      <input
+                        type="text"
+                        name="company_name"
+                        value={formData.company_name}
+                        onChange={handleChange}
+                        required
+                        placeholder="e.g. MS University Vadodara"
+                        className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 font-bold focus:outline-none focus:border-blue-900"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-slate-700 mb-1 font-bold">Contact Phone *</label>
+                      <input
+                        type="tel"
+                        name="phone"
+                        value={formData.phone}
+                        onChange={handleChange}
+                        required
+                        placeholder="e.g. +91 98765 43210"
+                        className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 font-bold focus:outline-none focus:border-blue-900"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div>
                 <label className="block text-xs text-slate-700 mb-1 font-bold">Email Address *</label>
                 <div className="relative">
@@ -1409,12 +1504,17 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialRole 
                         ? 'admin@gsfcuniversity.ac.in' 
                         : role === 'company' 
                         ? 'recruiter@gsfclimited.com' 
+                        : role === 'security'
+                        ? 'security_gate1@gsfc.ac.in'
+                        : role === 'fest'
+                        ? 'attendee@msu.ac.in'
                         : 'name@gsfcuniversity.ac.in'
                     }
                     className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 font-bold focus:outline-none focus:border-blue-900"
                   />
                 </div>
               </div>
+
 
               <div>
                 <div className="flex items-center justify-between mb-1">

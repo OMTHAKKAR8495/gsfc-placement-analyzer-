@@ -7,6 +7,7 @@ import AdminDashboard from './components/admin/AdminDashboard';
 import SuperAdminDashboard from './components/admin/SuperAdminDashboard';
 import FacultyDashboard from './components/faculty/FacultyDashboard';
 import SecurityDashboard from './components/security/SecurityDashboard';
+import FestCandidateDashboard from './components/events/FestCandidateDashboard';
 import InterviewStudioView from './components/student/InterviewStudioView';
 import AlumniDashboard from './components/alumni/AlumniDashboard';
 import PublicDocumentVerifyPage from './components/public/PublicDocumentVerifyPage';
@@ -36,6 +37,15 @@ export const resolveBaseWorkspace = (rawHash) => {
     return 'verify-document';
   }
   if (
+    clean.startsWith('fest') ||
+    clean.startsWith('guest') ||
+    clean.startsWith('event-pass') ||
+    clean === 'events' ||
+    clean === 'fests'
+  ) {
+    return 'fest';
+  }
+  if (
     clean.startsWith('student') ||
     clean === 'qa' ||
     clean === 'community' ||
@@ -59,8 +69,6 @@ export const resolveBaseWorkspace = (rawHash) => {
   return clean;
 };
 
-
-
 export const getDefaultWorkspaceForRole = (role) => {
   if (role === 'admin') return 'admin';
   if (role === 'superadmin') return 'superadmin';
@@ -68,14 +76,15 @@ export const getDefaultWorkspaceForRole = (role) => {
   if (role === 'security') return 'security';
   if (role === 'company') return 'company';
   if (role === 'alumni') return 'alumni';
+  if (role === 'fest') return 'fest';
   return 'student'; // student, guest, or unauthenticated
 };
 
 export const isRoleAllowedInWorkspace = (user, targetWorkspace) => {
   const base = resolveBaseWorkspace(targetWorkspace);
 
-  // Main Student Homepage & Alumni Network are universally accessible to all users & guests
-  if (base === 'student' || base === 'alumni' || !base) {
+  // Main Student Homepage, Fest Portal & Alumni Network are universally accessible to all users & guests
+  if (base === 'student' || base === 'alumni' || base === 'fest' || !base) {
     return true;
   }
 
@@ -89,14 +98,19 @@ export const isRoleAllowedInWorkspace = (user, targetWorkspace) => {
     return true;
   }
 
-  // Faculty: scoped to Faculty Hub, Student Workspace, and Alumni Network
+  // Faculty: scoped to Faculty Hub, Student Workspace, Fest Portal, and Alumni Network
   if (user.role === 'faculty') {
-    return base === 'faculty' || base === 'student' || base === 'alumni';
+    return base === 'faculty' || base === 'student' || base === 'alumni' || base === 'fest';
   }
 
   // Security: restricted exclusively to Security Terminal Desk
   if (user.role === 'security') {
     return base === 'security';
+  }
+
+  // Fest Guest: scoped to Fest Portal, Student Workspace, and Alumni Network
+  if (user.role === 'fest') {
+    return base === 'fest' || base === 'student' || base === 'alumni';
   }
 
   // Recruiter: scoped to Recruiter Portal, Main Homepage, and Alumni Network
@@ -111,7 +125,7 @@ export const isRoleAllowedInWorkspace = (user, targetWorkspace) => {
 
   // Student: scoped to Student Workspace, Interview Studio, and Alumni Network
   if (user.role === 'student') {
-    return base === 'student' || base === 'interview' || base === 'alumni' || base === 'meeting';
+    return base === 'student' || base === 'interview' || base === 'alumni' || base === 'meeting' || base === 'fest';
   }
 
   // Meeting Room: accessible to all authenticated attendees
@@ -121,6 +135,7 @@ export const isRoleAllowedInWorkspace = (user, targetWorkspace) => {
 
   return false;
 };
+
 
 export const getInitialActiveRole = () => {
   let user = null;
@@ -679,12 +694,21 @@ function App() {
               />
             )}
 
+            {activeRole === 'fest' && (
+              <FestCandidateDashboard
+                currentUser={currentUser}
+                onLogout={handleLogout}
+                onSwitchWorkspace={handleRoleSwitch}
+              />
+            )}
+
             {/* ⛓️ PUBLIC BLOCKCHAIN-ANCHORED DOCUMENT VERIFICATION PAGE */}
             {activeRole === 'verify-document' && (
               <PublicDocumentVerifyPage
                 onNavigateBack={() => handleRoleSwitch('student')}
               />
             )}
+
 
             {/* Dedicated Empty Scroll Section */}
             <div className="max-w-4xl mx-auto px-4 mt-20 text-center">

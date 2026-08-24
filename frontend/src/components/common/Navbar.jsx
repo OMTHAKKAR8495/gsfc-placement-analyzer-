@@ -204,6 +204,23 @@ export default function Navbar({ currentUser, activeRole, onRoleSwitch, onOpenAu
             <span>Alumni Network</span>
           </button>
 
+          {/* Fest & Event Guest Portal Tab */}
+          {(currentUser?.role === 'fest' || currentUser?.role === 'admin' || !currentUser) && (
+            <button
+              onClick={() => onRoleSwitch('fest')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black transition-all shrink-0 whitespace-nowrap cursor-pointer ${
+                activeRole === 'fest'
+                  ? 'bg-gradient-to-r from-amber-500 via-orange-500 to-yellow-500 text-slate-950 shadow-md font-black ring-2 ring-amber-400/40'
+                  : 'text-slate-700 dark:text-slate-200 hover:text-slate-900 hover:bg-slate-200/60 dark:hover:bg-slate-700'
+              }`}
+              title="Open GSFC Fest & Event Registration Hub & Digital Passes"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+              <span>🎪 Fest Portal</span>
+            </button>
+          )}
+
+
           {(currentUser?.role === 'student' || currentUser?.role === 'admin') && (
             <button
               onClick={() => onRoleSwitch('interview')}
