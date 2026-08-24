@@ -309,46 +309,46 @@ export default function MockInterviewChat({ student, currentUser, requirement, o
 
       {/* FINAL REPORT CARD MODAL / VIEW */}
       {completedReport ? (
-        <div className="glass-panel p-8 rounded-3xl border border-slate-800 text-center space-y-6 animate-fadeIn">
+        <div className="bg-white dark:bg-slate-900 p-8 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl text-center space-y-6 animate-fadeIn">
           <div className="w-16 h-16 bg-gradient-to-tr from-emerald-500 to-indigo-600 rounded-2xl mx-auto flex items-center justify-center shadow-lg shadow-emerald-500/20">
             <Award className="w-8 h-8 text-white" />
           </div>
 
           <div>
-            <span className="px-3 py-1 bg-emerald-500/10 text-emerald-300 border border-emerald-500/30 text-xs font-extrabold rounded-full uppercase tracking-wider">
-              {completedReport.readinessGrade}
+            <span className="px-3 py-1 bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700 text-xs font-black rounded-full uppercase tracking-wider">
+              {completedReport.readinessGrade || 'Interview Ready'}
             </span>
-            <h2 className="text-3xl font-extrabold text-white mt-3">
-              Overall Readiness: <span className="gradient-text">{completedReport.overallScore}%</span>
+            <h2 className="text-3xl font-black text-slate-900 dark:text-white mt-3">
+              Overall Readiness: <span className="text-emerald-600 dark:text-emerald-400">{completedReport.overallScore}%</span>
             </h2>
-            <p className="text-xs text-slate-400 max-w-lg mx-auto mt-2">
+            <p className="text-xs text-slate-600 dark:text-slate-300 max-w-lg mx-auto mt-2 font-medium leading-relaxed">
               {completedReport.recommendation}
             </p>
           </div>
 
           {/* Strengths & Growth Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-left">
-            <div className="p-4 bg-slate-900/80 rounded-2xl border border-slate-800 space-y-2">
-              <h3 className="text-xs font-bold text-emerald-400 uppercase flex items-center gap-1.5">
-                <CheckCircle2 className="w-4 h-4" /> Performance Highlights
+            <div className="p-4 bg-emerald-50 dark:bg-emerald-950/60 rounded-2xl border-2 border-emerald-300 dark:border-emerald-700 space-y-2">
+              <h3 className="text-xs font-black text-emerald-900 dark:text-emerald-300 uppercase flex items-center gap-1.5">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" /> Performance Highlights
               </h3>
-              <ul className="space-y-1.5 text-xs text-slate-300">
-                {completedReport.strengths.map((str, idx) => (
+              <ul className="space-y-1.5 text-xs text-emerald-950 dark:text-emerald-100 font-semibold">
+                {(completedReport.strengths || completedReport.topStrengths || []).map((str, idx) => (
                   <li key={idx} className="flex items-start gap-2">
-                    <span className="text-emerald-400">•</span> {str}
+                    <span className="text-emerald-600 dark:text-emerald-400">•</span> {str}
                   </li>
                 ))}
               </ul>
             </div>
 
-            <div className="p-4 bg-slate-900/80 rounded-2xl border border-slate-800 space-y-2">
-              <h3 className="text-xs font-bold text-indigo-400 uppercase flex items-center gap-1.5">
-                <Sparkles className="w-4 h-4" /> Targeted Coaching Focus
+            <div className="p-4 bg-indigo-50 dark:bg-indigo-950/60 rounded-2xl border-2 border-indigo-300 dark:border-indigo-700 space-y-2">
+              <h3 className="text-xs font-black text-indigo-900 dark:text-indigo-300 uppercase flex items-center gap-1.5">
+                <Sparkles className="w-4 h-4 text-indigo-600 dark:text-indigo-400" /> Targeted Coaching Focus
               </h3>
-              <ul className="space-y-1.5 text-xs text-slate-300">
-                {completedReport.areasForGrowth.map((area, idx) => (
+              <ul className="space-y-1.5 text-xs text-indigo-950 dark:text-indigo-100 font-semibold">
+                {(completedReport.areasForGrowth || completedReport.keyImprovements || []).map((area, idx) => (
                   <li key={idx} className="flex items-start gap-2">
-                    <span className="text-indigo-400">•</span> {area}
+                    <span className="text-indigo-600 dark:text-indigo-400">•</span> {area}
                   </li>
                 ))}
               </ul>
@@ -357,7 +357,7 @@ export default function MockInterviewChat({ student, currentUser, requirement, o
 
           <button
             onClick={onBack}
-            className="py-3 px-8 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-indigo-600/30 transition-all"
+            className="py-3 px-8 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-black text-xs rounded-xl shadow-lg shadow-indigo-600/30 transition-all cursor-pointer"
           >
             Return to Student Dashboard
           </button>
@@ -366,21 +366,21 @@ export default function MockInterviewChat({ student, currentUser, requirement, o
         /* ACTIVE QUESTION CHAT STEP */
         <div className="space-y-6">
           {/* Question Card */}
-          <div className="glass-card p-6 rounded-2xl border border-slate-800 space-y-3 relative overflow-hidden">
-            <div className="flex items-center justify-between">
-              <span className="px-2.5 py-1 bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 text-[10px] font-bold uppercase rounded-md">
+          <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-md space-y-3 relative overflow-hidden">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <span className="px-2.5 py-1 bg-indigo-100 dark:bg-indigo-950/80 text-indigo-800 dark:text-indigo-300 border border-indigo-300 dark:border-indigo-700 text-[10px] font-black uppercase rounded-lg">
                 {currentQA?.category || 'Technical'} Question
               </span>
-              <span className="text-[10px] text-slate-500 font-semibold">
+              <span className="text-[11px] text-slate-500 dark:text-slate-400 font-bold">
                 Difficulty: {currentQA?.difficulty || 'Medium'}
               </span>
             </div>
 
-            <h2 className="text-lg font-bold text-white">{currentQA?.question}</h2>
+            <h2 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white leading-snug">{currentQA?.question}</h2>
 
-            <div className="text-xs text-slate-400 flex items-center gap-2">
-              <HelpCircle className="w-3.5 h-3.5 text-slate-500" />
-              Expected key points: {currentQA?.expectedKeyPoints?.join(', ')}
+            <div className="text-xs text-slate-600 dark:text-slate-300 flex items-center gap-2 font-medium">
+              <HelpCircle className="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0" />
+              <span><strong>Expected Key Points:</strong> {currentQA?.expectedKeyPoints?.join(', ')}</span>
             </div>
           </div>
 
@@ -391,15 +391,15 @@ export default function MockInterviewChat({ student, currentUser, requirement, o
                 rows={4}
                 value={answerInput}
                 onChange={(e) => setAnswerInput(e.target.value)}
-                placeholder="Type your response here... (Tip: Structure your answer with clear context, action taken, and outcome metrics)"
-                className="w-full p-4 bg-slate-900/90 border border-slate-800 rounded-2xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 leading-relaxed"
+                placeholder="Type your response here... (Tip: Structure your answer with clear architectural context, technical components, and trade-offs)"
+                className="w-full p-4 bg-white dark:bg-slate-950 border-2 border-slate-200 dark:border-slate-800 focus:border-indigo-600 dark:focus:border-indigo-500 rounded-2xl text-xs font-semibold text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none leading-relaxed shadow-sm"
               />
 
               <div className="flex justify-end">
                 <button
                   type="submit"
                   disabled={submittingAnswer || !answerInput.trim()}
-                  className="py-2.5 px-6 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs font-bold rounded-xl shadow-lg shadow-indigo-600/30 flex items-center gap-2 transition-all disabled:opacity-50"
+                  className="py-3 px-6 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs font-black rounded-xl shadow-lg shadow-indigo-600/30 flex items-center gap-2 transition-all disabled:opacity-50 cursor-pointer"
                 >
                   {submittingAnswer ? (
                     <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
@@ -411,61 +411,76 @@ export default function MockInterviewChat({ student, currentUser, requirement, o
             </form>
           ) : (
             /* AI Answer Feedback Evaluation Modal Card */
-            <div className="glass-panel p-6 rounded-2xl border border-indigo-500/30 space-y-4 animate-fadeIn">
-              <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+            <div className="bg-white dark:bg-slate-900 p-6 sm:p-7 rounded-3xl border-2 border-indigo-200 dark:border-indigo-900 shadow-2xl space-y-4 animate-fadeIn">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800 flex-wrap gap-2">
                 <div className="flex items-center gap-2">
-                  <Sparkles className="w-5 h-5 text-indigo-400" />
-                  <h3 className="font-bold text-sm text-white">Real-Time AI Response Evaluation</h3>
+                  <Sparkles className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+                  <h3 className="font-black text-sm text-slate-900 dark:text-white">Real-Time AI Response Evaluation</h3>
                 </div>
 
-                <div className="flex items-center gap-3">
-                  <span className="text-xs font-bold text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-lg border border-emerald-500/20">
+                <div className="flex items-center gap-2.5">
+                  <span className="text-xs font-black text-emerald-800 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-950/80 px-3 py-1 rounded-xl border border-emerald-300 dark:border-emerald-700">
                     Clarity: {currentQA.feedback.clarityScore}%
                   </span>
-                  <span className="text-xs font-bold text-indigo-400 bg-indigo-500/10 px-2.5 py-1 rounded-lg border border-indigo-500/20">
+                  <span className="text-xs font-black text-indigo-800 dark:text-indigo-300 bg-indigo-100 dark:bg-indigo-950/80 px-3 py-1 rounded-xl border border-indigo-300 dark:border-indigo-700">
                     Technical Correctness: {currentQA.feedback.correctnessScore}%
                   </span>
                 </div>
               </div>
 
-              <div className="p-3 bg-slate-900 rounded-xl border border-slate-800 text-xs text-slate-300">
-                <span className="text-slate-500 font-bold block text-[10px] uppercase mb-1">Your Answer:</span>
-                "{currentQA.candidateAnswer}"
+              {/* Your Answer Recapped */}
+              <div className="p-3.5 bg-slate-100 dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 text-xs">
+                <span className="text-slate-500 dark:text-slate-400 font-black block text-[10px] uppercase mb-1">Your Answer:</span>
+                <span className="text-slate-900 dark:text-slate-100 font-mono font-semibold">"{currentQA.candidateAnswer}"</span>
               </div>
 
+              {/* Strengths & Missing Aspects Cards with High Contrast */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                <div className="p-3 bg-emerald-950/30 border border-emerald-500/20 rounded-xl space-y-1">
-                  <div className="font-bold text-emerald-400 text-[11px] uppercase">What Was Good</div>
-                  <p className="text-emerald-200 text-xs">{currentQA.feedback.whatWasGood}</p>
+                <div className="p-4 bg-emerald-50 dark:bg-emerald-950/70 border-2 border-emerald-300 dark:border-emerald-700 rounded-2xl space-y-1.5 shadow-xs">
+                  <div className="font-black text-emerald-900 dark:text-emerald-300 text-xs uppercase tracking-wider flex items-center gap-1.5">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                    What Was Good
+                  </div>
+                  <p className="text-emerald-950 dark:text-emerald-100 font-bold text-xs leading-relaxed">
+                    {currentQA.feedback.whatWasGood}
+                  </p>
                 </div>
 
-                <div className="p-3 bg-indigo-950/30 border border-indigo-500/20 rounded-xl space-y-1">
-                  <div className="font-bold text-indigo-400 text-[11px] uppercase">Key Missing Aspects</div>
-                  <p className="text-indigo-200 text-xs">{currentQA.feedback.whatWasMissing}</p>
+                <div className="p-4 bg-rose-50 dark:bg-rose-950/70 border-2 border-rose-300 dark:border-rose-700 rounded-2xl space-y-1.5 shadow-xs">
+                  <div className="font-black text-rose-900 dark:text-rose-300 text-xs uppercase tracking-wider flex items-center gap-1.5">
+                    <AlertCircle className="w-4 h-4 text-rose-600 dark:text-rose-400" />
+                    Key Missing Aspects
+                  </div>
+                  <p className="text-rose-950 dark:text-rose-100 font-bold text-xs leading-relaxed">
+                    {currentQA.feedback.whatWasMissing}
+                  </p>
                 </div>
               </div>
 
-              <div className="p-3 bg-purple-950/40 border border-purple-500/30 rounded-xl text-xs text-purple-200 flex items-start gap-2">
-                <Sparkles className="w-4 h-4 text-purple-400 shrink-0 mt-0.5" />
-                <div>
-                  <span className="font-bold text-purple-300 block text-[11px] uppercase">Actionable Coaching Tip:</span>
-                  {currentQA.feedback.coachingTip}
+              {/* Actionable Coaching Tip with High Contrast */}
+              <div className="p-4.5 bg-purple-50 dark:bg-purple-950/70 border-2 border-purple-300 dark:border-purple-700 rounded-2xl text-xs flex items-start gap-3 shadow-xs">
+                <Sparkles className="w-5 h-5 text-purple-700 dark:text-purple-300 shrink-0 mt-0.5" />
+                <div className="space-y-1">
+                  <span className="font-black text-purple-900 dark:text-purple-300 block text-xs uppercase tracking-wider">Actionable Coaching Tip:</span>
+                  <p className="text-purple-950 dark:text-purple-100 font-bold text-xs leading-relaxed">
+                    {currentQA.feedback.coachingTip}
+                  </p>
                 </div>
               </div>
 
               {/* Navigation Bar */}
-              <div className="pt-3 border-t border-slate-800 flex justify-end gap-3">
+              <div className="pt-3 border-t border-slate-200 dark:border-slate-800 flex justify-end gap-3">
                 {!isLastQuestion ? (
                   <button
                     onClick={() => setCurrentIndex(currentIndex + 1)}
-                    className="py-2.5 px-5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-md shadow-indigo-600/30"
+                    className="py-3 px-6 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-black flex items-center gap-1.5 transition-all shadow-md shadow-indigo-600/30 cursor-pointer"
                   >
                     Next Question <ChevronRight className="w-4 h-4" />
                   </button>
                 ) : (
                   <button
                     onClick={handleFinishInterview}
-                    className="py-2.5 px-6 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-md shadow-emerald-600/30"
+                    className="py-3 px-6 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-xl text-xs font-black flex items-center gap-1.5 transition-all shadow-md shadow-emerald-600/30 cursor-pointer"
                   >
                     Finish Interview & View Final Report Card
                   </button>
