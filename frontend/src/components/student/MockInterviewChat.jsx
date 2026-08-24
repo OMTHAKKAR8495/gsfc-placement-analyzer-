@@ -132,16 +132,63 @@ export default function MockInterviewChat({ student, currentUser, requirement, o
         data = text ? JSON.parse(text) : null;
       } catch (e) {}
 
-      if (res.ok && data && data.qaPairs) {
-        setQaPairs(data.qaPairs);
+      if (res.ok && data && (data.feedback || data.qaPairs)) {
+        if (data.qaPairs) {
+          setQaPairs(data.qaPairs);
+        } else if (data.feedback) {
+          const fb = data.feedback;
+          const normalized = {
+            score: fb.score || 75,
+            clarityScore: fb.clarityScore || fb.score || 78,
+            correctnessScore: fb.correctnessScore || fb.score || 72,
+            whatWasGood: fb.whatWasGood || (Array.isArray(fb.strengths) ? fb.strengths.join('. ') : 'Good response structure and focus.'),
+            whatWasMissing: fb.whatWasMissing || (Array.isArray(fb.improvements) ? fb.improvements.join('. ') : 'Consider highlighting measurable metrics and scale trade-offs.'),
+            coachingTip: fb.coachingTip || fb.summary || 'Use the STAR framework (Situation, Task, Action, Result) to format your answers.'
+          };
+          const updated = [...qaPairs];
+          updated[currentIndex] = {
+            ...updated[currentIndex],
+            candidateAnswer: currAnswer,
+            feedback: normalized
+          };
+          setQaPairs(updated);
+        }
       } else {
-        const wordCount = currAnswer.split(/\s+/).length;
-        const simulatedScore = Math.min(95, Math.max(65, Math.floor(wordCount * 1.5) + 50));
+        const words = currAnswer.split(/\s+/).filter(Boolean);
+        const wordCount = words.length;
+        const isGibberish = wordCount < 3 || /^[a-z]{15,}$/i.test(currAnswer) || currAnswer.length < 10;
+        
+        let score, clarityScore, correctnessScore, whatWasGood, whatWasMissing, coachingTip;
+        if (isGibberish) {
+          score = 25;
+          clarityScore = 30;
+          correctnessScore = 20;
+          whatWasGood = 'Submitted a response within the active session window.';
+          whatWasMissing = 'The response does not contain recognizable technical keywords or structured explanations.';
+          coachingTip = 'Use the STAR framework (Situation, Task, Action, Result) to write a detailed, multi-sentence technical response.';
+        } else if (wordCount < 15) {
+          score = 65;
+          clarityScore = 70;
+          correctnessScore = 60;
+          whatWasGood = 'Concise initial answer touching on high-level direction.';
+          whatWasMissing = 'Needs elaboration on architecture components, trade-offs, and practical execution details.';
+          coachingTip = 'Expand your answer to explain "why" and "how", providing concrete examples from your coursework or projects.';
+        } else {
+          score = Math.min(95, Math.max(78, Math.floor(wordCount * 0.8) + 70));
+          clarityScore = Math.min(96, score + 4);
+          correctnessScore = Math.min(94, score - 2);
+          whatWasGood = 'Strong articulate explanation with solid technical depth and logical structure.';
+          whatWasMissing = 'Consider mentioning specific production metrics (e.g. latency, throughput, scale) and fault tolerance.';
+          coachingTip = 'To stand out to corporate interviewers, quantify your project impact and describe how you handle edge cases.';
+        }
+
         const simulatedFeedback = {
-          score: simulatedScore,
-          strengths: ['Clear articulate answer structure', 'Addressed key technical elements'],
-          improvements: ['Could provide deeper architectural trade-offs', 'Mention specific metrics where applicable'],
-          summary: `Strong candidate answer demonstrating solid grasp of ${currQA.category}.`
+          score,
+          clarityScore,
+          correctnessScore,
+          whatWasGood,
+          whatWasMissing,
+          coachingTip
         };
         const updated = [...qaPairs];
         updated[currentIndex] = {
@@ -153,13 +200,17 @@ export default function MockInterviewChat({ student, currentUser, requirement, o
       }
       setAnswerInput('');
     } catch (err) {
-      const wordCount = currAnswer.split(/\s+/).length;
-      const simulatedScore = Math.min(95, Math.max(65, Math.floor(wordCount * 1.5) + 50));
+      const words = currAnswer.split(/\s+/).filter(Boolean);
+      const wordCount = words.length;
+      const isGibberish = wordCount < 3 || /^[a-z]{15,}$/i.test(currAnswer) || currAnswer.length < 10;
+      
       const simulatedFeedback = {
-        score: simulatedScore,
-        strengths: ['Direct response to the question', 'Clear terminology'],
-        improvements: ['Include real-world production constraints'],
-        summary: `Good technical demonstration on ${currQA.category}.`
+        score: isGibberish ? 25 : 75,
+        clarityScore: isGibberish ? 30 : 78,
+        correctnessScore: isGibberish ? 20 : 72,
+        whatWasGood: isGibberish ? 'Response submitted.' : 'Clear communication and good technical foundation.',
+        whatWasMissing: isGibberish ? 'Missing relevant technical keywords and structure.' : 'Needs quantitative metrics and trade-off analysis.',
+        coachingTip: 'Structure your answers using architectural principles and the STAR method.'
       };
       const updated = [...qaPairs];
       updated[currentIndex] = {
