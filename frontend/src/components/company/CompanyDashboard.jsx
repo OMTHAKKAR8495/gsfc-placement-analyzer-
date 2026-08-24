@@ -3693,6 +3693,35 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
             {/* Modal Form */}
             <form onSubmit={handlePostRequirement} className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
 
+              {/* Active Recruiter Subscription & Drive Limit Status Banner */}
+              <div className="p-3.5 bg-gradient-to-r from-blue-900/10 via-indigo-900/10 to-amber-500/10 border border-blue-900/20 dark:border-blue-700/30 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-blue-900 text-amber-300 flex items-center justify-center font-black text-xs shadow-sm shrink-0">
+                    <Crown className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-black text-slate-900 dark:text-white">
+                        {currentSubscription?.plan_name || 'Recruiter Membership Plan'}
+                      </span>
+                      <span className="px-2 py-0.5 bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 text-[10px] font-black rounded-full border border-emerald-300 dark:border-emerald-800">
+                        {currentSubscription?.status || 'Active'}
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-slate-500 font-bold">
+                      {currentSubscription?.drives_posted || 1} / {currentSubscription?.drives_limit === 99999 ? 'Unlimited' : (currentSubscription?.drives_limit || 15)} Drives Posted • {currentSubscription?.days_remaining || 30} Days Validity
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowPlanModal(true)}
+                  className="px-3 py-1.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 text-slate-950 font-black text-xs rounded-xl shadow-sm transition-all hover:scale-105 cursor-pointer shrink-0"
+                >
+                  ⚡ Select / Upgrade Plan
+                </button>
+              </div>
+
               {/* Highlighted Status Notification Banner (No top browser alerts) */}
               {postStatus && (
                 <div className={`p-4 rounded-2xl border font-bold text-xs flex items-center justify-between gap-3 shadow-lg ${postStatus.type === 'pending'
@@ -3712,6 +3741,7 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
                   </button>
                 </div>
               )}
+
 
               <div>
                 <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Job Title / Role Name *</label>
