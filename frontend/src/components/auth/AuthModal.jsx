@@ -1223,7 +1223,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialRole 
                   {isLogin ? '1. Select Portal Role to Sign In' : '1. Select Account Role to Register'}
                 </label>
                 <span className="text-[10px] font-black px-2 py-0.5 rounded-md bg-blue-100 text-blue-900 border border-blue-200">
-                  Target: {role === 'student' ? 'Student' : role === 'company' ? 'Recruiter' : role === 'fest' ? '🎪 Fest Guest' : role === 'faculty' ? 'Faculty' : role === 'security' ? 'Security Staff' : role === 'admin' ? 'TPC Admin' : 'Alumni'}
+                  Target: {role === 'student' ? 'GSFC Student' : role === 'company' ? '🏢 Outside Corporate Recruiter' : role === 'fest' ? '🎪 Fest Guest' : role === 'faculty' ? 'Faculty Coordinator' : role === 'security' ? 'Campus Security' : role === 'admin' ? 'TPC Admin' : 'Alumni'}
                 </span>
               </div>
 
@@ -1248,9 +1248,10 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialRole 
                       ? 'bg-indigo-900 text-white border-indigo-900 shadow-md ring-2 ring-indigo-400/50 scale-[1.02]'
                       : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100'
                   }`}
+                  title="Outside Corporate Recruiter / Company Hiring"
                 >
-                  <Building className="w-3.5 h-3.5" />
-                  <span>Recruiter</span>
+                  <Building className="w-3.5 h-3.5 text-indigo-400" />
+                  <span className="truncate">Outside Recruiter</span>
                 </button>
                 <button
                   type="button"
@@ -1302,10 +1303,20 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialRole 
                 </button>
               </div>
 
+              {/* Outside Recruiter Info Banner */}
+              {role === 'company' && (
+                <div className="mt-2.5 p-2.5 bg-indigo-50 border border-indigo-200 rounded-xl text-[11px] font-bold text-indigo-900 flex items-center gap-2 animate-fadeIn">
+                  <Building className="w-4 h-4 text-indigo-600 shrink-0" />
+                  <span>
+                    <strong>Outside Corporate Recruiter:</strong> Sign in with your company email or register to publish campus placement drives & hire GSFC students.
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* Form */}
             <form onSubmit={handleSubmit} className="mt-4 space-y-3">
+
               {error && (
                 <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs flex items-center gap-2 font-bold">
                   <AlertCircle className="w-4 h-4 shrink-0" />
