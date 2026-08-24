@@ -76,27 +76,69 @@ export function generateFinalReadinessSummary(qaPairs = []) {
 }
 
 function generateAnswerFeedbackFallback(question, candidateAnswer) {
-  const answerLength = (candidateAnswer || '').trim().length;
+  const text = (candidateAnswer || '').trim();
+  const words = text.split(/\s+/).filter(Boolean);
+  const wordCount = words.length;
 
-  if (answerLength < 15) {
+  const technicalKeywords = [
+    'stateless', 'redis', 'cache', 'caching', 'load balancer', 'load balancing', 'nginx',
+    'horizontal', 'scaling', 'scale', 'microservice', 'microservices', 'replica', 'replicas',
+    'index', 'indexing', 'queue', 'kafka', 'rabbitmq', 'circuit breaker', 'latency', 'throughput',
+    'big-o', 'complexity', 'hashmap', 'tree', 'graph', 'dynamic programming', 'binary search',
+    'benchmark', 'profiling', 'memory', 'cpu', 'concurrency', 'deadlock', 'mutex',
+    'debugging', 'reproduce', 'logs', 'logger', 'observability', 'grafana', 'prometheus', 'sentry',
+    'unit test', 'integration test', 'regression', 'postmortem', 'star', 'situation', 'task',
+    'action', 'result', 'prototype', 'documentation', 'mentor', 'docker', 'kubernetes', 'sql', 'nosql'
+  ];
+
+  const lowerText = text.toLowerCase();
+  const matchedKeywords = technicalKeywords.filter(k => lowerText.includes(k));
+  
+  const isSingleLongWord = /^[a-z]{12,}$/i.test(text);
+  const hasNoSpaces = !text.includes(' ') && text.length > 8;
+  const isVeryShort = wordCount < 3;
+  const hasZeroTechKeywords = matchedKeywords.length === 0;
+
+  if (isSingleLongWord || hasNoSpaces || isVeryShort || (wordCount < 6 && hasZeroTechKeywords)) {
     return {
-      score: 40,
-      clarityScore: 50,
-      correctnessScore: 35,
-      whatWasGood: "Brief initiation of response.",
-      whatWasMissing: "The answer is too brief and lacks technical depth and examples.",
-      coachingTip: "Elaborate with at least 3-4 detailed sentences explaining the 'why' and 'how'."
+      score: 15,
+      clarityScore: 20,
+      correctnessScore: 10,
+      whatWasGood: '❌ Inadequate Response: The answer provided does not address the technical problem asked in this interview question.',
+      whatWasMissing: '🔴 Critical Gaps: Expected core architectural concepts, structured reasoning, and relevant technical terminology.',
+      coachingTip: '💡 Recommended Answer: "To build a high-concurrency scalable backend, deploy stateless microservices behind an NGINX load balancer, implement Redis caching for frequent queries, optimize DB indices with read replicas, and use message queues (RabbitMQ/Kafka) for asynchronous task processing."'
     };
   }
 
-  const score = Math.min(95, 65 + Math.min(30, Math.floor(answerLength / 10)));
+  if (matchedKeywords.length < 2 && wordCount < 18) {
+    return {
+      score: 55,
+      clarityScore: 62,
+      correctnessScore: 50,
+      whatWasGood: 'Identified basic high-level intent, but lacks detailed engineering specifics and depth.',
+      whatWasMissing: 'Missing key architectural layers: caching strategies (Redis), connection pooling, rate limiting, and concrete database trade-offs.',
+      coachingTip: '💡 Pro Tip: Frame your answers using the STAR framework. Name specific tools (e.g. Redis, Docker, PostgreSQL) and explain why you chose them over alternatives.'
+    };
+  }
+
+  if (matchedKeywords.length >= 4 || (matchedKeywords.length >= 2 && wordCount >= 30)) {
+    const score = Math.min(96, Math.max(86, 75 + matchedKeywords.length * 4));
+    return {
+      score,
+      clarityScore: Math.min(98, score + 2),
+      correctnessScore: Math.min(95, score - 1),
+      whatWasGood: `✅ Excellent Technical Depth: Successfully covered ${matchedKeywords.slice(0, 4).join(', ')} with clear logical structure.`,
+      whatWasMissing: 'To make this a 100/100 response, mention quantitative system metrics (e.g. reduced P99 latency from 450ms to 40ms) and automated rollback plans.',
+      coachingTip: '💡 Interview Edge: Conclude your answer by discussing how you monitor production health using telemetry (Prometheus/Grafana) and automated alerts.'
+    };
+  }
 
   return {
-    score,
-    clarityScore: Math.min(100, score + 5),
-    correctnessScore: score,
-    whatWasGood: "Demonstrated clear technical vocabulary and relevant domain concepts.",
-    whatWasMissing: "Could expand on error handling, security considerations, or performance benchmarks.",
-    coachingTip: "Highlight trade-offs (e.g. speed vs memory consumption) to show senior engineering maturity."
+    score: 74,
+    clarityScore: 78,
+    correctnessScore: 70,
+    whatWasGood: `Addressed key aspects of the problem with relevant context (${matchedKeywords.join(', ')}).`,
+    whatWasMissing: 'Could elaborate on failover handling, scalability bottlenecks, and concrete benchmarking results.',
+    coachingTip: '💡 Next Step: Discuss real-world constraints such as network latency, database lock contention, and cache invalidation strategies.'
   };
 }
