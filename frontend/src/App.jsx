@@ -757,9 +757,12 @@ function App() {
 
 export default function RootApp() {
   return (
-    <LanguageProvider>
-      <App />
-    </LanguageProvider>
+    <ErrorBoundary>
+      <LanguageProvider>
+        <App />
+      </LanguageProvider>
+    </ErrorBoundary>
   );
 }
+
 

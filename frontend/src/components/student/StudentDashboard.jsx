@@ -22,8 +22,23 @@ import { generateGoogleCalendarUrl, downloadIcsFile } from '../../utils/calendar
 import { useToast } from '../../context/ToastContext';
 import { useLanguage } from '../../context/LanguageContext';
 
+export const safeJsonArray = (val, fallback = []) => {
+  if (!val) return fallback;
+  if (Array.isArray(val)) return val;
+  if (typeof val === 'string') {
+    try {
+      const res = JSON.parse(val);
+      if (Array.isArray(res)) return res;
+      if (typeof res === 'string') return [res];
+    } catch {
+      return val.split(',').map(s => s.trim()).filter(Boolean);
+    }
+  }
+  return fallback;
+};
 
 export const DEFAULT_REQUIREMENTS_FEED = [
+
   {
     id: 'req_google_swe',
     company_name: 'Google Cloud India',
@@ -1589,7 +1604,7 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
                       <p className="text-xs text-slate-700 leading-relaxed font-semibold line-clamp-2">{req.job_description}</p>
 
                       <div className="flex flex-wrap gap-1.5">
-                        {JSON.parse(req.required_skills_json || '[]').map((sk, idx) => (
+                        {safeJsonArray(req.required_skills_json).map((sk, idx) => (
                           <span key={idx} className="px-2.5 py-1 bg-slate-100/90 border border-slate-200 text-[11px] font-black text-slate-800 rounded-lg">
                             {sk}
                           </span>
@@ -1597,11 +1612,12 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
                       </div>
 
                       <div className="grid grid-cols-2 gap-2 text-[11px] text-slate-700 bg-slate-100/90 p-2.5 rounded-2xl border border-slate-200 font-bold">
-                        <div><span className="text-slate-500">Eligible:</span> <span className="text-slate-900 font-black">{JSON.parse(req.eligible_programs_json || '[]').join(', ')}</span></div>
+                        <div><span className="text-slate-500">Eligible:</span> <span className="text-slate-900 font-black">{safeJsonArray(req.eligible_programs_json).join(', ')}</span></div>
                         <div><span className="text-slate-500">Min CGPA:</span> <span className="text-slate-900 font-black">{req.min_cgpa}</span></div>
                         <div><span className="text-slate-500">CTC:</span> <span className="text-blue-900 font-black">{req.ctc_range}</span></div>
                         <div><span className="text-slate-500">Deadline:</span> <span className="text-slate-900 font-black">{req.deadline}</span></div>
                       </div>
+
                     </div>
 
                     <div className="pt-3 border-t border-slate-200/90 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2">
