@@ -5,9 +5,10 @@ import {
   Download, Trash2, Key, Check, CheckCircle2, AlertCircle, 
   Sparkles, HelpCircle, FileText, Smartphone, Mail, Globe, 
   ExternalLink, Lock, Eye, EyeOff, RefreshCw, Zap, Eye as EyeIcon, 
-  Minimize2, Camera, UploadCloud, FileCheck, Plus, Paperclip, Award, CheckCircle 
+  Minimize2, Camera, UploadCloud, FileCheck, Plus, Paperclip, Award, CheckCircle, QrCode, Copy 
 } from 'lucide-react';
 import { useToast } from '../../context/ToastContext';
+import { useLanguage } from '../../context/LanguageContext';
 
 function ToggleSwitch({ enabled, onChange, label, description, icon: Icon, badge }) {
   return (
@@ -61,6 +62,7 @@ function ToggleSwitch({ enabled, onChange, label, description, icon: Icon, badge
 
 export default function SettingsModal({ isOpen, onClose, currentUser, theme, onToggleTheme, onOpenAuth }) {
   const { showToast } = useToast();
+  const { language, setLanguage, languages, t } = useLanguage();
   const [activeTab, setActiveTab] = useState('account');
   
   // Account & Profile State
@@ -68,6 +70,17 @@ export default function SettingsModal({ isOpen, onClose, currentUser, theme, onT
   const [targetStream, setTargetStream] = useState('Software Engineering & AI');
   const [phone, setPhone] = useState('');
   const [publicProfile, setPublicProfile] = useState(true);
+
+  // 🛡️ Two-Factor Authentication (2FA) State
+  const isMandatory2FA = currentUser?.role === 'admin' || currentUser?.role === 'superadmin';
+  const [twoFaActive, setTwoFaActive] = useState(Boolean(currentUser?.two_factor_enabled || isMandatory2FA));
+  const [showTwoFaSetup, setShowTwoFaSetup] = useState(false);
+  const [twoFaSecretData, setTwoFaSecretData] = useState(null);
+  const [setupTwoFaCode, setSetupTwoFaCode] = useState('');
+  const [setupTwoFaLoading, setSetupTwoFaLoading] = useState(false);
+  const [setupTwoFaError, setSetupTwoFaError] = useState('');
+  const [copiedKey, setCopiedKey] = useState(false);
+
 
   const userEmail = (currentUser?.email || currentUser?.profile?.email || '').toLowerCase();
 
@@ -328,18 +341,96 @@ export default function SettingsModal({ isOpen, onClose, currentUser, theme, onT
     });
   };
 
-  const handleToggleNotif = (key, val, setter, label) => {
+  const handleToggleNotif = async (key, val, setter, label) => {
     setter(val);
     updateSetting(key, val);
+
+    if (key === 'notifWhatsApp') {
+      try {
+        await fetch('/api/notifications/whatsapp/opt-in', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            studentId: currentUser?.id || 's_candidate',
+            optIn: val,
+            phone: phone || '+91 98765 43210'
+          })
+        });
+      } catch(e) {}
+    }
+
     showToast({
       type: val ? 'success' : 'default',
-      title: 'Your changes changed successfully',
+      title: 'Preferences Updated',
       message: `${label} has been ${val ? 'enabled' : 'muted'}.`,
       triggerCrackles: false
     });
   };
 
+  // 🛡️ 2FA TOTP Handlers
+  const handleStart2FaSetup = async () => {
+    setShowTwoFaSetup(true);
+    setSetupTwoFaLoading(true);
+    setSetupTwoFaError('');
+    try {
+      const res = await fetch('/api/auth/2fa/generate-secret', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: currentUser?.email, userId: currentUser?.id })
+      });
+      const data = await res.json();
+      if (res.ok && data.secret) {
+        setTwoFaSecretData(data);
+      } else {
+        setSetupTwoFaError(data.error || 'Failed to generate 2FA key.');
+      }
+    } catch (e) {
+      setSetupTwoFaError('Error starting 2FA: ' + e.message);
+    } finally {
+      setSetupTwoFaLoading(false);
+    }
+  };
+
+  const handleConfirm2FaActivation = async () => {
+    if (!setupTwoFaCode || setupTwoFaCode.trim().length < 6) {
+      setSetupTwoFaError('Please enter the full 6-digit code from Google Authenticator.');
+      return;
+    }
+
+    setSetupTwoFaLoading(true);
+    setSetupTwoFaError('');
+    try {
+      const res = await fetch('/api/auth/2fa/enable', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: currentUser?.email,
+          code: setupTwoFaCode.trim(),
+          secret: twoFaSecretData?.secret
+        })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setTwoFaActive(true);
+        setShowTwoFaSetup(false);
+        setSetupTwoFaCode('');
+        showToast({
+          type: 'success',
+          title: '🛡️ 2FA Activated',
+          message: 'Two-Factor Authentication is now active on your account!'
+        });
+      } else {
+        setSetupTwoFaError(data.error || 'Invalid 6-digit code. Please check your app.');
+      }
+    } catch (e) {
+      setSetupTwoFaError('Error confirming 2FA: ' + e.message);
+    } finally {
+      setSetupTwoFaLoading(false);
+    }
+  };
+
   const handleSaveSettings = async () => {
+
     setSavingSettings(true);
     const trimmedName = (displayName || '').trim();
 
@@ -986,14 +1077,149 @@ export default function SettingsModal({ isOpen, onClose, currentUser, theme, onT
             {activeTab === 'security' && (
               <div className="space-y-4 animate-fadeIn">
                 <div>
-                  <h3 className="text-sm font-black uppercase text-slate-400 tracking-wider">Account Security & Session</h3>
-                  <p className="text-xs text-slate-500">Manage password credentials and active authentication tokens.</p>
+                  <h3 className="text-sm font-black uppercase text-slate-400 tracking-wider">Account Security & Authentication</h3>
+                  <p className="text-xs text-slate-500">Manage two-factor authenticator, password credentials, and active sessions.</p>
+                </div>
+
+                {/* 🛡️ TWO-FACTOR AUTHENTICATION (TOTP) CARD */}
+                <div className="p-4.5 bg-slate-50 dark:bg-slate-800 rounded-3xl border border-slate-200 dark:border-slate-700 space-y-3.5">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="flex items-start sm:items-center gap-3">
+                      <div className="w-10 h-10 rounded-2xl bg-blue-100 dark:bg-blue-950 text-blue-800 dark:text-blue-300 flex items-center justify-center shrink-0">
+                        <Shield className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <div className="text-xs font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                          <span>Two-Factor Authentication (TOTP 2FA)</span>
+                          {isMandatory2FA && (
+                            <span className="px-1.5 py-0.5 text-[9px] font-black uppercase bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 rounded border border-amber-300">
+                              Mandatory for Admin
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-[11px] text-slate-500">
+                          Protect sign-in with Google Authenticator, Microsoft Authenticator, or Authy.
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border ${
+                        twoFaActive 
+                          ? 'bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 border-emerald-300' 
+                          : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 border-slate-300'
+                      }`}>
+                        {twoFaActive ? '2FA Enabled 🛡️' : '2FA Inactive'}
+                      </span>
+
+                      {!twoFaActive ? (
+                        <button
+                          type="button"
+                          onClick={handleStart2FaSetup}
+                          className="px-3.5 py-1.5 bg-blue-900 hover:bg-blue-800 text-white rounded-xl text-xs font-black cursor-pointer shadow-xs transition-all"
+                        >
+                          Set Up 2FA
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={handleStart2FaSetup}
+                          className="px-3 py-1.5 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 text-slate-800 dark:text-slate-200 rounded-xl text-xs font-bold cursor-pointer"
+                        >
+                          Reconfigure
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* 2FA SETUP WIZARD DRAWER */}
+                  {showTwoFaSetup && (
+                    <div className="bg-white dark:bg-slate-900 p-4.5 rounded-2xl border-2 border-blue-600/30 space-y-3.5 animate-fadeIn">
+                      <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
+                        <span className="text-xs font-black text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+                          <QrCode className="w-4 h-4 text-blue-600" />
+                          Set Up Authenticator App (Google / Authy)
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setShowTwoFaSetup(false)}
+                          className="text-xs text-slate-400 hover:text-slate-600 font-bold"
+                        >
+                          Close
+                        </button>
+                      </div>
+
+                      {setupTwoFaError && (
+                        <div className="p-2.5 rounded-xl bg-red-50 text-red-700 text-xs font-bold flex items-center gap-2">
+                          <AlertCircle className="w-4 h-4 shrink-0" />
+                          <span>{setupTwoFaError}</span>
+                        </div>
+                      )}
+
+                      {twoFaSecretData ? (
+                        <div className="space-y-3">
+                          <div className="text-[11px] text-slate-600 dark:text-slate-400">
+                            1. Open <strong>Google Authenticator</strong> or <strong>Authy</strong> on your phone.
+                            <br />
+                            2. Choose <strong>Add Account → Enter a setup key</strong>, and paste the code below:
+                          </div>
+
+                          <div className="bg-slate-100 dark:bg-slate-800 p-3 rounded-xl flex items-center justify-between gap-2 border border-slate-200 dark:border-slate-700">
+                            <code className="font-mono text-xs font-black tracking-widest text-blue-600 dark:text-blue-400 break-all">
+                              {twoFaSecretData.manualCodeFormatted || twoFaSecretData.secret}
+                            </code>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                navigator.clipboard?.writeText(twoFaSecretData.secret);
+                                setCopiedKey(true);
+                                setTimeout(() => setCopiedKey(false), 2000);
+                              }}
+                              className="px-2 py-1 bg-white dark:bg-slate-700 rounded-lg text-xs font-bold text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-600 flex items-center gap-1 shrink-0"
+                            >
+                              {copiedKey ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                              <span>{copiedKey ? 'Copied' : 'Copy Key'}</span>
+                            </button>
+                          </div>
+
+                          <div className="space-y-1.5 pt-1">
+                            <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300">
+                              3. Enter the 6-digit code shown in your Authenticator app to confirm:
+                            </label>
+                            <div className="flex gap-2">
+                              <input
+                                type="text"
+                                maxLength={6}
+                                value={setupTwoFaCode}
+                                onChange={(e) => setSetupTwoFaCode(e.target.value.replace(/[^0-9]/g, ''))}
+                                placeholder="000000"
+                                className="flex-1 px-3.5 py-2 text-center tracking-[0.3em] font-mono text-base font-black bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl focus:border-blue-600 outline-none"
+                              />
+                              <button
+                                type="button"
+                                onClick={handleConfirm2FaActivation}
+                                disabled={setupTwoFaLoading || setupTwoFaCode.length < 6}
+                                className="px-5 py-2 bg-blue-900 hover:bg-blue-800 disabled:opacity-50 text-white rounded-xl text-xs font-black shadow-sm"
+                              >
+                                {setupTwoFaLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : 'Activate 2FA'}
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="text-center py-4 text-xs text-slate-500">
+                          <RefreshCw className="w-5 h-5 animate-spin mx-auto text-blue-600 mb-2" />
+                          Generating secure 2FA cryptographic secret...
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 <div className="p-4 bg-slate-50 dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 space-y-3">
                   <div className="flex items-center justify-between">
                     <div>
-                      <div className="text-xs font-black text-slate-900 dark:text-slate-100">JWT Token Authentication</div>
+                      <div className="text-xs font-black text-slate-900 dark:text-slate-100">JWT Token Session Authentication</div>
                       <div className="text-[11px] text-slate-500">Encrypted SHA-256 session token active</div>
                     </div>
                     <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300">
@@ -1001,6 +1227,7 @@ export default function SettingsModal({ isOpen, onClose, currentUser, theme, onT
                     </span>
                   </div>
                 </div>
+
 
                 <div className="p-4 border border-slate-200 dark:border-slate-700 rounded-2xl space-y-3">
                   <div className="flex items-center justify-between">

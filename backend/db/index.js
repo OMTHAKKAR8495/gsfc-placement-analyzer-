@@ -35,6 +35,30 @@ export function initDatabase() {
 
 function applyMigrations() {
   try {
+    // Ensure users table check constraint supports security role
+    const userTableSql = db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='users'").get()?.sql || '';
+    if (!userTableSql.includes('security')) {
+      try {
+        db.exec(`
+          PRAGMA foreign_keys = OFF;
+          CREATE TABLE IF NOT EXISTS users_temp (
+            id TEXT PRIMARY KEY,
+            email TEXT UNIQUE NOT NULL,
+            password_hash TEXT NOT NULL,
+            role TEXT CHECK(role IN ('student', 'company', 'admin', 'alumni', 'faculty', 'superadmin', 'security')) NOT NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+          );
+          INSERT OR IGNORE INTO users_temp (id, email, password_hash, role, created_at)
+          SELECT id, email, password_hash, role, created_at FROM users;
+          DROP TABLE users;
+          ALTER TABLE users_temp RENAME TO users;
+          PRAGMA foreign_keys = ON;
+        `);
+      } catch (e) {
+        console.error('Users table migration notice:', e.message);
+      }
+    }
+
     const reqColumns = db.prepare("PRAGMA table_info(requirements)").all().map(c => c.name);
     if (!reqColumns.includes('application_type')) {
       db.exec("ALTER TABLE requirements ADD COLUMN application_type TEXT CHECK(application_type IN ('internal', 'external')) DEFAULT 'internal'");
@@ -231,10 +255,265 @@ function applyMigrations() {
     for (const c of coreDefaultStudents) {
       insertAuthStudentStmt.run('auth_' + c.roll_number.toLowerCase(), c.roll_number, c.email.toLowerCase(), c.name, c.program, c.branch, c.cgpa, c.passing_year, c.admission_year, c.phone);
     }
-
     for (const st of existingStudentsForAuth) {
       insertAuthStudentStmt.run('auth_' + (st.roll_number || 'stud').toLowerCase(), st.roll_number, st.email.toLowerCase(), st.name, st.program || 'BTech CSE', st.branch || 'Engineering', st.cgpa || 8.0, st.passing_year || 2026, st.admission_year || 2022, st.phone || '');
     }
+
+    // 🎮 Gamification, ⛓️ Blockchain, and 💬 WhatsApp Tables
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS gamification_rules (
+        action_key TEXT PRIMARY KEY,
+        label TEXT NOT NULL,
+        points_reward INTEGER DEFAULT 25,
+        badge_code TEXT,
+        badge_name TEXT,
+        badge_icon TEXT,
+        badge_desc TEXT,
+        threshold INTEGER DEFAULT 1
+      );
+
+      CREATE TABLE IF NOT EXISTS student_gamification (
+        student_id TEXT PRIMARY KEY REFERENCES student_profiles(id) ON DELETE CASCADE,
+        points_total INTEGER DEFAULT 0,
+        level INTEGER DEFAULT 1,
+        current_streak INTEGER DEFAULT 1,
+        nickname TEXT,
+        is_anonymous INTEGER DEFAULT 0,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    // Ensure student_gamification has points_total, nickname, and is_anonymous columns
+    const gamColumns = db.prepare("PRAGMA table_info(student_gamification)").all().map(c => c.name);
+    if (!gamColumns.includes('points_total')) {
+      db.exec("ALTER TABLE student_gamification ADD COLUMN points_total INTEGER DEFAULT 0");
+      db.exec("UPDATE student_gamification SET points_total = COALESCE(total_xp, 150) WHERE points_total = 0 OR points_total IS NULL");
+    }
+    if (!gamColumns.includes('nickname')) {
+      db.exec("ALTER TABLE student_gamification ADD COLUMN nickname TEXT");
+    }
+    if (!gamColumns.includes('is_anonymous')) {
+      db.exec("ALTER TABLE student_gamification ADD COLUMN is_anonymous INTEGER DEFAULT 0");
+    }
+
+    db.exec(`
+
+
+      CREATE TABLE IF NOT EXISTS student_badges (
+        id TEXT PRIMARY KEY,
+        student_id TEXT NOT NULL REFERENCES student_profiles(id) ON DELETE CASCADE,
+        badge_code TEXT NOT NULL,
+        badge_name TEXT NOT NULL,
+        badge_icon TEXT NOT NULL,
+        badge_desc TEXT NOT NULL,
+        unlocked_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(student_id, badge_code)
+      );
+
+      CREATE TABLE IF NOT EXISTS gamification_points_log (
+        id TEXT PRIMARY KEY,
+        student_id TEXT NOT NULL REFERENCES student_profiles(id) ON DELETE CASCADE,
+        action_key TEXT NOT NULL,
+        points_awarded INTEGER NOT NULL,
+        description TEXT,
+        metadata_json TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS blockchain_ledger (
+        block_number INTEGER PRIMARY KEY AUTOINCREMENT,
+        doc_id TEXT UNIQUE NOT NULL,
+        doc_type TEXT NOT NULL,
+        student_id TEXT,
+        student_name TEXT NOT NULL,
+        roll_number TEXT,
+        department TEXT,
+        company_name TEXT,
+        job_role TEXT,
+        ctc TEXT,
+        issuing_authority TEXT NOT NULL,
+        document_hash TEXT NOT NULL,
+        previous_block_hash TEXT NOT NULL,
+        block_hash TEXT NOT NULL,
+        merkle_root TEXT NOT NULL,
+        signature TEXT NOT NULL,
+        anchored_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        status TEXT DEFAULT 'VALID_CONFIRMED'
+      );
+
+      CREATE TABLE IF NOT EXISTS whatsapp_notification_logs (
+        id TEXT PRIMARY KEY,
+        recipient_phone TEXT NOT NULL,
+        recipient_name TEXT,
+        student_id TEXT,
+        template_type TEXT NOT NULL,
+        message_body TEXT NOT NULL,
+        status TEXT DEFAULT 'SENT',
+        whatsapp_url TEXT,
+        metadata_json TEXT,
+        sent_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS whatsapp_student_opt_in (
+        student_id TEXT PRIMARY KEY,
+        phone TEXT NOT NULL,
+        opt_in INTEGER DEFAULT 1,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS subscription_plans (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        badge_title TEXT NOT NULL,
+        price_inr INTEGER NOT NULL,
+        duration_days INTEGER NOT NULL,
+        max_postings INTEGER NOT NULL,
+        description TEXT NOT NULL,
+        features_json TEXT NOT NULL,
+        is_active INTEGER DEFAULT 1,
+        display_order INTEGER DEFAULT 1,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS company_subscriptions (
+        id TEXT PRIMARY KEY,
+        company_id TEXT NOT NULL,
+        plan_id TEXT NOT NULL,
+        plan_name TEXT NOT NULL,
+        started_at DATETIME NOT NULL,
+        expires_at DATETIME NOT NULL,
+        postings_used INTEGER DEFAULT 0,
+        max_postings INTEGER NOT NULL,
+        status TEXT CHECK(status IN ('active', 'expired', 'cancelled', 'grace_period')) DEFAULT 'active',
+        last_payment_id TEXT,
+        auto_renew INTEGER DEFAULT 0,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS payment_transactions (
+        id TEXT PRIMARY KEY,
+        company_id TEXT NOT NULL,
+        company_name TEXT NOT NULL,
+        plan_id TEXT NOT NULL,
+        plan_name TEXT NOT NULL,
+        amount_inr INTEGER NOT NULL,
+        currency TEXT DEFAULT 'INR',
+        gateway TEXT DEFAULT 'Razorpay',
+        gateway_order_id TEXT UNIQUE NOT NULL,
+        gateway_payment_id TEXT,
+        gateway_signature TEXT,
+        payment_method TEXT DEFAULT 'UPI / Cards / NetBanking',
+        status TEXT CHECK(status IN ('created', 'paid', 'failed', 'refunded')) DEFAULT 'created',
+        receipt_number TEXT UNIQUE NOT NULL,
+        billing_email TEXT,
+        billing_phone TEXT,
+        gst_number TEXT,
+        invoice_data_json TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        paid_at DATETIME
+      );
+    `);
+
+    // Seed default subscription plans if table is empty or missing
+    const defaultPlans = [
+      {
+        id: 'plan_bronze',
+        name: 'Bronze Starter',
+        badge_title: 'Bronze Tier',
+        price_inr: 4999,
+        duration_days: 90,
+        max_postings: 2,
+        description: 'Ideal for early-stage startups & companies testing on-campus hiring for niche roles.',
+        features_json: JSON.stringify({
+          max_postings: 2,
+          resume_download: false,
+          shortlist_view: true,
+          ats_score_view: false,
+          candidate_readiness: false,
+          online_meetings: false,
+          homepage_featured: false,
+          direct_messaging: false,
+          support_level: 'Standard Listing, Email Support (48h SLA)'
+        }),
+        display_order: 1
+      },
+      {
+        id: 'plan_silver',
+        name: 'Silver Growth',
+        badge_title: 'Silver Tier',
+        price_inr: 12999,
+        duration_days: 180,
+        max_postings: 5,
+        description: 'Designed for growing enterprises looking for full resume access and candidate stream analytics.',
+        features_json: JSON.stringify({
+          max_postings: 5,
+          resume_download: true,
+          shortlist_view: true,
+          ats_score_view: false,
+          candidate_readiness: false,
+          online_meetings: false,
+          homepage_featured: false,
+          direct_messaging: false,
+          support_level: 'Priority Listing & Analytics, WhatsApp Support'
+        }),
+        display_order: 2
+      },
+      {
+        id: 'plan_gold',
+        name: 'Gold Corporate Pro',
+        badge_title: 'Gold Tier',
+        price_inr: 29999,
+        duration_days: 365,
+        max_postings: 15,
+        description: 'Full-suite recruitment access with AI ATS match score insights and in-portal video interview scheduling.',
+        features_json: JSON.stringify({
+          max_postings: 15,
+          resume_download: true,
+          shortlist_view: true,
+          ats_score_view: true,
+          candidate_readiness: false,
+          online_meetings: true,
+          homepage_featured: false,
+          direct_messaging: true,
+          support_level: 'Dedicated TPC Coordinator & Video Interview Rooms'
+        }),
+        display_order: 3
+      },
+      {
+        id: 'plan_diamond',
+        name: 'Diamond Enterprise Sovereign',
+        badge_title: 'Diamond Tier',
+        price_inr: 59999,
+        duration_days: 365,
+        max_postings: -1,
+        description: 'Ultimate unrestricted institutional access, AI predictive readiness scoring, and VIP featured branding.',
+        features_json: JSON.stringify({
+          max_postings: -1,
+          resume_download: true,
+          shortlist_view: true,
+          ats_score_view: true,
+          candidate_readiness: true,
+          online_meetings: true,
+          homepage_featured: true,
+          direct_messaging: true,
+          support_level: 'VIP TPC Director Concierge, Priority Job Fair Booth'
+        }),
+        display_order: 4
+      }
+    ];
+
+    const insertPlanStmt = db.prepare(`
+      INSERT OR IGNORE INTO subscription_plans 
+      (id, name, badge_title, price_inr, duration_days, max_postings, description, features_json, display_order)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    for (const p of defaultPlans) {
+      insertPlanStmt.run(p.id, p.name, p.badge_title, p.price_inr, p.duration_days, p.max_postings, p.description, p.features_json, p.display_order);
+    }
+
 
     // Auto-compute admission_year, passing_year, and batch_year for any records missing them
     const allStuds = db.prepare("SELECT id, roll_number, program, created_at FROM student_profiles").all();
@@ -277,6 +556,317 @@ function applyMigrations() {
       CREATE INDEX IF NOT EXISTS idx_applications_student_id ON applications(student_id);
     `);
 
+    // 🎪 Events, External Candidates, Pass Tokens, and Entry Logs Table Migrations
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS events (
+        id TEXT PRIMARY KEY,
+        title TEXT NOT NULL,
+        slug TEXT UNIQUE NOT NULL,
+        description TEXT,
+        category TEXT DEFAULT 'Fest',
+        event_date TEXT NOT NULL,
+        end_date TEXT,
+        venue TEXT DEFAULT 'GSFC University Auditorium',
+        banner_url TEXT,
+        is_registration_open INTEGER DEFAULT 1,
+        max_registrations INTEGER DEFAULT 1000,
+        custom_fields_json TEXT DEFAULT '[]',
+        created_by TEXT DEFAULT 'TPC Admin',
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS external_candidates (
+        id TEXT PRIMARY KEY,
+        event_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        email TEXT NOT NULL,
+        phone TEXT NOT NULL,
+        organization TEXT NOT NULL,
+        city TEXT DEFAULT 'Vadodara',
+        photo_url TEXT,
+        id_proof_url TEXT,
+        pass_token TEXT UNIQUE NOT NULL,
+        custom_data_json TEXT DEFAULT '{}',
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(event_id) REFERENCES events(id) ON DELETE CASCADE
+      );
+
+      CREATE TABLE IF NOT EXISTS pass_tokens (
+        token TEXT PRIMARY KEY,
+        candidate_type TEXT CHECK(candidate_type IN ('student', 'external')) NOT NULL,
+        candidate_id TEXT NOT NULL,
+        event_id TEXT NOT NULL,
+        qr_payload TEXT,
+        status TEXT DEFAULT 'issued' CHECK(status IN ('issued', 'checked_in', 'cancelled')),
+        issued_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(event_id) REFERENCES events(id) ON DELETE CASCADE
+      );
+
+      CREATE TABLE IF NOT EXISTS entry_logs (
+        id TEXT PRIMARY KEY,
+        token TEXT NOT NULL,
+        event_id TEXT NOT NULL,
+        candidate_type TEXT NOT NULL,
+        candidate_id TEXT NOT NULL,
+        candidate_name TEXT NOT NULL,
+        candidate_email TEXT NOT NULL,
+        candidate_phone TEXT,
+        candidate_org TEXT NOT NULL,
+        candidate_photo TEXT,
+        scanned_by_user_id TEXT NOT NULL,
+        scanned_by_name TEXT NOT NULL,
+        scanned_by_role TEXT NOT NULL,
+        scanned_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        status TEXT DEFAULT 'present',
+        gate_name TEXT DEFAULT 'Main Campus Gate A'
+      );
+
+      CREATE TABLE IF NOT EXISTS security_staff_profiles (
+        id TEXT PRIMARY KEY,
+        user_id TEXT UNIQUE NOT NULL,
+        name TEXT NOT NULL,
+        phone TEXT,
+        gate_assigned TEXT DEFAULT 'Main Campus Gate A',
+        shift TEXT DEFAULT 'Day Shift (08:00 AM - 04:00 PM)',
+        active_status TEXT DEFAULT 'active' CHECK(active_status IN ('active', 'inactive')),
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_events_slug ON events(slug);
+      CREATE INDEX IF NOT EXISTS idx_external_candidates_event_id ON external_candidates(event_id);
+      CREATE INDEX IF NOT EXISTS idx_pass_tokens_token ON pass_tokens(token);
+      CREATE INDEX IF NOT EXISTS idx_entry_logs_event_id ON entry_logs(event_id);
+      CREATE INDEX IF NOT EXISTS idx_entry_logs_token ON entry_logs(token);
+      CREATE INDEX IF NOT EXISTS idx_entry_logs_scanned_by ON entry_logs(scanned_by_user_id);
+    `);
+
+    // Seed Flagship Fests / Events
+    try {
+      const insertEventStmt = db.prepare(`
+        INSERT OR IGNORE INTO events (id, title, slug, description, category, event_date, end_date, venue, banner_url, is_registration_open, max_registrations, custom_fields_json, created_by)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'TPC Admin Governance')
+      `);
+
+      const sampleFests = [
+        {
+          id: 'evt_anveshan_2026',
+          title: 'GSFC Anveshan 2026 Tech & Career Fest',
+          slug: 'anveshan-2026',
+          description: 'Annual Flagship National Technical & Placement Conclave featuring 50+ recruiting companies, competitive hackathons, industry keynotes, and career discovery pavilions.',
+          category: 'Tech Fest & Career Fair',
+          event_date: '2026-09-18',
+          end_date: '2026-09-20',
+          venue: 'GSFC University Auditorium, Dome & Tech Hub',
+          banner_url: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=1200&auto=format&fit=crop&q=80',
+          is_registration_open: 1,
+          max_registrations: 2500,
+          custom_fields_json: JSON.stringify([
+            { name: 'College / Institute Name', type: 'text', required: true },
+            { name: 'Specialization / Domain', type: 'select', options: ['Computer Science', 'Chemical Engg', 'Mechanical Engg', 'Life Sciences', 'Management'], required: true },
+            { name: 'Degree Year', type: 'select', options: ['1st Year', '2nd Year', '3rd Year', 'Final Year', 'Alumni / Graduate'], required: true }
+          ])
+        },
+        {
+          id: 'evt_chemcon_2026',
+          title: 'GSFC ChemCon 2026 - Industrial Chemistry Summit',
+          slug: 'chemcon-2026',
+          description: 'Premier national conclave on sustainable green chemistry, industrial safety innovations, process optimization, and live industry recruiter interviews.',
+          category: 'Industry Summit',
+          event_date: '2026-10-05',
+          end_date: '2026-10-06',
+          venue: 'School of Science & Chemical Engineering Complex',
+          banner_url: 'https://images.unsplash.com/photo-1532094349884-543bc11b234d?w=1200&auto=format&fit=crop&q=80',
+          is_registration_open: 1,
+          max_registrations: 1200,
+          custom_fields_json: JSON.stringify([
+            { name: 'Institution / Company', type: 'text', required: true },
+            { name: 'Research Interest', type: 'text', required: false }
+          ])
+        },
+        {
+          id: 'evt_hackathon_2026',
+          title: 'GSFC HackInnovate 2026 - 36Hr AI Hackathon',
+          slug: 'hackinnovate-2026',
+          description: 'National 36-hour offline hackathon on Agentic AI, Sustainability & Smart Manufacturing with INR 3,00,000 cash prizes and direct interview opportunities.',
+          category: 'Hackathon',
+          event_date: '2026-11-12',
+          end_date: '2026-11-13',
+          venue: 'SOT Innovation & Computing Labs',
+          banner_url: 'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=1200&auto=format&fit=crop&q=80',
+          is_registration_open: 1,
+          max_registrations: 800,
+          custom_fields_json: JSON.stringify([
+            { name: 'Team Name', type: 'text', required: true },
+            { name: 'GitHub Profile URL', type: 'url', required: true }
+          ])
+        }
+      ];
+
+      for (const f of sampleFests) {
+        insertEventStmt.run(f.id, f.title, f.slug, f.description, f.category, f.event_date, f.end_date, f.venue, f.banner_url, f.is_registration_open, f.max_registrations, f.custom_fields_json);
+      }
+    } catch (e) {
+      console.error('Event seed notice:', e.message);
+    }
+
+    // Seed Security Staff Users
+    try {
+      const defaultSecUsers = [
+        { id: 'u_sec_01', email: 'security@gsfcuniversity.ac.in', name: 'Officer Vikram Singh', phone: '+91 98250 11223', gate: 'Main Campus Gate A', shift: 'Day Shift (08:00 AM - 04:00 PM)' },
+        { id: 'u_sec_02', email: 'guard@gsfcuniversity.ac.in', name: 'Officer Rajesh Rawat', phone: '+91 98250 44556', gate: 'Dome Event Gate B', shift: 'Evening Shift (04:00 PM - 12:00 AM)' }
+      ];
+
+      for (const sec of defaultSecUsers) {
+        db.prepare(`
+          INSERT OR REPLACE INTO users (id, email, password_hash, role)
+          VALUES (?, ?, ?, 'security')
+        `).run(sec.id, sec.email, bcrypt.hashSync('password123', 6));
+
+        db.prepare(`
+          INSERT OR REPLACE INTO security_staff_profiles (id, user_id, name, phone, gate_assigned, shift, active_status)
+          VALUES (?, ?, ?, ?, ?, ?, 'active')
+        `).run('sec_prof_' + sec.id, sec.id, sec.name, sec.phone, sec.gate, sec.shift);
+      }
+    } catch (e) {
+      console.error('Security staff seed notice:', e.message);
+    }
+
+    // Seed Sample External Candidates & Digital Pass Tokens
+    try {
+      const sampleExternalCandidates = [
+        { id: 'ext_01', event_id: 'evt_anveshan_2026', name: 'Kavya Sharma', email: 'kavya.sharma@msu.ac.in', phone: '+91 98761 12233', organization: 'MS University Vadodara', city: 'Vadodara', photo_url: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=300&auto=format&fit=crop&q=80', pass_token: 'GSFC-PASS-ANV-101' },
+        { id: 'ext_02', event_id: 'evt_anveshan_2026', name: 'Harshil Patel', email: 'harshil.patel@parul.ac.in', phone: '+91 98762 23344', organization: 'Parul Institute of Technology', city: 'Vadodara', photo_url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300&auto=format&fit=crop&q=80', pass_token: 'GSFC-PASS-ANV-102' },
+        { id: 'ext_03', event_id: 'evt_anveshan_2026', name: 'Riya Shah', email: 'riya.shah@nirma.ac.in', phone: '+91 98763 34455', organization: 'Nirma University', city: 'Ahmedabad', photo_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80', pass_token: 'GSFC-PASS-ANV-103' },
+        { id: 'ext_04', event_id: 'evt_chemcon_2026', name: 'Aniket Desai', email: 'aniket.desai@iitb.ac.in', phone: '+91 98764 45566', organization: 'IIT Bombay', city: 'Mumbai', photo_url: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=300&auto=format&fit=crop&q=80', pass_token: 'GSFC-PASS-CHM-201' }
+      ];
+
+      for (const ec of sampleExternalCandidates) {
+        db.prepare(`
+          INSERT OR IGNORE INTO external_candidates (id, event_id, name, email, phone, organization, city, photo_url, pass_token, custom_data_json)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(ec.id, ec.event_id, ec.name, ec.email, ec.phone, ec.organization, ec.city, ec.photo_url, ec.pass_token, JSON.stringify({ registeredVia: 'Public Poster QR' }));
+
+        db.prepare(`
+          INSERT OR IGNORE INTO pass_tokens (token, candidate_type, candidate_id, event_id, qr_payload, status)
+          VALUES (?, 'external', ?, ?, ?, 'issued')
+        `).run(ec.pass_token, ec.id, ec.event_id, JSON.stringify({ token: ec.pass_token, name: ec.name, eventId: ec.event_id }));
+      }
+    } catch (e) {
+      console.error('External candidate seed notice:', e.message);
+    }
+
+    // Seed Sample Pass Tokens for GSFC Students
+    try {
+      const sampleStudentPasses = [
+        { token: 'GSFC-PASS-STU-24BT04171', student_id: 's_omthakkar', event_id: 'evt_anveshan_2026', name: 'Om Thakkar' },
+        { token: 'GSFC-PASS-STU-21BCE045', student_id: 's_21bce045', event_id: 'evt_anveshan_2026', name: 'Thakkar Om' },
+        { token: 'GSFC-PASS-STU-21BCE042', student_id: 's_21bce042', event_id: 'evt_anveshan_2026', name: 'Priya Patel' },
+        { token: 'GSFC-PASS-STU-22BCE108', student_id: 's_22bce108', event_id: 'evt_anveshan_2026', name: 'Tanvi Joshi' }
+      ];
+
+      for (const sp of sampleStudentPasses) {
+        db.prepare(`
+          INSERT OR IGNORE INTO pass_tokens (token, candidate_type, candidate_id, event_id, qr_payload, status)
+          VALUES (?, 'student', ?, ?, ?, 'issued')
+        `).run(sp.token, sp.student_id, sp.event_id, JSON.stringify({ token: sp.token, studentId: sp.student_id, name: sp.name }));
+      }
+    } catch (e) {
+      console.error('Student pass seed notice:', e.message);
+    }
+
+    // Seed Initial Live Entry Logs
+    try {
+      const sampleLogs = [
+        { id: 'log_01', token: 'GSFC-PASS-ANV-101', event_id: 'evt_anveshan_2026', candidate_type: 'external', candidate_id: 'ext_01', candidate_name: 'Kavya Sharma', candidate_email: 'kavya.sharma@msu.ac.in', candidate_phone: '+91 98761 12233', candidate_org: 'MS University Vadodara', candidate_photo: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=300&auto=format&fit=crop&q=80', scanned_by_id: 'u_sec_01', scanned_by_name: 'Officer Vikram Singh', scanned_by_role: 'security', scanned_at: '2026-08-24 09:30:15', gate: 'Main Campus Gate A' },
+        { id: 'log_02', token: 'GSFC-PASS-STU-24BT04171', event_id: 'evt_anveshan_2026', candidate_type: 'student', candidate_id: 's_omthakkar', candidate_name: 'Om Thakkar', candidate_email: '24bt04171@gsfcuniversity.ac.in', candidate_phone: '+91 95584 13347', candidate_org: 'GSFC University (24BT04171)', candidate_photo: '', scanned_by_id: 'u_sec_01', scanned_by_name: 'Officer Vikram Singh', scanned_by_role: 'security', scanned_at: '2026-08-24 09:45:22', gate: 'Main Campus Gate A' },
+        { id: 'log_03', token: 'GSFC-PASS-ANV-102', event_id: 'evt_anveshan_2026', candidate_type: 'external', candidate_id: 'ext_02', candidate_name: 'Harshil Patel', candidate_email: 'harshil.patel@parul.ac.in', candidate_phone: '+91 98762 23344', candidate_org: 'Parul Institute of Technology', candidate_photo: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300&auto=format&fit=crop&q=80', scanned_by_id: 'u_faculty_neeshu', scanned_by_name: 'Dr. Neeshu Chaudhary', scanned_by_role: 'faculty', scanned_at: '2026-08-24 10:12:08', gate: 'Auditorium Gate 1' }
+      ];
+
+      for (const l of sampleLogs) {
+        db.prepare(`
+          INSERT OR IGNORE INTO entry_logs (id, token, event_id, candidate_type, candidate_id, candidate_name, candidate_email, candidate_phone, candidate_org, candidate_photo, scanned_by_user_id, scanned_by_name, scanned_by_role, scanned_at, status, gate_name)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'present', ?)
+        `).run(l.id, l.token, l.event_id, l.candidate_type, l.candidate_id, l.candidate_name, l.candidate_email, l.candidate_phone, l.candidate_org, l.candidate_photo, l.scanned_by_id, l.scanned_by_name, l.scanned_by_role, l.scanned_at, l.gate);
+      }
+    } catch (e) {
+      console.error('Entry logs seed notice:', e.message);
+    }
+
+    // 📹 In-Portal Video Meetings & Proctoring Table Migrations
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS meetings (
+        id TEXT PRIMARY KEY,
+        room_id TEXT UNIQUE NOT NULL,
+        drive_id TEXT NOT NULL,
+        company_id TEXT NOT NULL,
+        title TEXT NOT NULL,
+        description TEXT,
+        scheduled_at DATETIME NOT NULL,
+        duration_minutes INTEGER DEFAULT 30,
+        status TEXT CHECK(status IN ('scheduled', 'live', 'completed', 'cancelled')) DEFAULT 'scheduled',
+        created_by TEXT NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        ended_at DATETIME,
+        summary_notes TEXT,
+        FOREIGN KEY(drive_id) REFERENCES requirements(id) ON DELETE CASCADE,
+        FOREIGN KEY(company_id) REFERENCES company_profiles(id) ON DELETE CASCADE
+      );
+
+      CREATE TABLE IF NOT EXISTS meeting_participants (
+        id TEXT PRIMARY KEY,
+        meeting_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        student_id TEXT,
+        role TEXT CHECK(role IN ('student', 'company', 'admin', 'faculty')) NOT NULL,
+        join_status TEXT CHECK(join_status IN ('invited', 'joined', 'left', 'ejected', 'no_show')) DEFAULT 'invited',
+        joined_at DATETIME,
+        left_at DATETIME,
+        outcome_status TEXT CHECK(outcome_status IN ('pending', 'selected', 'rejected', 'hold', 'no_show')) DEFAULT 'pending',
+        interviewer_notes TEXT DEFAULT '',
+        evaluation_score REAL DEFAULT 0.0,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(meeting_id) REFERENCES meetings(id) ON DELETE CASCADE,
+        FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE,
+        FOREIGN KEY(student_id) REFERENCES student_profiles(id) ON DELETE SET NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS meeting_violations (
+        id TEXT PRIMARY KEY,
+        meeting_id TEXT NOT NULL,
+        student_id TEXT NOT NULL,
+        student_name TEXT NOT NULL,
+        student_email TEXT NOT NULL,
+        violation_type TEXT CHECK(violation_type IN ('tab_switch', 'window_blur', 'navigation_attempt', 'refresh_attempt', 'closed_tab', 'ejected')) NOT NULL,
+        details TEXT NOT NULL,
+        occurred_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(meeting_id) REFERENCES meetings(id) ON DELETE CASCADE,
+        FOREIGN KEY(student_id) REFERENCES student_profiles(id) ON DELETE CASCADE
+      );
+
+      CREATE TABLE IF NOT EXISTS meeting_chat_messages (
+        id TEXT PRIMARY KEY,
+        meeting_id TEXT NOT NULL,
+        sender_id TEXT NOT NULL,
+        sender_name TEXT NOT NULL,
+        sender_role TEXT NOT NULL,
+        message TEXT NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(meeting_id) REFERENCES meetings(id) ON DELETE CASCADE
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_meetings_room_id ON meetings(room_id);
+      CREATE INDEX IF NOT EXISTS idx_meetings_drive_id ON meetings(drive_id);
+      CREATE INDEX IF NOT EXISTS idx_meetings_company_id ON meetings(company_id);
+      CREATE INDEX IF NOT EXISTS idx_meeting_participants_meeting_id ON meeting_participants(meeting_id);
+      CREATE INDEX IF NOT EXISTS idx_meeting_participants_user_id ON meeting_participants(user_id);
+      CREATE INDEX IF NOT EXISTS idx_meeting_violations_meeting_id ON meeting_violations(meeting_id);
+    `);
+
+    seedMeetingData();
+
+
     // Auto-repair any hotlink-blocked or missing company logo URLs in SQLite database
     db.exec(`
       UPDATE company_profiles 
@@ -303,23 +893,123 @@ function applyMigrations() {
         attempt_count INTEGER DEFAULT 1,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
       );
+
+      -- 🎮 Gamification Engine Tables
+      CREATE TABLE IF NOT EXISTS student_gamification (
+        student_id TEXT PRIMARY KEY,
+        points_total INTEGER DEFAULT 0,
+        level INTEGER DEFAULT 1,
+        current_streak INTEGER DEFAULT 1,
+        is_anonymous INTEGER DEFAULT 0,
+        nickname TEXT,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS student_badges (
+        id TEXT PRIMARY KEY,
+        student_id TEXT NOT NULL,
+        badge_code TEXT NOT NULL,
+        badge_name TEXT NOT NULL,
+        badge_icon TEXT NOT NULL,
+        badge_desc TEXT NOT NULL,
+        category TEXT DEFAULT 'General',
+        unlocked_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS gamification_rules (
+        action_key TEXT PRIMARY KEY,
+        label TEXT NOT NULL,
+        points_reward INTEGER NOT NULL,
+        badge_code TEXT,
+        badge_name TEXT,
+        badge_icon TEXT,
+        badge_desc TEXT,
+        threshold INTEGER DEFAULT 1,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS gamification_points_log (
+        id TEXT PRIMARY KEY,
+        student_id TEXT NOT NULL,
+        action_key TEXT NOT NULL,
+        points_awarded INTEGER NOT NULL,
+        description TEXT NOT NULL,
+        metadata_json TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+
+      -- ⛓️ Blockchain-Anchored Document Verification Ledger
+      CREATE TABLE IF NOT EXISTS blockchain_anchored_documents (
+        id TEXT PRIMARY KEY,
+        document_type TEXT NOT NULL, -- 'offer_letter', 'placement_certificate', 'eligibility_pass'
+        document_title TEXT NOT NULL,
+        student_id TEXT NOT NULL,
+        student_name TEXT NOT NULL,
+        roll_number TEXT NOT NULL,
+        company_name TEXT,
+        job_title TEXT,
+        ctc_range TEXT,
+        document_hash TEXT NOT NULL, -- SHA-256
+        previous_block_hash TEXT NOT NULL,
+        merkle_root TEXT,
+        block_number INTEGER NOT NULL,
+        issued_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        issuer_id TEXT,
+        issuer_name TEXT,
+        issuer_role TEXT,
+        status TEXT DEFAULT 'anchored', -- 'anchored', 'revoked'
+        metadata_json TEXT
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_blockchain_hash ON blockchain_anchored_documents(document_hash);
+      CREATE INDEX IF NOT EXISTS idx_blockchain_student ON blockchain_anchored_documents(student_id);
     `);
-    // Migrate users.role check constraint if 'faculty'/'superadmin' is missing
-    const userTableSql = db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='users'").get()?.sql || '';
-    if (userTableSql && (!userTableSql.includes("'faculty'") || !userTableSql.includes("'superadmin'"))) {
+
+    // Add 2FA columns to users table if not exists
+    try {
+      db.exec(`
+        ALTER TABLE users ADD COLUMN two_factor_enabled INTEGER DEFAULT 0;
+      `);
+    } catch(e) {}
+    try {
+      db.exec(`
+        ALTER TABLE users ADD COLUMN two_factor_secret TEXT;
+      `);
+    } catch(e) {}
+    try {
+      db.exec(`
+        ALTER TABLE users ADD COLUMN two_factor_backup_codes_json TEXT;
+      `);
+    } catch(e) {}
+
+    // Add WhatsApp columns to student_profiles table if not exists
+    try {
+      db.exec(`
+        ALTER TABLE student_profiles ADD COLUMN whatsapp_opt_in INTEGER DEFAULT 1;
+      `);
+    } catch(e) {}
+    try {
+      db.exec(`
+        ALTER TABLE student_profiles ADD COLUMN whatsapp_number TEXT;
+      `);
+    } catch(e) {}
+
+    // Migrate users.role check constraint if 'faculty'/'superadmin'/'security' is missing
+    const userTableCheckSql = db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='users'").get()?.sql || '';
+    if (userTableCheckSql && (!userTableCheckSql.includes("'faculty'") || !userTableCheckSql.includes("'superadmin'") || !userTableCheckSql.includes("'security'"))) {
       db.pragma('foreign_keys = OFF');
       db.exec(`
-        CREATE TABLE users_migrated (
+        CREATE TABLE IF NOT EXISTS users_migrated (
           id TEXT PRIMARY KEY,
           email TEXT UNIQUE NOT NULL,
           password_hash TEXT NOT NULL,
-          role TEXT CHECK(role IN ('student', 'company', 'admin', 'alumni', 'faculty', 'superadmin')) NOT NULL,
+          role TEXT CHECK(role IN ('student', 'company', 'admin', 'alumni', 'faculty', 'superadmin', 'security')) NOT NULL,
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         );
-        INSERT INTO users_migrated (id, email, password_hash, role, created_at)
+        INSERT OR IGNORE INTO users_migrated (id, email, password_hash, role, created_at)
         SELECT id, email, password_hash,
           CASE 
-            WHEN role NOT IN ('student', 'company', 'admin', 'alumni', 'faculty', 'superadmin') THEN 'student'
+            WHEN role NOT IN ('student', 'company', 'admin', 'alumni', 'faculty', 'superadmin', 'security') THEN 'student'
             ELSE role
           END,
           created_at FROM users;
@@ -1778,7 +2468,193 @@ function seedInitialData() {
     VALUES (?, ?, ?, ?, ?)
   `).run('app_rohan_tcs', 's_rohan', 'req_tcs_analyst', 89.0, 'applied');
 
+  seedMeetingData();
+
   console.log('✅ CampusHire AI Database successfully initialized and seeded!');
 }
 
+function seedMeetingData() {
+  try {
+    // 1. Scheduled Meeting for Google Cloud SWE
+    const googleMeetId = 'meet_google_01';
+    const googleRoomId = 'GSFC-MEET-GOOG-2026';
+    
+    const googleReq = db.prepare("SELECT id, company_id FROM requirements WHERE id = 'req_google_swe'").get();
+    const googleUser = db.prepare("SELECT id FROM users WHERE id = 'u_comp_google'").get();
+
+    if (googleReq && googleUser) {
+      const existingGoogleMeet = db.prepare('SELECT id FROM meetings WHERE id = ?').get(googleMeetId);
+      if (!existingGoogleMeet) {
+        db.prepare(`
+          INSERT OR IGNORE INTO meetings (id, room_id, drive_id, company_id, title, description, scheduled_at, duration_minutes, status, created_by)
+          VALUES (?, ?, 'req_google_swe', ?, 'Google Cloud — Technical Interview Round 1', 'Live technical interview and algorithmic discussion for shortlisted SDE candidates.', datetime('now', '+15 minutes'), 45, 'scheduled', 'u_comp_google')
+        `).run(googleMeetId, googleRoomId, googleReq.company_id);
+
+        db.prepare(`
+          INSERT OR IGNORE INTO meeting_participants (id, meeting_id, user_id, role, join_status)
+          VALUES ('part_goog_rec', ?, 'u_comp_google', 'company', 'invited')
+        `).run(googleMeetId);
+
+        const omStudent = db.prepare("SELECT id, user_id FROM student_profiles WHERE user_id = 'u_student_1' OR roll_number = '24BT04171'").get();
+        if (omStudent) {
+          db.prepare(`
+            INSERT OR IGNORE INTO meeting_participants (id, meeting_id, user_id, student_id, role, join_status)
+            VALUES ('part_goog_s1', ?, ?, ?, 'student', 'invited')
+          `).run(googleMeetId, omStudent.user_id, omStudent.id);
+        }
+
+        const tanviStudent = db.prepare("SELECT id, user_id FROM student_profiles WHERE user_id = 'u_student_2' OR roll_number = '22BCE108'").get();
+        if (tanviStudent) {
+          db.prepare(`
+            INSERT OR IGNORE INTO meeting_participants (id, meeting_id, user_id, student_id, role, join_status)
+            VALUES ('part_goog_s2', ?, ?, ?, 'student', 'invited')
+          `).run(googleMeetId, tanviStudent.user_id, tanviStudent.id);
+        }
+      }
+    }
+
+    // 2. Completed Meeting with Proctoring Anti-Cheating Violation Record
+    const msftMeetId = 'meet_msft_02';
+    const msftRoomId = 'GSFC-MEET-MSFT-8821';
+    const msftReq = db.prepare("SELECT id, company_id FROM requirements WHERE id = 'req_microsoft_sde'").get();
+    const msftUser = db.prepare("SELECT id FROM users WHERE id = 'u_comp_microsoft'").get();
+
+    if (msftReq && msftUser) {
+      const existingMsftMeet = db.prepare('SELECT id FROM meetings WHERE id = ?').get(msftMeetId);
+      if (!existingMsftMeet) {
+        db.prepare(`
+          INSERT OR IGNORE INTO meetings (id, room_id, drive_id, company_id, title, description, scheduled_at, duration_minutes, status, created_by, ended_at, summary_notes)
+          VALUES (?, ?, 'req_microsoft_sde', ?, 'Microsoft Azure — System Design & Live Coding', 'Final technical assessment round for Cloud Microservices engineering role.', datetime('now', '-2 hours'), 30, 'completed', 'u_comp_microsoft', datetime('now', '-90 minutes'), '1 candidate selected, 1 candidate disqualified for anti-cheating tab-switch violation.')
+        `).run(msftMeetId, msftRoomId, msftReq.company_id);
+
+        db.prepare(`
+          INSERT OR IGNORE INTO meeting_participants (id, meeting_id, user_id, role, join_status, joined_at, left_at)
+          VALUES ('part_msft_rec', ?, 'u_comp_microsoft', 'company', 'left', datetime('now', '-120 minutes'), datetime('now', '-90 minutes'))
+        `).run(msftMeetId);
+
+        const stud2 = db.prepare("SELECT s.id, s.user_id, s.name, u.email FROM student_profiles s JOIN users u ON s.user_id = u.id WHERE s.roll_number = '21BCE045' OR s.id = 's_21bce045'").get();
+        if (stud2) {
+          db.prepare(`
+            INSERT OR IGNORE INTO meeting_participants (id, meeting_id, user_id, student_id, role, join_status, joined_at, left_at, outcome_status, interviewer_notes, evaluation_score)
+            VALUES ('part_msft_s2', ?, ?, ?, 'student', 'ejected', datetime('now', '-120 minutes'), datetime('now', '-105 minutes'), 'rejected', 'Candidate session terminated due to detected tab-switching and window blur.', 2.0)
+          `).run(msftMeetId, stud2.user_id, stud2.id);
+
+          db.prepare(`
+            INSERT OR IGNORE INTO meeting_violations (id, meeting_id, student_id, student_name, student_email, violation_type, details, occurred_at)
+            VALUES ('viol_msft_01', ?, ?, ?, ?, 'tab_switch', 'Candidate switched browser tabs / minimized window during live coding round question 2.', datetime('now', '-105 minutes'))
+          `).run(msftMeetId, stud2.id, stud2.name, stud2.email);
+        }
+      }
+    }
+  } catch (e) {
+    console.error('Meetings seed notice:', e.message);
+  }
+}
+
+function seedAppliedStudentApplications() {
+  try {
+    const passwordHash = '$2a$10$7Z2ZqQ3/Y2zO8WfH5x6i0.GgI0vY1U5y5zZ2ZqQ3/Y2zO8WfH5x6i'; // sample hash
+
+    // 1. Ensure GSFC Limited user and company profile exist
+    let compUser = db.prepare('SELECT id FROM users WHERE email = ?').get('recruiter@gsfclimited.com');
+    if (!compUser) {
+      try {
+        db.prepare(`INSERT INTO users (id, email, password_hash, role) VALUES ('u_comp_gsfc', 'recruiter@gsfclimited.com', ?, 'company')`).run(passwordHash);
+        compUser = { id: 'u_comp_gsfc' };
+      } catch (e) {
+        compUser = db.prepare('SELECT id FROM users WHERE role = "company" LIMIT 1').get();
+      }
+    }
+
+    if (compUser) {
+      db.prepare(`
+        INSERT OR IGNORE INTO company_profiles (id, user_id, company_name, logo_url, industry, website, approved)
+        VALUES ('c_gsfc', ?, 'GSFC Limited', 'https://images.unsplash.com/photo-1560179707-f14e90ef3623?w=120&auto=format&fit=crop&q=80', 'Chemical & Industrial Engineering', 'https://gsfclimited.com', 1)
+      `).run(compUser.id);
+    }
+
+    // 2. Ensure GSFC Limited Requirement exists
+    db.prepare(`
+      INSERT OR IGNORE INTO requirements (id, company_id, title, eligible_programs_json, min_cgpa, required_skills_json, preferred_skills_json, job_type, ctc_range, openings, deadline, job_description)
+      VALUES (
+        'req_gsfc_plant_eng',
+        'c_gsfc',
+        'Process & Plant Operations Engineer',
+        '["BTech CSE", "BTech IT", "BTech Chemical", "BTech Mechanical"]',
+        7.0,
+        '["Process Automation", "SCADA", "Python", "SQL", "Industrial IoT"]',
+        '["Plant Operations", "Distributed Control Systems"]',
+        'Full-time',
+        '₹10,50,000 - ₹14,00,000 PA',
+        12,
+        '2026-10-30',
+        'GSFC Limited hiring Process & Operations Engineers to lead plant automation, data telemetry, and SCADA infrastructure.'
+      )
+    `).run();
+
+    // 3. Ensure Candidate Om Thakkar user exists
+    let studUser = db.prepare('SELECT id FROM users WHERE email = ?').get('thakkar_om@gmail.com');
+    if (!studUser) {
+      try {
+        db.prepare(`INSERT INTO users (id, email, password_hash, role) VALUES ('u_stud_omthakkar', 'thakkar_om@gmail.com', ?, 'student')`).run(passwordHash);
+        studUser = { id: 'u_stud_omthakkar' };
+      } catch (e) {
+        studUser = db.prepare('SELECT id FROM users WHERE role = "student" LIMIT 1').get();
+      }
+    }
+
+    if (studUser) {
+      db.prepare(`
+        INSERT OR IGNORE INTO student_profiles 
+        (id, user_id, roll_number, name, program, branch, cgpa, resume_url, ats_score)
+        VALUES ('s_omthakkar', ?, '24BT04171', 'Om Thakkar', 'BTech CSE', 'Computer Science & Engineering', 8.8, '/uploads/sample_resume.pdf', 94)
+      `).run(studUser.id);
+    }
+
+
+
+
+    // 4. Seed Applications for Om Thakkar in master applications database
+    const omApps = [
+      { id: 'app_om_gsfc', reqId: 'req_gsfc_plant_eng', match: 88, status: 'applied', appliedAt: '2026-08-24 10:15:00' },
+      { id: 'app_om_msft', reqId: 'req_microsoft_sde', match: 88, status: 'applied', appliedAt: '2026-08-23 14:30:00' },
+      { id: 'app_om_goog', reqId: 'req_google_swe', match: 88, status: 'applied', appliedAt: '2026-08-23 11:20:00' }
+    ];
+
+    for (const app of omApps) {
+      try {
+        db.prepare(`
+          INSERT OR IGNORE INTO applications (id, student_id, requirement_id, match_score, status, applied_via, applied_at)
+          VALUES (?, 's_omthakkar', ?, ?, ?, 'internal', ?)
+        `).run(app.id, app.reqId, app.match, app.status, app.appliedAt);
+      } catch (err) {}
+    }
+
+    // 5. Seed other student applications for rich Master TPC Applications table
+    const otherApps = [
+      { id: 'app_arav_goog_full', studentId: 's_arav', reqId: 'req_google_swe', match: 95, status: 'interview', appliedAt: '2026-08-22 09:00:00' },
+      { id: 'app_arav_msft_full', studentId: 's_arav', reqId: 'req_microsoft_sde', match: 91, status: 'shortlisted', appliedAt: '2026-08-22 15:45:00' },
+      { id: 'app_rohan_tcs_full', studentId: 's_rohan', reqId: 'req_tcs_analyst', match: 89, status: 'applied', appliedAt: '2026-08-21 11:00:00' }
+    ];
+
+    for (const app of otherApps) {
+      try {
+        db.prepare(`
+          INSERT OR IGNORE INTO applications (id, student_id, requirement_id, match_score, status, applied_via, applied_at)
+          VALUES (?, ?, ?, ?, ?, 'internal', ?)
+        `).run(app.id, app.studentId, app.reqId, app.match, app.status, app.appliedAt);
+      } catch (err) {}
+    }
+  } catch (e) {
+    console.error('Applied student applications seed notice:', e.message);
+  }
+}
+
+
+
+// Automatically seed applications on every startup
+seedAppliedStudentApplications();
+
 export default db;
+
+

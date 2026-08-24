@@ -351,6 +351,322 @@ router.delete('/authorized-students/:id', (req, res) => {
   }
 });
 
+// 🎪 --- FEST / EVENT MANAGEMENT ENDPOINTS ---
+
+// 1. Get All Events (Admin view with comprehensive stats)
+router.get('/events', (req, res) => {
+  try {
+    const events = db.prepare(`
+      SELECT 
+        e.*,
+        (SELECT COUNT(*) FROM external_candidates WHERE event_id = e.id) as total_external_registered,
+        (SELECT COUNT(*) FROM pass_tokens WHERE event_id = e.id) as total_passes_issued,
+        (SELECT COUNT(*) FROM entry_logs WHERE event_id = e.id) as total_checked_in,
+        (SELECT COUNT(DISTINCT scanned_by_user_id) FROM entry_logs WHERE event_id = e.id) as active_scanners_count
+      FROM events e
+      ORDER BY e.event_date DESC
+    `).all();
+
+    res.json(events);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 2. Create Event / Fest
+router.post('/events', (req, res) => {
+  try {
+    const { title, slug, description, category, event_date, end_date, venue, banner_url, is_registration_open, max_registrations, custom_fields } = req.body;
+
+    if (!title || !event_date) {
+      return res.status(400).json({ error: 'Event Title and Event Date are required.' });
+    }
+
+    const eventId = 'evt_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
+    const eventSlug = slug?.trim() 
+      ? slug.trim().toLowerCase().replace(/[^a-z0-9-]/g, '-')
+      : title.trim().toLowerCase().replace(/[^a-z0-9-]/g, '-');
+
+    db.prepare(`
+      INSERT INTO events (
+        id, title, slug, description, category, event_date, end_date, 
+        venue, banner_url, is_registration_open, max_registrations, custom_fields_json, created_by
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'TPC Admin')
+    `).run(
+      eventId,
+      title.trim(),
+      eventSlug,
+      description || '',
+      category || 'Fest',
+      event_date,
+      end_date || event_date,
+      venue || 'GSFC University Auditorium',
+      banner_url || 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=1200&auto=format&fit=crop&q=80',
+      is_registration_open !== undefined ? (is_registration_open ? 1 : 0) : 1,
+      parseInt(max_registrations || 1000, 10),
+      JSON.stringify(custom_fields || [])
+    );
+
+    logAdminAuditAction(req, 'CREATE_EVENT', 'event', eventId, { title, slug: eventSlug });
+
+    res.status(201).json({
+      success: true,
+      message: `Event "${title}" created successfully! Public registration link generated.`,
+      eventId,
+      slug: eventSlug
+    });
+  } catch (err) {
+    if (err.message.includes('UNIQUE constraint failed: events.slug')) {
+      return res.status(400).json({ error: 'An event with this URL slug already exists. Please choose a unique slug.' });
+    }
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 3. Update Event (Details & Open/Close Toggle)
+router.put('/events/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+    const { title, description, category, event_date, end_date, venue, banner_url, is_registration_open, max_registrations } = req.body;
+
+    const existing = db.prepare('SELECT * FROM events WHERE id = ?').get(id);
+    if (!existing) {
+      return res.status(404).json({ error: 'Event not found.' });
+    }
+
+    db.prepare(`
+      UPDATE events 
+      SET title = COALESCE(?, title),
+          description = COALESCE(?, description),
+          category = COALESCE(?, category),
+          event_date = COALESCE(?, event_date),
+          end_date = COALESCE(?, end_date),
+          venue = COALESCE(?, venue),
+          banner_url = COALESCE(?, banner_url),
+          is_registration_open = COALESCE(?, is_registration_open),
+          max_registrations = COALESCE(?, max_registrations),
+          updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `).run(
+      title,
+      description,
+      category,
+      event_date,
+      end_date,
+      venue,
+      banner_url,
+      is_registration_open !== undefined ? (is_registration_open ? 1 : 0) : null,
+      max_registrations,
+      id
+    );
+
+    logAdminAuditAction(req, 'UPDATE_EVENT', 'event', id, { title: title || existing.title });
+
+    res.json({
+      success: true,
+      message: 'Event updated successfully!'
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 4. Delete Event
+router.delete('/events/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+    db.prepare('DELETE FROM events WHERE id = ?').run(id);
+    logAdminAuditAction(req, 'DELETE_EVENT', 'event', id);
+
+    res.json({
+      success: true,
+      message: 'Event and associated passes removed successfully!'
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 🎟️ --- EXTERNAL CANDIDATES DATABASE ---
+router.get('/external-candidates', (req, res) => {
+  try {
+    const { event_id = '', search = '' } = req.query;
+
+    let query = `
+      SELECT c.*, e.title as event_title, e.event_date, e.venue as event_venue,
+             (SELECT status FROM pass_tokens WHERE token = c.pass_token) as pass_status,
+             (SELECT scanned_at FROM entry_logs WHERE token = c.pass_token ORDER BY scanned_at DESC LIMIT 1) as checked_in_at,
+             (SELECT scanned_by_name FROM entry_logs WHERE token = c.pass_token ORDER BY scanned_at DESC LIMIT 1) as checked_in_by
+      FROM external_candidates c
+      JOIN events e ON c.event_id = e.id
+      WHERE 1=1
+    `;
+    const params = [];
+
+    if (event_id.trim() && event_id !== 'All') {
+      query += ` AND c.event_id = ?`;
+      params.push(event_id.trim());
+    }
+
+    if (search.trim()) {
+      query += ` AND (c.name LIKE ? OR c.email LIKE ? OR c.phone LIKE ? OR c.organization LIKE ? OR c.pass_token LIKE ?)`;
+      const term = `%${search.trim()}%`;
+      params.push(term, term, term, term, term);
+    }
+
+    query += ` ORDER BY c.created_at DESC`;
+
+    const candidates = db.prepare(query).all(...params);
+    res.json(candidates);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ⚡ --- SCANNED / ENTRY RECORDS DATABASE ---
+router.get('/entry-logs', (req, res) => {
+  try {
+    const { event_id = '', search = '', candidate_type = '', scanned_by = '' } = req.query;
+
+    let query = `
+      SELECT l.*, e.title as event_title, e.venue as event_venue
+      FROM entry_logs l
+      LEFT JOIN events e ON l.event_id = e.id
+      WHERE 1=1
+    `;
+    const params = [];
+
+    if (event_id.trim() && event_id !== 'All') {
+      query += ` AND l.event_id = ?`;
+      params.push(event_id.trim());
+    }
+
+    if (candidate_type.trim() && candidate_type !== 'All') {
+      query += ` AND l.candidate_type = ?`;
+      params.push(candidate_type.trim());
+    }
+
+    if (scanned_by.trim() && scanned_by !== 'All') {
+      query += ` AND (l.scanned_by_name LIKE ? OR l.scanned_by_role = ?)`;
+      params.push(`%${scanned_by.trim()}%`, scanned_by.trim());
+    }
+
+    if (search.trim()) {
+      query += ` AND (l.candidate_name LIKE ? OR l.candidate_email LIKE ? OR l.candidate_org LIKE ? OR l.token LIKE ? OR l.gate_name LIKE ?)`;
+      const term = `%${search.trim()}%`;
+      params.push(term, term, term, term, term);
+    }
+
+    query += ` ORDER BY l.scanned_at DESC`;
+
+    const logs = db.prepare(query).all(...params);
+
+    // Compute live summary stats
+    const stats = db.prepare(`
+      SELECT 
+        COUNT(*) as total_entries,
+        COUNT(CASE WHEN candidate_type = 'student' THEN 1 END) as student_entries,
+        COUNT(CASE WHEN candidate_type = 'external' THEN 1 END) as external_entries,
+        COUNT(DISTINCT scanned_by_user_id) as total_scanners
+      FROM entry_logs
+    `).get();
+
+    res.json({ logs, stats });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 🛡️ --- SECURITY STAFF ACCOUNT MANAGEMENT ---
+router.get('/security-staff', (req, res) => {
+  try {
+    const list = db.prepare(`
+      SELECT 
+        p.*, 
+        u.email, 
+        u.created_at as account_created_at,
+        (SELECT COUNT(*) FROM entry_logs WHERE scanned_by_user_id = u.id) as total_scans_performed,
+        (SELECT MAX(scanned_at) FROM entry_logs WHERE scanned_by_user_id = u.id) as last_scan_time
+      FROM security_staff_profiles p
+      JOIN users u ON p.user_id = u.id
+      ORDER BY p.created_at DESC
+    `).all();
+
+    res.json(list);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/security-staff', (req, res) => {
+  try {
+    const { name, email, phone, gate_assigned, shift, password } = req.body;
+
+    if (!name || !email) {
+      return res.status(400).json({ error: 'Security Officer Name and Email are required.' });
+    }
+
+    const cleanEmail = email.trim().toLowerCase();
+    const existing = db.prepare('SELECT * FROM users WHERE lower(email) = ?').get(cleanEmail);
+    if (existing) {
+      return res.status(400).json({ error: 'A user account with this email already exists.' });
+    }
+
+    const userId = 'u_sec_' + Date.now();
+    const passHash = bcrypt.hashSync(password || 'password123', 6);
+
+    db.transaction(() => {
+      db.prepare(`
+        INSERT INTO users (id, email, password_hash, role)
+        VALUES (?, ?, ?, 'security')
+      `).run(userId, cleanEmail, passHash);
+
+      db.prepare(`
+        INSERT INTO security_staff_profiles (id, user_id, name, phone, gate_assigned, shift, active_status)
+        VALUES (?, ?, ?, ?, ?, ?, 'active')
+      `).run(
+        'sec_prof_' + userId,
+        userId,
+        name.trim(),
+        phone || '+91 98250 00000',
+        gate_assigned || 'Main Campus Gate A',
+        shift || 'Day Shift (08:00 AM - 04:00 PM)'
+      );
+    })();
+
+    logAdminAuditAction(req, 'CREATE_SECURITY_STAFF', 'security', userId, { name, email: cleanEmail });
+
+    res.status(201).json({
+      success: true,
+      message: `Security account created for ${name} (${cleanEmail})! Initial password set.`
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.put('/security-staff/:id/status', (req, res) => {
+  try {
+    const { id } = req.params;
+    const { active_status } = req.body;
+
+    db.prepare(`
+      UPDATE security_staff_profiles 
+      SET active_status = ? 
+      WHERE id = ? OR user_id = ?
+    `).run(active_status || 'active', id, id);
+
+    res.json({
+      success: true,
+      message: `Security staff status updated to ${active_status}!`
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
 // Helper to log Admin Audit Actions
 function logAdminAuditAction(req, action, targetType, targetId, details = {}) {
   try {

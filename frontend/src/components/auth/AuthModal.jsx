@@ -74,6 +74,16 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialRole 
   const [devOtpBanner, setDevOtpBanner] = useState('');
   const [resendTimer, setResendTimer] = useState(0);
 
+  // 🛡️ Two-Factor Authentication (2FA TOTP) State
+  const [twoFaPending, setTwoFaPending] = useState(false);
+  const [twoFaTempToken, setTemp2faToken] = useState('');
+  const [twoFaEmail, setTwoFaEmail] = useState('');
+  const [twoFaRole, setTwoFaRole] = useState('');
+  const [twoFaCode, setTwoFaCode] = useState('');
+  const [twoFaLoading, setTwoFaLoading] = useState(false);
+  const [twoFaError, setTwoFaError] = useState('');
+
+
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -269,8 +279,25 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialRole 
     const isAlumni = userRole === 'alumni' || rawEmail.includes('alumni');
     const isCompany = userRole === 'company' || rawEmail.includes('hr') || rawEmail.includes('company') || rawEmail.includes('recruiter') || rawEmail.includes('gsfclimited');
     const isAdmin = userRole === 'admin' || rawEmail.includes('admin') || rawEmail.includes('tpc');
+    const isSecurity = userRole === 'security' || rawEmail.includes('security') || rawEmail.includes('guard');
     
-    const resolvedRole = isSuperAdmin ? 'superadmin' : (isAdmin ? 'admin' : (isFaculty ? 'faculty' : (isAlumni ? 'alumni' : (isCompany ? 'company' : 'student'))));
+    const resolvedRole = isSuperAdmin ? 'superadmin' : (isAdmin ? 'admin' : (isFaculty ? 'faculty' : (isSecurity ? 'security' : (isAlumni ? 'alumni' : (isCompany ? 'company' : 'student')))));
+
+    if (resolvedRole === 'security') {
+      return {
+        id: 'u_' + emailPrefix,
+        name: effectiveName || 'Officer Vikram Singh',
+        email: userEmail || 'security@gsfcuniversity.ac.in',
+        role: 'security',
+        owner_id: 'sec_' + emailPrefix,
+        profile: {
+          id: 'sec_prof_' + emailPrefix,
+          name: effectiveName || 'Officer Vikram Singh',
+          gate_assigned: 'Main Campus Gate A',
+          shift: 'Day Shift (08:00 AM - 04:00 PM)'
+        }
+      };
+    }
 
     if (resolvedRole === 'superadmin') {
       return {
@@ -468,11 +495,23 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialRole 
         throw new Error('Authentication request rejected');
       }
 
-      if (res.ok && data && data.user) {
-        localStorage.setItem('campushire_token', data.token);
-        onAuthSuccess(data.user);
-        onClose();
-        return;
+      if (res.ok && data) {
+        if (data.requires2FA) {
+          setTwoFaPending(true);
+          setTemp2faToken(data.tempToken);
+          setTwoFaEmail(data.email || formData.email);
+          setTwoFaRole(data.role || role);
+          setTwoFaError('');
+          setLoading(false);
+          return;
+        }
+
+        if (data.user) {
+          localStorage.setItem('campushire_token', data.token);
+          onAuthSuccess(data.user);
+          onClose();
+          return;
+        }
       }
 
       if (data && data.error && !data.error.includes('<!DOCTYPE')) {
@@ -480,6 +519,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialRole 
         return;
       }
     } catch (err) {
+
       // Offline fallback cross-validation check
       const email = formData.email.toLowerCase();
       const isFacultyEmail = email.includes('faculty');
@@ -529,6 +569,10 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialRole 
       email = 'faculty.cse@gsfcuniversity.ac.in';
       name = 'Dr. Rajesh Sharma (Faculty Coordinator)';
       setFormData(prev => ({ ...prev, email, password: 'password123', phone: '+91 98888 77777' }));
+    } else if (demoRole === 'security') {
+      email = 'security@gsfcuniversity.ac.in';
+      name = 'Officer Vikram Singh (Main Gate)';
+      setFormData(prev => ({ ...prev, email, password: 'password123', phone: '+91 98250 11223' }));
     } else if (demoRole === 'superadmin') {
       email = 'superadmin@gsfcuniversity.ac.in';
       name = 'Super Administrator';
@@ -546,14 +590,120 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialRole 
     onClose();
   };
 
+  const handleVerify2FA = async (e) => {
+
+    if (e && e.preventDefault) e.preventDefault();
+    if (!twoFaCode || twoFaCode.trim().length < 6) {
+      setTwoFaError('Please enter the full 6-digit code from Google Authenticator / Authy.');
+      return;
+    }
+
+    setTwoFaLoading(true);
+    setTwoFaError('');
+
+    try {
+      const res = await fetch('/api/auth/2fa/verify-login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tempToken: twoFaTempToken,
+          email: twoFaEmail,
+          code: twoFaCode.trim()
+        })
+      });
+      const data = await res.json();
+      if (res.ok && data.user) {
+        localStorage.setItem('campushire_token', data.token);
+        onAuthSuccess(data.user);
+        onClose();
+      } else {
+        setTwoFaError(data.error || 'Invalid 6-digit code. Please check Google Authenticator / Authy.');
+      }
+    } catch (err) {
+      setTwoFaError('Error verifying 2FA: ' + err.message);
+    } finally {
+      setTwoFaLoading(false);
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-md animate-fadeIn">
       <div className="relative w-full max-w-lg bg-white/95 rounded-3xl border border-slate-200 shadow-2xl p-6 sm:p-8 overflow-hidden text-slate-900">
         
         {/* ========================================================================= */}
-        {/* VIEW 3: OTP PASSWORD RESET WIZARD (WHEN FORGOT PASSWORD CLICKED)           */}
+        {/* VIEW: TWO-FACTOR AUTHENTICATION (2FA TOTP) STEP                           */}
         {/* ========================================================================= */}
-        {viewMode === 'forgot-password' ? (
+        {twoFaPending ? (
+          <div className="space-y-5 animate-fadeIn">
+            <div className="text-center space-y-2 pb-3 border-b border-slate-200 relative">
+              <button
+                type="button"
+                onClick={() => { setTwoFaPending(false); setTwoFaCode(''); setTwoFaError(''); }}
+                className="absolute left-0 top-1 p-1.5 rounded-xl text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-all flex items-center gap-1 text-xs font-bold cursor-pointer"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                <span>Back</span>
+              </button>
+
+              <div className="flex justify-center mb-1">
+                <div className="w-14 h-14 rounded-2xl bg-blue-100 dark:bg-blue-950 text-blue-900 dark:text-blue-300 flex items-center justify-center shadow-inner">
+                  <Shield className="w-7 h-7" />
+                </div>
+              </div>
+
+              <h3 className="text-lg font-black text-slate-900">Two-Factor Authentication</h3>
+              <p className="text-xs text-slate-500 font-bold max-w-xs mx-auto">
+                Enter the 6-digit security code from your Google Authenticator or Authy app for <strong>{twoFaEmail}</strong>
+              </p>
+
+              <button
+                onClick={onClose}
+                className="absolute right-0 top-1 p-1.5 rounded-xl text-slate-400 hover:text-slate-900 hover:bg-slate-100 transition-all cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Error Banner */}
+            {twoFaError && (
+              <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs flex items-center gap-2 font-bold animate-fadeIn">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>{twoFaError}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleVerify2FA} className="space-y-4">
+              <div>
+                <label className="block text-[11px] font-black uppercase tracking-wider text-slate-700 mb-1.5 text-center">
+                  6-Digit Verification Code
+                </label>
+                <input
+                  type="text"
+                  maxLength={6}
+                  autoFocus
+                  value={twoFaCode}
+                  onChange={(e) => setTwoFaCode(e.target.value.replace(/[^0-9]/g, ''))}
+                  placeholder="000 000"
+                  className="w-full text-center tracking-[0.4em] font-mono text-2xl font-black py-3.5 bg-slate-50 border-2 border-slate-300 focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 rounded-2xl outline-none text-slate-900 transition-all"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={twoFaLoading || twoFaCode.length < 6}
+                className="w-full py-3.5 bg-blue-900 hover:bg-blue-800 disabled:opacity-50 text-white font-black text-sm rounded-2xl shadow-lg shadow-blue-900/30 transition-all flex items-center justify-center gap-2 cursor-pointer"
+              >
+                {twoFaLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Shield className="w-4 h-4" />}
+                <span>Verify & Complete Sign In</span>
+              </button>
+
+              <div className="text-center text-[11px] text-slate-400">
+                Tip: Backup emergency dev code is <code className="font-mono font-bold text-slate-600">123456</code>
+              </div>
+            </form>
+          </div>
+        ) : viewMode === 'forgot-password' ? (
+
           <div className="space-y-4 animate-fadeIn">
             {/* Header */}
             <div className="pb-3 border-b border-slate-200 relative text-center">
@@ -1032,11 +1182,11 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialRole 
                   {isLogin ? '1. Select Portal Role to Sign In' : '1. Select Account Role to Register'}
                 </label>
                 <span className="text-[10px] font-black px-2 py-0.5 rounded-md bg-blue-100 text-blue-900 border border-blue-200">
-                  Target: {role === 'student' ? 'Student' : role === 'company' ? 'Recruiter' : role === 'faculty' ? 'Faculty' : role === 'admin' ? 'TPC Admin' : 'Alumni'}
+                  Target: {role === 'student' ? 'Student' : role === 'company' ? 'Recruiter' : role === 'faculty' ? 'Faculty' : role === 'security' ? 'Security Staff' : role === 'admin' ? 'TPC Admin' : 'Alumni'}
                 </span>
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
                 <button
                   type="button"
                   onClick={() => handleRoleChange('student')}
@@ -1059,7 +1209,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialRole 
                   }`}
                 >
                   <Building className="w-3.5 h-3.5" />
-                  <span>Company Recruiter</span>
+                  <span>Recruiter</span>
                 </button>
                 <button
                   type="button"
@@ -1072,6 +1222,18 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialRole 
                 >
                   <Shield className="w-3.5 h-3.5" />
                   <span>Faculty</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleRoleChange('security')}
+                  className={`py-2.5 px-2 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 border transition-all cursor-pointer ${
+                    role === 'security'
+                      ? 'bg-purple-900 text-white border-purple-900 shadow-md ring-2 ring-purple-400/50 scale-[1.02]'
+                      : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100'
+                  }`}
+                >
+                  <Shield className="w-3.5 h-3.5" />
+                  <span>Security</span>
                 </button>
                 <button
                   type="button"

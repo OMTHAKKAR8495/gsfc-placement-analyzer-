@@ -4,8 +4,10 @@ import {
   Briefcase, FileSpreadsheet, Sparkles, TrendingUp, PieChart, Database, Search, 
   Printer, CheckCircle, Trash2, Calendar, Filter, SlidersHorizontal, Layers, 
   CheckSquare, Square, RefreshCw, Eye, EyeOff, GraduationCap, Award, Check, FileText, X, HelpCircle, Globe, Sliders, MapPin,
-  Clock, Activity, History, AlertCircle, ExternalLink, Lock, KeyRound, ChevronLeft, ChevronRight, UserCheck, RotateCcw, Smartphone, Laptop
+  Clock, Activity, History, AlertCircle, ExternalLink, Lock, KeyRound, ChevronLeft, ChevronRight, UserCheck, RotateCcw, Smartphone, Laptop,
+  PlusCircle, QrCode, Crown, DollarSign, Video, Plus
 } from 'lucide-react';
+
 import ReportPDFModal from '../common/ReportPDFModal';
 import BatchPDFReportModal from './BatchPDFReportModal';
 import ApprovalNotificationModal from '../common/ApprovalNotificationModal';
@@ -17,6 +19,14 @@ import EcosystemHubModal from '../common/EcosystemHubModal';
 import WhatIfSimulatorModal from '../common/WhatIfSimulatorModal';
 import SkillHeatmapModal from '../common/SkillHeatmapModal';
 import AICopilotDrawer from '../common/AICopilotDrawer';
+import AdminEventsManager from './AdminEventsManager';
+import AdminExternalCandidates from './AdminExternalCandidates';
+import AdminEntryLogsManager from './AdminEntryLogsManager';
+import AdminSecurityStaffManager from './AdminSecurityStaffManager';
+import AdminMeetingsManager from './AdminMeetingsManager';
+import AdminSubscriptionPlansManager from './AdminSubscriptionPlansManager';
+
+
 
 const MASTER_STUDENT_ROSTER = [
   { id: 's_omthakkar', user_id: 'u_omthakkar', name: 'Om Thakkar', email: '24bt04171@gsfcuniversity.ac.in', phone: '+91 95584 13347', roll_number: '24BT04171', program: 'BTech CSE', branch: 'Computer Science & Engineering', passing_year: 2026, admission_year: 2022, cgpa: 8.9, backlogs: 0, skills: 'React, Node.js, Python, Fast-API, ATS Tuning', ats_score: 92, placement_status: 'Shortlisted', photo_url: '', login_credential_hint: '24bt04171@gsfcuniversity.ac.in', password_status: 'Secured with Bcrypt Hash (10 rounds)', last_logged_in: 'Active Session (Online)' },
@@ -110,12 +120,38 @@ const getInitialLoggedFaculty = () => {
 export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
   const [activeTab, setActiveTabState] = useState(() => {
     try {
+      const hash = window.location.hash || '';
+      if (hash.includes('applications')) return 'applications';
+      if (hash.includes('database')) return 'database';
+      if (hash.includes('logged_students') || hash.includes('students')) return 'logged_students';
+      if (hash.includes('companies')) return 'companies';
+      if (hash.includes('drives')) return 'drives';
+      if (hash.includes('online_meetings') || hash.includes('meetings')) return 'online_meetings';
+
       const saved = localStorage.getItem('gsfc_admin_active_tab');
-      return saved && ['overview', 'predictive', 'database', 'companies', 'drives', 'applications', 'alumni_approvals', 'qa', 'logged_students', 'logged_faculty'].includes(saved) ? saved : 'overview';
+      return saved && ['overview', 'predictive', 'database', 'companies', 'drives', 'applications', 'alumni_approvals', 'qa', 'logged_students', 'logged_faculty', 'events', 'external_candidates', 'entry_logs', 'security_staff', 'online_meetings'].includes(saved) ? saved : 'overview';
     } catch(e) {
       return 'overview';
     }
   });
+
+  useEffect(() => {
+    const handleHash = () => {
+      const hash = window.location.hash || '';
+      if (hash.includes('admin-applications') || hash.includes('applications')) {
+        setActiveTabState('applications');
+      } else if (hash.includes('admin-database') || hash.includes('database')) {
+        setActiveTabState('database');
+      } else if (hash.includes('admin-students') || hash.includes('logged_students')) {
+        setActiveTabState('logged_students');
+      } else if (hash.includes('admin-meetings') || hash.includes('online_meetings')) {
+        setActiveTabState('online_meetings');
+      }
+    };
+    handleHash();
+    window.addEventListener('hashchange', handleHash);
+    return () => window.removeEventListener('hashchange', handleHash);
+  }, []);
 
   const setActiveTab = (tab) => {
     setActiveTabState(tab);
@@ -123,6 +159,7 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
       localStorage.setItem('gsfc_admin_active_tab', tab);
     } catch(e) {}
   };
+
   const [accreditationModalOpen, setAccreditationModalOpen] = useState(false);
   const [jobFairModalOpen, setJobFairModalOpen] = useState(false);
   const [ecosystemModalOpen, setEcosystemModalOpen] = useState(false);
@@ -1475,6 +1512,14 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
 
         <div className="flex items-center gap-2.5 flex-wrap">
           <button
+            onClick={() => setActiveTab('entry_logs')}
+            className="py-3 px-5 bg-gradient-to-r from-emerald-600 via-teal-700 to-blue-900 hover:from-emerald-500 hover:to-teal-600 text-white font-black text-xs rounded-xl shadow-lg shadow-emerald-900/20 flex items-center gap-2 transition-all cursor-pointer hover:scale-105"
+          >
+            <QrCode className="w-4 h-4 text-emerald-300" /> 
+            <span>⚡ Scan Gate Pass</span>
+          </button>
+
+          <button
             onClick={() => setAccreditationModalOpen(true)}
             className="py-3 px-5 bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:from-amber-400 hover:to-orange-400 text-slate-950 font-black text-xs rounded-xl shadow-lg shadow-amber-500/20 flex items-center gap-2 transition-all cursor-pointer hover:scale-105"
           >
@@ -1491,6 +1536,7 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
           </button>
         </div>
       </div>
+
 
       {/* Command Center 2-Tier Navigation Hub */}
       <div className="space-y-3">
@@ -1701,6 +1747,82 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
             >
               <Award className="w-3.5 h-3.5 text-amber-600 stroke-[2.5]" /> 🏆 NAAC / NIRF
             </button>
+          </div>
+        </div>
+
+        {/* Tier 3: Fest, Public Pass & QR Scanner Modules */}
+        <div className="glass-panel p-2.5 sm:p-3 rounded-2xl border border-indigo-200 dark:border-indigo-900/60 bg-gradient-to-r from-indigo-50/60 via-blue-50/40 to-slate-50 dark:from-indigo-950/30 dark:via-blue-950/20 dark:to-slate-900/40 shadow-md">
+          <div className="flex items-center justify-between gap-1.5 text-[11px] font-black text-indigo-900 dark:text-indigo-300 uppercase tracking-wider mb-2 px-1">
+            <span className="flex items-center gap-1.5"><Sparkles className="w-3.5 h-3.5 text-amber-500" /> Fest Management, Digital QR Passes & Gate Security</span>
+            <span className="text-[10px] bg-amber-500/20 text-amber-700 dark:text-amber-300 px-2 py-0.5 rounded-full font-bold">New Module</span>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={() => setActiveTab('events')}
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                activeTab === 'events'
+                  ? 'bg-gradient-to-r from-blue-900 to-indigo-900 text-white shadow-md ring-2 ring-indigo-400/40'
+                  : 'bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 border border-indigo-200 dark:border-indigo-800 hover:bg-indigo-50 dark:hover:bg-indigo-950'
+              }`}
+            >
+              <Sparkles className="w-3.5 h-3.5 text-amber-400" /> 🎪 Fests & Events
+            </button>
+
+            <button
+              onClick={() => setActiveTab('external_candidates')}
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                activeTab === 'external_candidates'
+                  ? 'bg-gradient-to-r from-blue-900 to-indigo-900 text-white shadow-md ring-2 ring-indigo-400/40'
+                  : 'bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 border border-indigo-200 dark:border-indigo-800 hover:bg-indigo-50 dark:hover:bg-indigo-950'
+              }`}
+            >
+              <Users className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" /> 🎟️ External Registrations
+            </button>
+
+            <button
+              onClick={() => setActiveTab('entry_logs')}
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                activeTab === 'entry_logs'
+                  ? 'bg-gradient-to-r from-blue-900 to-indigo-900 text-white shadow-md ring-2 ring-indigo-400/40'
+                  : 'bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 border border-indigo-200 dark:border-indigo-800 hover:bg-indigo-50 dark:hover:bg-indigo-950'
+              }`}
+            >
+              <QrCode className="w-3.5 h-3.5 text-emerald-500" /> ⚡ QR Scanner & Gate Records
+            </button>
+
+            <button
+              onClick={() => setActiveTab('security_staff')}
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                activeTab === 'security_staff'
+                  ? 'bg-gradient-to-r from-blue-900 to-indigo-900 text-white shadow-md ring-2 ring-indigo-400/40'
+                  : 'bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 border border-indigo-200 dark:border-indigo-800 hover:bg-indigo-50 dark:hover:bg-indigo-950'
+              }`}
+            >
+              <ShieldCheck className="w-3.5 h-3.5 text-amber-500" /> 🛡️ Security Staff Accounts
+            </button>
+
+            <button
+              onClick={() => setActiveTab('online_meetings')}
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                activeTab === 'online_meetings'
+                  ? 'bg-gradient-to-r from-blue-900 to-indigo-900 text-white shadow-md ring-2 ring-indigo-400/40'
+                  : 'bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 border border-indigo-200 dark:border-indigo-800 hover:bg-indigo-50 dark:hover:bg-indigo-950'
+              }`}
+            >
+              <Video className="w-3.5 h-3.5 text-indigo-400" /> 📹 Online Meetings & Proctoring
+            </button>
+
+            <button
+              onClick={() => setActiveTab('subscription_plans')}
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                activeTab === 'subscription_plans'
+                  ? 'bg-gradient-to-r from-amber-500 via-amber-600 to-yellow-500 text-slate-950 shadow-md ring-2 ring-amber-400/40 font-black'
+                  : 'bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 border border-amber-200 dark:border-amber-800 hover:bg-amber-50 dark:hover:bg-amber-950'
+              }`}
+            >
+              <Crown className="w-3.5 h-3.5 text-amber-500" /> 💳 Recruiter Plans & Revenue
+            </button>
+
           </div>
         </div>
       </div>
@@ -3723,6 +3845,53 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
           <QABoard currentUser={currentUser} />
         </div>
       )}
+
+      {/* 🎪 VIEW: FESTS & EVENT GOVERNANCE */}
+      {activeTab === 'events' && (
+        <div className="space-y-6 animate-fadeIn">
+          <AdminEventsManager />
+        </div>
+      )}
+
+      {/* 🎟️ VIEW: EXTERNAL CANDIDATES DATABASE */}
+      {activeTab === 'external_candidates' && (
+        <div className="space-y-6 animate-fadeIn">
+          <AdminExternalCandidates />
+        </div>
+      )}
+
+      {/* ⚡ VIEW: GATE QR SCANNER & LIVE ENTRY LOGS */}
+      {activeTab === 'entry_logs' && (
+        <div className="space-y-6 animate-fadeIn">
+          <AdminEntryLogsManager currentUser={currentUser} />
+        </div>
+      )}
+
+      {/* 🛡️ VIEW: SECURITY STAFF & SCANNER ACCOUNTS */}
+      {activeTab === 'security_staff' && (
+        <div className="space-y-6 animate-fadeIn">
+          <AdminSecurityStaffManager />
+        </div>
+      )}
+
+      {/* 📹 VIEW: IN-PORTAL VIDEO MEETINGS & PROCTORING AUDIT */}
+      {activeTab === 'online_meetings' && (
+        <div className="space-y-6 animate-fadeIn">
+          <AdminMeetingsManager 
+            currentUser={currentUser} 
+            onJoinMeetingRoom={(roomId) => window.location.hash = '#meeting/' + roomId} 
+          />
+        </div>
+      )}
+
+      {/* 💳 VIEW: RECRUITER SUBSCRIPTION PLANS & REVENUE */}
+      {activeTab === 'subscription_plans' && (
+        <div className="space-y-6 animate-fadeIn">
+          <AdminSubscriptionPlansManager />
+        </div>
+      )}
+
+
 
       {/* JOB FAIR MANAGER MODAL */}
       <JobFairManagerModal

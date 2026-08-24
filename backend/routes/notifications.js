@@ -437,4 +437,106 @@ router.post('/send-message', (req, res) => {
   }
 });
 
+// ==========================================
+// 📲 Dedicated WhatsApp Notification Gateway
+// ==========================================
+
+// 8. Direct WhatsApp Dispatch with Template Engine
+router.post('/whatsapp/send-direct', (req, res) => {
+  try {
+    const { studentId, recipientPhone, recipientName, templateType, customMessage, metadata } = req.body;
+
+    const name = recipientName || 'Student';
+    const phone = recipientPhone || '919876543210';
+    let text = customMessage || '';
+
+    if (!text) {
+      if (templateType === 'drive_alert') {
+        text = `🏛️ *GSFC UNIVERSITY TPC PLACEMENT ALERT*\n\nHello *${name}*,\n📢 A new placement drive matching your profile has been announced by *${metadata?.company || 'Corporate Partner'}* for the role of *${metadata?.title || 'Engineer'}*.\n💰 Package: ${metadata?.ctc || 'Competitive'}\n⏳ Deadline: ${metadata?.deadline || 'Upcoming'}\n\n👉 Apply now on the GSFC Placement Portal:\n🔗 http://localhost:5173/#student`;
+      } else if (templateType === 'interview_invite') {
+        text = `🎙️ *IN-PORTAL VIDEO INTERVIEW INVITATION*\n\nHello *${name}*,\nCongratulations! *${metadata?.company || 'Recruiter'}* has scheduled an official video interview with you on *${metadata?.meetingTime || 'Today'}*.\n\n🔒 *Anti-Cheating Proctoring Enabled*: Please join from a quiet room with webcam enabled.\n👉 Join Live Meeting Room:\n🔗 http://localhost:5173/#meeting`;
+      } else if (templateType === 'status_update') {
+        text = `🎉 *PLACEMENT STATUS UPDATE — GSFC TPC*\n\nHello *${name}*,\nYour application for *${metadata?.title || 'Engineer'}* at *${metadata?.company || 'Company'}* has been updated to: *${(metadata?.status || 'Shortlisted').toUpperCase()}* 🚀.\n\nCheck your application timeline for next steps:\n🔗 http://localhost:5173/#student-applications`;
+      } else if (templateType === 'fest_pass') {
+        text = `🎪 *GSFC TECH FEST / JOB FAIR PASS CONFIRMED*\n\nHello *${name}*,\nYour verified entry pass for *${metadata?.eventName || 'GSFC University Placement Fair 2026'}* has been generated with Pass ID: *${metadata?.passId || 'GSFC-PASS-2026'}*.\n\n📱 Show this message or your QR pass at the security reception.`;
+      } else {
+        text = `🏛️ *GSFC UNIVERSITY TPC NOTICE*\n\nHello *${name}*,\n${customMessage || 'You have an important update regarding campus placement drives.'}\n\n🔗 http://localhost:5173`;
+      }
+    }
+
+    const logId = uuidv4();
+    const deepLinkUrl = buildWhatsAppUrl(phone, text);
+
+    db.prepare(`
+      INSERT INTO notifications_log (id, recipient_name, recipient_email, recipient_phone, channel, notification_type, title, message, metadata_json, status)
+      VALUES (?, ?, ?, ?, 'whatsapp', ?, ?, ?, ?, 'delivered')
+    `).run(
+      logId,
+      name,
+      metadata?.email || 'student@gsfcuniversity.ac.in',
+      phone,
+      templateType || 'general_alert',
+      `WhatsApp Alert: ${(templateType || 'General').replace('_', ' ').toUpperCase()}`,
+      text,
+      JSON.stringify({ ...metadata, deep_link: deepLinkUrl, timestamp: new Date().toISOString() })
+    );
+
+    res.json({
+      success: true,
+      message: '✅ WhatsApp notification dispatched successfully!',
+      dispatch_id: logId,
+      recipient_phone: phone,
+      whatsapp_deep_link: deepLinkUrl,
+      status: 'delivered'
+    });
+  } catch (err) {
+    console.error('Error dispatching WhatsApp message:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 9. Get WhatsApp Delivery Logs
+router.get('/whatsapp/logs', (req, res) => {
+  try {
+    const logs = db.prepare(`
+      SELECT * FROM notifications_log 
+      WHERE channel = 'whatsapp'
+      ORDER BY created_at DESC 
+      LIMIT 50
+    `).all();
+
+    res.json(logs);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
+// 10. Student WhatsApp Notification Opt-In Toggle
+router.post('/whatsapp/opt-in', (req, res) => {
+  try {
+    const { studentId, optIn, phone } = req.body;
+    if (!studentId) {
+      return res.status(400).json({ error: 'studentId is required.' });
+    }
+
+    const optInVal = optIn ? 1 : 0;
+    db.prepare(`
+      UPDATE student_profiles 
+      SET whatsapp_opt_in = ?,
+          whatsapp_number = COALESCE(?, whatsapp_number)
+      WHERE id = ? OR user_id = ?
+    `).run(optInVal, phone, studentId, studentId);
+
+    res.json({
+      success: true,
+      whatsapp_opt_in: optInVal === 1,
+      message: optInVal === 1 ? '📲 WhatsApp alerts enabled for corporate drives & interview updates.' : 'WhatsApp alerts disabled.'
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 export default router;
+

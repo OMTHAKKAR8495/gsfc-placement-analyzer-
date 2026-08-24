@@ -1,10 +1,12 @@
 import express from 'express';
+import http from 'http';
+import { Server as SocketIOServer } from 'socket.io';
 import cors from 'cors';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { initDatabase } from './db/index.js';
+import db, { initDatabase } from './db/index.js';
 import { AuthRateLimiter } from './middleware/security.js';
 import { verifyCsrfToken } from './middleware/authMiddleware.js';
 
@@ -22,12 +24,30 @@ import ecosystemRoutes from './routes/ecosystem.js';
 import intelligenceRoutes from './routes/intelligence.js';
 import facultyRoutes from './routes/faculty.js';
 import auditRoutes from './routes/audit.js';
+import eventsRoutes from './routes/events.js';
+import meetingsRoutes from './routes/meetings.js';
+import gamificationRoutes from './routes/gamification.js';
+import blockchainRoutes from './routes/blockchainVerification.js';
+import subscriptionRoutes from './routes/subscriptions.js';
+import adminSubscriptionRoutes from './routes/adminSubscriptions.js';
+
+
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
+const server = http.createServer(app);
 const PORT = process.env.PORT || 5001;
+
+// Socket.IO Server Configuration
+const io = new SocketIOServer(server, {
+  cors: {
+    origin: (origin, callback) => callback(null, true),
+    methods: ['GET', 'POST'],
+    credentials: true
+  }
+});
 
 // Disable X-Powered-By framework fingerprinting header
 app.disable('x-powered-by');
@@ -41,7 +61,7 @@ app.use(helmet({
       styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
       imgSrc: ["'self'", "data:", "blob:", "https:"],
       fontSrc: ["'self'", "https://fonts.gstatic.com"],
-      connectSrc: ["'self'", "http://localhost:5001", "ws://localhost:5173", "http://localhost:5173", "https://generativelanguage.googleapis.com"]
+      connectSrc: ["'self'", "http://localhost:5001", "ws://localhost:5001", "ws://localhost:5173", "http://localhost:5173", "https://generativelanguage.googleapis.com"]
     }
   },
   xContentTypeOptions: true,
@@ -61,12 +81,13 @@ app.use(cors({
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token']
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token', 'X-Requested-With']
 }));
 
+// Body parser & Cookie parser
+app.use(express.json({ limit: '15mb' }));
+app.use(express.urlencoded({ extended: true, limit: '15mb' }));
 app.use(cookieParser());
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Global General Rate Limiting & CSRF Checks
 app.use('/api', AuthRateLimiter.generalApiLimiter);
@@ -94,10 +115,196 @@ app.use('/api/ecosystem', ecosystemRoutes);
 app.use('/api/intelligence', intelligenceRoutes);
 app.use('/api/faculty', facultyRoutes);
 app.use('/api/audit', auditRoutes);
+app.use('/api/events', eventsRoutes);
+app.use('/api/meetings', meetingsRoutes);
+app.use('/api/gamification', gamificationRoutes);
+app.use('/api/blockchain', blockchainRoutes);
+app.use('/api/subscriptions', subscriptionRoutes);
+app.use('/api/admin/subscriptions', adminSubscriptionRoutes);
+
+
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', app: 'CampusHire AI Platform API Server', timestamp: new Date().toISOString() });
+});
+
+// Real-Time Socket.IO WebRTC Signaling & Anti-Cheating Hub
+io.on('connection', (socket) => {
+  // 1. Join Meeting Room
+  socket.on('join-room', ({ roomId, userId, userName, userRole, studentId }) => {
+    if (!roomId) return;
+    socket.join(roomId);
+    socket.roomId = roomId;
+    socket.userId = userId;
+    socket.userName = userName;
+    socket.userRole = userRole;
+    socket.studentId = studentId;
+
+    // Get list of other sockets in room
+    const clientsInRoom = Array.from(io.sockets.adapter.rooms.get(roomId) || [])
+      .filter(id => id !== socket.id)
+      .map(id => {
+        const s = io.sockets.sockets.get(id);
+        return {
+          socketId: id,
+          userId: s?.userId,
+          userName: s?.userName,
+          userRole: s?.userRole,
+          studentId: s?.studentId
+        };
+      });
+
+    // Send existing room participants to the newly joined peer
+    socket.emit('room-peers', clientsInRoom);
+
+    // Broadcast new user arrival to existing peers
+    socket.to(roomId).emit('user-joined', {
+      socketId: socket.id,
+      userId,
+      userName,
+      userRole,
+      studentId
+    });
+
+    // If recruiter or admin joins, update meeting status to 'live'
+    if (userRole === 'company' || userRole === 'admin' || userRole === 'superadmin') {
+      try {
+        db.prepare("UPDATE meetings SET status = 'live' WHERE room_id = ? AND status = 'scheduled'").run(roomId);
+        io.to(roomId).emit('meeting-status-changed', { status: 'live' });
+      } catch (e) {}
+    }
+  });
+
+  // 2. WebRTC Signaling: Offer
+  socket.on('signal-offer', ({ targetSocketId, offer, callerInfo }) => {
+    io.to(targetSocketId).emit('signal-offer', {
+      callerSocketId: socket.id,
+      offer,
+      callerInfo: callerInfo || {
+        userId: socket.userId,
+        userName: socket.userName,
+        userRole: socket.userRole
+      }
+    });
+  });
+
+  // 3. WebRTC Signaling: Answer
+  socket.on('signal-answer', ({ targetSocketId, answer, responderInfo }) => {
+    io.to(targetSocketId).emit('signal-answer', {
+      responderSocketId: socket.id,
+      answer,
+      responderInfo: responderInfo || {
+        userId: socket.userId,
+        userName: socket.userName,
+        userRole: socket.userRole
+      }
+    });
+  });
+
+  // 4. WebRTC Signaling: ICE Candidate
+  socket.on('signal-ice-candidate', ({ targetSocketId, candidate }) => {
+    io.to(targetSocketId).emit('signal-ice-candidate', {
+      senderSocketId: socket.id,
+      candidate
+    });
+  });
+
+  // 5. In-Meeting Real-Time Chat
+  socket.on('chat-message', ({ roomId, message, senderId, senderName, senderRole }) => {
+    if (!roomId || !message) return;
+    try {
+      const msgId = 'msg_' + Date.now();
+      const meet = db.prepare('SELECT id FROM meetings WHERE room_id = ?').get(roomId);
+      if (meet) {
+        db.prepare(`
+          INSERT INTO meeting_chat_messages (id, meeting_id, sender_id, sender_name, sender_role, message)
+          VALUES (?, ?, ?, ?, ?, ?)
+        `).run(msgId, meet.id, senderId, senderName, senderRole, message);
+      }
+
+      const chatPayload = {
+        id: msgId,
+        sender_id: senderId,
+        sender_name: senderName,
+        sender_role: senderRole,
+        message,
+        created_at: new Date().toISOString()
+      };
+
+      io.to(roomId).emit('new-chat-message', chatPayload);
+    } catch (e) {
+      console.error('Chat message socket error:', e.message);
+    }
+  });
+
+  // 6. Anti-Cheating Violation Alert & Automatic Disqualification
+  socket.on('student-violation', ({ roomId, studentId, studentName, studentEmail, violationType, details }) => {
+    if (!roomId) return;
+    try {
+      const meet = db.prepare('SELECT id FROM meetings WHERE room_id = ?').get(roomId);
+      if (meet) {
+        const violId = 'viol_' + Date.now();
+        db.prepare(`
+          INSERT INTO meeting_violations (id, meeting_id, student_id, student_name, student_email, violation_type, details)
+          VALUES (?, ?, ?, ?, ?, ?, ?)
+        `).run(violId, meet.id, studentId || 'unknown', studentName || 'Candidate', studentEmail || '', violationType, details);
+
+        db.prepare(`
+          UPDATE meeting_participants
+          SET join_status = 'ejected',
+              left_at = CURRENT_TIMESTAMP,
+              outcome_status = 'rejected',
+              interviewer_notes = ?
+          WHERE meeting_id = ? AND (student_id = ? OR user_id = ?)
+        `).run(`[FLAGGED & DISQUALIFIED]: ${violationType} - ${details}`, meet.id, studentId, socket.userId);
+      }
+
+      // Broadcast alert to room participants (recruiters/admins will display instant banner)
+      io.to(roomId).emit('student-violation-alert', {
+        socketId: socket.id,
+        studentId,
+        studentName,
+        studentEmail,
+        violationType,
+        details,
+        occurredAt: new Date().toISOString()
+      });
+
+      // Notify the student that they have been ejected
+      socket.emit('you-are-ejected', {
+        violationType,
+        details,
+        occurredAt: new Date().toISOString()
+      });
+    } catch (e) {
+      console.error('Violation socket error:', e.message);
+    }
+  });
+
+  // 7. End Meeting for All
+  socket.on('end-meeting-all', ({ roomId, endedByName }) => {
+    if (!roomId) return;
+    try {
+      db.prepare("UPDATE meetings SET status = 'completed', ended_at = CURRENT_TIMESTAMP WHERE room_id = ?").run(roomId);
+    } catch (e) {}
+    io.to(roomId).emit('meeting-ended', {
+      roomId,
+      endedByName: endedByName || 'Interviewer',
+      timestamp: new Date().toISOString()
+    });
+  });
+
+  // 8. Disconnect
+  socket.on('disconnect', () => {
+    if (socket.roomId) {
+      socket.to(socket.roomId).emit('user-left', {
+        socketId: socket.id,
+        userId: socket.userId,
+        userName: socket.userName
+      });
+    }
+  });
 });
 
 // Fallback to index.html for SPA client-side routing on page reload
@@ -105,7 +312,6 @@ app.get('*', (req, res) => {
   const distIndexHtml = path.join(__dirname, '../frontend/dist/index.html');
   res.sendFile(distIndexHtml, (err) => {
     if (err) {
-      // If dist/index.html isn't built yet, send a clean HTML fallback
       res.send(`
         <!DOCTYPE html>
         <html>
@@ -135,9 +341,10 @@ app.use((err, req, res, next) => {
 
 const isMain = process.argv[1] && (fileURLToPath(import.meta.url) === process.argv[1] || process.argv[1].endsWith('backend/index.js') || process.argv[1].endsWith('index.js'));
 if (isMain && !process.env.VERCEL) {
-  app.listen(PORT, () => {
-    console.log(`🚀 CampusHire AI Backend Server running at http://localhost:${PORT}`);
+  server.listen(PORT, () => {
+    console.log(`🚀 CampusHire AI Backend Server running with WebRTC Signaling Hub at http://localhost:${PORT}`);
   });
 }
 
 export default app;
+

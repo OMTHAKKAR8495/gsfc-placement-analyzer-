@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Building2, Building, Plus, Users, Sparkles, AlertCircle, ArrowLeft, CheckCircle, ExternalLink, Download, Upload, FileText, Search, Tag, ShieldCheck, Database, Printer, Eye, Briefcase, XCircle, Trash2, Pencil, Clock, Ban, Check, RefreshCw, Save, Calendar, Phone, Bell, Send, Award, MessageSquare } from 'lucide-react';
+import { Building2, Building, Plus, Users, Sparkles, AlertCircle, ArrowLeft, CheckCircle, ExternalLink, Download, Upload, FileText, Search, Tag, ShieldCheck, Database, Printer, Eye, Briefcase, XCircle, Trash2, Pencil, Clock, Ban, Check, RefreshCw, Save, Calendar, Phone, Bell, Send, Award, MessageSquare, Video, Lock, ShieldAlert, CreditCard, Crown, DollarSign, Zap } from 'lucide-react';
 import InterviewQuestionGeneratorModal from './InterviewQuestionGeneratorModal';
 import ReportPDFModal from '../common/ReportPDFModal';
 import CompanyQuestionUploadModal from '../common/CompanyQuestionUploadModal';
@@ -10,8 +10,14 @@ import NotificationLogsModal from '../common/NotificationLogsModal';
 import DocumentAuthenticityModal from '../common/DocumentAuthenticityModal';
 import AccreditationNirfModal from '../admin/AccreditationNirfModal';
 import RequirementQuestionBankForm from './RequirementQuestionBankForm';
+import ScheduleMeetingModal from '../meetings/ScheduleMeetingModal';
+import PlanSelectionModal from './PlanSelectionModal';
+import PaymentCheckoutModal from './PaymentCheckoutModal';
+import RecruiterInvoiceModal from './RecruiterInvoiceModal';
 import { getCompanyUploadedQuestions, saveCompanyUploadedQuestion, bulkUploadCompanyQuestions, deleteCompanyUploadedQuestion } from '../../utils/companyQuestionStorage';
 import { useToast, triggerCelebrationCrackles } from '../../context/ToastContext';
+
+
 
 const DEFAULT_COMPANY_REQUIREMENTS = [
   {
@@ -238,7 +244,7 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
   const [activeTab, setActiveTabState] = useState(() => {
     try {
       const saved = localStorage.getItem('gsfc_company_active_tab');
-      return saved && ['my_applications', 'requirements', 'database', 'applicants'].includes(saved) ? saved : 'my_applications';
+      return saved && ['my_applications', 'requirements', 'database', 'applicants', 'meetings'].includes(saved) ? saved : 'my_applications';
     } catch(e) {
       return 'my_applications';
     }
@@ -256,6 +262,73 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
   const [applicantsData, setApplicantsData] = useState([]);
   const [showPostModal, setShowPostModal] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  // In-Portal Video Meetings & Anti-Cheating Proctoring State
+  const [companyMeetings, setCompanyMeetings] = useState([]);
+  const [loadingMeetings, setLoadingMeetings] = useState(false);
+  const [scheduleMeetingModalOpen, setScheduleMeetingModalOpen] = useState(false);
+  const [scheduleMeetingDriveId, setScheduleMeetingDriveId] = useState('');
+
+  const fetchCompanyMeetings = async () => {
+    try {
+      setLoadingMeetings(true);
+      const token = localStorage.getItem('campushire_token') || `demo_token_${currentUser?.role || 'company'}`;
+      const res = await fetch('/api/meetings/company', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setCompanyMeetings(Array.isArray(data) ? data : []);
+      }
+      setLoadingMeetings(false);
+    } catch (err) {
+      console.error('Error fetching company meetings:', err);
+      setLoadingMeetings(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchCompanyMeetings();
+  }, []);
+
+  // 💳 Subscription Plans & Razorpay Gateway State
+  const [currentSubscription, setCurrentSubscription] = useState(null);
+  const [showPlanModal, setShowPlanModal] = useState(false);
+  const [showCheckoutModal, setShowCheckoutModal] = useState(false);
+  const [selectedPlanForCheckout, setSelectedPlanForCheckout] = useState(null);
+  const [showInvoiceModal, setShowInvoiceModal] = useState(false);
+  const [selectedInvoice, setSelectedInvoice] = useState(null);
+  const [companyInvoices, setCompanyInvoices] = useState([]);
+  const [loadingSubscription, setLoadingSubscription] = useState(false);
+
+  const fetchSubscriptionStatus = async () => {
+    try {
+      setLoadingSubscription(true);
+      const companyId = company?.id || company?.user_id || currentUser?.id || 'c_gsfc_limited';
+      const [subRes, invRes] = await Promise.all([
+        fetch(`/api/subscriptions/current/${companyId}`),
+        fetch(`/api/subscriptions/invoices/${companyId}`)
+      ]);
+      if (subRes.ok) {
+        const subData = await subRes.json();
+        setCurrentSubscription(subData);
+      }
+      if (invRes.ok) {
+        const invData = await invRes.json();
+        setCompanyInvoices(Array.isArray(invData) ? invData : []);
+      }
+    } catch (err) {
+      console.error('Error fetching subscription status:', err);
+    } finally {
+      setLoadingSubscription(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchSubscriptionStatus();
+  }, [company, currentUser]);
+
+
 
   // Attendance & TPC Official Report State
   const [attendanceReportModalOpen, setAttendanceReportModalOpen] = useState(false);
@@ -1063,9 +1136,16 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
   };
 
   const handleOpenNewPostModal = () => {
+    // 💳 Gated Access: Check if Recruiter has an active paid plan and quota
+    if (currentSubscription && (!currentSubscription.has_subscription || currentSubscription.is_expired || currentSubscription.is_limit_reached)) {
+      setShowPlanModal(true);
+      return;
+    }
+
     setEditingReqId(null);
     setPostForm({
       title: '',
+
       eligible_programs: ['BTech CSE', 'BTech IT'],
       min_cgpa: '7.5',
       required_skills: 'Python, React, SQL',
@@ -1337,6 +1417,26 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
                   <AlertCircle className="w-3.5 h-3.5" /> Pending TPC Verification
                 </span>
               )}
+
+              {/* Recruiter Subscription Status Pill */}
+              {currentSubscription && (
+                <div 
+                  onClick={() => setShowPlanModal(true)}
+                  className="px-3 py-1 bg-gradient-to-r from-amber-500/15 via-blue-500/10 to-amber-500/10 hover:from-amber-500/25 border border-amber-400/50 rounded-xl text-slate-800 text-xs font-bold flex items-center gap-2 cursor-pointer shadow-sm hover:scale-105 transition-all"
+                  title="Click to View / Upgrade Subscription Tier"
+                >
+                  <Crown className="w-4 h-4 text-amber-600 shrink-0" />
+                  <span>
+                    <strong className="text-amber-800 font-black">{currentSubscription.badge_title || currentSubscription.plan_name || 'No Active Plan'}</strong>
+                    {' • '}
+                    {currentSubscription.is_unlimited ? 'Unlimited Postings' : `${currentSubscription.postings_used}/${currentSubscription.max_postings} Postings Used`}
+                    {currentSubscription.days_remaining > 0 && ` • ${currentSubscription.days_remaining}d left`}
+                  </span>
+                  <span className="px-2 py-0.5 bg-amber-500 text-slate-950 font-black text-[10px] rounded-lg">
+                    Upgrade
+                  </span>
+                </div>
+              )}
             </div>
             <p className="text-xs text-slate-700 mt-1 font-bold">{company?.industry || 'Technology'} • {company?.website}</p>
           </div>
@@ -1452,9 +1552,48 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
               {allCompanyApplicants.length} Candidates
             </span>
           </button>
+
+          {/* PAGE 5: IN-PORTAL VIDEO MEETINGS & INTERVIEWS */}
+          <button
+            onClick={() => setActiveTab('meetings')}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-black transition-all shrink-0 cursor-pointer border ${
+              activeTab === 'meetings'
+                ? 'bg-gradient-to-r from-indigo-600 via-blue-700 to-purple-800 text-white border-indigo-500 shadow-lg ring-2 ring-indigo-500/30 scale-105'
+                : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-indigo-50 dark:hover:bg-slate-800'
+            }`}
+          >
+            <Video className={`w-4 h-4 shrink-0 ${activeTab === 'meetings' ? 'text-indigo-300' : 'text-indigo-600'}`} />
+            <span>📹 Video Interviews & Meetings</span>
+            <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+              activeTab === 'meetings' ? 'bg-indigo-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300'
+            }`}>
+              {companyMeetings.length}
+            </span>
+          </button>
+
+          {/* PAGE 6: SUBSCRIPTION & BILLING */}
+          <button
+            onClick={() => setActiveTab('subscription_billing')}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-black transition-all shrink-0 cursor-pointer border ${
+              activeTab === 'subscription_billing'
+                ? 'bg-gradient-to-r from-amber-500 via-amber-600 to-yellow-500 text-slate-950 border-amber-400 shadow-lg ring-2 ring-amber-400/30 scale-105'
+                : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-amber-50 dark:hover:bg-slate-800'
+            }`}
+          >
+            <Crown className={`w-4 h-4 shrink-0 ${activeTab === 'subscription_billing' ? 'text-slate-950' : 'text-amber-500'}`} />
+            <span>💳 Subscription & Plans</span>
+            {currentSubscription && (
+              <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+                activeTab === 'subscription_billing' ? 'bg-slate-950 text-amber-300' : 'bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300'
+              }`}>
+                {currentSubscription.badge_title || currentSubscription.plan_name || 'Free'}
+              </span>
+            )}
+          </button>
         </div>
 
         {/* Dynamic Page Context Banner to easily differentiate between pages */}
+
         <div className="px-4 py-2 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 flex items-center justify-between text-xs">
           <div className="flex items-center gap-2 text-slate-600 dark:text-slate-400 font-bold">
             <span className="font-black text-slate-900 dark:text-slate-100 flex items-center gap-1">
@@ -1478,6 +1617,11 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
             {activeTab === 'applicants' && (
               <span className="text-emerald-700 dark:text-emerald-400 font-black">
                 📥 Applied Candidates Feed & Attendance Register ({allCompanyApplicants.length} Registered Students)
+              </span>
+            )}
+            {activeTab === 'meetings' && (
+              <span className="text-indigo-700 dark:text-indigo-400 font-black">
+                📹 In-Portal Live Video Interviews & Anti-Cheating Monitor ({companyMeetings.length} Scheduled Rooms)
               </span>
             )}
           </div>
@@ -2638,8 +2782,455 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
         );
       })()}
 
+      {/* VIEW 5: IN-PORTAL VIDEO MEETINGS & INTERVIEWS */}
+      {activeTab === 'meetings' && (
+        <div className="space-y-6 animate-fadeIn">
+          {/* Header Card */}
+          <div className="glass-panel p-5 sm:p-6 rounded-3xl border border-slate-200 shadow-xl flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="px-3 py-1 bg-indigo-100 text-indigo-800 border border-indigo-300 rounded-full text-xs font-black">
+                  In-Portal Live Video Interview Room
+                </span>
+                <span className="px-2.5 py-0.5 bg-amber-100 text-amber-800 border border-amber-300 rounded-full text-[11px] font-black flex items-center gap-1">
+                  <Lock className="w-3 h-3 text-amber-600" />
+                  Anti-Cheating Proctoring Guard
+                </span>
+              </div>
+              <h2 className="text-xl sm:text-2xl font-black text-slate-900 mt-1.5 flex items-center gap-2">
+                <Video className="w-6 h-6 text-indigo-700" />
+                <span>Recruiter Live Video Interviews Hub</span>
+              </h2>
+              <p className="text-xs text-slate-600 font-bold mt-0.5">
+                Interview shortlisted students online inside the GSFC Placement Portal with real-time candidate evaluation and automated tab-switch disqualification.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <button
+                onClick={fetchCompanyMeetings}
+                className="p-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-2xl transition cursor-pointer border border-slate-300"
+                title="Refresh Meetings"
+              >
+                <RefreshCw className={`w-4 h-4 ${loadingMeetings ? 'animate-spin' : ''}`} />
+              </button>
+
+              <button
+                onClick={() => {
+                  setScheduleMeetingDriveId(requirements[0]?.id || '');
+                  setScheduleMeetingModalOpen(true);
+                }}
+                className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-indigo-700 to-blue-900 hover:opacity-95 text-white text-xs font-black rounded-2xl transition cursor-pointer shadow-lg shadow-indigo-900/30"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Schedule New Online Interview</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Metric Cards */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+              <div className="flex items-center justify-between text-slate-500 mb-1">
+                <span className="text-xs font-bold">Total Scheduled</span>
+                <Video className="w-4 h-4 text-indigo-600" />
+              </div>
+              <p className="text-2xl font-black text-slate-900">{companyMeetings.length}</p>
+              <span className="text-[10px] text-slate-500 font-bold">Across your active recruitment drives</span>
+            </div>
+
+            <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+              <div className="flex items-center justify-between text-slate-500 mb-1">
+                <span className="text-xs font-bold">Live Rooms Now</span>
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              </div>
+              <p className="text-2xl font-black text-emerald-600">
+                {companyMeetings.filter(m => m.status === 'live').length}
+              </p>
+              <span className="text-[10px] text-emerald-600 font-bold">Active in-portal video interviews</span>
+            </div>
+
+            <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+              <div className="flex items-center justify-between text-slate-500 mb-1">
+                <span className="text-xs font-bold">Completed Interviews</span>
+                <CheckCircle className="w-4 h-4 text-blue-600" />
+              </div>
+              <p className="text-2xl font-black text-blue-600">
+                {companyMeetings.filter(m => m.status === 'completed').length}
+              </p>
+              <span className="text-[10px] text-slate-500 font-bold">Results synced into applications</span>
+            </div>
+
+            <div className="bg-white p-4 rounded-2xl border border-red-200 shadow-sm bg-gradient-to-b from-red-50 to-white">
+              <div className="flex items-center justify-between text-red-700 mb-1">
+                <span className="text-xs font-bold">Violations Flagged</span>
+                <ShieldAlert className="w-4 h-4 text-red-600" />
+              </div>
+              <p className="text-2xl font-black text-red-600">
+                {companyMeetings.reduce((acc, m) => acc + (m.violation_count || 0), 0)}
+              </p>
+              <span className="text-[10px] text-red-700 font-bold">Tab-switch / blur disqualifications</span>
+            </div>
+          </div>
+
+          {/* Meetings List */}
+          {loadingMeetings ? (
+            <div className="p-12 bg-white rounded-3xl border border-slate-200 text-center text-slate-500 flex flex-col items-center justify-center">
+              <RefreshCw className="w-8 h-8 text-indigo-600 animate-spin mb-2" />
+              <p className="text-xs font-bold">Loading video interview schedules...</p>
+            </div>
+          ) : companyMeetings.length === 0 ? (
+            <div className="p-12 bg-white rounded-3xl border border-slate-200 text-center text-slate-500">
+              <Video className="w-12 h-12 mx-auto mb-2 text-slate-300" />
+              <p className="text-sm font-black text-slate-700">No Online Video Interviews Scheduled</p>
+              <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto">
+                Schedule a live in-portal meeting to interview shortlisted candidates online with anti-cheating protection.
+              </p>
+              <button
+                onClick={() => setScheduleMeetingModalOpen(true)}
+                className="mt-4 px-6 py-2.5 bg-indigo-700 hover:bg-indigo-600 text-white text-xs font-black rounded-xl transition cursor-pointer"
+              >
+                Schedule Your First Video Interview
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+              {companyMeetings.map(m => {
+                const isLive = m.status === 'live';
+                const isCompleted = m.status === 'completed';
+                const hasViolations = (m.violation_count || 0) > 0;
+
+                return (
+                  <div
+                    key={m.id}
+                    className="bg-white rounded-3xl border border-slate-200 p-5 flex flex-col justify-between shadow-lg hover:shadow-xl transition relative group"
+                  >
+                    <div>
+                      <div className="flex items-center justify-between gap-2 mb-3">
+                        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider flex items-center gap-1 ${
+                          isLive 
+                            ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' 
+                            : (isCompleted ? 'bg-slate-100 text-slate-600' : 'bg-amber-100 text-amber-800 border border-amber-300')
+                        }`}>
+                          {isLive && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />}
+                          {m.status}
+                        </span>
+
+                        <span className="text-[10px] text-slate-500 font-mono font-bold">
+                          {m.room_id}
+                        </span>
+                      </div>
+
+                      <h3 className="text-sm font-black text-slate-900 group-hover:text-indigo-700 transition leading-snug">
+                        {m.title}
+                      </h3>
+
+                      <div className="mt-2.5 space-y-1 text-xs text-slate-600">
+                        <p className="flex items-center gap-1.5 text-blue-900 font-bold">
+                          <Briefcase className="w-3.5 h-3.5 shrink-0" />
+                          <span className="truncate">{m.drive_title}</span>
+                        </p>
+                        <p className="flex items-center gap-1.5 text-slate-500">
+                          <Calendar className="w-3.5 h-3.5 shrink-0 text-emerald-600" />
+                          <span>{new Date(m.scheduled_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })} at {new Date(m.scheduled_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                        </p>
+                        <p className="flex items-center gap-1.5 text-slate-500">
+                          <Clock className="w-3.5 h-3.5 shrink-0 text-amber-600" />
+                          <span>Duration: {m.duration_minutes} Mins</span>
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="mt-5 pt-3.5 border-t border-slate-100 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="flex items-center gap-1 text-slate-700 font-black text-xs">
+                          <Users className="w-3.5 h-3.5 text-indigo-600" />
+                          <span>{m.student_count || 0} Candidates</span>
+                        </span>
+
+                        {hasViolations && (
+                          <span className="flex items-center gap-1 text-red-700 font-black px-1.5 py-0.5 bg-red-100 border border-red-300 rounded-md text-[10px]">
+                            <ShieldAlert className="w-3 h-3 text-red-600" />
+                            <span>{m.violation_count} Flagged</span>
+                          </span>
+                        )}
+                      </div>
+
+                      <button
+                        onClick={() => {
+                          window.location.hash = `#meeting/${m.room_id}`;
+                        }}
+                        className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-black transition cursor-pointer shadow-md ${
+                          isCompleted
+                            ? 'bg-slate-800 hover:bg-slate-700 text-white'
+                            : 'bg-gradient-to-r from-emerald-600 to-teal-700 hover:opacity-95 text-white shadow-emerald-900/20'
+                        }`}
+                      >
+                        <Video className="w-3.5 h-3.5" />
+                        <span>{isCompleted ? 'Re-open Room' : 'Join Room'}</span>
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* VIEW 6: RECRUITER SUBSCRIPTION PLANS & INVOICES */}
+      {activeTab === 'subscription_billing' && (
+        <div className="space-y-8 animate-in fade-in duration-200">
+          {/* Current Subscription Hero Banner */}
+          <div className="p-6 sm:p-8 bg-gradient-to-br from-blue-950 via-slate-900 to-indigo-950 rounded-3xl border border-blue-900/40 text-white shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-6 relative overflow-hidden">
+            <div className="absolute -right-16 -bottom-16 w-64 h-64 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
+
+            <div>
+              <div className="inline-flex items-center gap-2 px-3 py-1 bg-amber-500/20 border border-amber-400/30 rounded-full text-amber-300 text-xs font-black tracking-wider uppercase mb-2.5">
+                <Crown className="w-3.5 h-3.5 text-amber-400" />
+                <span>Active Corporate Membership</span>
+              </div>
+              <h2 className="text-2xl sm:text-3xl font-black text-white flex items-center gap-3">
+                <span>{currentSubscription?.plan_name || 'No Active Plan'}</span>
+                {currentSubscription?.badge_title && (
+                  <span className="text-xs px-2.5 py-1 bg-amber-400 text-slate-950 rounded-full font-black uppercase">
+                    {currentSubscription.badge_title}
+                  </span>
+                )}
+              </h2>
+              <p className="mt-1 text-xs sm:text-sm text-slate-300 max-w-xl">
+                {currentSubscription?.has_subscription 
+                  ? `Your recruitment tier is active with ${currentSubscription.days_remaining} days of campus recruitment access remaining.`
+                  : 'Upgrade to an active recruitment plan to post job requirement drives and access verified student dossiers.'}
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3 shrink-0">
+              <button
+                onClick={() => setShowPlanModal(true)}
+                className="py-3 px-6 rounded-2xl bg-gradient-to-r from-amber-500 via-amber-600 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 font-black text-xs shadow-lg shadow-amber-500/20 transition-all flex items-center gap-2 cursor-pointer hover:scale-105"
+              >
+                <Sparkles className="w-4 h-4 fill-slate-950" />
+                <span>{currentSubscription?.has_subscription ? 'Upgrade / Switch Tier' : 'Choose Plan Now'}</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Quota & Usage Overview */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="p-6 bg-white dark:bg-slate-800 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col justify-between">
+              <div>
+                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                  Active Requirement Quota
+                </span>
+                <h3 className="text-2xl font-black text-slate-900 dark:text-white">
+                  {currentSubscription?.postings_used || 0} / {currentSubscription?.is_unlimited ? '∞' : (currentSubscription?.max_postings || 0)}
+                </h3>
+                <p className="text-xs text-slate-500 mt-1">
+                  {currentSubscription?.is_unlimited 
+                    ? 'Unlimited campus job postings allowed'
+                    : `${Math.max(0, (currentSubscription?.max_postings || 0) - (currentSubscription?.postings_used || 0))} postings available in current plan`}
+                </p>
+              </div>
+
+              {!currentSubscription?.is_unlimited && currentSubscription?.max_postings > 0 && (
+                <div className="mt-4">
+                  <div className="w-full h-2 rounded-full bg-slate-100 dark:bg-slate-700 overflow-hidden">
+                    <div 
+                      className="h-full bg-blue-600 rounded-full transition-all"
+                      style={{ width: `${Math.min(100, Math.round(((currentSubscription.postings_used || 0) / currentSubscription.max_postings) * 100))}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="p-6 bg-white dark:bg-slate-800 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col justify-between">
+              <div>
+                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                  Plan Validity & Renewal
+                </span>
+                <h3 className="text-2xl font-black text-emerald-600">
+                  {currentSubscription?.days_remaining || 0} Days
+                </h3>
+                <p className="text-xs text-slate-500 mt-1">
+                  {currentSubscription?.expires_at ? `Valid through ${new Date(currentSubscription.expires_at).toLocaleDateString('en-IN')}` : 'No active expiration'}
+                </p>
+              </div>
+
+              <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 flex items-center justify-between">
+                <span>Account Status:</span>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300">
+                  {currentSubscription?.status || 'Active'}
+                </span>
+              </div>
+            </div>
+
+            <div className="p-6 bg-white dark:bg-slate-800 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col justify-between">
+              <div>
+                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                  Corporate Invoices Generated
+                </span>
+                <h3 className="text-2xl font-black text-blue-600">
+                  {companyInvoices.length} Invoices
+                </h3>
+                <p className="text-xs text-slate-500 mt-1">
+                  Official GST-compliant tax receipts
+                </p>
+              </div>
+
+              <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-700 text-xs font-bold text-blue-600 flex items-center gap-1">
+                <FileText className="w-3.5 h-3.5" />
+                <span>Instant PDF print available below</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Current Tier Feature Entitlements */}
+          <div className="p-6 bg-white dark:bg-slate-800 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm space-y-4">
+            <h3 className="text-base font-black text-slate-900 dark:text-white">
+              Current Tier Feature Entitlements
+            </h3>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-xs">
+              <div className={`p-4 rounded-2xl border ${currentSubscription?.features?.resume_download ? 'bg-emerald-50/60 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800' : 'bg-slate-50 dark:bg-slate-900/60 border-slate-200 dark:border-slate-700 opacity-60'}`}>
+                <div className="flex items-center gap-2 font-bold mb-1">
+                  <CheckCircle className={`w-4 h-4 ${currentSubscription?.features?.resume_download ? 'text-emerald-600' : 'text-slate-400'}`} />
+                  <span className="text-slate-900 dark:text-white">Full Resume PDF Download</span>
+                </div>
+                <p className="text-[11px] text-slate-500">Download complete verified student resumes in PDF format.</p>
+              </div>
+
+              <div className={`p-4 rounded-2xl border ${currentSubscription?.features?.ats_score_view ? 'bg-emerald-50/60 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800' : 'bg-slate-50 dark:bg-slate-900/60 border-slate-200 dark:border-slate-700 opacity-60'}`}>
+                <div className="flex items-center gap-2 font-bold mb-1">
+                  <CheckCircle className={`w-4 h-4 ${currentSubscription?.features?.ats_score_view ? 'text-emerald-600' : 'text-slate-400'}`} />
+                  <span className="text-slate-900 dark:text-white">AI ATS Match Score View</span>
+                </div>
+                <p className="text-[11px] text-slate-500">See AI resume fit percentages and missing keyword breakdown.</p>
+              </div>
+
+              <div className={`p-4 rounded-2xl border ${currentSubscription?.features?.online_meetings ? 'bg-emerald-50/60 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800' : 'bg-slate-50 dark:bg-slate-900/60 border-slate-200 dark:border-slate-700 opacity-60'}`}>
+                <div className="flex items-center gap-2 font-bold mb-1">
+                  <CheckCircle className={`w-4 h-4 ${currentSubscription?.features?.online_meetings ? 'text-emerald-600' : 'text-slate-400'}`} />
+                  <span className="text-slate-900 dark:text-white">In-Portal Video Interviews</span>
+                </div>
+                <p className="text-[11px] text-slate-500">Conduct proctored WebRTC video rounds directly in the browser.</p>
+              </div>
+
+              <div className={`p-4 rounded-2xl border ${currentSubscription?.features?.candidate_readiness ? 'bg-emerald-50/60 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800' : 'bg-slate-50 dark:bg-slate-900/60 border-slate-200 dark:border-slate-700 opacity-60'}`}>
+                <div className="flex items-center gap-2 font-bold mb-1">
+                  <CheckCircle className={`w-4 h-4 ${currentSubscription?.features?.candidate_readiness ? 'text-emerald-600' : 'text-slate-400'}`} />
+                  <span className="text-slate-900 dark:text-white">Predictive Readiness Scoring</span>
+                </div>
+                <p className="text-[11px] text-slate-500">Access multi-dimensional placement probability metrics.</p>
+              </div>
+
+              <div className={`p-4 rounded-2xl border ${currentSubscription?.features?.homepage_featured ? 'bg-emerald-50/60 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800' : 'bg-slate-50 dark:bg-slate-900/60 border-slate-200 dark:border-slate-700 opacity-60'}`}>
+                <div className="flex items-center gap-2 font-bold mb-1">
+                  <CheckCircle className={`w-4 h-4 ${currentSubscription?.features?.homepage_featured ? 'text-emerald-600' : 'text-slate-400'}`} />
+                  <span className="text-slate-900 dark:text-white">Homepage Featured Banner</span>
+                </div>
+                <p className="text-[11px] text-slate-500">Branded prominence on the campus portal landing page.</p>
+              </div>
+
+              <div className={`p-4 rounded-2xl border ${currentSubscription?.features?.direct_messaging ? 'bg-emerald-50/60 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800' : 'bg-slate-50 dark:bg-slate-900/60 border-slate-200 dark:border-slate-700 opacity-60'}`}>
+                <div className="flex items-center gap-2 font-bold mb-1">
+                  <CheckCircle className={`w-4 h-4 ${currentSubscription?.features?.direct_messaging ? 'text-emerald-600' : 'text-slate-400'}`} />
+                  <span className="text-slate-900 dark:text-white">Direct Candidate Messaging</span>
+                </div>
+                <p className="text-[11px] text-slate-500">Send WhatsApp alerts and interview invitations directly.</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Corporate Tax Receipts & Invoices Table */}
+          <div className="p-6 bg-white dark:bg-slate-800 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-base font-black text-slate-900 dark:text-white">
+                  Payment History & Tax Invoices
+                </h3>
+                <p className="text-xs text-slate-500">
+                  Download or print verified GST tax invoices for institutional audits and accounts reconciliation.
+                </p>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead className="bg-slate-100 dark:bg-slate-900/80 text-slate-600 dark:text-slate-300 uppercase font-black text-[10px]">
+                    <tr>
+                      <th className="p-3.5">Invoice #</th>
+                      <th className="p-3.5">Plan Tier</th>
+                      <th className="p-3.5">Amount (INR)</th>
+                      <th className="p-3.5">Payment Method</th>
+                      <th className="p-3.5">Payment Ref ID</th>
+                      <th className="p-3.5">Status</th>
+                      <th className="p-3.5">Date</th>
+                      <th className="p-3.5 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-700/60">
+                    {companyInvoices.length === 0 ? (
+                      <tr>
+                        <td colSpan={8} className="p-8 text-center text-slate-400">
+                          No past payment transactions recorded yet.
+                        </td>
+                      </tr>
+                    ) : (
+                      companyInvoices.map((inv) => (
+                        <tr key={inv.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/30 transition-colors">
+                          <td className="p-3.5 font-bold text-blue-600 dark:text-blue-400 font-mono">
+                            {inv.receipt_number}
+                          </td>
+                          <td className="p-3.5 font-black text-slate-900 dark:text-white">
+                            {inv.plan_name}
+                          </td>
+                          <td className="p-3.5 font-black text-slate-900 dark:text-white">
+                            ₹{inv.amount_inr?.toLocaleString('en-IN')}
+                          </td>
+                          <td className="p-3.5 text-slate-600 dark:text-slate-400">
+                            {inv.payment_method || 'Razorpay UPI / Cards'}
+                          </td>
+                          <td className="p-3.5 font-mono text-[10px] text-slate-500">
+                            {inv.gateway_payment_id || '—'}
+                          </td>
+                          <td className="p-3.5">
+                            <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300">
+                              {inv.status}
+                            </span>
+                          </td>
+                          <td className="p-3.5 text-slate-500 text-[11px]">
+                            {new Date(inv.paid_at || inv.created_at).toLocaleDateString('en-IN')}
+                          </td>
+                          <td className="p-3.5 text-right">
+                            <button
+                              onClick={() => {
+                                setSelectedInvoice(inv);
+                                setShowInvoiceModal(true);
+                              }}
+                              className="p-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/60 dark:hover:bg-blue-900/60 text-blue-700 dark:text-blue-300 font-bold transition-all cursor-pointer inline-flex items-center gap-1"
+                              title="View & Print Official GST Invoice"
+                            >
+                              <FileText className="w-3.5 h-3.5" />
+                              <span>View Invoice</span>
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* VIEW 2: ACTIVE REQUIREMENTS GRID */}
       {activeTab === 'requirements' && (
+
         <div className="space-y-4">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {requirements.map((req) => (
@@ -3479,6 +4070,54 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
         isOpen={accreditationModalOpen}
         onClose={() => setAccreditationModalOpen(false)}
       />
+
+      {/* In-Portal Video Interview Scheduling Modal */}
+      <ScheduleMeetingModal
+        isOpen={scheduleMeetingModalOpen}
+        onClose={() => setScheduleMeetingModalOpen(false)}
+        preselectedDriveId={scheduleMeetingDriveId}
+        currentUser={currentUser}
+        onMeetingScheduled={() => {
+          setScheduleMeetingModalOpen(false);
+          fetchCompanyMeetings();
+        }}
+      />
+
+      {/* Recruiter Subscription Plans Comparison & Selection Modal */}
+      <PlanSelectionModal
+        isOpen={showPlanModal}
+        onClose={() => setShowPlanModal(false)}
+        currentSubscription={currentSubscription}
+        companyName={company?.company_name || 'Corporate Recruiter'}
+        onSelectPlan={(plan) => {
+          setSelectedPlanForCheckout(plan);
+          setShowPlanModal(false);
+          setShowCheckoutModal(true);
+        }}
+      />
+
+      {/* Razorpay Checkout & Sandbox Payment Simulator Modal */}
+      <PaymentCheckoutModal
+        isOpen={showCheckoutModal}
+        onClose={() => setShowCheckoutModal(false)}
+        plan={selectedPlanForCheckout}
+        company={company || currentUser}
+        onPaymentSuccess={(newSub, transaction) => {
+          setShowCheckoutModal(false);
+          fetchSubscriptionStatus();
+          setSelectedInvoice(transaction);
+          setShowInvoiceModal(true);
+        }}
+      />
+
+      {/* Official GSFC University Recruiter Tax Invoice & Receipt Modal */}
+      <RecruiterInvoiceModal
+        isOpen={showInvoiceModal}
+        onClose={() => setShowInvoiceModal(false)}
+        transaction={selectedInvoice}
+      />
     </div>
   );
 }
+
+

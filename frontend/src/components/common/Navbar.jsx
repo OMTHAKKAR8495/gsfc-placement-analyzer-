@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { User, Building2, ShieldCheck, LogOut, LogIn, Sun, Moon, HelpCircle, Smartphone, Download, Sparkles, Menu, X, Plus, Users, Award, Bell, Globe, Search, Play, Bot, GraduationCap, Lock, Settings } from 'lucide-react';
+import { User, Building2, ShieldCheck, LogOut, LogIn, Sun, Moon, HelpCircle, Smartphone, Download, Sparkles, Menu, X, Plus, Users, Award, Bell, Globe, Search, Play, Bot, GraduationCap, Lock, Settings, Check } from 'lucide-react';
 import AppDownloadModal from './AppDownloadModal';
 import NotificationCenterModal from './NotificationCenterModal';
 import EcosystemHubModal from './EcosystemHubModal';
@@ -7,6 +7,7 @@ import GlobalSearchModal from './GlobalSearchModal';
 import AICopilotDrawer from './AICopilotDrawer';
 import FacultyGuidedDemoModal from './FacultyGuidedDemoModal';
 import SettingsModal from './SettingsModal';
+import { useLanguage } from '../../context/LanguageContext';
 
 const getInitials = (val) => {
   if (typeof val === 'string' && val.trim()) {
@@ -16,7 +17,10 @@ const getInitials = (val) => {
 };
 
 export default function Navbar({ currentUser, activeRole, onRoleSwitch, onOpenAuth, onLogout, theme, onToggleTheme, onOpenJobPost, onOpenApplicantsFeed }) {
+  const { language, setLanguage, languages, t } = useLanguage();
+  const [langDropdownOpen, setLangDropdownOpen] = useState(false);
   const [downloadModalOpen, setDownloadModalOpen] = useState(false);
+
   const [ecosystemModalOpen, setEcosystemModalOpen] = useState(false);
   const [searchModalOpen, setSearchModalOpen] = useState(false);
   const [copilotDrawerOpen, setCopilotDrawerOpen] = useState(false);
@@ -284,6 +288,22 @@ export default function Navbar({ currentUser, activeRole, onRoleSwitch, onOpenAu
             </button>
           )}
 
+          {/* Security Terminal Tab */}
+          {(currentUser?.role === 'security' || currentUser?.role === 'admin' || currentUser?.role === 'superadmin') && (
+            <button
+              onClick={() => onRoleSwitch('security')}
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-black transition-all shrink-0 whitespace-nowrap cursor-pointer ${
+                activeRole === 'security'
+                  ? 'bg-purple-900 text-white shadow-md ring-2 ring-purple-400/40'
+                  : 'text-purple-700 dark:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-950/50'
+              }`}
+              title="Open Campus Security Gate Pass Scanner Terminal"
+            >
+              <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
+              <span>🛡️ Security Desk</span>
+            </button>
+          )}
+
           {/* Super Admin Tab (Visible only to Super Administrators) */}
           {(currentUser?.role === 'superadmin' || currentUser?.role === 'admin') && (
             <button
@@ -346,6 +366,56 @@ export default function Navbar({ currentUser, activeRole, onRoleSwitch, onOpenAu
             )}
           </button>
 
+          {/* 🌐 MULTI-LANGUAGE SELECTOR */}
+          <div className="relative">
+            <button
+              onClick={() => setLangDropdownOpen(prev => !prev)}
+              className="flex items-center gap-1.5 px-2.5 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 transition-all text-xs font-bold cursor-pointer"
+              title="Change Language / भाषा बदलें / ભાષા બદલો"
+            >
+              <span>{languages.find(l => l.code === language)?.flag || '🌐'}</span>
+              <span className="hidden md:inline text-[11px] font-black uppercase">{language}</span>
+            </button>
+
+            {langDropdownOpen && (
+              <div 
+                className="absolute right-0 mt-2 w-44 bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700 p-1.5 z-50 animate-in fade-in zoom-in-95 duration-150"
+                onClick={() => setLangDropdownOpen(false)}
+              >
+                <div className="text-[10px] font-black uppercase tracking-wider text-slate-400 px-3 py-1">
+                  Select Language
+                </div>
+                {languages.map((lang) => (
+                  <button
+                    key={lang.code}
+                    onClick={() => setLanguage(lang.code)}
+                    className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition-colors ${
+                      language === lang.code 
+                        ? 'bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400' 
+                        : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'
+                    }`}
+                  >
+                    <span className="flex items-center gap-2">
+                      <span className="text-base">{lang.flag}</span>
+                      <span>{lang.nativeLabel}</span>
+                    </span>
+                    {language === lang.code && <Check className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* ⛓️ BLOCKCHAIN VERIFICATION QUICK LINK */}
+          <button
+            onClick={() => { window.location.hash = 'verify-document'; }}
+            className="hidden lg:flex items-center gap-1 px-2.5 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 transition-all text-xs font-black cursor-pointer"
+            title="Verify Blockchain-Anchored Credentials"
+          >
+            <span>⛓️</span>
+            <span className="text-[11px]">Verify</span>
+          </button>
+
           {/* ⚙️ SETTINGS BUTTON WITH LOGO */}
           <button
             onClick={() => setSettingsModalOpen(true)}
@@ -362,6 +432,7 @@ export default function Navbar({ currentUser, activeRole, onRoleSwitch, onOpenAu
           >
             {theme === 'dark' ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-slate-700" />}
           </button>
+
 
           {/* 🔑 AVATAR DROPDOWN — Sign In/Out & Profile (no overflow at any screen width) */}
           {currentUser ? (

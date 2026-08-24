@@ -96,13 +96,40 @@ router.post('/requirements', (req, res) => {
 
     let company = db.prepare('SELECT * FROM company_profiles WHERE id = ? OR user_id = ?').get(company_id, company_id);
     if (!company) {
-      const compProfileId = 'c_' + Date.now();
-      db.prepare(`
-        INSERT INTO company_profiles (id, user_id, company_name, logo_url, industry, website, approved, contact_email, contact_phone)
-        VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?)
-      `).run(compProfileId, company_id, 'Corporate Recruiter', company_logo_url || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=100', 'Technology & Engineering', company_website || 'https://company.com', company_email || 'hr@company.com', company_phone || '+91 98765 43210');
-      company = db.prepare('SELECT * FROM company_profiles WHERE id = ?').get(compProfileId);
+      let user = db.prepare('SELECT * FROM users WHERE id = ?').get(company_id);
+      let userId = user ? user.id : null;
+      if (!userId) {
+        userId = 'u_' + String(company_id || Date.now()).replace(/[^a-zA-Z0-9_]/g, '_');
+        const uEmail = `recruiter_${Date.now()}_${Math.floor(Math.random()*10000)}@company.com`;
+        try {
+          db.prepare("INSERT INTO users (id, email, password_hash, role) VALUES (?, ?, 'demo_hash', 'company')")
+            .run(userId, uEmail);
+        } catch (e) {
+          const uExist = db.prepare("SELECT id FROM users WHERE id = ?").get(userId);
+          if (uExist) userId = uExist.id;
+        }
+      }
+      const compProfileId = company_id && company_id.startsWith('c_') ? company_id : 'c_' + Date.now();
+      try {
+        db.prepare(`
+          INSERT INTO company_profiles (id, user_id, company_name, logo_url, industry, website, approved, contact_email, contact_phone)
+          VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?)
+        `).run(compProfileId, userId, company_name || ('Corporate Recruiter ' + compProfileId), company_logo_url || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=100', 'Technology & Engineering', company_website || 'https://company.com', company_email || 'hr@company.com', company_phone || '+91 98765 43210');
+      } catch (e) {
+        console.error('Error auto-creating company profile:', e.message);
+      }
+      company = db.prepare('SELECT * FROM company_profiles WHERE id = ? OR user_id = ?').get(compProfileId, userId);
     }
+
+    if (!company) {
+      return res.status(403).json({
+        error: 'Subscription Required: You do not have an active recruiter plan. Please choose a subscription plan to post hiring requirements.',
+        code: 'NO_ACTIVE_PLAN',
+        requiresPlan: true
+      });
+    }
+
+
 
     // Validate Compulsory Fields
     if (!company_logo_url || String(company_logo_url).trim().length === 0) {
@@ -139,7 +166,55 @@ router.post('/requirements', (req, res) => {
       WHERE id = ?
     `).run(company_logo_url, company_website, company_email, company_phone, company.id);
 
+    // ==========================================
+    // 💳 Subscription Plan & Posting Limit Gating
+    // ==========================================
+    let sub = db.prepare(`
+      SELECT * FROM company_subscriptions 
+      WHERE company_id = ? OR company_id = ? OR company_id = ?
+      ORDER BY expires_at DESC 
+      LIMIT 1
+    `).get(company.id, company.user_id, company_id);
+
+    const now = new Date();
+
+    if (!sub) {
+      return res.status(403).json({
+        error: 'Subscription Required: You do not have an active recruiter plan. Please choose a subscription plan to post hiring requirements.',
+        code: 'NO_ACTIVE_PLAN',
+        requiresPlan: true
+      });
+    }
+
+    const expiryDate = new Date(sub.expires_at);
+    if (expiryDate < now || sub.status !== 'active') {
+      return res.status(403).json({
+        error: `Subscription Expired: Your plan expired on ${expiryDate.toLocaleDateString()}. Please renew or upgrade your plan to post new requirements.`,
+        code: 'PLAN_EXPIRED',
+        requiresRenewal: true,
+        expiredAt: sub.expires_at
+      });
+    }
+
+    const postedCount = db.prepare(`
+      SELECT count(*) as count FROM requirements 
+      WHERE company_id = ? OR company_id = ?
+    `).get(company.id, company.user_id || company.id)?.count || 0;
+
+    const maxPostings = sub.max_postings !== undefined ? sub.max_postings : 2;
+    if (maxPostings !== -1 && postedCount >= maxPostings) {
+      return res.status(403).json({
+        error: `Posting Limit Reached: Your current ${sub.plan_name} allows up to ${maxPostings} job postings (used: ${postedCount}). Please upgrade your plan for additional postings.`,
+        code: 'POSTING_LIMIT_REACHED',
+        requiresUpgrade: true,
+        postedCount: postedCount,
+        maxPostings: maxPostings,
+        planName: sub.plan_name
+      });
+    }
+
     const reqId = 'req_' + Date.now();
+
     const eligibleProgramsJson = JSON.stringify(Array.isArray(eligible_programs) ? eligible_programs : [eligible_programs]);
     const reqSkillsJson = JSON.stringify(Array.isArray(required_skills) ? required_skills : String(required_skills).split(',').map(s => s.trim()));
     const prefSkillsJson = JSON.stringify(Array.isArray(preferred_skills) ? preferred_skills : String(preferred_skills || '').split(',').map(s => s.trim()).filter(Boolean));
@@ -158,8 +233,19 @@ router.post('/requirements', (req, res) => {
       company_logo_url, company_website, company_email, company_phone
     );
 
+    // Increment usage count in active subscription
+    if (sub && sub.id) {
+
+      try {
+        db.prepare('UPDATE company_subscriptions SET postings_used = postings_used + 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(sub.id);
+      } catch (subErr) {
+        console.error('Notice updating sub quota:', subErr.message);
+      }
+    }
+
     const createdReq = db.prepare('SELECT * FROM requirements WHERE id = ?').get(reqId);
     res.status(201).json({ message: 'Requirement posted successfully', requirement: createdReq });
+
   } catch (err) {
     console.error('Error posting requirement:', err);
     res.status(500).json({ error: err.message });

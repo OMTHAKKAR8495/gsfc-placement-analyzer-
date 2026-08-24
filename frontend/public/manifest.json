@@ -1,35 +1,41 @@
 {
-  "name": "GSFC University Placement Portal",
-  "short_name": "GSFC Placement",
-  "description": "AI Placement matching, ATS resume scoring, and mock interview coaching for GSFC University students.",
+  "name": "GSFC Placement Portal & Career Analyzer",
+  "short_name": "CampusHire AI",
+  "description": "Next-Gen AI-Powered Campus Placement & Career Intelligence Platform for GSFC University",
   "start_url": "/",
   "display": "standalone",
-  "orientation": "portrait",
   "background_color": "#0f172a",
   "theme_color": "#1e3a8a",
-  "scope": "/",
+  "orientation": "portrait-primary",
   "icons": [
     {
-      "src": "/gsfc-logo-official.png",
+      "src": "/vite.svg",
       "sizes": "192x192",
-      "type": "image/png",
+      "type": "image/svg+xml",
       "purpose": "any maskable"
     },
     {
-      "src": "/gsfc-logo-official.png",
+      "src": "/vite.svg",
       "sizes": "512x512",
-      "type": "image/png",
+      "type": "image/svg+xml",
       "purpose": "any maskable"
     }
   ],
-  "categories": ["education", "business", "productivity"],
-  "screenshots": [
+  "shortcuts": [
     {
-      "src": "/docs/images/student_dashboard_preview.jpg",
-      "sizes": "1280x720",
-      "type": "image/jpeg",
-      "form_factor": "wide",
-      "label": "Student Placement Dashboard"
+      "name": "Student Dashboard",
+      "url": "/#student",
+      "description": "View placement drives, ATS resume score, and mock interviews"
+    },
+    {
+      "name": "Verify Document",
+      "url": "/#verify-document",
+      "description": "Verify cryptographic blockchain-anchored placement certificate"
+    },
+    {
+      "name": "TPC Admin",
+      "url": "/#admin",
+      "description": "Training & Placement Cell Admin Dashboard"
     }
   ]
 }

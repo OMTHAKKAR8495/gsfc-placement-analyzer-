@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Upload, FileText, CheckCircle, AlertTriangle, Sparkles, Briefcase, Award, TrendingUp, Search, SlidersHorizontal, ArrowRight, Play, Cpu, Check, Layers, ChevronRight, Compass, ShieldCheck, PieChart, BarChart2, RefreshCw, Zap, Database, X, Star, Bookmark, Code, CheckCircle2, AlertCircle, Edit3, Mail, Download, Paperclip, Printer, Trash2, User, Plus, Building2, Bell, Phone, Calendar, HelpCircle, MessageSquare, Globe } from 'lucide-react';
+import { Upload, FileText, CheckCircle, AlertTriangle, Sparkles, Briefcase, Award, TrendingUp, Search, SlidersHorizontal, ArrowRight, Play, Cpu, Check, Layers, ChevronRight, Compass, ShieldCheck, PieChart, BarChart2, RefreshCw, Zap, Database, X, Star, Bookmark, Code, CheckCircle2, AlertCircle, Edit3, Mail, Download, Paperclip, Printer, Trash2, User, Plus, Building2, Bell, Phone, Calendar, HelpCircle, MessageSquare, Globe, Video, Lock, ShieldAlert, Trophy, Medal, Flame } from 'lucide-react';
+
 import MockInterviewChat from './MockInterviewChat';
 import CompanyTrackerSidebar from '../common/CompanyTrackerSidebar';
 import ReportPDFModal from '../common/ReportPDFModal';
@@ -15,7 +16,12 @@ import ResumeBuilderAndDossierModal from './ResumeBuilderAndDossierModal';
 import EcosystemHubModal from '../common/EcosystemHubModal';
 import AICopilotDrawer from '../common/AICopilotDrawer';
 import AIPlacementIntelligenceHub from './AIPlacementIntelligenceHub';
+import LeaderboardTab from './LeaderboardTab';
+import GamificationBadgesModal from './GamificationBadgesModal';
+import { generateGoogleCalendarUrl, downloadIcsFile } from '../../utils/calendarUtils';
 import { useToast } from '../../context/ToastContext';
+import { useLanguage } from '../../context/LanguageContext';
+
 
 export const DEFAULT_REQUIREMENTS_FEED = [
   {
@@ -118,6 +124,7 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
   const getInitialTab = () => {
     try {
       const hash = (window.location.hash || '').toLowerCase();
+      if (hash.includes('leaderboard') || hash.includes('badge') || hash.includes('points') || hash.includes('rank')) return 'leaderboard';
       if (hash.includes('intelligence') || hash.includes('copilot') || hash.includes('readiness') || hash.includes('sandbox')) return 'intelligence';
       if (hash.includes('qa') || hash.includes('community') || hash.includes('doubt')) return 'qa';
       if (hash.includes('job_fair') || hash.includes('conclave') || hash.includes('pool')) return 'job_fairs';
@@ -126,7 +133,7 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
       if (hash.includes('assess') || hash.includes('interview') || hash.includes('test')) return 'assessments';
       if (hash.includes('profile') || hash.includes('ats') || hash.includes('resume')) return 'profile';
       const savedTab = localStorage.getItem('gsfc_student_active_tab') || sessionStorage.getItem('gsfc_student_active_tab');
-      if (savedTab && ['feed', 'intelligence', 'job_fairs', 'alumni', 'qa', 'profile', 'applications', 'assessments'].includes(savedTab)) {
+      if (savedTab && ['feed', 'leaderboard', 'intelligence', 'job_fairs', 'alumni', 'qa', 'profile', 'applications', 'assessments'].includes(savedTab)) {
         return savedTab;
       }
     } catch(e) {}
@@ -150,7 +157,10 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
   useEffect(() => {
     const handleHashSync = () => {
       const hash = (window.location.hash || '').toLowerCase();
-      if (hash.includes('intelligence') || hash.includes('copilot') || hash.includes('readiness') || hash.includes('sandbox')) {
+      if (hash.includes('leaderboard') || hash.includes('badge') || hash.includes('points') || hash.includes('rank')) {
+        setActiveTab('leaderboard');
+        sessionStorage.setItem('gsfc_student_active_tab', 'leaderboard');
+      } else if (hash.includes('intelligence') || hash.includes('copilot') || hash.includes('readiness') || hash.includes('sandbox')) {
         setActiveTab('intelligence');
         sessionStorage.setItem('gsfc_student_active_tab', 'intelligence');
       } else if (hash.includes('qa') || hash.includes('community') || hash.includes('doubt')) {
@@ -179,6 +189,7 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
       }
     };
 
+
     window.addEventListener('hashchange', handleHashSync);
     return () => window.removeEventListener('hashchange', handleHashSync);
   }, []);
@@ -187,25 +198,28 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
   
   const getInitialApplications = () => {
     try {
+      // Purge stale un-namespaced key that leaked across roles
+      localStorage.removeItem('gsfc_student_applications');
+
       const activeUser = JSON.parse(localStorage.getItem('campushire_user') || 'null');
+      // Only students have personal applications
+      if (activeUser && activeUser.role && activeUser.role !== 'student') {
+        return [];
+      }
       const email = (activeUser?.email || '').toLowerCase();
       if (email) {
-        const raw = localStorage.getItem('gsfc_student_applications_' + email) || localStorage.getItem('gsfc_student_applications');
+        const raw = localStorage.getItem('gsfc_student_applications_' + email);
         if (raw) {
           const parsed = JSON.parse(raw);
           if (Array.isArray(parsed) && parsed.length > 0) return parsed;
         }
-      }
-      const generic = localStorage.getItem('gsfc_student_applications');
-      if (generic) {
-        const parsed = JSON.parse(generic);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
       }
     } catch(e) {}
     return [];
   };
 
   const [applications, setApplications] = useState(getInitialApplications);
+
   const [showAllFeed, setShowAllFeed] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedBranch, setSelectedBranch] = useState('All');
@@ -220,6 +234,54 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
   const [countdown, setCountdown] = useState(5);
   const [analyzingStage, setAnalyzingStage] = useState(0);
   const [currentTipIndex, setCurrentTipIndex] = useState(0);
+
+  // In-Portal Live Video Meetings State
+  const [studentMeetings, setStudentMeetings] = useState([]);
+  const [loadingMeetings, setLoadingMeetings] = useState(false);
+
+  const fetchStudentMeetings = async () => {
+    try {
+      setLoadingMeetings(true);
+      const token = localStorage.getItem('campushire_token') || `demo_token_${currentUser?.role || 'student'}`;
+      const res = await fetch('/api/meetings/student', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setStudentMeetings(Array.isArray(data) ? data : []);
+      }
+      setLoadingMeetings(false);
+    } catch (err) {
+      console.error('Error fetching student meetings:', err);
+      setLoadingMeetings(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchStudentMeetings();
+  }, [currentUser]);
+
+  // 🎮 Gamification & Badges State
+  const [badgesModalOpen, setBadgesModalOpen] = useState(false);
+  const [gamificationSummary, setGamificationSummary] = useState(null);
+  const [calendarDropdownReqId, setCalendarDropdownReqId] = useState(null);
+
+  const fetchGamificationSummary = async () => {
+    try {
+      const studentId = resolveStudentId(currentUser, student);
+      const res = await fetch(`/api/gamification/summary/${studentId}`);
+      if (res.ok) {
+        const data = await res.json();
+        setGamificationSummary(data);
+      }
+    } catch (e) {}
+  };
+
+  useEffect(() => {
+    fetchGamificationSummary();
+  }, [currentUser, student]);
+
+
 
   // Editable Candidate Fields
   const [candidateName, setCandidateName] = useState(() => {
@@ -506,20 +568,24 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
   };
 
   const fetchApplications = async () => {
+    // Non-student accounts (Admin, Faculty, Company) have 0 personal applied applications
+    if (currentUser && currentUser.role && currentUser.role !== 'student') {
+      setApplications([]);
+      return;
+    }
+
     const studentId = resolveStudentId(currentUser, student);
     const activeEmail = (currentUser?.email || student?.email || '').toLowerCase();
-    if (!studentId && !activeEmail) return;
+    if (!studentId && !activeEmail) {
+      setApplications([]);
+      return;
+    }
 
     let localSaved = [];
-    if (activeEmail) {
+    if (activeEmail && (currentUser?.role === 'student' || !currentUser)) {
       try {
-        const raw = localStorage.getItem('gsfc_student_applications_' + activeEmail) || localStorage.getItem('gsfc_student_applications');
+        const raw = localStorage.getItem('gsfc_student_applications_' + activeEmail);
         if (raw) localSaved = JSON.parse(raw) || [];
-      } catch(e) {}
-    } else {
-      try {
-        const generic = localStorage.getItem('gsfc_student_applications');
-        if (generic) localSaved = JSON.parse(generic) || [];
       } catch(e) {}
     }
 
@@ -547,10 +613,9 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
             }
           });
           setApplications(merged);
-          if (activeEmail) {
+          if (activeEmail && currentUser?.role === 'student') {
             localStorage.setItem('gsfc_student_applications_' + activeEmail, JSON.stringify(merged));
           }
-          localStorage.setItem('gsfc_student_applications', JSON.stringify(merged));
           return;
         }
       }
@@ -560,8 +625,11 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
 
     if (localSaved.length > 0) {
       setApplications(localSaved);
+    } else {
+      setApplications([]);
     }
   };
+
 
   const fetchAssessmentsAndInterviews = async () => {
     const studentId = resolveStudentId(currentUser, student);
@@ -1126,6 +1194,19 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
                     👋 Guest Mode • Sign In to Access Portal
                   </span>
                 )}
+
+                {/* 🎮 Gamification Points & Level Pill */}
+                <button
+                  onClick={() => setBadgesModalOpen(true)}
+                  className="px-3.5 py-1 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 rounded-full text-xs font-black flex items-center gap-1.5 shadow-md shadow-amber-500/20 cursor-pointer hover:scale-105 transition-all"
+                  title="Click to view Career Badges Catalog & Points Activity Log"
+                >
+                  <Trophy className="w-3.5 h-3.5" />
+                  <span>{gamificationSummary?.points_total || 450} Pts</span>
+                  <span className="bg-slate-950/20 px-1.5 py-0.5 rounded text-[10px] uppercase font-black">
+                    Lvl {gamificationSummary?.level || 2}
+                  </span>
+                </button>
               </div>
 
               <div>
@@ -1198,6 +1279,18 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
             <Briefcase className="w-4 h-4" /> Live Drives
           </button>
 
+          {/* 🏆 LEADERBOARD TAB BUTTON */}
+          <button
+            onClick={() => handleTabChange('leaderboard')}
+            className={`flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl text-xs font-black transition-all shrink-0 whitespace-nowrap cursor-pointer ${
+              activeTab === 'leaderboard'
+                ? 'bg-gradient-to-r from-amber-500 to-indigo-700 text-white shadow-lg scale-105 border border-amber-300/40'
+                : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100/80'
+            }`}
+          >
+            <Trophy className="w-4 h-4 text-amber-400" /> 🏆 Leaderboard & Badges
+          </button>
+
           <button
             onClick={() => handleTabChange('intelligence')}
             className={`flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl text-xs font-black transition-all shrink-0 whitespace-nowrap cursor-pointer ${
@@ -1208,6 +1301,7 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
           >
             <Sparkles className="w-4 h-4 text-purple-400 animate-pulse" /> 🚀 AI Placement Intelligence Hub
           </button>
+
 
           <button
             onClick={() => handleTabChange('job_fairs')}
@@ -1282,6 +1376,20 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
             <CheckCircle2 className="w-4 h-4 text-emerald-400" /> My Assessments & Tests ({assessmentsList.length + interviewsList.length})
           </button>
 
+          {studentMeetings.length > 0 && (
+            <button
+              onClick={() => handleTabChange('video_interviews')}
+              className={`flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl text-xs font-black transition-all shrink-0 whitespace-nowrap cursor-pointer ${
+                activeTab === 'video_interviews'
+                  ? 'bg-gradient-to-r from-emerald-600 to-teal-700 text-white shadow-lg ring-2 ring-emerald-400/40'
+                  : 'bg-emerald-50 text-emerald-900 border border-emerald-300 hover:bg-emerald-100'
+              }`}
+            >
+              <Video className="w-4 h-4 text-emerald-600 animate-pulse" />
+              <span>📹 Video Interviews ({studentMeetings.length})</span>
+            </button>
+          )}
+
           <button
             onClick={() => setCopilotOpen(true)}
             className="flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl text-xs font-black transition-all shrink-0 whitespace-nowrap bg-purple-900 hover:bg-purple-800 text-white shadow-md border border-purple-400/40 hover:scale-105 cursor-pointer"
@@ -1296,7 +1404,53 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
         
         {/* Left / Main Workspace Feed */}
         <div className="lg:col-span-2 space-y-6">
+          {/* 📹 LIVE & UPCOMING VIDEO INTERVIEW ALERT BANNER */}
+          {studentMeetings.filter(m => m.status === 'live' || m.status === 'scheduled').length > 0 && (
+            <div className="p-4 sm:p-5 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 rounded-3xl border-2 border-emerald-500 shadow-2xl text-white space-y-3 animate-fadeIn">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="px-2.5 py-0.5 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-full text-[10px] font-black uppercase flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                    In-Portal Video Interview
+                  </span>
+                  <span className="px-2 py-0.5 bg-amber-500/20 text-amber-300 text-[10px] font-bold rounded-full flex items-center gap-1">
+                    <Lock className="w-3 h-3 text-amber-400" /> Anti-Cheating Enforced
+                  </span>
+                </div>
+                <span className="text-xs text-slate-400 font-mono">
+                  {studentMeetings[0].room_id}
+                </span>
+              </div>
+
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-base font-black text-white">
+                    {studentMeetings[0].title}
+                  </h3>
+                  <p className="text-xs text-slate-300 flex items-center gap-2 mt-0.5">
+                    <Building2 className="w-3.5 h-3.5 text-amber-400" />
+                    <span>{studentMeetings[0].company_name}</span>
+                    <span>•</span>
+                    <Clock className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>{new Date(studentMeetings[0].scheduled_at).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })} ({studentMeetings[0].duration_minutes} Mins)</span>
+                  </p>
+                </div>
+
+                <button
+                  onClick={() => {
+                    window.location.hash = `#meeting/${studentMeetings[0].room_id}`;
+                  }}
+                  className="px-5 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-600 hover:opacity-95 text-white font-black text-xs rounded-2xl shadow-xl shadow-emerald-900/40 flex items-center justify-center gap-2 transition cursor-pointer self-start sm:self-auto shrink-0 animate-bounce"
+                >
+                  <Video className="w-4 h-4" />
+                  <span>Join Live Video Interview</span>
+                </button>
+              </div>
+            </div>
+          )}
+
           {activeTab === 'feed' && (
+
             <div className="space-y-6">
               {/* Controls Bar */}
               <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 sm:gap-4 glass-panel p-4 rounded-2xl border border-slate-200/90">
@@ -1483,25 +1637,78 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
                           );
                         })()
                       ) : (
-                        <button
-                          onClick={() => handleApplyClick(req)}
-                          disabled={!req.eligible || req.applications_open === 0}
-                          className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 transition-all shadow-md shrink-0 min-h-[42px] ${
-                            req.applications_open === 0
-                              ? 'bg-slate-200 text-slate-500 cursor-not-allowed border border-slate-300'
-                              : !req.eligible
-                              ? 'bg-slate-200 text-slate-400 cursor-not-allowed border border-slate-300'
-                              : 'bg-gradient-to-r from-blue-900 via-indigo-900 to-amber-600 hover:from-blue-800 hover:to-amber-500 text-white shadow-blue-900/20 cursor-pointer'
-                          }`}
-                        >
-                          {req.applications_open === 0 ? (
-                            <span>🔒 Applications Closed</span>
-                          ) : req.eligible ? (
-                            <><span>Apply Now</span> <ArrowRight className="w-3.5 h-3.5 shrink-0" /></>
-                          ) : (
-                            <span>{req.eligibilityReason || 'Ineligible'}</span>
-                          )}
-                        </button>
+                        <div className="flex items-center gap-2 flex-1">
+                          <button
+                            onClick={() => handleApplyClick(req)}
+                            disabled={!req.eligible || req.applications_open === 0}
+                            className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 transition-all shadow-md shrink-0 min-h-[42px] ${
+                              req.applications_open === 0
+                                ? 'bg-slate-200 text-slate-500 cursor-not-allowed border border-slate-300'
+                                : !req.eligible
+                                ? 'bg-slate-200 text-slate-400 cursor-not-allowed border border-slate-300'
+                                : 'bg-gradient-to-r from-blue-900 via-indigo-900 to-amber-600 hover:from-blue-800 hover:to-amber-500 text-white shadow-blue-900/20 cursor-pointer'
+                            }`}
+                          >
+                            {req.applications_open === 0 ? (
+                              <span>🔒 Applications Closed</span>
+                            ) : req.eligible ? (
+                              <><span>Apply Now</span> <ArrowRight className="w-3.5 h-3.5 shrink-0" /></>
+                            ) : (
+                              <span>{req.eligibilityReason || 'Ineligible'}</span>
+                            )}
+                          </button>
+
+                          {/* 📅 Add to Calendar Dropdown */}
+                          <div className="relative">
+                            <button
+                              type="button"
+                              onClick={() => setCalendarDropdownReqId(calendarDropdownReqId === req.id ? null : req.id)}
+                              className="p-2.5 bg-slate-100 hover:bg-blue-50 text-slate-700 hover:text-blue-900 border border-slate-200 rounded-xl text-xs font-black flex items-center justify-center cursor-pointer transition shadow-xs min-h-[42px]"
+                              title="Add to Google Calendar or Download .ics file"
+                            >
+                              <Calendar className="w-4 h-4" />
+                            </button>
+
+                            {calendarDropdownReqId === req.id && (
+                              <div className="absolute right-0 bottom-full mb-2 w-48 bg-white rounded-2xl border border-slate-200 shadow-xl p-2 z-30 space-y-1 animate-fadeIn">
+                                <div className="text-[10px] font-black uppercase text-slate-400 px-2 py-1">
+                                  Sync Drive Deadline
+                                </div>
+                                <a
+                                  href={generateGoogleCalendarUrl({
+                                    title: `[Drive Deadline] ${req.company_name} — ${req.title}`,
+                                    description: `Placement Drive by ${req.company_name}.\nRole: ${req.title}\nPackage: ${req.ctc_range || 'Competitive'}\nEligible: ${req.eligible_programs_json || 'BTech'}\nApply via GSFC Placement Portal.`,
+                                    location: 'GSFC University TPC Portal / Campus Placement Hall',
+                                    startDate: req.deadline ? new Date(req.deadline) : new Date(Date.now() + 86400000 * 3)
+                                  })}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  onClick={() => setCalendarDropdownReqId(null)}
+                                  className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-bold text-slate-800 hover:bg-blue-50 hover:text-blue-900 flex items-center gap-2"
+                                >
+                                  <span>🌐 Google Calendar</span>
+                                </a>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    downloadIcsFile({
+                                      title: `[Drive Deadline] ${req.company_name} — ${req.title}`,
+                                      description: `Placement Drive by ${req.company_name}.\nRole: ${req.title}\nPackage: ${req.ctc_range || 'Competitive'}`,
+                                      location: 'GSFC University TPC Portal',
+                                      startDate: req.deadline ? new Date(req.deadline) : new Date(Date.now() + 86400000 * 3),
+                                      filename: `${req.company_name.replace(/[^a-z0-9]/gi, '_')}_drive_deadline.ics`
+                                    });
+                                    setCalendarDropdownReqId(null);
+                                  }}
+                                  className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-bold text-slate-800 hover:bg-blue-50 hover:text-blue-900 flex items-center gap-2 cursor-pointer"
+                                >
+                                  <Download className="w-3.5 h-3.5 text-blue-900" />
+                                  <span>Download (.ics)</span>
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        </div>
                       )}
                     </div>
                   </div>
@@ -1509,6 +1716,7 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
               </div>
             </div>
           )}
+
 
           {/* TAB 2: SMART RESUME ANALYZER PAGE */}
           {activeTab === 'profile' && (
@@ -1848,6 +2056,30 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
                 <Award className="w-5 h-5 text-blue-900" /> My Applications Timeline
               </h2>
 
+              {(currentUser?.role === 'admin' || currentUser?.role === 'superadmin') && (
+                <div className="p-5 bg-gradient-to-r from-slate-900 via-indigo-950 to-blue-950 text-white rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-xs shadow-xl border border-indigo-500/40">
+                  <div className="space-y-1">
+                    <div className="font-black text-amber-300 flex items-center gap-1.5 text-sm">
+                      <ShieldCheck className="w-4 h-4 text-amber-400" />
+                      <span>TPC Administrator Mode: {currentUser?.name || 'Admin'}</span>
+                    </div>
+                    <p className="text-slate-200 font-medium max-w-xl">
+                      You are logged in with Administrative/TPC credentials. Student applications are submitted by candidates and managed centrally in the <strong>Master Student Applications Database</strong>.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      window.location.hash = '#admin-applications';
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }}
+                    className="px-5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-black rounded-xl shrink-0 cursor-pointer shadow-lg transition-all flex items-center gap-2"
+                  >
+                    <Users className="w-4 h-4 text-amber-300" />
+                    <span>Open Master Student Applications Database &rarr;</span>
+                  </button>
+                </div>
+              )}
+
               {currentUser?.role === 'faculty' && (
                 <div className="p-5 bg-gradient-to-r from-blue-950 via-indigo-900 to-blue-900 text-white rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs shadow-lg border border-indigo-700">
                   <div className="space-y-1">
@@ -1894,17 +2126,22 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
                 <div className="text-center py-12 space-y-2">
                   <Award className="w-12 h-12 text-slate-400 mx-auto" />
                   <h3 className="font-black text-sm text-slate-700">
-                    {currentUser?.role === 'faculty' ? 'Faculty Account: Student Application Database Available' : 'No Student Applications Found'}
+                    {currentUser?.role === 'admin' || currentUser?.role === 'superadmin'
+                      ? 'Admin Account: Student Applications are in Master TPC Database'
+                      : (currentUser?.role === 'faculty' ? 'Faculty Account: Student Application Database Available' : 'No Student Applications Found')}
                   </h3>
                   <p className="text-xs text-slate-500 max-w-sm mx-auto">
-                    {currentUser?.role === 'faculty'
-                      ? 'Click the green button above or "Faculty Hub" in the top navbar to view which students applied to which companies.'
-                      : (isCompanyUser
-                        ? 'Switch to a student profile or use the Recruiter Portal to manage candidates registered for your drives.'
-                        : 'Browse live GSFC campus requirements and click "Apply Now" to track your application submissions here.')}
+                    {currentUser?.role === 'admin' || currentUser?.role === 'superadmin'
+                      ? 'Click the blue button above or "TPC Admin" in the top navbar to view all applied students, ATS scores, and interview records.'
+                      : (currentUser?.role === 'faculty'
+                        ? 'Click the green button above or "Faculty Hub" in the top navbar to view which students applied to which companies.'
+                        : (isCompanyUser
+                          ? 'Switch to a student profile or use the Recruiter Portal to manage candidates registered for your drives.'
+                          : 'Browse live GSFC campus requirements and click "Apply Now" to track your application submissions here.'))}
                   </p>
                 </div>
               ) : (
+
                 <div className="space-y-4">
                   {applications.map((app) => (
                     <div key={app.id} className="glass-card p-4 rounded-2xl border border-slate-200/90 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
@@ -1975,6 +2212,108 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
               )}
             </div>
           )}
+
+          {/* 📹 VIEW: IN-PORTAL LIVE VIDEO INTERVIEWS */}
+          {activeTab === 'video_interviews' && (
+            <div className="space-y-6 animate-fadeIn">
+              <div className="glass-panel p-5 rounded-3xl border border-slate-200 shadow-md">
+                <div className="flex items-center gap-2">
+                  <span className="px-3 py-1 bg-emerald-100 text-emerald-800 border border-emerald-300 rounded-full text-xs font-black">
+                    In-Portal Video Interviews Hub
+                  </span>
+                  <span className="px-2.5 py-0.5 bg-amber-100 text-amber-800 border border-amber-300 rounded-full text-[11px] font-black flex items-center gap-1">
+                    <Lock className="w-3 h-3 text-amber-600" /> Anti-Cheating Enforced
+                  </span>
+                </div>
+                <h2 className="text-xl font-black text-slate-900 mt-1.5 flex items-center gap-2">
+                  <Video className="w-6 h-6 text-emerald-600" />
+                  <span>Your Scheduled & Completed Video Interviews</span>
+                </h2>
+                <p className="text-xs text-slate-600 font-bold mt-0.5">
+                  Attend technical interviews directly within GSFC University's portal. Remember: tab switching is strictly prohibited and monitored.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 gap-4">
+                {studentMeetings.map(m => {
+                  const isLive = m.status === 'live';
+                  const isCompleted = m.status === 'completed';
+                  const isEjected = m.join_status === 'ejected';
+
+                  return (
+                    <div
+                      key={m.id}
+                      className={`glass-panel p-5 rounded-3xl border shadow-lg space-y-4 transition ${
+                        isEjected ? 'border-red-300 bg-red-50/40' : (isLive ? 'border-emerald-400 bg-emerald-50/20' : 'border-slate-200')
+                      }`}
+                    >
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase flex items-center gap-1 ${
+                              isEjected 
+                                ? 'bg-red-100 text-red-800 border border-red-300' 
+                                : (isLive ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' : 'bg-slate-100 text-slate-600')
+                            }`}>
+                              {isLive && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />}
+                              {isEjected ? 'DISQUALIFIED / EJECTED' : m.status}
+                            </span>
+                            <span className="text-xs text-slate-500 font-mono">Room: {m.room_id}</span>
+                          </div>
+                          <h3 className="text-base font-black text-slate-900 mt-1">{m.title}</h3>
+                          <p className="text-xs text-slate-600 flex items-center gap-2 mt-0.5">
+                            <Building2 className="w-3.5 h-3.5 text-blue-900" />
+                            <span className="font-bold">{m.company_name}</span>
+                            <span>•</span>
+                            <Briefcase className="w-3.5 h-3.5 text-slate-500" />
+                            <span>{m.drive_title}</span>
+                          </p>
+                        </div>
+
+                        <div>
+                          {isEjected ? (
+                            <span className="px-4 py-2 bg-red-100 text-red-800 border border-red-300 rounded-xl text-xs font-black flex items-center gap-1.5">
+                              <ShieldAlert className="w-4 h-4 text-red-600" />
+                              <span>Session Disqualified</span>
+                            </span>
+                          ) : (
+                            <button
+                              onClick={() => {
+                                window.location.hash = `#meeting/${m.room_id}`;
+                              }}
+                              className="px-5 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-700 hover:opacity-95 text-white font-black text-xs rounded-xl shadow-lg shadow-emerald-900/20 flex items-center gap-2 transition cursor-pointer"
+                            >
+                              <Video className="w-4 h-4" />
+                              <span>{isCompleted ? 'View Meeting Details' : 'Join Video Interview'}</span>
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="pt-3 border-t border-slate-200/80 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500">
+                        <span className="flex items-center gap-1.5">
+                          <Calendar className="w-3.5 h-3.5 text-emerald-600" />
+                          <span>{new Date(m.scheduled_at).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })} ({m.duration_minutes} Mins)</span>
+                        </span>
+
+                        {m.outcome_status && m.outcome_status !== 'pending' && (
+                          <span className="font-bold flex items-center gap-1.5">
+                            <span>Evaluation Result:</span>
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase ${
+                              m.outcome_status === 'selected' ? 'bg-emerald-100 text-emerald-800' : (m.outcome_status === 'rejected' ? 'bg-red-100 text-red-800' : 'bg-amber-100 text-amber-800')
+                            }`}>
+                              {m.outcome_status}
+                            </span>
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
 
           {activeTab === 'job_fairs' && (
             <div className="space-y-4">
@@ -2145,6 +2484,14 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
             </div>
           )}
 
+          {/* 🏆 TAB 0: LEADERBOARD & BADGES */}
+          {activeTab === 'leaderboard' && (
+            <LeaderboardTab
+              currentStudent={student || currentUser?.profile || currentUser}
+              onOpenBadgesModal={() => setBadgesModalOpen(true)}
+            />
+          )}
+
           {activeTab === 'intelligence' && (
             <AIPlacementIntelligenceHub
               student={student}
@@ -2156,6 +2503,7 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
             />
           )}
         </div>
+
 
         {/* Right Sticky Sidebar */}
         <div className="lg:col-span-1">
@@ -2495,6 +2843,14 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
         currentUser={currentUser}
         mode="student"
       />
+
+      {/* 🏅 GAMIFICATION BADGES & PROGRESSION MODAL */}
+      <GamificationBadgesModal
+        isOpen={badgesModalOpen}
+        onClose={() => setBadgesModalOpen(false)}
+        studentId={resolveStudentId(currentUser, student)}
+      />
     </div>
   );
 }
+

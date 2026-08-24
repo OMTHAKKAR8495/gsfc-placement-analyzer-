@@ -6,11 +6,17 @@ import CompanyDashboard from './components/company/CompanyDashboard';
 import AdminDashboard from './components/admin/AdminDashboard';
 import SuperAdminDashboard from './components/admin/SuperAdminDashboard';
 import FacultyDashboard from './components/faculty/FacultyDashboard';
+import SecurityDashboard from './components/security/SecurityDashboard';
 import InterviewStudioView from './components/student/InterviewStudioView';
 import AlumniDashboard from './components/alumni/AlumniDashboard';
+import PublicDocumentVerifyPage from './components/public/PublicDocumentVerifyPage';
+import PublicEventRegisterPage from './components/events/PublicEventRegisterPage';
+import PublicPassDownloadPage from './components/events/PublicPassDownloadPage';
+import LiveVideoMeetingRoom from './components/meetings/LiveVideoMeetingRoom';
 import AIBugChatbotWidget from './components/common/AIBugChatbotWidget';
 import ErrorBoundary from './components/common/ErrorBoundary';
 import { ToastProvider } from './context/ToastContext';
+import { LanguageProvider } from './context/LanguageContext';
 import { Eye, EyeOff, Sparkles, ChevronDown, ArrowDown, Sun, Moon, WifiOff } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
 import { App as CapacitorApp } from '@capacitor/app';
@@ -18,23 +24,139 @@ import { StatusBar, Style } from '@capacitor/status-bar';
 import { Network } from '@capacitor/network';
 import { SplashScreen } from '@capacitor/splash-screen';
 
-const resolveBaseWorkspace = (rawHash) => {
+export const resolveBaseWorkspace = (rawHash) => {
   if (!rawHash) return 'student';
   const clean = rawHash.replace(/^#/, '').toLowerCase().trim();
-  if (clean.startsWith('student') || clean === 'qa' || clean === 'community' || clean === 'job_fairs' || clean === 'applications' || clean === 'drives' || clean === 'profile' || clean.includes('intelligence')) {
+  if (
+    clean.startsWith('verify-document') ||
+    clean.startsWith('verify') ||
+    clean.startsWith('blockchain') ||
+    clean.startsWith('ledger')
+  ) {
+    return 'verify-document';
+  }
+  if (
+    clean.startsWith('student') ||
+    clean === 'qa' ||
+    clean === 'community' ||
+    clean === 'job_fairs' ||
+    clean === 'applications' ||
+    clean === 'drives' ||
+    clean === 'profile' ||
+    clean.includes('intelligence') ||
+    clean.includes('leaderboard')
+  ) {
     return 'student';
   }
   if (clean.startsWith('admin') || clean === 'tpc') return 'admin';
   if (clean.startsWith('faculty')) return 'faculty';
+  if (clean.startsWith('security') || clean === 'guard') return 'security';
   if (clean.startsWith('company') || clean === 'recruiter') return 'company';
   if (clean.startsWith('alumni') || clean === 'mentorship') return 'alumni';
   if (clean.startsWith('interview') || clean === 'studio') return 'interview';
+  if (clean.startsWith('meeting')) return 'meeting';
   if (clean.startsWith('superadmin')) return 'superadmin';
   return clean;
 };
 
-export default function App() {
+
+
+export const getDefaultWorkspaceForRole = (role) => {
+  if (role === 'admin') return 'admin';
+  if (role === 'superadmin') return 'superadmin';
+  if (role === 'faculty') return 'faculty';
+  if (role === 'security') return 'security';
+  if (role === 'company') return 'company';
+  if (role === 'alumni') return 'alumni';
+  return 'student'; // student, guest, or unauthenticated
+};
+
+export const isRoleAllowedInWorkspace = (user, targetWorkspace) => {
+  const base = resolveBaseWorkspace(targetWorkspace);
+
+  // Main Student Homepage & Alumni Network are universally accessible to all users & guests
+  if (base === 'student' || base === 'alumni' || !base) {
+    return true;
+  }
+
+  // Unauthenticated guests cannot access protected workspaces
+  if (!user) {
+    return false;
+  }
+
+  // Super Admin & Admin have oversight access to all workspaces
+  if (user.role === 'superadmin' || user.role === 'admin') {
+    return true;
+  }
+
+  // Faculty: scoped to Faculty Hub, Student Workspace, and Alumni Network
+  if (user.role === 'faculty') {
+    return base === 'faculty' || base === 'student' || base === 'alumni';
+  }
+
+  // Security: restricted exclusively to Security Terminal Desk
+  if (user.role === 'security') {
+    return base === 'security';
+  }
+
+  // Recruiter: scoped to Recruiter Portal, Main Homepage, and Alumni Network
+  if (user.role === 'company') {
+    return base === 'company' || base === 'student' || base === 'alumni';
+  }
+
+  // Alumni: scoped to Alumni Network and Student Homepage
+  if (user.role === 'alumni') {
+    return base === 'alumni' || base === 'student';
+  }
+
+  // Student: scoped to Student Workspace, Interview Studio, and Alumni Network
+  if (user.role === 'student') {
+    return base === 'student' || base === 'interview' || base === 'alumni' || base === 'meeting';
+  }
+
+  // Meeting Room: accessible to all authenticated attendees
+  if (base === 'meeting') {
+    return !!user;
+  }
+
+  return false;
+};
+
+export const getInitialActiveRole = () => {
+  let user = null;
+  try {
+    const savedUser = typeof window !== 'undefined' ? localStorage.getItem('campushire_user') : null;
+    user = savedUser ? JSON.parse(savedUser) : null;
+  } catch (e) {
+    user = null;
+  }
+
+  const rawHash = (typeof window !== 'undefined' ? window.location.hash : '').replace(/^#/, '');
+  const savedRoleHint = typeof window !== 'undefined' ? localStorage.getItem('gsfc_active_workspace') : null;
+
+  // 1. Try URL hash first, ONLY IF permitted for this user
+  if (rawHash) {
+    const baseFromHash = resolveBaseWorkspace(rawHash);
+    if (isRoleAllowedInWorkspace(user, baseFromHash)) {
+      return baseFromHash;
+    }
+  }
+
+  // 2. Try saved role hint ONLY IF permitted for this user (never trust blindly)
+  if (savedRoleHint) {
+    const baseFromHint = resolveBaseWorkspace(savedRoleHint);
+    if (isRoleAllowedInWorkspace(user, baseFromHint)) {
+      return baseFromHint;
+    }
+  }
+
+  // 3. Fall back to user's authorized default workspace
+  return getDefaultWorkspaceForRole(user?.role);
+};
+
+function App() {
   const [currentUser, setCurrentUser] = useState(() => {
+
     try {
       const saved = localStorage.getItem('campushire_user');
       return saved ? JSON.parse(saved) : null;
@@ -42,25 +164,55 @@ export default function App() {
       return null;
     }
   });
-  const [isOffline, setIsOffline] = useState(false);
-  const [activeRole, setActiveRole] = useState(() => {
-    const rawHash = (typeof window !== 'undefined' ? window.location.hash : '').replace(/^#/, '');
-    const savedRole = typeof window !== 'undefined' ? localStorage.getItem('gsfc_active_workspace') : null;
-    if (rawHash) {
-      const base = resolveBaseWorkspace(rawHash);
-      if (['student', 'interview', 'company', 'admin', 'alumni', 'faculty', 'superadmin'].includes(base)) {
-        return base;
-      }
+
+  const [publicRoute, setPublicRoute] = useState(() => {
+    if (typeof window === 'undefined') return null;
+    const path = window.location.pathname;
+    if (path.startsWith('/event/')) {
+      return { type: 'event', param: path.replace('/event/', '') };
     }
-    if (savedRole && ['student', 'interview', 'company', 'admin', 'alumni', 'faculty', 'superadmin'].includes(savedRole)) {
-      return savedRole;
+    if (path.startsWith('/pass/')) {
+      return { type: 'pass', param: path.replace('/pass/', '') };
     }
-    return 'student';
+    return null;
   });
+
+  const [isOffline, setIsOffline] = useState(false);
+  const [activeRole, setActiveRole] = useState(() => getInitialActiveRole());
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [hideCardsForBGView, setHideCardsForBGView] = useState(false);
   const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'light');
   const [themeHue, setThemeHue] = useState(() => localStorage.getItem('gsfc_theme_hue') || '215');
+
+  // Keep a ref to currentUser for event listeners and route guards without re-binding effects
+  const currentUserRef = React.useRef(currentUser);
+  useEffect(() => {
+    currentUserRef.current = currentUser;
+  }, [currentUser]);
+
+  // Synchronize and enforce activeRole against currentUser synchronously on mount
+  useEffect(() => {
+    const currentHash = window.location.hash.replace(/^#/, '');
+    const baseHash = resolveBaseWorkspace(currentHash);
+    
+    // Check if the current hash or activeRole is permitted
+    if (currentHash && isRoleAllowedInWorkspace(currentUser, baseHash)) {
+      if (activeRole !== baseHash) {
+        setActiveRole(baseHash);
+      }
+      localStorage.setItem('gsfc_active_workspace', baseHash);
+    } else if (isRoleAllowedInWorkspace(currentUser, activeRole)) {
+      localStorage.setItem('gsfc_active_workspace', activeRole);
+      if (currentHash && !isRoleAllowedInWorkspace(currentUser, baseHash)) {
+        window.history.replaceState(null, '', `#${activeRole}`);
+      }
+    } else {
+      const defaultRole = getDefaultWorkspaceForRole(currentUser?.role);
+      setActiveRole(defaultRole);
+      localStorage.setItem('gsfc_active_workspace', defaultRole);
+      window.history.replaceState(null, '', `#${defaultRole}`);
+    }
+  }, []);
 
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) {
@@ -96,46 +248,6 @@ export default function App() {
     };
   }, []);
 
-  // Helper to validate whether user role is permitted to access target workspace
-  const isRoleAllowedInWorkspace = (user, targetWorkspace) => {
-    const base = resolveBaseWorkspace(targetWorkspace);
-    // Main Student Homepage & Alumni Network are universally accessible to all users & guests
-    if (base === 'student' || base === 'alumni' || !base) {
-      return true;
-    }
-    if (!user) {
-      // Guest: can only access Student & Alumni Workspaces
-      return false;
-    }
-    if (user.role === 'superadmin' || user.role === 'admin') {
-      // Super Admin & Admin: have oversight access to all workspaces
-      return true;
-    }
-    if (user.role === 'faculty') {
-      // Faculty: scoped to Faculty Hub, Student Workspace, and Alumni Network
-      return base === 'faculty' || base === 'student' || base === 'alumni';
-    }
-    if (user.role === 'company') {
-      // Recruiter: can access Recruiter Portal, Main Homepage, and Alumni Network
-      return base === 'company' || base === 'student' || base === 'alumni';
-    }
-    if (user.role === 'alumni') {
-      // Alumni: can access Alumni Network and Student Homepage
-      return base === 'alumni' || base === 'student';
-    }
-    if (user.role === 'student') {
-      // Student: scoped to Student Workspace, Interview Studio, and Alumni Network
-      return base === 'student' || base === 'interview' || base === 'alumni';
-    }
-    return true;
-  };
-
-  // Keep a ref to currentUser for event listeners and route guards without re-binding effects
-  const currentUserRef = React.useRef(currentUser);
-  useEffect(() => {
-    currentUserRef.current = currentUser;
-  }, [currentUser]);
-
   // 1. Check current authenticated user ONCE on app mount
   useEffect(() => {
     checkCurrentUser();
@@ -163,13 +275,28 @@ export default function App() {
   // 3. Browser Navigation, Global Shortcuts, and Event Listeners
   useEffect(() => {
     const handleHashOrPopState = () => {
+      const path = window.location.pathname;
+      if (path.startsWith('/event/')) {
+        setPublicRoute({ type: 'event', param: path.replace('/event/', '') });
+        return;
+      } else if (path.startsWith('/pass/')) {
+        setPublicRoute({ type: 'pass', param: path.replace('/pass/', '') });
+        return;
+      } else {
+        setPublicRoute(null);
+      }
+
       const rawHash = window.location.hash.replace(/^#/, '');
       const base = resolveBaseWorkspace(rawHash);
-      if (isRoleAllowedInWorkspace(currentUserRef.current, base)) {
+      const user = currentUserRef.current;
+      if (isRoleAllowedInWorkspace(user, base)) {
         setActiveRole(base);
+        localStorage.setItem('gsfc_active_workspace', base);
       } else {
-        setActiveRole('student');
-        window.location.hash = '#student';
+        const fallbackRole = getDefaultWorkspaceForRole(user?.role);
+        setActiveRole(fallbackRole);
+        localStorage.setItem('gsfc_active_workspace', fallbackRole);
+        window.history.replaceState(null, '', `#${fallbackRole}`);
       }
     };
     window.addEventListener('hashchange', handleHashOrPopState);
@@ -210,6 +337,16 @@ export default function App() {
     if (!token) {
       setCurrentUser(null);
       localStorage.removeItem('campushire_user');
+      localStorage.removeItem('gsfc_active_workspace');
+      const safeGuestRole = isRoleAllowedInWorkspace(null, activeRole) ? activeRole : 'student';
+      if (activeRole !== safeGuestRole) {
+        setActiveRole(safeGuestRole);
+      }
+      localStorage.setItem('gsfc_active_workspace', safeGuestRole);
+      const currentHash = window.location.hash.replace(/^#/, '');
+      if (currentHash && !isRoleAllowedInWorkspace(null, resolveBaseWorkspace(currentHash))) {
+        window.history.replaceState(null, '', `#${safeGuestRole}`);
+      }
       return;
     }
 
@@ -220,21 +357,22 @@ export default function App() {
 
       // 204 = demo/offline token — server acknowledged it, keep the localStorage user as-is
       if (res.status === 204) {
-        // User is already loaded from localStorage initial state — just ensure correct routing
         const savedUser = localStorage.getItem('campushire_user');
         if (savedUser) {
           try {
             const parsedUser = JSON.parse(savedUser);
-            // Only update routing, don't call setCurrentUser again (it's already set)
             const currentHash = window.location.hash.replace('#', '');
-            if (isRoleAllowedInWorkspace(parsedUser, currentHash)) {
-              const base = resolveBaseWorkspace(currentHash);
-              setActiveRole(base);
-              localStorage.setItem('gsfc_active_workspace', base);
+            const baseHash = resolveBaseWorkspace(currentHash);
+            if (currentHash && isRoleAllowedInWorkspace(parsedUser, baseHash)) {
+              setActiveRole(baseHash);
+              localStorage.setItem('gsfc_active_workspace', baseHash);
+            } else if (isRoleAllowedInWorkspace(parsedUser, activeRole)) {
+              localStorage.setItem('gsfc_active_workspace', activeRole);
+              if (currentHash && !isRoleAllowedInWorkspace(parsedUser, baseHash)) {
+                window.history.replaceState(null, '', `#${activeRole}`);
+              }
             } else {
-              const defaultRoleWorkspace = parsedUser.role === 'faculty' 
-                ? 'faculty' 
-                : (parsedUser.role === 'superadmin' ? 'superadmin' : (parsedUser.role === 'company' ? 'company' : (parsedUser.role === 'admin' ? 'admin' : 'student')));
+              const defaultRoleWorkspace = getDefaultWorkspaceForRole(parsedUser.role);
               setActiveRole(defaultRoleWorkspace);
               localStorage.setItem('gsfc_active_workspace', defaultRoleWorkspace);
               window.history.replaceState(null, '', `#${defaultRoleWorkspace}`);
@@ -262,14 +400,17 @@ export default function App() {
           localStorage.setItem('campushire_user', JSON.stringify(freshUser));
           
           const currentHash = window.location.hash.replace('#', '');
-          if (isRoleAllowedInWorkspace(freshUser, currentHash)) {
-            const base = resolveBaseWorkspace(currentHash);
-            setActiveRole(base);
-            localStorage.setItem('gsfc_active_workspace', base);
+          const baseHash = resolveBaseWorkspace(currentHash);
+          if (currentHash && isRoleAllowedInWorkspace(freshUser, baseHash)) {
+            setActiveRole(baseHash);
+            localStorage.setItem('gsfc_active_workspace', baseHash);
+          } else if (isRoleAllowedInWorkspace(freshUser, activeRole)) {
+            localStorage.setItem('gsfc_active_workspace', activeRole);
+            if (currentHash && !isRoleAllowedInWorkspace(freshUser, baseHash)) {
+              window.history.replaceState(null, '', `#${activeRole}`);
+            }
           } else {
-            const defaultRoleWorkspace = freshUser.role === 'faculty' 
-              ? 'faculty' 
-              : (freshUser.role === 'superadmin' ? 'superadmin' : (freshUser.role === 'company' ? 'company' : (freshUser.role === 'admin' ? 'admin' : 'student')));
+            const defaultRoleWorkspace = getDefaultWorkspaceForRole(freshUser.role);
             setActiveRole(defaultRoleWorkspace);
             localStorage.setItem('gsfc_active_workspace', defaultRoleWorkspace);
             window.history.replaceState(null, '', `#${defaultRoleWorkspace}`);
@@ -277,25 +418,55 @@ export default function App() {
           return;
         }
       }
+      
       if (res.status === 401 || res.status === 403) {
         localStorage.removeItem('campushire_token');
         localStorage.removeItem('campushire_user');
+        localStorage.removeItem('gsfc_active_workspace');
         setCurrentUser(null);
+        const safeGuestRole = isRoleAllowedInWorkspace(null, activeRole) ? activeRole : 'student';
+        if (activeRole !== safeGuestRole) {
+          setActiveRole(safeGuestRole);
+        }
+        localStorage.setItem('gsfc_active_workspace', safeGuestRole);
+        const currentHash = window.location.hash.replace(/^#/, '');
+        if (currentHash && !isRoleAllowedInWorkspace(null, resolveBaseWorkspace(currentHash))) {
+          window.history.replaceState(null, '', `#${safeGuestRole}`);
+        }
       }
     } catch (err) {
-      // Network failure — user already loaded from localStorage initial state, no action needed
+      // Network failure — user already loaded from localStorage initial state, ensure activeRole is safe
       console.warn('Network notice: Preserving active client session.');
+      const user = currentUserRef.current;
+      const currentHash = window.location.hash.replace(/^#/, '');
+      const baseHash = resolveBaseWorkspace(currentHash);
+      if (currentHash && isRoleAllowedInWorkspace(user, baseHash)) {
+        setActiveRole(baseHash);
+        localStorage.setItem('gsfc_active_workspace', baseHash);
+      } else if (isRoleAllowedInWorkspace(user, activeRole)) {
+        localStorage.setItem('gsfc_active_workspace', activeRole);
+        if (currentHash && !isRoleAllowedInWorkspace(user, baseHash)) {
+          window.history.replaceState(null, '', `#${activeRole}`);
+        }
+      } else {
+        const defaultRoleWorkspace = getDefaultWorkspaceForRole(user?.role);
+        setActiveRole(defaultRoleWorkspace);
+        localStorage.setItem('gsfc_active_workspace', defaultRoleWorkspace);
+        window.history.replaceState(null, '', `#${defaultRoleWorkspace}`);
+      }
     }
   };
 
   const handleRoleSwitch = (newRole) => {
-    if (!isRoleAllowedInWorkspace(currentUser, newRole)) {
+    const base = resolveBaseWorkspace(newRole);
+    if (!isRoleAllowedInWorkspace(currentUser, base)) {
       alert(`Access Restricted: Your account (${currentUser?.role || 'Guest'}) does not have permission to access the ${newRole} workspace.`);
       return;
     }
-    setActiveRole(newRole);
-    window.location.hash = `#${newRole}`;
-    if (newRole === 'student') {
+    setActiveRole(base);
+    localStorage.setItem('gsfc_active_workspace', base);
+    window.location.hash = `#${base}`;
+    if (base === 'student') {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
@@ -303,6 +474,7 @@ export default function App() {
   const handleLogout = () => {
     localStorage.removeItem('campushire_token');
     localStorage.removeItem('campushire_user');
+    localStorage.removeItem('gsfc_active_workspace');
     localStorage.removeItem('gsfc_user_avatar');
     localStorage.removeItem('gsfc_candidate_name');
     setCurrentUser(null);
@@ -336,10 +508,9 @@ export default function App() {
     localStorage.setItem('campushire_user', JSON.stringify(userData));
     window.dispatchEvent(new CustomEvent('gsfc-user-updated', { detail: { user: userData } }));
 
-    const defaultWorkspace = userData.role === 'faculty' 
-      ? 'faculty' 
-      : (userData.role === 'superadmin' ? 'superadmin' : (userData.role === 'company' ? 'company' : (userData.role === 'admin' ? 'admin' : (userData.role === 'alumni' ? 'alumni' : 'student'))));
+    const defaultWorkspace = getDefaultWorkspaceForRole(userData?.role);
     setActiveRole(defaultWorkspace);
+    localStorage.setItem('gsfc_active_workspace', defaultWorkspace);
     window.location.hash = `#${defaultWorkspace}`;
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -348,18 +519,80 @@ export default function App() {
   const [openApplicantsFeedSignal, setOpenApplicantsFeedSignal] = useState(0);
 
   const handleOpenJobPost = () => {
-    setActiveRole('company');
-    window.location.hash = '#company';
+    if (isRoleAllowedInWorkspace(currentUser, 'company')) {
+      setActiveRole('company');
+      localStorage.setItem('gsfc_active_workspace', 'company');
+      window.location.hash = '#company';
+    }
     setOpenPostModalSignal(prev => prev + 1);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleOpenApplicantsFeed = () => {
-    setActiveRole('company');
-    window.location.hash = '#company';
+    if (isRoleAllowedInWorkspace(currentUser, 'company')) {
+      setActiveRole('company');
+      localStorage.setItem('gsfc_active_workspace', 'company');
+      window.location.hash = '#company';
+    }
     setOpenApplicantsFeedSignal(prev => prev + 1);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
+
+  // 🌐 Direct Standalone Public Event Registration & Pass View Routes
+  if (publicRoute?.type === 'event') {
+    return (
+      <PublicEventRegisterPage
+        eventSlug={publicRoute.param}
+        onBackToHome={() => {
+          window.history.pushState({}, '', '/');
+          setPublicRoute(null);
+        }}
+      />
+    );
+  }
+
+  if (publicRoute?.type === 'pass') {
+    return (
+      <PublicPassDownloadPage
+        passToken={publicRoute.param}
+        onBackToRegister={() => {
+          window.history.pushState({}, '', '/');
+          setPublicRoute(null);
+        }}
+      />
+    );
+  }
+
+  // 🛡️ Dedicated Security Officer Terminal View
+  if (currentUser?.role === 'security' || activeRole === 'security') {
+    return (
+      <SecurityDashboard
+        currentUser={currentUser}
+        onLogout={handleLogout}
+      />
+    );
+  }
+
+  // 📹 Full-Screen In-Portal Live Video Meeting Room (with Anti-Cheating Lock)
+  const currentHashString = typeof window !== 'undefined' ? window.location.hash : '';
+  if (currentHashString.startsWith('#meeting/') || activeRole === 'meeting') {
+    const targetRoomId = currentHashString.startsWith('#meeting/')
+      ? currentHashString.replace('#meeting/', '')
+      : 'GSFC-MEET-GOOG-2026';
+
+    return (
+      <LiveVideoMeetingRoom
+        roomId={targetRoomId}
+        currentUser={currentUser}
+        onLeaveRoom={() => {
+          const fallback = getDefaultWorkspaceForRole(currentUser?.role);
+          setActiveRole(fallback);
+          localStorage.setItem('gsfc_active_workspace', fallback);
+          window.location.hash = `#${fallback}`;
+        }}
+      />
+    );
+  }
 
   return (
     <ToastProvider>
@@ -446,6 +679,13 @@ export default function App() {
               />
             )}
 
+            {/* ⛓️ PUBLIC BLOCKCHAIN-ANCHORED DOCUMENT VERIFICATION PAGE */}
+            {activeRole === 'verify-document' && (
+              <PublicDocumentVerifyPage
+                onNavigateBack={() => handleRoleSwitch('student')}
+              />
+            )}
+
             {/* Dedicated Empty Scroll Section */}
             <div className="max-w-4xl mx-auto px-4 mt-20 text-center">
               <div className="inline-flex items-center gap-2 px-5 py-2.5 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-white/90 dark:border-slate-700 rounded-full text-xs font-black text-slate-900 dark:text-slate-100 shadow-xl animate-bounce">
@@ -490,3 +730,12 @@ export default function App() {
     </ToastProvider>
   );
 }
+
+export default function RootApp() {
+  return (
+    <LanguageProvider>
+      <App />
+    </LanguageProvider>
+  );
+}
+

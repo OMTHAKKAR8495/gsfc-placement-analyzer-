@@ -2,7 +2,7 @@ CREATE TABLE IF NOT EXISTS users (
     id TEXT PRIMARY KEY,
     email TEXT UNIQUE NOT NULL,
     password_hash TEXT NOT NULL,
-    role TEXT CHECK(role IN ('student', 'company', 'admin')) NOT NULL,
+    role TEXT CHECK(role IN ('student', 'company', 'admin', 'alumni', 'faculty', 'superadmin', 'security')) NOT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -169,4 +169,289 @@ CREATE TABLE IF NOT EXISTS authorized_students (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS events (
+    id TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    slug TEXT UNIQUE NOT NULL,
+    description TEXT,
+    category TEXT DEFAULT 'Fest',
+    event_date TEXT NOT NULL,
+    end_date TEXT,
+    venue TEXT DEFAULT 'GSFC University Auditorium',
+    banner_url TEXT,
+    is_registration_open INTEGER DEFAULT 1,
+    max_registrations INTEGER DEFAULT 1000,
+    custom_fields_json TEXT DEFAULT '[]',
+    created_by TEXT DEFAULT 'TPC Admin',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS external_candidates (
+    id TEXT PRIMARY KEY,
+    event_id TEXT NOT NULL,
+    name TEXT NOT NULL,
+    email TEXT NOT NULL,
+    phone TEXT NOT NULL,
+    organization TEXT NOT NULL,
+    city TEXT DEFAULT 'Vadodara',
+    photo_url TEXT,
+    id_proof_url TEXT,
+    pass_token TEXT UNIQUE NOT NULL,
+    custom_data_json TEXT DEFAULT '{}',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(event_id) REFERENCES events(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS pass_tokens (
+    token TEXT PRIMARY KEY,
+    candidate_type TEXT CHECK(candidate_type IN ('student', 'external')) NOT NULL,
+    candidate_id TEXT NOT NULL,
+    event_id TEXT NOT NULL,
+    qr_payload TEXT,
+    status TEXT DEFAULT 'issued' CHECK(status IN ('issued', 'checked_in', 'cancelled')),
+    issued_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(event_id) REFERENCES events(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS entry_logs (
+    id TEXT PRIMARY KEY,
+    token TEXT NOT NULL,
+    event_id TEXT NOT NULL,
+    candidate_type TEXT NOT NULL,
+    candidate_id TEXT NOT NULL,
+    candidate_name TEXT NOT NULL,
+    candidate_email TEXT NOT NULL,
+    candidate_phone TEXT,
+    candidate_org TEXT NOT NULL,
+    candidate_photo TEXT,
+    scanned_by_user_id TEXT NOT NULL,
+    scanned_by_name TEXT NOT NULL,
+    scanned_by_role TEXT NOT NULL,
+    scanned_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    status TEXT DEFAULT 'present',
+    gate_name TEXT DEFAULT 'Main Campus Gate A'
+);
+
+CREATE TABLE IF NOT EXISTS security_staff_profiles (
+    id TEXT PRIMARY KEY,
+    user_id TEXT UNIQUE NOT NULL,
+    name TEXT NOT NULL,
+    phone TEXT,
+    gate_assigned TEXT DEFAULT 'Main Campus Gate A',
+    shift TEXT DEFAULT 'Day Shift (08:00 AM - 04:00 PM)',
+    active_status TEXT DEFAULT 'active' CHECK(active_status IN ('active', 'inactive')),
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+-- In-Portal Company Video Meetings & Interviews
+CREATE TABLE IF NOT EXISTS meetings (
+    id TEXT PRIMARY KEY,
+    room_id TEXT UNIQUE NOT NULL,
+    drive_id TEXT NOT NULL REFERENCES requirements(id) ON DELETE CASCADE,
+    company_id TEXT NOT NULL REFERENCES company_profiles(id) ON DELETE CASCADE,
+    title TEXT NOT NULL,
+    description TEXT,
+    scheduled_at DATETIME NOT NULL,
+    duration_minutes INTEGER DEFAULT 30,
+    status TEXT CHECK(status IN ('scheduled', 'live', 'completed', 'cancelled')) DEFAULT 'scheduled',
+    created_by TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    ended_at DATETIME,
+    summary_notes TEXT
+);
+
+-- Meeting Participants & Outcome Status
+CREATE TABLE IF NOT EXISTS meeting_participants (
+    id TEXT PRIMARY KEY,
+    meeting_id TEXT NOT NULL REFERENCES meetings(id) ON DELETE CASCADE,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    student_id TEXT REFERENCES student_profiles(id) ON DELETE SET NULL,
+    role TEXT CHECK(role IN ('student', 'company', 'admin', 'faculty')) NOT NULL,
+    join_status TEXT CHECK(join_status IN ('invited', 'joined', 'left', 'ejected', 'no_show')) DEFAULT 'invited',
+    joined_at DATETIME,
+    left_at DATETIME,
+    outcome_status TEXT CHECK(outcome_status IN ('pending', 'selected', 'rejected', 'hold', 'no_show')) DEFAULT 'pending',
+    interviewer_notes TEXT DEFAULT '',
+    evaluation_score REAL DEFAULT 0.0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Anti-Cheating & Proctoring Violations Log
+CREATE TABLE IF NOT EXISTS meeting_violations (
+    id TEXT PRIMARY KEY,
+    meeting_id TEXT NOT NULL REFERENCES meetings(id) ON DELETE CASCADE,
+    student_id TEXT NOT NULL REFERENCES student_profiles(id) ON DELETE CASCADE,
+    student_name TEXT NOT NULL,
+    student_email TEXT NOT NULL,
+    violation_type TEXT CHECK(violation_type IN ('tab_switch', 'window_blur', 'navigation_attempt', 'refresh_attempt', 'closed_tab', 'ejected')) NOT NULL,
+    details TEXT NOT NULL,
+    occurred_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- In-Meeting Text Chat Messages
+CREATE TABLE IF NOT EXISTS meeting_chat_messages (
+    id TEXT PRIMARY KEY,
+    meeting_id TEXT NOT NULL REFERENCES meetings(id) ON DELETE CASCADE,
+    sender_id TEXT NOT NULL,
+    sender_name TEXT NOT NULL,
+    sender_role TEXT NOT NULL,
+    message TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ============================================================================
+-- 🎮 GAMIFICATION LAYER: POINTS, BADGES & LEADERBOARD
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS gamification_rules (
+    action_key TEXT PRIMARY KEY,
+    label TEXT NOT NULL,
+    points_reward INTEGER DEFAULT 25,
+    badge_code TEXT,
+    badge_name TEXT,
+    badge_icon TEXT,
+    badge_desc TEXT,
+    threshold INTEGER DEFAULT 1
+);
+
+CREATE TABLE IF NOT EXISTS student_gamification (
+    student_id TEXT PRIMARY KEY REFERENCES student_profiles(id) ON DELETE CASCADE,
+    points_total INTEGER DEFAULT 0,
+    level INTEGER DEFAULT 1,
+    current_streak INTEGER DEFAULT 1,
+    nickname TEXT,
+    is_anonymous INTEGER DEFAULT 0,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS student_badges (
+    id TEXT PRIMARY KEY,
+    student_id TEXT NOT NULL REFERENCES student_profiles(id) ON DELETE CASCADE,
+    badge_code TEXT NOT NULL,
+    badge_name TEXT NOT NULL,
+    badge_icon TEXT NOT NULL,
+    badge_desc TEXT NOT NULL,
+    unlocked_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(student_id, badge_code)
+);
+
+CREATE TABLE IF NOT EXISTS gamification_points_log (
+    id TEXT PRIMARY KEY,
+    student_id TEXT NOT NULL REFERENCES student_profiles(id) ON DELETE CASCADE,
+    action_key TEXT NOT NULL,
+    points_awarded INTEGER NOT NULL,
+    description TEXT,
+    metadata_json TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ============================================================================
+-- ⛓️ BLOCKCHAIN-ANCHORED DOCUMENT VERIFICATION HASH-CHAIN LEDGER
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS blockchain_ledger (
+    block_number INTEGER PRIMARY KEY AUTOINCREMENT,
+    doc_id TEXT UNIQUE NOT NULL,
+    doc_type TEXT NOT NULL,
+    student_id TEXT,
+    student_name TEXT NOT NULL,
+    roll_number TEXT,
+    department TEXT,
+    company_name TEXT,
+    job_role TEXT,
+    ctc TEXT,
+    issuing_authority TEXT NOT NULL,
+    document_hash TEXT NOT NULL,
+    previous_block_hash TEXT NOT NULL,
+    block_hash TEXT NOT NULL,
+    merkle_root TEXT NOT NULL,
+    signature TEXT NOT NULL,
+    anchored_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    status TEXT DEFAULT 'VALID_CONFIRMED'
+);
+
+-- ============================================================================
+-- 💬 WHATSAPP NOTIFICATION AUDIT LOGS & STUDENT OPT-IN
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS whatsapp_notification_logs (
+    id TEXT PRIMARY KEY,
+    recipient_phone TEXT NOT NULL,
+    recipient_name TEXT,
+    student_id TEXT,
+    template_type TEXT NOT NULL,
+    message_body TEXT NOT NULL,
+    status TEXT DEFAULT 'SENT',
+    whatsapp_url TEXT,
+    metadata_json TEXT,
+    sent_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS whatsapp_student_opt_in (
+    student_id TEXT PRIMARY KEY,
+    phone TEXT NOT NULL,
+    opt_in INTEGER DEFAULT 1,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ============================================================================
+-- 💳 COMPANY SUBSCRIPTION PLANS & PAYMENT GATEWAY (RAZORPAY)
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS subscription_plans (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    badge_title TEXT NOT NULL,
+    price_inr INTEGER NOT NULL,
+    duration_days INTEGER NOT NULL,
+    max_postings INTEGER NOT NULL,
+    description TEXT NOT NULL,
+    features_json TEXT NOT NULL,
+    is_active INTEGER DEFAULT 1,
+    display_order INTEGER DEFAULT 1,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS company_subscriptions (
+    id TEXT PRIMARY KEY,
+    company_id TEXT NOT NULL,
+    plan_id TEXT NOT NULL,
+    plan_name TEXT NOT NULL,
+    started_at DATETIME NOT NULL,
+    expires_at DATETIME NOT NULL,
+    postings_used INTEGER DEFAULT 0,
+    max_postings INTEGER NOT NULL,
+    status TEXT CHECK(status IN ('active', 'expired', 'cancelled', 'grace_period')) DEFAULT 'active',
+    last_payment_id TEXT,
+    auto_renew INTEGER DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS payment_transactions (
+    id TEXT PRIMARY KEY,
+    company_id TEXT NOT NULL,
+    company_name TEXT NOT NULL,
+    plan_id TEXT NOT NULL,
+    plan_name TEXT NOT NULL,
+    amount_inr INTEGER NOT NULL,
+    currency TEXT DEFAULT 'INR',
+    gateway TEXT DEFAULT 'Razorpay',
+    gateway_order_id TEXT UNIQUE NOT NULL,
+    gateway_payment_id TEXT,
+    gateway_signature TEXT,
+    payment_method TEXT DEFAULT 'UPI / Cards / NetBanking',
+    status TEXT CHECK(status IN ('created', 'paid', 'failed', 'refunded')) DEFAULT 'created',
+    receipt_number TEXT UNIQUE NOT NULL,
+    billing_email TEXT,
+    billing_phone TEXT,
+    gst_number TEXT,
+    invoice_data_json TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    paid_at DATETIME
+);
+
+
+
+
 

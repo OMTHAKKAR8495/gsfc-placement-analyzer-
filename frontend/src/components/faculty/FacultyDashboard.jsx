@@ -3,10 +3,11 @@ import {
   Users, Award, Filter, Search, Eye, X, Briefcase, FileText, Clock,
   MessageSquare, Database, ChevronDown, ChevronUp, Building2, Download,
   Phone, Mail, ShieldCheck, CheckCircle, XCircle, AlertCircle, Send, ExternalLink,
-  RefreshCw, Check, Sparkles
+  RefreshCw, Check, Sparkles, QrCode
 } from 'lucide-react';
 
 import QABoard from '../common/QABoard';
+import UniversalQRScanner from '../scanner/UniversalQRScanner';
 
 const DEFAULT_STUDENTS = [
   {
@@ -900,6 +901,7 @@ GSFC University, Vadodara`);
         {[
           { id: 'applications', icon: <Database className="w-4 h-4 text-indigo-400" />, label: '📋 Candidate Applications & ATS Scores', activeClass: 'bg-indigo-700' },
           { id: 'tracker', icon: <Users className="w-4 h-4 text-emerald-400" />, label: '🔍 Advanced Batch & Skill Filter', activeClass: 'bg-blue-900' },
+          { id: 'scanner', icon: <QrCode className="w-4 h-4 text-purple-400" />, label: '🎟️ Gate QR Pass Scanner', activeClass: 'bg-purple-700' },
           { id: 'doubts', icon: <MessageSquare className="w-4 h-4 text-amber-400" />, label: '💬 Answer Student Doubts', activeClass: 'bg-emerald-700' },
         ].map(tab => (
           <button key={tab.id} onClick={() => setActiveTab(tab.id)}
@@ -915,6 +917,18 @@ GSFC University, Vadodara`);
         <div className="p-4 bg-emerald-600 text-white rounded-2xl text-xs font-black shadow-md flex items-center justify-between">
           <span>{assignedSuccessMsg}</span>
           <button onClick={() => setAssignedSuccessMsg('')} className="p-1 cursor-pointer"><X className="w-4 h-4" /></button>
+        </div>
+      )}
+
+      {/* ═══════════════════════════════════════════════════════════ */}
+      {/* TAB: GATE QR PASS SCANNER                                   */}
+      {/* ═══════════════════════════════════════════════════════════ */}
+      {activeTab === 'scanner' && (
+        <div className="space-y-4 animate-fadeIn">
+          <UniversalQRScanner
+            currentUser={currentUser}
+            gateName="Auditorium Gate 1 (Faculty Desk)"
+          />
         </div>
       )}
 
