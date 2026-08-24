@@ -1549,38 +1549,38 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
           <div className="flex items-center gap-1.5 text-[11px] font-black text-slate-500 uppercase tracking-wider mb-2 px-1">
             <BarChart3 className="w-3.5 h-3.5 text-blue-900" /> TPC Core Data & Governance Views
           </div>
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
             <button
               onClick={() => setActiveTab('overview')}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
+              className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-black transition-all cursor-pointer text-center ${
                 activeTab === 'overview'
                   ? 'bg-blue-900 text-white shadow-md ring-2 ring-blue-400/40'
                   : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100'
               }`}
             >
-              <BarChart3 className="w-3.5 h-3.5" /> Governance
+              <BarChart3 className="w-3.5 h-3.5 shrink-0" /> <span className="truncate">Governance</span>
             </button>
 
             <button
               onClick={() => setActiveTab('logged_students')}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
+              className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-black transition-all cursor-pointer text-center ${
                 activeTab === 'logged_students'
                   ? 'bg-blue-900 text-white shadow-md ring-2 ring-blue-400/40'
                   : 'bg-blue-50 text-blue-950 border border-blue-200 hover:bg-blue-100'
               }`}
             >
-              <GraduationCap className="w-3.5 h-3.5 text-blue-700" /> 🎓 Logged Students ({filteredLoggedStudents.length})
+              <GraduationCap className="w-3.5 h-3.5 text-blue-700 shrink-0" /> <span className="truncate">🎓 Students ({filteredLoggedStudents.length})</span>
             </button>
 
             <button
               onClick={() => setActiveTab('logged_faculty')}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
+              className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-black transition-all cursor-pointer text-center ${
                 activeTab === 'logged_faculty'
                   ? 'bg-emerald-800 text-white shadow-md ring-2 ring-emerald-400/40'
                   : 'bg-emerald-50 text-emerald-950 border border-emerald-200 hover:bg-emerald-100'
               }`}
             >
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-700" /> 👩‍🏫 Faculty Logged Data ({filteredLoggedFaculty.length})
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-700 shrink-0" /> <span className="truncate">👩‍🏫 Faculty ({filteredLoggedFaculty.length})</span>
             </button>
 
             <button
@@ -1588,13 +1588,13 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
                 setActiveTab('login_history');
                 fetchLoginHistory(1);
               }}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
+              className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-black transition-all cursor-pointer text-center ${
                 activeTab === 'login_history'
                   ? 'bg-purple-900 text-white shadow-md ring-2 ring-purple-400/40'
                   : 'bg-purple-50 text-purple-950 border border-purple-200 hover:bg-purple-100'
               }`}
             >
-              <History className="w-3.5 h-3.5 text-purple-700" /> 📜 Login History Audit
+              <History className="w-3.5 h-3.5 text-purple-700 shrink-0" /> <span className="truncate">📜 Login History</span>
             </button>
 
             <button
@@ -1602,79 +1602,79 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
                 setActiveTab('audit_logs');
                 fetchAdminAuditLogs(1);
               }}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
+              className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-black transition-all cursor-pointer text-center ${
                 activeTab === 'audit_logs'
                   ? 'bg-slate-900 text-white shadow-md ring-2 ring-slate-400/40'
                   : 'bg-slate-100 text-slate-900 border border-slate-300 hover:bg-slate-200'
               }`}
             >
-              <ShieldCheck className="w-3.5 h-3.5 text-slate-700" /> 🛡️ Admin Audit Logs
+              <ShieldCheck className="w-3.5 h-3.5 text-slate-700 shrink-0" /> <span className="truncate">🛡️ Admin Audit</span>
             </button>
 
             <button
               onClick={() => setActiveTab('database')}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
+              className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-black transition-all cursor-pointer text-center ${
                 activeTab === 'database'
                   ? 'bg-blue-900 text-white shadow-md ring-2 ring-blue-400/40'
                   : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100'
               }`}
             >
-              <Database className="w-3.5 h-3.5 text-amber-600" /> 🗄️ Candidate Database ({filteredCandidates.length})
+              <Database className="w-3.5 h-3.5 text-amber-600 shrink-0" /> <span className="truncate">🗄️ Database ({filteredCandidates.length})</span>
             </button>
 
             <button
               onClick={() => setActiveTab('companies')}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
+              className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-black transition-all cursor-pointer text-center ${
                 activeTab === 'companies'
                   ? 'bg-blue-900 text-white shadow-md ring-2 ring-blue-400/40'
                   : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100'
               }`}
             >
-              <Building className="w-3.5 h-3.5 text-amber-600" /> 🏢 Recruiters ({allCompaniesList.length})
+              <Building className="w-3.5 h-3.5 text-amber-600 shrink-0" /> <span className="truncate">🏢 Recruiters ({allCompaniesList.length})</span>
             </button>
 
             <button
               onClick={() => setActiveTab('drives')}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
+              className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-black transition-all cursor-pointer text-center ${
                 activeTab === 'drives'
                   ? 'bg-blue-900 text-white shadow-md ring-2 ring-blue-400/40'
                   : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100'
               }`}
             >
-              <Briefcase className="w-3.5 h-3.5 text-emerald-600" /> 💼 Drives ({allDrivesList.length})
+              <Briefcase className="w-3.5 h-3.5 text-emerald-600 shrink-0" /> <span className="truncate">💼 Drives ({allDrivesList.length})</span>
             </button>
 
             <button
               onClick={() => setActiveTab('applications')}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
+              className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-black transition-all cursor-pointer text-center ${
                 activeTab === 'applications'
                   ? 'bg-blue-900 text-white shadow-md ring-2 ring-blue-400/40'
                   : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100'
               }`}
             >
-              <Users className="w-3.5 h-3.5 text-indigo-600" /> 📄 Applications ({allApplicationsList.length})
+              <Users className="w-3.5 h-3.5 text-indigo-600 shrink-0" /> <span className="truncate">📄 Applications ({allApplicationsList.length})</span>
             </button>
 
             <button
               onClick={() => setActiveTab('alumni_approvals')}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
+              className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-black transition-all cursor-pointer text-center ${
                 activeTab === 'alumni_approvals'
                   ? 'bg-blue-900 text-white shadow-md ring-2 ring-blue-400/40'
                   : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100'
               }`}
             >
-              <GraduationCap className="w-3.5 h-3.5 text-blue-600" /> 🎓 Alumni ({pendingAlumni.length})
+              <GraduationCap className="w-3.5 h-3.5 text-blue-600 shrink-0" /> <span className="truncate">🎓 Alumni ({pendingAlumni.length})</span>
             </button>
 
             <button
               onClick={() => setActiveTab('qa')}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
+              className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-black transition-all cursor-pointer text-center ${
                 activeTab === 'qa'
                   ? 'bg-blue-900 text-white shadow-md ring-2 ring-blue-400/40'
                   : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100'
               }`}
             >
-              <HelpCircle className="w-3.5 h-3.5 text-cyan-600" /> 💬 Q&A Moderation
+              <HelpCircle className="w-3.5 h-3.5 text-cyan-600 shrink-0" /> <span className="truncate">💬 Q&A</span>
             </button>
 
             <button
@@ -1682,13 +1682,13 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
                 setActiveTab('search');
                 fetchGlobalSearch(searchQuery);
               }}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
+              className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-black transition-all cursor-pointer text-center ${
                 activeTab === 'search'
                   ? 'bg-blue-900 text-white shadow-md ring-2 ring-blue-400/40'
                   : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100'
               }`}
             >
-              <Search className="w-3.5 h-3.5 text-cyan-600" /> 🔍 Cross-Tenant Search
+              <Search className="w-3.5 h-3.5 text-cyan-600 shrink-0" /> <span className="truncate">🔍 Search</span>
             </button>
           </div>
         </div>
@@ -1698,61 +1698,62 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
           <div className="flex items-center gap-1.5 text-[11px] font-black text-amber-700 uppercase tracking-wider mb-2 px-1">
             <Sparkles className="w-3.5 h-3.5 text-amber-600" /> AI Intelligence & Accreditation Tools
           </div>
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-2">
             <button
               onClick={() => setActiveTab('predictive')}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
+              className={`flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer text-center ${
                 activeTab === 'predictive'
                   ? 'bg-indigo-900 text-white shadow-md'
                   : 'bg-indigo-50 text-indigo-950 border border-indigo-200 hover:bg-indigo-100'
               }`}
             >
-              <Sparkles className="w-3.5 h-3.5 text-indigo-600" /> 🔮 AI Forecast
+              <Sparkles className="w-3.5 h-3.5 text-indigo-600 shrink-0" /> <span className="truncate">🔮 AI Forecast</span>
             </button>
 
             <button
               onClick={() => setJobFairModalOpen(true)}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-black transition-all bg-purple-50 text-purple-950 border border-purple-200 hover:bg-purple-100 cursor-pointer shadow-xs"
+              className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black transition-all bg-purple-50 text-purple-950 border border-purple-200 hover:bg-purple-100 cursor-pointer shadow-xs text-center"
             >
-              <Calendar className="w-3.5 h-3.5 text-purple-600" /> 🎪 Job Fair Manager
+              <Calendar className="w-3.5 h-3.5 text-purple-600 shrink-0" /> <span className="truncate">🎪 Job Fair</span>
             </button>
 
             <button
               onClick={() => setEcosystemModalOpen(true)}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-black transition-all bg-gradient-to-r from-blue-900 via-indigo-900 to-amber-600 hover:from-blue-800 text-white cursor-pointer shadow-sm border border-amber-400/40"
+              className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black transition-all bg-gradient-to-r from-blue-900 via-indigo-900 to-amber-600 hover:from-blue-800 text-white cursor-pointer shadow-sm border border-amber-400/40 text-center"
             >
-              <Globe className="w-3.5 h-3.5 text-amber-300" /> 🌐 Enterprise Suite
+              <Globe className="w-3.5 h-3.5 text-amber-300 shrink-0" /> <span className="truncate">🌐 Enterprise</span>
             </button>
 
             <button
               onClick={() => setCopilotOpen(true)}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-black transition-all bg-purple-900 hover:bg-purple-800 text-white cursor-pointer shadow-sm"
+              className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black transition-all bg-purple-900 hover:bg-purple-800 text-white cursor-pointer shadow-sm text-center"
             >
-              <Sparkles className="w-3.5 h-3.5 text-amber-300" /> 🤖 AI TPO Copilot
+              <Sparkles className="w-3.5 h-3.5 text-amber-300 shrink-0" /> <span className="truncate">🤖 Copilot</span>
             </button>
 
             <button
               onClick={() => setWhatIfModalOpen(true)}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-black transition-all bg-indigo-900 hover:bg-indigo-800 text-white cursor-pointer shadow-sm"
+              className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black transition-all bg-indigo-900 hover:bg-indigo-800 text-white cursor-pointer shadow-sm text-center"
             >
-              <Sliders className="w-3.5 h-3.5 text-amber-300" /> 🔮 What-If Simulator
+              <Sliders className="w-3.5 h-3.5 text-amber-300 shrink-0" /> <span className="truncate">🔮 What-If</span>
             </button>
 
             <button
               onClick={() => setHeatmapModalOpen(true)}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-black transition-all bg-teal-900 hover:bg-teal-800 text-white cursor-pointer shadow-sm"
+              className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black transition-all bg-teal-900 hover:bg-teal-800 text-white cursor-pointer shadow-sm text-center"
             >
-              <Layers className="w-3.5 h-3.5 text-amber-300" /> 🗺️ Skill Heatmap
+              <Layers className="w-3.5 h-3.5 text-amber-300 shrink-0" /> <span className="truncate">🗺️ Heatmap</span>
             </button>
 
             <button
               onClick={() => setAccreditationModalOpen(true)}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-black transition-all bg-amber-50 text-amber-950 border border-amber-300 hover:bg-amber-100 cursor-pointer shadow-xs"
+              className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black transition-all bg-amber-50 text-amber-950 border border-amber-300 hover:bg-amber-100 cursor-pointer shadow-xs text-center"
             >
-              <Award className="w-3.5 h-3.5 text-amber-600 stroke-[2.5]" /> 🏆 NAAC / NIRF
+              <Award className="w-3.5 h-3.5 text-amber-600 stroke-[2.5] shrink-0" /> <span className="truncate">🏆 NAAC/NIRF</span>
             </button>
           </div>
         </div>
+
 
         {/* Tier 3: Fest, Public Pass & QR Scanner Modules */}
         <div className="glass-panel p-2.5 sm:p-3 rounded-2xl border border-indigo-200 dark:border-indigo-900/60 bg-gradient-to-r from-indigo-50/60 via-blue-50/40 to-slate-50 dark:from-indigo-950/30 dark:via-blue-950/20 dark:to-slate-900/40 shadow-md">
@@ -1760,76 +1761,82 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
             <span className="flex items-center gap-1.5"><Sparkles className="w-3.5 h-3.5 text-amber-500" /> Fest Management, Digital QR Passes & Gate Security</span>
             <span className="text-[10px] bg-amber-500/20 text-amber-700 dark:text-amber-300 px-2 py-0.5 rounded-full font-bold">New Module</span>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
             <button
               onClick={() => setActiveTab('events')}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
+              className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-black transition-all cursor-pointer text-center ${
                 activeTab === 'events'
                   ? 'bg-gradient-to-r from-blue-900 to-indigo-900 text-white shadow-md ring-2 ring-indigo-400/40'
                   : 'bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 border border-indigo-200 dark:border-indigo-800 hover:bg-indigo-50 dark:hover:bg-indigo-950'
               }`}
             >
-              <Sparkles className="w-3.5 h-3.5 text-amber-400" /> 🎪 Fests & Events
+              <Sparkles className="w-3.5 h-3.5 text-amber-400 shrink-0" /> 
+              <span className="truncate">🎪 Fests & Events</span>
             </button>
 
             <button
               onClick={() => setActiveTab('external_candidates')}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
+              className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-black transition-all cursor-pointer text-center ${
                 activeTab === 'external_candidates'
                   ? 'bg-gradient-to-r from-blue-900 to-indigo-900 text-white shadow-md ring-2 ring-indigo-400/40'
                   : 'bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 border border-indigo-200 dark:border-indigo-800 hover:bg-indigo-50 dark:hover:bg-indigo-950'
               }`}
             >
-              <Users className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" /> 🎟️ External Registrations
+              <Users className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 shrink-0" /> 
+              <span className="truncate">🎟️ Registrations</span>
             </button>
 
             <button
               onClick={() => setActiveTab('entry_logs')}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
+              className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-black transition-all cursor-pointer text-center ${
                 activeTab === 'entry_logs'
                   ? 'bg-gradient-to-r from-blue-900 to-indigo-900 text-white shadow-md ring-2 ring-indigo-400/40'
                   : 'bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 border border-indigo-200 dark:border-indigo-800 hover:bg-indigo-50 dark:hover:bg-indigo-950'
               }`}
             >
-              <QrCode className="w-3.5 h-3.5 text-emerald-500" /> ⚡ QR Scanner & Gate Records
+              <QrCode className="w-3.5 h-3.5 text-emerald-500 shrink-0" /> 
+              <span className="truncate">⚡ QR Scanner</span>
             </button>
 
             <button
               onClick={() => setActiveTab('security_staff')}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
+              className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-black transition-all cursor-pointer text-center ${
                 activeTab === 'security_staff'
                   ? 'bg-gradient-to-r from-blue-900 to-indigo-900 text-white shadow-md ring-2 ring-indigo-400/40'
                   : 'bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 border border-indigo-200 dark:border-indigo-800 hover:bg-indigo-50 dark:hover:bg-indigo-950'
               }`}
             >
-              <ShieldCheck className="w-3.5 h-3.5 text-amber-500" /> 🛡️ Security Staff Accounts
+              <ShieldCheck className="w-3.5 h-3.5 text-amber-500 shrink-0" /> 
+              <span className="truncate">🛡️ Security Staff</span>
             </button>
 
             <button
               onClick={() => setActiveTab('online_meetings')}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
+              className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-black transition-all cursor-pointer text-center ${
                 activeTab === 'online_meetings'
                   ? 'bg-gradient-to-r from-blue-900 to-indigo-900 text-white shadow-md ring-2 ring-indigo-400/40'
                   : 'bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 border border-indigo-200 dark:border-indigo-800 hover:bg-indigo-50 dark:hover:bg-indigo-950'
               }`}
             >
-              <Video className="w-3.5 h-3.5 text-indigo-400" /> 📹 Online Meetings & Proctoring
+              <Video className="w-3.5 h-3.5 text-indigo-400 shrink-0" /> 
+              <span className="truncate">📹 Meetings</span>
             </button>
 
             <button
               onClick={() => setActiveTab('subscription_plans')}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
+              className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-black transition-all cursor-pointer text-center ${
                 activeTab === 'subscription_plans'
                   ? 'bg-gradient-to-r from-amber-500 via-amber-600 to-yellow-500 text-slate-950 shadow-md ring-2 ring-amber-400/40 font-black'
                   : 'bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 border border-amber-200 dark:border-amber-800 hover:bg-amber-50 dark:hover:bg-amber-950'
               }`}
             >
-              <Crown className="w-3.5 h-3.5 text-amber-500" /> 💳 Recruiter Plans & Revenue
+              <Crown className="w-3.5 h-3.5 text-amber-500 shrink-0" /> 
+              <span className="truncate">💳 Recruiter Plans</span>
             </button>
-
           </div>
         </div>
       </div>
+
 
 {/* PASSWORD RESET CONFIRMATION TOAST */}
       {resetPasswordToast && (
