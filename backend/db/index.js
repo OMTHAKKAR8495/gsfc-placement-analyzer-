@@ -178,6 +178,63 @@ function applyMigrations() {
     if (!studColumns.includes('whatsapp_number')) {
       db.exec("ALTER TABLE student_profiles ADD COLUMN whatsapp_number TEXT");
     }
+    if (!studColumns.includes('access_status')) {
+      db.exec("ALTER TABLE student_profiles ADD COLUMN access_status TEXT DEFAULT 'active'");
+    }
+    if (!studColumns.includes('is_authorized')) {
+      db.exec("ALTER TABLE student_profiles ADD COLUMN is_authorized INTEGER DEFAULT 1");
+    }
+
+    // TPC Admin Authorized Student Whitelist Table
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS authorized_students (
+        id TEXT PRIMARY KEY,
+        roll_number TEXT UNIQUE NOT NULL,
+        email TEXT UNIQUE NOT NULL,
+        name TEXT NOT NULL,
+        program TEXT DEFAULT 'BTech CSE',
+        branch TEXT DEFAULT 'Computer Science & Engineering',
+        cgpa REAL DEFAULT 8.0,
+        passing_year INTEGER DEFAULT 2026,
+        admission_year INTEGER DEFAULT 2022,
+        phone TEXT DEFAULT '',
+        access_status TEXT DEFAULT 'active' CHECK(access_status IN ('active', 'blocked', 'pending')),
+        authorized_by TEXT DEFAULT 'TPC Admin',
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    // Sync existing student profiles into authorized_students table so existing users have access
+    const existingStudentsForAuth = db.prepare(`
+      SELECT s.roll_number, u.email, s.name, s.program, s.branch, s.cgpa, s.passing_year, s.admission_year, s.phone
+      FROM student_profiles s
+      JOIN users u ON s.user_id = u.id
+      WHERE s.roll_number IS NOT NULL AND u.email IS NOT NULL
+    `).all();
+
+    const insertAuthStudentStmt = db.prepare(`
+      INSERT OR IGNORE INTO authorized_students (id, roll_number, email, name, program, branch, cgpa, passing_year, admission_year, phone, access_status, authorized_by)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', 'TPC Admin Governance')
+    `);
+
+    // Ensure core test students are pre-authorized
+    const coreDefaultStudents = [
+      { roll_number: '24BT04171', email: '24bt04171@gsfcuniversity.ac.in', name: 'Om Thakkar', program: 'BTech CSE', branch: 'Computer Science & Engineering', cgpa: 8.9, passing_year: 2026, admission_year: 2024, phone: '+91 98765 43210' },
+      { roll_number: '21BCE045', email: 'thakkar_om@gmail.com', name: 'Thakkar Om', program: 'BTech CSE', branch: 'Computer Science & Engineering', cgpa: 8.8, passing_year: 2026, admission_year: 2022, phone: '+91 98765 43210' },
+      { roll_number: '21BCE042', email: 'student@gsfcuniversity.ac.in', name: 'Priya Patel', program: 'BTech CSE', branch: 'Computer Science & Engineering', cgpa: 8.6, passing_year: 2026, admission_year: 2022, phone: '+91 98765 43210' },
+      { roll_number: '22BCE108', email: 'tanvi.j@gsfcuniversity.ac.in', name: 'Tanvi Joshi', program: 'BTech CSE', branch: 'AI & Data Science', cgpa: 9.1, passing_year: 2026, admission_year: 2022, phone: '+91 98765 43210' },
+      { roll_number: '22BCH012', email: 'arav.sharma@student.gsfc.ac.in', name: 'Arav Sharma', program: 'BTech Chemical', branch: 'Chemical Engineering', cgpa: 8.4, passing_year: 2026, admission_year: 2022, phone: '+91 98765 43210' },
+      { roll_number: '21BME034', email: 'rahul.verma@gsfcuniversity.ac.in', name: 'Rahul Verma', program: 'BTech Mechanical', branch: 'Mechanical Engineering', cgpa: 8.2, passing_year: 2026, admission_year: 2022, phone: '+91 98765 43210' }
+    ];
+
+    for (const c of coreDefaultStudents) {
+      insertAuthStudentStmt.run('auth_' + c.roll_number.toLowerCase(), c.roll_number, c.email.toLowerCase(), c.name, c.program, c.branch, c.cgpa, c.passing_year, c.admission_year, c.phone);
+    }
+
+    for (const st of existingStudentsForAuth) {
+      insertAuthStudentStmt.run('auth_' + (st.roll_number || 'stud').toLowerCase(), st.roll_number, st.email.toLowerCase(), st.name, st.program || 'BTech CSE', st.branch || 'Engineering', st.cgpa || 8.0, st.passing_year || 2026, st.admission_year || 2022, st.phone || '');
+    }
 
     // Auto-compute admission_year, passing_year, and batch_year for any records missing them
     const allStuds = db.prepare("SELECT id, roll_number, program, created_at FROM student_profiles").all();

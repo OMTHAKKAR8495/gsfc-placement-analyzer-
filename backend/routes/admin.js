@@ -145,6 +145,212 @@ router.get('/students', (req, res) => {
   }
 });
 
+// 🎓 TPC Admin Student Authorization Management Endpoints
+router.get('/authorized-students', (req, res) => {
+  try {
+    const list = db.prepare(`
+      SELECT a.*, 
+             u.id as user_id,
+             u.last_login_at,
+             (SELECT COUNT(*) FROM applications WHERE student_id = s.id) as applications_count
+      FROM authorized_students a
+      LEFT JOIN users u ON lower(u.email) = lower(a.email)
+      LEFT JOIN student_profiles s ON s.user_id = u.id
+      ORDER BY a.created_at DESC
+    `).all();
+    res.json(list);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Add Single Authorized Student
+router.post('/authorized-students', (req, res) => {
+  try {
+    const { roll_number, email, name, program, branch, cgpa, passing_year, admission_year, phone, access_status, password } = req.body;
+
+    if (!roll_number || !email || !name) {
+      return res.status(400).json({ error: 'Roll Number, Email, and Name are required.' });
+    }
+
+    const cleanRoll = roll_number.trim().toUpperCase();
+    const cleanEmail = email.trim().toLowerCase();
+    const authId = 'auth_' + cleanRoll.toLowerCase();
+
+    // Insert or update in authorized_students table
+    db.prepare(`
+      INSERT INTO authorized_students (id, roll_number, email, name, program, branch, cgpa, passing_year, admission_year, phone, access_status, authorized_by)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'TPC Admin Governance')
+      ON CONFLICT(roll_number) DO UPDATE SET
+        email = excluded.email,
+        name = excluded.name,
+        program = excluded.program,
+        branch = excluded.branch,
+        cgpa = excluded.cgpa,
+        passing_year = excluded.passing_year,
+        admission_year = excluded.admission_year,
+        phone = excluded.phone,
+        access_status = excluded.access_status,
+        updated_at = CURRENT_TIMESTAMP
+    `).run(
+      authId,
+      cleanRoll,
+      cleanEmail,
+      name.trim(),
+      program || 'BTech CSE',
+      branch || 'Computer Science & Engineering',
+      parseFloat(cgpa || 8.0),
+      parseInt(passing_year || 2026, 10),
+      parseInt(admission_year || 2022, 10),
+      phone || '+91 98765 43210',
+      access_status || 'active'
+    );
+
+    // If user already exists in users table, update student_profiles
+    const existingUser = db.prepare('SELECT * FROM users WHERE lower(email) = ?').get(cleanEmail);
+    if (existingUser) {
+      db.prepare(`
+        UPDATE student_profiles 
+        SET roll_number = ?, name = ?, program = ?, branch = ?, cgpa = ?, passing_year = ?, admission_year = ?, phone = ?, access_status = ?
+        WHERE user_id = ?
+      `).run(
+        cleanRoll,
+        name.trim(),
+        program || 'BTech CSE',
+        branch || 'Computer Science & Engineering',
+        parseFloat(cgpa || 8.0),
+        parseInt(passing_year || 2026, 10),
+        parseInt(admission_year || 2022, 10),
+        phone || '+91 98765 43210',
+        access_status || 'active',
+        existingUser.id
+      );
+    }
+
+    logAdminAuditAction(req, 'AUTHORIZE_STUDENT', 'student', cleanRoll, { name, email: cleanEmail });
+
+    res.json({
+      success: true,
+      message: `Student ${name} (${cleanRoll}) successfully authorized for portal access!`
+    });
+  } catch (err) {
+    console.error('Error authorizing student:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Bulk Authorize Students (JSON List / CSV Rows)
+router.post('/authorized-students/bulk', (req, res) => {
+  try {
+    const { students } = req.body;
+    if (!Array.isArray(students) || students.length === 0) {
+      return res.status(400).json({ error: 'Array of student records is required.' });
+    }
+
+    let addedCount = 0;
+    const stmt = db.prepare(`
+      INSERT INTO authorized_students (id, roll_number, email, name, program, branch, cgpa, passing_year, admission_year, phone, access_status, authorized_by)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', 'TPC Admin Batch Import')
+      ON CONFLICT(roll_number) DO UPDATE SET
+        email = excluded.email,
+        name = excluded.name,
+        program = excluded.program,
+        branch = excluded.branch,
+        cgpa = excluded.cgpa,
+        passing_year = excluded.passing_year,
+        admission_year = excluded.admission_year,
+        phone = excluded.phone,
+        access_status = 'active',
+        updated_at = CURRENT_TIMESTAMP
+    `);
+
+    db.transaction(() => {
+      for (const s of students) {
+        if (!s.roll_number || !s.email || !s.name) continue;
+        const cleanRoll = s.roll_number.trim().toUpperCase();
+        const cleanEmail = s.email.trim().toLowerCase();
+        stmt.run(
+          'auth_' + cleanRoll.toLowerCase(),
+          cleanRoll,
+          cleanEmail,
+          s.name.trim(),
+          s.program || 'BTech CSE',
+          s.branch || 'Computer Science & Engineering',
+          parseFloat(s.cgpa || 8.0),
+          parseInt(s.passing_year || 2026, 10),
+          parseInt(s.admission_year || 2022, 10),
+          s.phone || '+91 98765 43210'
+        );
+        addedCount++;
+      }
+    })();
+
+    logAdminAuditAction(req, 'BULK_AUTHORIZE_STUDENTS', 'students', 'batch', { count: addedCount });
+
+    res.json({
+      success: true,
+      message: `Successfully authorized ${addedCount} students for portal access!`,
+      count: addedCount
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Toggle Student Access Status ('active' <-> 'blocked')
+router.put('/authorized-students/:id/status', (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body; // 'active' or 'blocked'
+
+    if (!status || !['active', 'blocked'].includes(status)) {
+      return res.status(400).json({ error: 'Valid status ("active" or "blocked") is required.' });
+    }
+
+    db.prepare(`
+      UPDATE authorized_students 
+      SET access_status = ?, updated_at = CURRENT_TIMESTAMP 
+      WHERE id = ? OR roll_number = ? OR lower(email) = lower(?)
+    `).run(status, id, id, id);
+
+    // Also update student_profiles if user exists
+    db.prepare(`
+      UPDATE student_profiles 
+      SET access_status = ? 
+      WHERE roll_number = ? OR user_id IN (SELECT id FROM users WHERE lower(email) = lower(?))
+    `).run(status, id, id);
+
+    logAdminAuditAction(req, 'UPDATE_STUDENT_ACCESS', 'student', id, { status });
+
+    res.json({
+      success: true,
+      message: `Student access status updated to ${status.toUpperCase()}!`
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Delete Student Authorization
+router.delete('/authorized-students/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+    db.prepare(`
+      DELETE FROM authorized_students 
+      WHERE id = ? OR roll_number = ? OR lower(email) = lower(?)
+    `).run(id, id, id);
+
+    logAdminAuditAction(req, 'DELETE_STUDENT_AUTH', 'student', id);
+
+    res.json({
+      success: true,
+      message: 'Student authorization removed successfully!'
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Helper to log Admin Audit Actions
 function logAdminAuditAction(req, action, targetType, targetId, details = {}) {
   try {

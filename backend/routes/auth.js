@@ -78,9 +78,20 @@ router.post('/register', AuthRateLimiter.registerLimiter, async (req, res) => {
       return res.status(400).json({ error: passCheck.message });
     }
 
-    const existingUser = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
-    if (existingUser) {
-      return res.status(400).json({ error: 'User with this email already exists.' });
+    if (role === 'student') {
+      const cleanEmail = email.toLowerCase().trim();
+      const cleanRoll = (roll_number || '').trim().toLowerCase();
+      const authRecord = db.prepare('SELECT * FROM authorized_students WHERE lower(email) = ? OR lower(roll_number) = ?').get(cleanEmail, cleanRoll);
+      if (!authRecord) {
+        return res.status(403).json({
+          error: 'Registration Blocked: Your enrollment number or email has not been registered by TPC Admin. Only students pre-authorized by TPC can access the portal.'
+        });
+      }
+      if (authRecord.access_status === 'blocked') {
+        return res.status(403).json({
+          error: 'Registration Denied: Your student portal access is currently restricted by TPC Admin.'
+        });
+      }
     }
 
     const userId = 'u_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
@@ -93,10 +104,25 @@ router.post('/register', AuthRateLimiter.registerLimiter, async (req, res) => {
     if (role === 'student') {
       const studentId = 's_' + Date.now();
       ownerId = studentId;
+      const cleanEmail = email.toLowerCase().trim();
+      const cleanRoll = (roll_number || '').trim().toLowerCase();
+      const authRecord = db.prepare('SELECT * FROM authorized_students WHERE lower(email) = ? OR lower(roll_number) = ?').get(cleanEmail, cleanRoll);
+
       db.prepare(`
-        INSERT INTO student_profiles (id, user_id, roll_number, name, phone, program, branch, cgpa)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(studentId, userId, roll_number || '21BCE001', name || 'New Student', phone || '+91 98765 43210', program || 'BTech CSE', branch || 'Computer Science', parseFloat(cgpa || 8.0));
+        INSERT INTO student_profiles (id, user_id, roll_number, name, phone, program, branch, cgpa, admission_year, passing_year, access_status, is_authorized)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', 1)
+      `).run(
+        studentId,
+        userId,
+        authRecord?.roll_number || roll_number || '24BT04171',
+        authRecord?.name || name || 'New Student',
+        authRecord?.phone || phone || '+91 98765 43210',
+        authRecord?.program || program || 'BTech CSE',
+        authRecord?.branch || branch || 'Computer Science',
+        parseFloat(authRecord?.cgpa || cgpa || 8.0),
+        authRecord?.admission_year || 2022,
+        authRecord?.passing_year || 2026
+      );
     } else if (role === 'company') {
       const companyId = 'c_' + Date.now();
       ownerId = companyId;
@@ -177,20 +203,35 @@ router.post('/login', AuthRateLimiter.loginLimiter, async (req, res) => {
 
     let user = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
 
-    // If user exists in database, perform role cross-validation safety guard
-    if (user && selectedRole) {
-      const normSelected = normalizeRole(selectedRole);
-      const normActual = normalizeRole(user.role);
-      const isRoleMatch = normSelected === normActual || (normSelected === 'admin' && normActual === 'superadmin');
+    // If user exists in database, perform role cross-validation safety guard & access status check
+    if (user) {
+      if (selectedRole) {
+        const normSelected = normalizeRole(selectedRole);
+        const normActual = normalizeRole(user.role);
+        const isRoleMatch = normSelected === normActual || (normSelected === 'admin' && normActual === 'superadmin');
 
-      if (normSelected && !isRoleMatch) {
-        const actualLabel = getRolePortalLabel(user.role);
-        const article = (actualLabel.startsWith('a') || actualLabel.startsWith('e') || actualLabel.startsWith('i') || actualLabel.startsWith('o') || actualLabel.startsWith('u')) ? 'an' : 'a';
-        return res.status(403).json({
-          error: `Access Denied: This account is registered as ${article} ${actualLabel}. Please use the ${actualLabel} portal.`,
-          actualRole: user.role,
-          selectedRole: selectedRole
-        });
+        if (normSelected && !isRoleMatch) {
+          const actualLabel = getRolePortalLabel(user.role);
+          const article = (actualLabel.startsWith('a') || actualLabel.startsWith('e') || actualLabel.startsWith('i') || actualLabel.startsWith('o') || actualLabel.startsWith('u')) ? 'an' : 'a';
+          return res.status(403).json({
+            error: `Access Denied: This account is registered as ${article} ${actualLabel}. Please use the ${actualLabel} portal.`,
+            actualRole: user.role,
+            selectedRole: selectedRole
+          });
+        }
+      }
+
+      if (user.role === 'student') {
+        const profile = db.prepare('SELECT * FROM student_profiles WHERE user_id = ?').get(user.id);
+        const cleanEmail = email.toLowerCase().trim();
+        const cleanRoll = (profile?.roll_number || cleanEmail.split('@')[0]).toLowerCase().trim();
+        const authRec = db.prepare('SELECT * FROM authorized_students WHERE lower(email) = ? OR lower(roll_number) = ?').get(cleanEmail, cleanRoll);
+        
+        if ((profile && profile.access_status === 'blocked') || (authRec && authRec.access_status === 'blocked')) {
+          return res.status(403).json({
+            error: 'Access Denied: Your student portal access has been disabled by TPC Admin. Please contact the Training & Placement Cell.'
+          });
+        }
       }
     }
 
@@ -211,11 +252,32 @@ router.post('/login', AuthRateLimiter.loginLimiter, async (req, res) => {
       email.toLowerCase().includes('coordinator');
     const isAlumniEmail = email.toLowerCase().includes('alumni') || email.toLowerCase().includes('alum');
 
-    // Seamless auto-registration for GSFC students / recruiters logging in for the first time
+    // If user does not exist in database yet:
     if (!user) {
       const role = selectedRole 
         ? normalizeRole(selectedRole)
         : (isAdminEmail ? 'admin' : (isFacultyEmail ? 'faculty' : (isCompanyEmail ? 'company' : (isAlumniEmail ? 'alumni' : 'student'))));
+
+      // 🛑 Gatekeeping: For students, verify they have been authorized by TPC Admin
+      let authRecord = null;
+      if (role === 'student') {
+        const cleanEmail = email.toLowerCase().trim();
+        const cleanPrefix = cleanEmail.split('@')[0].toLowerCase();
+        authRecord = db.prepare('SELECT * FROM authorized_students WHERE lower(email) = ? OR lower(roll_number) = ?').get(cleanEmail, cleanPrefix);
+
+        if (!authRecord) {
+          return res.status(403).json({
+            error: 'Access Denied: Your enrollment/email has not been registered by TPC Admin. Only students added by TPC can access the portal. Please contact GSFC University Training & Placement Cell (TPC) to get enrolled.'
+          });
+        }
+
+        if (authRecord.access_status === 'blocked') {
+          return res.status(403).json({
+            error: 'Access Denied: Your student portal access has been disabled by TPC Admin. Please contact the Training & Placement Cell.'
+          });
+        }
+      }
+
       const userId = 'u_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
       const passwordHash = bcrypt.hashSync(password, 6);
 
@@ -226,23 +288,26 @@ router.post('/login', AuthRateLimiter.loginLimiter, async (req, res) => {
         const studentId = 's_' + Date.now();
         ownerId = studentId;
         const emailPrefix = email.split('@')[0].toUpperCase();
-        const studentName = emailPrefix.startsWith('24') || emailPrefix.startsWith('23') || emailPrefix.startsWith('22')
+        const studentName = authRecord?.name || (emailPrefix.startsWith('24') || emailPrefix.startsWith('23') || emailPrefix.startsWith('22')
           ? `GSFC Student (${emailPrefix})`
-          : 'GSFC Student Candidate';
+          : 'GSFC Student Candidate');
 
         db.prepare(`
-          INSERT INTO student_profiles (id, user_id, roll_number, name, program, branch, cgpa, ats_score, parsed_resume_json)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+          INSERT INTO student_profiles (id, user_id, roll_number, name, program, branch, cgpa, admission_year, passing_year, phone, access_status, is_authorized, ats_score, parsed_resume_json)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', 1, ?, ?)
         `).run(
           studentId,
           userId,
-          emailPrefix,
+          authRecord?.roll_number || emailPrefix,
           studentName,
-          'BTech CSE',
-          'Computer Science',
-          8.5,
+          authRecord?.program || 'BTech CSE',
+          authRecord?.branch || 'Computer Science',
+          parseFloat(authRecord?.cgpa || 8.5),
+          authRecord?.admission_year || 2022,
+          authRecord?.passing_year || 2026,
+          authRecord?.phone || '+91 98765 43210',
           90,
-          JSON.stringify({ name: studentName, program: 'BTech CSE', branch: 'Computer Science', cgpa: 8.5, skills: ['Python', 'React', 'SQL', 'FastAPI'] })
+          JSON.stringify({ name: studentName, program: authRecord?.program || 'BTech CSE', branch: authRecord?.branch || 'Computer Science', cgpa: authRecord?.cgpa || 8.5, skills: ['Python', 'React', 'SQL', 'FastAPI'] })
         );
       } else if (role === 'faculty') {
         ownerId = userId;
@@ -252,10 +317,19 @@ router.post('/login', AuthRateLimiter.loginLimiter, async (req, res) => {
         db.prepare(`
           INSERT INTO company_profiles (id, user_id, company_name, industry, website, approved)
           VALUES (?, ?, ?, ?, ?, 1)
-        `).run(companyId, userId, 'GSFC Limited', 'Fertilizers, Chemicals & Tech', 'https://gsfclimited.com');
+        `).run(companyId, userId, 'Corporate Partner', 'Technology', 'https://company.com');
+      } else if (role === 'alumni') {
+        const alumniId = 'alumni_' + Date.now();
+        ownerId = alumniId;
+        db.prepare(`
+          INSERT INTO alumni_profiles (id, user_id, name, batch_year, company, designation, verified)
+          VALUES (?, ?, ?, ?, ?, ?, 1)
+        `).run(alumniId, userId, 'GSFC Alumni Mentor', '2019-2023', 'Industry Partner', 'Senior Engineer');
+      } else if (role === 'admin') {
+        ownerId = userId;
       }
 
-      user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
+      user = { id: userId, email, role, password_hash: passwordHash };
     } else {
       // If user exists and no specific selectedRole conflict, validate password or update hash
       const isValid = await bcrypt.compare(password, user.password_hash);

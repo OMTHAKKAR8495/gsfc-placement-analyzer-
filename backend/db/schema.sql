@@ -153,3 +153,20 @@ CREATE TABLE IF NOT EXISTS interview_evaluations (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS authorized_students (
+    id TEXT PRIMARY KEY,
+    roll_number TEXT UNIQUE NOT NULL,
+    email TEXT UNIQUE NOT NULL,
+    name TEXT NOT NULL,
+    program TEXT DEFAULT 'BTech CSE',
+    branch TEXT DEFAULT 'Computer Science & Engineering',
+    cgpa REAL DEFAULT 8.0,
+    passing_year INTEGER DEFAULT 2026,
+    admission_year INTEGER DEFAULT 2022,
+    phone TEXT DEFAULT '',
+    access_status TEXT DEFAULT 'active' CHECK(access_status IN ('active', 'blocked', 'pending')),
+    authorized_by TEXT DEFAULT 'TPC Admin',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+

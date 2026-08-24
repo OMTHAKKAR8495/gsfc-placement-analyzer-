@@ -200,6 +200,27 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
   const [batchPdfModalOpen, setBatchPdfModalOpen] = useState(false);
   const [selectedStudentIds, setSelectedStudentIds] = useState(new Set());
 
+  // 🎓 TPC Admin Student Enrolment & Access Control States
+  const [authorizeStudentModalOpen, setAuthorizeStudentModalOpen] = useState(false);
+  const [bulkEnrolModalOpen, setBulkEnrolModalOpen] = useState(false);
+  const [studentAccessStatusFilter, setStudentAccessStatusFilter] = useState('All');
+  const [newStudentForm, setNewStudentForm] = useState({
+    roll_number: '',
+    email: '',
+    name: '',
+    program: 'BTech CSE',
+    branch: 'Computer Science & Engineering',
+    cgpa: '8.5',
+    passing_year: '2026',
+    admission_year: '2024',
+    phone: '+91 ',
+    access_status: 'active'
+  });
+  const [bulkRosterInput, setBulkRosterInput] = useState('');
+  const [enrolSuccessMsg, setEnrolSuccessMsg] = useState('');
+  const [enrolErrorMsg, setEnrolErrorMsg] = useState('');
+  const [enrolSubmitting, setEnrolSubmitting] = useState(false);
+
   // GSFC University Discipline & Company Filter States
   const [selectedGsfcField, setSelectedGsfcField] = useState('All');
   const [selectedIndustry, setSelectedIndustry] = useState('All');
@@ -473,6 +494,173 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
       console.error('Error fetching student dossier:', err);
     } finally {
       setStudentDossierLoading(false);
+    }
+  };
+
+  // 🎓 TPC Admin Student Authorization & Enrolment Handlers
+  const handleAddAuthorizedStudent = async (e) => {
+    if (e) e.preventDefault();
+    if (!newStudentForm.roll_number || !newStudentForm.email || !newStudentForm.name) {
+      setEnrolErrorMsg('Please fill in Roll Number, Email, and Full Name.');
+      return;
+    }
+    setEnrolSubmitting(true);
+    setEnrolErrorMsg('');
+    setEnrolSuccessMsg('');
+
+    try {
+      const res = await fetch('/api/admin/authorized-students', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newStudentForm)
+      });
+      let data = {};
+      try { data = await res.json(); } catch(err) {}
+
+      if (!res.ok) throw new Error(data.error || 'Failed to authorize student');
+
+      const createdStudent = {
+        id: 'auth_' + newStudentForm.roll_number.toLowerCase(),
+        roll_number: newStudentForm.roll_number.toUpperCase(),
+        email: newStudentForm.email.toLowerCase(),
+        user_email: newStudentForm.email.toLowerCase(),
+        name: newStudentForm.name,
+        program: newStudentForm.program,
+        branch: newStudentForm.branch,
+        cgpa: parseFloat(newStudentForm.cgpa || 8.5),
+        passing_year: parseInt(newStudentForm.passing_year || 2026, 10),
+        admission_year: parseInt(newStudentForm.admission_year || 2024, 10),
+        phone: newStudentForm.phone,
+        access_status: newStudentForm.access_status || 'active',
+        total_logins: 0,
+        last_login_time: 'Never (Pending First Login)',
+        active_session_status: 'offline'
+      };
+
+      setLoggedStudentsList(prev => [createdStudent, ...prev.filter(s => s.roll_number !== createdStudent.roll_number)]);
+      setEnrolSuccessMsg(`Student ${newStudentForm.name} (${newStudentForm.roll_number}) successfully authorized! Portal access enabled.`);
+      setTimeout(() => {
+        setAuthorizeStudentModalOpen(false);
+        setEnrolSuccessMsg('');
+        setNewStudentForm({
+          roll_number: '',
+          email: '',
+          name: '',
+          program: 'BTech CSE',
+          branch: 'Computer Science & Engineering',
+          cgpa: '8.5',
+          passing_year: '2026',
+          admission_year: '2024',
+          phone: '+91 ',
+          access_status: 'active'
+        });
+      }, 1400);
+    } catch (err) {
+      setEnrolErrorMsg(err.message);
+    } finally {
+      setEnrolSubmitting(false);
+    }
+  };
+
+  const handleBulkEnrolStudents = async (e) => {
+    if (e) e.preventDefault();
+    if (!bulkRosterInput.trim()) return;
+    setEnrolSubmitting(true);
+    setEnrolErrorMsg('');
+    setEnrolSuccessMsg('');
+
+    try {
+      const lines = bulkRosterInput.split('\n').filter(l => l.trim());
+      const parsedList = lines.map(line => {
+        const parts = line.split(/[,\t|]/).map(p => p.trim());
+        if (parts.length >= 3) {
+          return {
+            roll_number: parts[0].toUpperCase(),
+            name: parts[1],
+            email: parts[2].toLowerCase(),
+            program: parts[3] || 'BTech CSE',
+            cgpa: parseFloat(parts[4] || 8.5),
+            passing_year: parseInt(parts[5] || 2026, 10)
+          };
+        }
+        return null;
+      }).filter(Boolean);
+
+      if (parsedList.length === 0) {
+        throw new Error('No valid student rows found. Expected format: RollNo, Name, Email, Program, CGPA, PassingYear');
+      }
+
+      const res = await fetch('/api/admin/authorized-students/bulk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ students: parsedList })
+      });
+      let data = {};
+      try { data = await res.json(); } catch(err) {}
+      if (!res.ok) throw new Error(data.error || 'Failed to bulk enrol students');
+
+      setLoggedStudentsList(prev => {
+        const existingRolls = new Set(parsedList.map(p => p.roll_number));
+        const formatted = parsedList.map(p => ({
+          id: 'auth_' + p.roll_number.toLowerCase(),
+          ...p,
+          user_email: p.email,
+          access_status: 'active',
+          total_logins: 0,
+          last_login_time: 'Never (Pending First Login)',
+          active_session_status: 'offline'
+        }));
+        return [...formatted, ...prev.filter(s => !existingRolls.has(s.roll_number))];
+      });
+
+      setEnrolSuccessMsg(`Successfully authorized and enrolled ${parsedList.length} students into portal!`);
+      setTimeout(() => {
+        setBulkEnrolModalOpen(false);
+        setBulkRosterInput('');
+        setEnrolSuccessMsg('');
+      }, 1400);
+    } catch (err) {
+      setEnrolErrorMsg(err.message);
+    } finally {
+      setEnrolSubmitting(false);
+    }
+  };
+
+  const handleToggleStudentAccess = async (student) => {
+    const roll = student.roll_number || student.id;
+    const currentStatus = student.access_status === 'blocked' ? 'blocked' : 'active';
+    const newStatus = currentStatus === 'active' ? 'blocked' : 'active';
+
+    try {
+      await fetch(`/api/admin/authorized-students/${encodeURIComponent(roll)}/status`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus })
+      });
+
+      setLoggedStudentsList(prev => prev.map(s => {
+        if (s.roll_number === roll || s.id === student.id || s.email === student.email || s.user_email === student.user_email) {
+          return { ...s, access_status: newStatus };
+        }
+        return s;
+      }));
+    } catch (err) {
+      console.error('Error toggling student access:', err);
+    }
+  };
+
+  const handleDeleteStudentAuth = async (student) => {
+    if (!window.confirm(`Are you sure you want to revoke portal access and remove student ${student.name} (${student.roll_number})?`)) return;
+    const roll = student.roll_number || student.id;
+
+    try {
+      await fetch(`/api/admin/authorized-students/${encodeURIComponent(roll)}`, {
+        method: 'DELETE'
+      });
+
+      setLoggedStudentsList(prev => prev.filter(s => s.roll_number !== roll && s.id !== student.id && s.email !== student.email && s.user_email !== student.user_email));
+    } catch (err) {
+      console.error('Error deleting student auth:', err);
     }
   };
 
@@ -1060,6 +1248,14 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
       list = list.filter(s => (s.cgpa && parseFloat(s.cgpa) >= minCgpa));
     }
 
+    if (studentAccessStatusFilter !== 'All') {
+      if (studentAccessStatusFilter === 'active') {
+        list = list.filter(s => s.access_status !== 'blocked');
+      } else if (studentAccessStatusFilter === 'blocked') {
+        list = list.filter(s => s.access_status === 'blocked');
+      }
+    }
+
     // Sort Order
     list.sort((a, b) => {
       if (studentSortFilter === 'logins_desc') {
@@ -1509,7 +1705,7 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
         </div>
       </div>
 
-      {/* PASSWORD RESET CONFIRMATION TOAST */}
+{/* PASSWORD RESET CONFIRMATION TOAST */}
       {resetPasswordToast && (
         <div className="fixed bottom-6 right-6 z-[999999] max-w-md bg-slate-900 text-white p-4 rounded-2xl shadow-2xl border border-emerald-500 flex items-center gap-3 animate-fadeIn">
           <CheckCircle2 className="w-6 h-6 text-emerald-400 shrink-0" />
@@ -1523,24 +1719,44 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
       {/* VIEW 1: LOGGED STUDENTS DIRECTORY & PERSISTENT LOGIN ACTIVITY VAULT */}
       {activeTab === 'logged_students' && (
         <div className="space-y-4 animate-fadeIn">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 glass-panel p-4 sm:p-5 rounded-3xl border border-slate-200 shadow-md">
+          <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-3 glass-panel p-4 sm:p-5 rounded-3xl border border-slate-200 shadow-md">
             <div>
               <h2 className="text-base font-black text-slate-900 flex items-center gap-2">
-                <GraduationCap className="w-5 h-5 text-blue-900" /> 🎓 GSFC Logged Students & Persistent Login Activity
+                <GraduationCap className="w-5 h-5 text-blue-900" /> 🎓 GSFC Enrolled Students & Portal Access Governance
               </h2>
               <p className="text-xs text-slate-600 font-bold mt-0.5">
-                Permanently database-backed governance repository of student candidates, live session status, academic records, and login frequency.
+                TPC Admin gatekeeping repository: Authorize student enrollment, control portal access whitelist, and inspect real-time login activity.
               </p>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              <button 
+                onClick={() => {
+                  setEnrolErrorMsg('');
+                  setEnrolSuccessMsg('');
+                  setAuthorizeStudentModalOpen(true);
+                }}
+                className="px-3.5 py-2 bg-gradient-to-r from-blue-900 to-indigo-700 hover:from-blue-800 hover:to-indigo-600 text-white rounded-xl text-xs font-black shadow-md flex items-center gap-1.5 transition-all cursor-pointer"
+              >
+                <PlusCircle className="w-4 h-4" /> + Authorize Student
+              </button>
+              <button 
+                onClick={() => {
+                  setEnrolErrorMsg('');
+                  setEnrolSuccessMsg('');
+                  setBulkEnrolModalOpen(true);
+                }}
+                className="px-3.5 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-900 rounded-xl text-xs font-black border border-indigo-200 flex items-center gap-1.5 transition-all cursor-pointer"
+              >
+                <FileText className="w-4 h-4" /> 📥 Bulk Enrol Roster
+              </button>
               <button 
                 onClick={fetchLoggedUsers}
-                className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-900 rounded-xl text-xs font-black border border-blue-200 flex items-center gap-1.5 transition-all"
+                className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-xs font-black border border-slate-300 flex items-center gap-1.5 transition-all cursor-pointer"
               >
-                <RefreshCw className="w-3.5 h-3.5" /> Sync Database
+                <RefreshCw className="w-3.5 h-3.5" /> Sync DB
               </button>
-              <span className="text-xs font-black text-blue-900 bg-blue-50 px-3 py-1.5 rounded-xl border border-blue-200 shadow-xs">
-                Total Students: {filteredLoggedStudents.length}
+              <span className="text-xs font-black text-blue-900 bg-blue-50 px-3 py-2 rounded-xl border border-blue-200 shadow-xs">
+                Total: {filteredLoggedStudents.length}
               </span>
             </div>
           </div>
@@ -1605,17 +1821,16 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
                 </select>
               </div>
 
-              {/* 4. Live Activity Status Filter */}
+              {/* 4. Portal Access Status Filter */}
               <div>
                 <select
-                  value={studentStatusFilter}
-                  onChange={(e) => setStudentStatusFilter(e.target.value)}
+                  value={studentAccessStatusFilter}
+                  onChange={(e) => setStudentAccessStatusFilter(e.target.value)}
                   className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:border-blue-900 cursor-pointer"
                 >
-                  <option value="All">⚡ All Activity Status</option>
-                  <option value="active">🟢 Active Now (Online)</option>
-                  <option value="recent">🟡 Recently Active (&lt;2h)</option>
-                  <option value="offline">⚪ Offline</option>
+                  <option value="All">🛡️ All Portal Access</option>
+                  <option value="active">🟢 Active (Access Allowed)</option>
+                  <option value="blocked">🔴 Blocked (Access Denied)</option>
                 </select>
               </div>
 
@@ -1642,10 +1857,17 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
                   <Filter className="w-3.5 h-3.5 text-blue-900" /> Active Filters:
                 </span>
                 
-                {studentProgramFilter !== 'All' && (
+                {loggedStudentSearch && (
                   <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-100 text-blue-900 rounded-lg text-[11px] font-bold">
+                    Search: "{loggedStudentSearch}"
+                    <button onClick={() => setLoggedStudentSearch('')} className="hover:text-blue-700 cursor-pointer"><X className="w-3 h-3" /></button>
+                  </span>
+                )}
+
+                {studentProgramFilter !== 'All' && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-purple-100 text-purple-900 rounded-lg text-[11px] font-bold">
                     {studentProgramFilter}
-                    <button onClick={() => setStudentProgramFilter('All')} className="hover:text-blue-700 cursor-pointer"><X className="w-3 h-3" /></button>
+                    <button onClick={() => setStudentProgramFilter('All')} className="hover:text-purple-700 cursor-pointer"><X className="w-3 h-3" /></button>
                   </span>
                 )}
 
@@ -1656,20 +1878,22 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
                   </span>
                 )}
 
-                {studentStatusFilter !== 'All' && (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-100 text-emerald-900 rounded-lg text-[11px] font-bold">
-                    Status: {studentStatusFilter === 'active' ? 'Active Now' : studentStatusFilter === 'recent' ? 'Recently Active' : 'Offline'}
-                    <button onClick={() => setStudentStatusFilter('All')} className="hover:text-emerald-700 cursor-pointer"><X className="w-3 h-3" /></button>
+                {studentAccessStatusFilter !== 'All' && (
+                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[11px] font-bold ${
+                    studentAccessStatusFilter === 'active' ? 'bg-emerald-100 text-emerald-900' : 'bg-red-100 text-red-900'
+                  }`}>
+                    Access: {studentAccessStatusFilter === 'active' ? 'Active Allowed' : 'Blocked'}
+                    <button onClick={() => setStudentAccessStatusFilter('All')} className="hover:opacity-70 cursor-pointer"><X className="w-3 h-3" /></button>
                   </span>
                 )}
 
-                {(loggedStudentSearch || studentProgramFilter !== 'All' || studentBatchFilter !== 'All' || studentStatusFilter !== 'All' || studentSortFilter !== 'logins_desc') && (
+                {(loggedStudentSearch || studentProgramFilter !== 'All' || studentBatchFilter !== 'All' || studentAccessStatusFilter !== 'All' || studentSortFilter !== 'logins_desc') && (
                   <button
                     onClick={() => {
                       setLoggedStudentSearch('');
                       setStudentProgramFilter('All');
                       setStudentBatchFilter('All');
-                      setStudentStatusFilter('All');
+                      setStudentAccessStatusFilter('All');
                       setStudentSortFilter('logins_desc');
                       setStudentMinCgpa('All');
                     }}
@@ -1696,9 +1920,9 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
                     <th className="py-3 px-4">Candidate & Roll No</th>
                     <th className="py-3 px-4">University Email</th>
                     <th className="py-3 px-4">Academic Details</th>
+                    <th className="py-3 px-4">Portal Access</th>
                     <th className="py-3 px-4">Login Activity</th>
                     <th className="py-3 px-4">Last Seen Status</th>
-                    <th className="py-3 px-4">Profile %</th>
                     <th className="py-3 px-4 text-right">Actions</th>
                   </tr>
                 </thead>
@@ -1711,9 +1935,10 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
                       const lastSeen = cand.last_seen_time || cand.last_seen_at;
                       const sessionStatus = cand.active_session_status || cand.current_session_status || 'active';
                       const completion = cand.completion_percentage || cand.profile_completion_pct || 90;
+                      const isBlocked = cand.access_status === 'blocked';
 
                       return (
-                        <tr key={cand.id || idx} className="hover:bg-blue-50/40 transition-all">
+                        <tr key={cand.id || idx} className={`transition-all ${isBlocked ? 'bg-red-50/30 hover:bg-red-50/60' : 'hover:bg-blue-50/40'}`}>
                           {/* 1. Photo with click-to-enlarge */}
                           <td className="py-3 px-4">
                             <div className="relative group w-12 h-12">
@@ -1765,12 +1990,25 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
                                 CGPA: {cand.cgpa || 8.9}
                               </span>
                               <span className="text-[10px] font-black text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">
-                                Sem {cand.current_semester || 7}-{cand.current_division || 'A'}
+                                Class of {cand.passing_year || 2026}
                               </span>
                             </div>
                           </td>
 
-                          {/* 5. Persistent Login Activity */}
+                          {/* 5. Portal Access Control Status */}
+                          <td className="py-3 px-4">
+                            {isBlocked ? (
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-red-100 text-red-900 border border-red-300 rounded-lg text-[10px] font-black uppercase shadow-xs">
+                                <span className="w-1.5 h-1.5 rounded-full bg-red-600 animate-pulse"></span> Blocked
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-100 text-emerald-900 border border-emerald-300 rounded-lg text-[10px] font-black uppercase shadow-xs">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-600"></span> Active (Allowed)
+                              </span>
+                            )}
+                          </td>
+
+                          {/* 6. Persistent Login Activity */}
                           <td className="py-3 px-4">
                             <div className="font-black text-slate-900 text-xs flex items-center gap-1">
                               <History className="w-3.5 h-3.5 text-blue-900" /> {loginsCount} Total Logins
@@ -1780,40 +2018,56 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
                             </div>
                           </td>
 
-                          {/* 6. Last Seen Status */}
+                          {/* 7. Last Seen Status */}
                           <td className="py-3 px-4">
                             {formatLastSeenBadge(lastSeen, sessionStatus)}
                           </td>
 
-                          {/* 7. Profile Completion % */}
-                          <td className="py-3 px-4">
-                            <div className="w-20 space-y-1">
-                              <div className="flex justify-between text-[10px] font-black text-slate-700">
-                                <span>{completion}%</span>
-                              </div>
-                              <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
-                                <div className="bg-gradient-to-r from-blue-900 to-indigo-600 h-full rounded-full" style={{ width: `${completion}%` }}></div>
-                              </div>
-                            </div>
-                          </td>
-
                           {/* 8. Actions */}
                           <td className="py-3 px-4 text-right space-y-1">
-                            <button
-                              type="button"
-                              onClick={() => fetchStudentDossier(cand)}
-                              className="py-1.5 px-3 bg-blue-900 hover:bg-blue-800 text-white rounded-xl text-xs font-black shadow-sm transition-all cursor-pointer inline-flex items-center gap-1"
-                            >
-                              <FileText className="w-3.5 h-3.5" />
-                              <span>Full Dossier</span>
-                            </button>
-                            <div>
+                            <div className="flex items-center justify-end gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => handleToggleStudentAccess(cand)}
+                                title={isBlocked ? 'Authorize and enable student portal access' : 'Revoke/Block student portal access'}
+                                className={`py-1 px-2.5 rounded-lg text-[10px] font-black border transition-all cursor-pointer inline-flex items-center gap-1 ${
+                                  isBlocked
+                                    ? 'bg-emerald-600 text-white border-emerald-700 hover:bg-emerald-700 shadow-xs'
+                                    : 'bg-amber-100 text-amber-900 border-amber-300 hover:bg-amber-200'
+                                }`}
+                              >
+                                {isBlocked ? (
+                                  <><span>🟢</span> Allow Access</>
+                                ) : (
+                                  <><span>🔴</span> Block</>
+                                )}
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => fetchStudentDossier(cand)}
+                                className="py-1 px-2.5 bg-blue-900 hover:bg-blue-800 text-white rounded-lg text-[10px] font-black shadow-xs transition-all cursor-pointer inline-flex items-center gap-1"
+                              >
+                                <FileText className="w-3 h-3" />
+                                <span>Dossier</span>
+                              </button>
+                            </div>
+                            
+                            <div className="flex items-center justify-end gap-2 pt-0.5">
                               <button
                                 type="button"
                                 onClick={() => handleTriggerPasswordReset(cand.email || cand.user_email, 'student', cand.name)}
-                                className="text-[10px] font-bold text-slate-500 hover:text-blue-900 hover:underline cursor-pointer inline-flex items-center gap-1"
+                                className="text-[10px] font-bold text-slate-500 hover:text-blue-900 hover:underline cursor-pointer"
                               >
-                                <KeyRound className="w-3 h-3" /> Reset Pass
+                                Reset Pass
+                              </button>
+                              <span className="text-slate-300">•</span>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteStudentAuth(cand)}
+                                className="text-[10px] font-bold text-red-500 hover:text-red-800 hover:underline cursor-pointer"
+                              >
+                                Revoke Roster
                               </button>
                             </div>
                           </td>
@@ -3499,6 +3753,298 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
         onClose={() => setEcosystemModalOpen(false)}
         currentUser={currentUser}
       />
+
+      {/* 🎓 TPC ADMIN: SINGLE STUDENT AUTHORIZE & ENROL MODAL */}
+      {authorizeStudentModalOpen && (
+        <div className="fixed inset-0 z-[999999] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fadeIn overflow-y-auto">
+          <div className="bg-white rounded-3xl border border-slate-200 max-w-xl w-full shadow-2xl overflow-hidden my-8 text-slate-900">
+            <div className="bg-gradient-to-r from-blue-900 via-indigo-950 to-slate-900 p-6 text-white flex items-center justify-between">
+              <div>
+                <span className="px-2.5 py-0.5 bg-emerald-500/20 text-emerald-300 text-[10px] font-black uppercase rounded-lg border border-emerald-500/30">
+                  TPC Access Gatekeeper
+                </span>
+                <h2 className="text-lg font-black mt-1 flex items-center gap-2">
+                  <UserPlus className="w-5 h-5 text-emerald-400" /> Authorize Student for Portal Access
+                </h2>
+                <p className="text-xs text-slate-300 font-bold">
+                  Students can only access or sign into the portal once authorized by TPC Admin.
+                </p>
+              </div>
+              <button 
+                onClick={() => setAuthorizeStudentModalOpen(false)}
+                className="p-2 bg-white/10 hover:bg-white/20 rounded-xl text-white cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleAddAuthorizedStudent} className="p-6 space-y-4 max-h-[75vh] overflow-y-auto">
+              {enrolErrorMsg && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs font-bold text-red-700 flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
+                  <span>{enrolErrorMsg}</span>
+                </div>
+              )}
+
+              {enrolSuccessMsg && (
+                <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs font-bold text-emerald-800 flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>{enrolSuccessMsg}</span>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Roll Number */}
+                <div>
+                  <label className="block text-xs font-black text-slate-700 mb-1">Roll / Enrollment No *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. 24BT04171"
+                    value={newStudentForm.roll_number}
+                    onChange={(e) => setNewStudentForm({ ...newStudentForm, roll_number: e.target.value.toUpperCase() })}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:border-blue-900 uppercase"
+                  />
+                </div>
+
+                {/* Full Name */}
+                <div>
+                  <label className="block text-xs font-black text-slate-700 mb-1">Full Name *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Om Thakkar"
+                    value={newStudentForm.name}
+                    onChange={(e) => setNewStudentForm({ ...newStudentForm, name: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:border-blue-900"
+                  />
+                </div>
+
+                {/* Official University Email */}
+                <div className="sm:col-span-2">
+                  <label className="block text-xs font-black text-slate-700 mb-1">Official GSFC Email *</label>
+                  <input
+                    type="email"
+                    required
+                    placeholder="e.g. 24bt04171@gsfcuniversity.ac.in"
+                    value={newStudentForm.email}
+                    onChange={(e) => setNewStudentForm({ ...newStudentForm, email: e.target.value.toLowerCase() })}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:border-blue-900 lowercase"
+                  />
+                </div>
+
+                {/* Academic Program */}
+                <div>
+                  <label className="block text-xs font-black text-slate-700 mb-1">Degree Program</label>
+                  <select
+                    value={newStudentForm.program}
+                    onChange={(e) => setNewStudentForm({ ...newStudentForm, program: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:border-blue-900"
+                  >
+                    <option value="BTech CSE">BTech CSE</option>
+                    <option value="BTech IT">BTech IT</option>
+                    <option value="BTech Chemical">BTech Chemical</option>
+                    <option value="BTech Mechanical">BTech Mechanical</option>
+                    <option value="BTech Fire & Safety">BTech Fire & Safety</option>
+                    <option value="BSc Chemistry">BSc Chemistry</option>
+                    <option value="MSc Chemistry">MSc Chemistry</option>
+                    <option value="BSc Biotechnology">BSc Biotechnology</option>
+                    <option value="MSc Biotechnology">MSc Biotechnology</option>
+                    <option value="BBA">BBA</option>
+                    <option value="MBA">MBA</option>
+                  </select>
+                </div>
+
+                {/* Branch / Discipline */}
+                <div>
+                  <label className="block text-xs font-black text-slate-700 mb-1">Branch / Specialization</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Computer Science & Eng"
+                    value={newStudentForm.branch}
+                    onChange={(e) => setNewStudentForm({ ...newStudentForm, branch: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:border-blue-900"
+                  />
+                </div>
+
+                {/* CGPA */}
+                <div>
+                  <label className="block text-xs font-black text-slate-700 mb-1">CGPA</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    max="10"
+                    placeholder="8.50"
+                    value={newStudentForm.cgpa}
+                    onChange={(e) => setNewStudentForm({ ...newStudentForm, cgpa: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:border-blue-900"
+                  />
+                </div>
+
+                {/* Passing Year */}
+                <div>
+                  <label className="block text-xs font-black text-slate-700 mb-1">Passing Year (Class of)</label>
+                  <select
+                    value={newStudentForm.passing_year}
+                    onChange={(e) => setNewStudentForm({ ...newStudentForm, passing_year: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:border-blue-900"
+                  >
+                    <option value="2024">2024</option>
+                    <option value="2025">2025</option>
+                    <option value="2026">2026</option>
+                    <option value="2027">2027</option>
+                    <option value="2028">2028</option>
+                    <option value="2029">2029</option>
+                    <option value="2030">2030</option>
+                  </select>
+                </div>
+
+                {/* Phone */}
+                <div>
+                  <label className="block text-xs font-black text-slate-700 mb-1">Contact Phone</label>
+                  <input
+                    type="tel"
+                    placeholder="+91 98765 43210"
+                    value={newStudentForm.phone}
+                    onChange={(e) => setNewStudentForm({ ...newStudentForm, phone: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:border-blue-900"
+                  />
+                </div>
+
+                {/* Initial Portal Access Status */}
+                <div>
+                  <label className="block text-xs font-black text-slate-700 mb-1">Portal Access</label>
+                  <select
+                    value={newStudentForm.access_status}
+                    onChange={(e) => setNewStudentForm({ ...newStudentForm, access_status: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:border-blue-900"
+                  >
+                    <option value="active">🟢 Active (Access Granted)</option>
+                    <option value="blocked">🔴 Blocked (Access Disabled)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="pt-4 border-t border-slate-200 flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setAuthorizeStudentModalOpen(false)}
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={enrolSubmitting}
+                  className="px-5 py-2 bg-gradient-to-r from-blue-900 to-indigo-700 hover:from-blue-800 hover:to-indigo-600 text-white rounded-xl text-xs font-black shadow-md flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                >
+                  {enrolSubmitting ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <ShieldCheck className="w-4 h-4 text-emerald-400" />}
+                  <span>{enrolSubmitting ? 'Authorizing...' : 'Authorize Student'}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 🎓 TPC ADMIN: BULK ROSTER ENROLMENT MODAL */}
+      {bulkEnrolModalOpen && (
+        <div className="fixed inset-0 z-[999999] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fadeIn overflow-y-auto">
+          <div className="bg-white rounded-3xl border border-slate-200 max-w-2xl w-full shadow-2xl overflow-hidden my-8 text-slate-900">
+            <div className="bg-gradient-to-r from-indigo-900 via-blue-950 to-slate-900 p-6 text-white flex items-center justify-between">
+              <div>
+                <span className="px-2.5 py-0.5 bg-indigo-500/20 text-indigo-300 text-[10px] font-black uppercase rounded-lg border border-indigo-500/30">
+                  Batch Whitelist Importer
+                </span>
+                <h2 className="text-lg font-black mt-1 flex items-center gap-2">
+                  <Upload className="w-5 h-5 text-indigo-400" /> Bulk Enrol & Authorize Student Roster
+                </h2>
+                <p className="text-xs text-slate-300 font-bold">
+                  Paste roster from Excel / CSV to pre-authorize entire batches in one click.
+                </p>
+              </div>
+              <button 
+                onClick={() => setBulkEnrolModalOpen(false)}
+                className="p-2 bg-white/10 hover:bg-white/20 rounded-xl text-white cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleBulkEnrolStudents} className="p-6 space-y-4 max-h-[75vh] overflow-y-auto">
+              {enrolErrorMsg && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs font-bold text-red-700 flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
+                  <span>{enrolErrorMsg}</span>
+                </div>
+              )}
+
+              {enrolSuccessMsg && (
+                <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs font-bold text-emerald-800 flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>{enrolSuccessMsg}</span>
+                </div>
+              )}
+
+              <div className="bg-blue-50/70 p-3.5 rounded-2xl border border-blue-200 text-xs text-slate-700 space-y-1">
+                <div className="font-black text-blue-900 flex items-center gap-1.5">
+                  <FileSpreadsheet className="w-4 h-4" /> Format Guidelines (Comma or Tab Separated):
+                </div>
+                <div className="font-mono text-[11px] text-slate-600 bg-white p-2 rounded-xl border border-blue-200">
+                  Roll_Number, Full_Name, Email, Program, CGPA, Passing_Year<br/>
+                  24BT04171, Om Thakkar, 24bt04171@gsfcuniversity.ac.in, BTech CSE, 8.9, 2026<br/>
+                  22BCE108, Tanvi Joshi, tanvi.j@gsfcuniversity.ac.in, BTech CSE, 9.1, 2026
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-black text-slate-700 mb-1">Paste Student Roster Data *</label>
+                <textarea
+                  required
+                  rows={8}
+                  placeholder={`24BT04171, Om Thakkar, 24bt04171@gsfcuniversity.ac.in, BTech CSE, 8.9, 2026\n21BCE045, Thakkar Om, thakkar_om@gmail.com, BTech CSE, 8.8, 2026`}
+                  value={bulkRosterInput}
+                  onChange={(e) => setBulkRosterInput(e.target.value)}
+                  className="w-full px-3.5 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-mono text-slate-900 focus:outline-none focus:border-blue-900 leading-relaxed"
+                />
+              </div>
+
+              <div className="pt-4 border-t border-slate-200 flex items-center justify-between">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setBulkRosterInput(
+                      `24BT04171, Om Thakkar, 24bt04171@gsfcuniversity.ac.in, BTech CSE, 8.9, 2026\n21BCE045, Thakkar Om, thakkar_om@gmail.com, BTech CSE, 8.8, 2026\n22BCE108, Tanvi Joshi, tanvi.j@gsfcuniversity.ac.in, BTech CSE, 9.1, 2026\n22BCH012, Arav Sharma, arav.sharma@student.gsfc.ac.in, BTech Chemical, 8.4, 2026\n21BME034, Rahul Verma, rahul.verma@gsfcuniversity.ac.in, BTech Mechanical, 8.2, 2026`
+                    );
+                  }}
+                  className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-900 rounded-xl text-xs font-bold border border-blue-200 cursor-pointer"
+                >
+                  Load Sample Roster
+                </button>
+
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setBulkEnrolModalOpen(false)}
+                    className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={enrolSubmitting || !bulkRosterInput.trim()}
+                    className="px-5 py-2 bg-gradient-to-r from-blue-900 to-indigo-700 hover:from-blue-800 hover:to-indigo-600 text-white rounded-xl text-xs font-black shadow-md flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                  >
+                    {enrolSubmitting ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <ShieldCheck className="w-4 h-4 text-emerald-400" />}
+                    <span>{enrolSubmitting ? 'Enrolling...' : 'Authorize All Students'}</span>
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* RECRUITER & DRIVE APPROVAL SUCCESS MODAL */}
       <ApprovalNotificationModal
