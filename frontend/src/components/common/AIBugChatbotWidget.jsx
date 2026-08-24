@@ -85,40 +85,43 @@ export default function AIBugChatbotWidget({ hideCardsForBGView, onToggleBGView 
       <div className="fixed bottom-6 right-4 sm:right-6 z-50 flex flex-col items-end gap-2.5 max-w-[calc(100vw-2rem)] select-none">
         {!isOpen && (
           <>
-            {/* 📦 Dedicated Glassmorphism Box for Resume Options */}
-            <div className="p-2 sm:p-2.5 bg-white/95 dark:bg-slate-900/95 rounded-2xl border border-slate-200/90 dark:border-slate-700/80 shadow-2xl backdrop-blur-2xl flex items-center gap-2 animate-fade-in">
-              {/* Option 1: Upload Resume */}
-              <button
-                type="button"
-                onClick={() => {
-                  window.location.hash = '#student';
-                  window.dispatchEvent(new CustomEvent('open-resume-upload'));
-                }}
-                className="px-3 py-2 bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/60 dark:hover:bg-blue-900/60 text-blue-900 dark:text-blue-200 rounded-xl text-xs font-black border border-blue-200 dark:border-blue-800 flex items-center gap-2 transition-all hover:scale-105 cursor-pointer shadow-xs"
-                title="Upload PDF Resume to Calculate ATS Score"
-              >
-                <div className="w-5 h-5 rounded-lg bg-blue-600 text-white flex items-center justify-center shadow-xs">
-                  <Upload className="w-3 h-3" />
-                </div>
-                <span>Upload Resume</span>
-              </button>
+            {/* 📦 Dedicated Glassmorphism Box for Resume Options (Shown in Student Workspace & Public Landing) */}
+            {(!window.location.hash || window.location.hash.startsWith('#student') || window.location.hash.startsWith('#alumni') || window.location.hash.startsWith('#my-applications')) && (
+              <div className="p-2 sm:p-2.5 bg-white/95 dark:bg-slate-900/95 rounded-2xl border border-slate-200/90 dark:border-slate-700/80 shadow-2xl backdrop-blur-2xl flex items-center gap-2 animate-fade-in">
+                {/* Option 1: Upload Resume */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    window.location.hash = '#student';
+                    window.dispatchEvent(new CustomEvent('open-resume-upload'));
+                  }}
+                  className="px-3 py-2 bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/60 dark:hover:bg-blue-900/60 text-blue-900 dark:text-blue-200 rounded-xl text-xs font-black border border-blue-200 dark:border-blue-800 flex items-center gap-2 transition-all hover:scale-105 cursor-pointer shadow-xs"
+                  title="Upload PDF Resume to Calculate ATS Score"
+                >
+                  <div className="w-5 h-5 rounded-lg bg-blue-600 text-white flex items-center justify-center shadow-xs">
+                    <Upload className="w-3 h-3" />
+                  </div>
+                  <span>Upload Resume</span>
+                </button>
 
-              {/* Option 2: Make Resume with AI */}
-              <button
-                type="button"
-                onClick={() => {
-                  window.location.hash = '#student';
-                  window.dispatchEvent(new CustomEvent('open-resume-builder'));
-                }}
-                className="px-3 py-2 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:opacity-95 text-white rounded-xl text-xs font-black shadow-md border border-white/20 flex items-center gap-2 transition-all hover:scale-105 cursor-pointer"
-                title="Build Resume with Gemini AI, Photo & 3 Documents"
-              >
-                <div className="w-5 h-5 rounded-lg bg-white/20 text-amber-300 flex items-center justify-center shadow-xs">
-                  <Sparkles className="w-3 h-3 animate-pulse" />
-                </div>
-                <span>Make Resume (AI)</span>
-              </button>
-            </div>
+                {/* Option 2: Make Resume with AI */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    window.location.hash = '#student';
+                    window.dispatchEvent(new CustomEvent('open-resume-builder'));
+                  }}
+                  className="px-3 py-2 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:opacity-95 text-white rounded-xl text-xs font-black shadow-md border border-white/20 flex items-center gap-2 transition-all hover:scale-105 cursor-pointer"
+                  title="Build Resume with Gemini AI, Photo & 3 Documents"
+                >
+                  <div className="w-5 h-5 rounded-lg bg-white/20 text-amber-300 flex items-center justify-center shadow-xs">
+                    <Sparkles className="w-3 h-3 animate-pulse" />
+                  </div>
+                  <span>Make Resume (AI)</span>
+                </button>
+              </div>
+            )}
+
 
             {/* Bottom Row: Clear Poster BG + Assistant Chatbot Pill */}
             <div className="flex items-center gap-2">

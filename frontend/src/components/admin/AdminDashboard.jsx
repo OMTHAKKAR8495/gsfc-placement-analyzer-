@@ -1510,32 +1510,36 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5 flex-wrap">
+        <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap shrink-0">
           <button
             onClick={() => setActiveTab('entry_logs')}
-            className="py-3 px-5 bg-gradient-to-r from-emerald-600 via-teal-700 to-blue-900 hover:from-emerald-500 hover:to-teal-600 text-white font-black text-xs rounded-xl shadow-lg shadow-emerald-900/20 flex items-center gap-2 transition-all cursor-pointer hover:scale-105"
+            className="py-2.5 px-3.5 bg-gradient-to-r from-emerald-600 via-teal-700 to-blue-900 hover:from-emerald-500 hover:to-teal-600 text-white font-black text-xs rounded-xl shadow-md flex items-center gap-1.5 transition-all cursor-pointer hover:scale-105 shrink-0"
+            title="Open Live Gate QR Scanner Terminal"
           >
             <QrCode className="w-4 h-4 text-emerald-300" /> 
-            <span>⚡ Scan Gate Pass</span>
+            <span>Scan Gate Pass</span>
           </button>
 
           <button
             onClick={() => setAccreditationModalOpen(true)}
-            className="py-3 px-5 bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:from-amber-400 hover:to-orange-400 text-slate-950 font-black text-xs rounded-xl shadow-lg shadow-amber-500/20 flex items-center gap-2 transition-all cursor-pointer hover:scale-105"
+            className="py-2.5 px-3.5 bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:from-amber-400 hover:to-orange-400 text-slate-950 font-black text-xs rounded-xl shadow-md flex items-center gap-1.5 transition-all cursor-pointer hover:scale-105 shrink-0"
+            title="Open Official NAAC & NIRF Accreditation Hub"
           >
             <Award className="w-4 h-4 text-slate-950 stroke-[2.5]" /> 
-            <span>📊 NAAC & NIRF Accreditation Hub</span>
+            <span>NAAC & NIRF Hub</span>
           </button>
 
           <button
             onClick={downloadReport}
-            className="py-3 px-5 bg-gradient-to-r from-blue-900 via-indigo-900 to-amber-600 hover:from-blue-800 hover:to-amber-500 text-white font-black text-xs rounded-xl shadow-lg shadow-blue-900/20 flex items-center gap-2 transition-all cursor-pointer"
+            className="py-2.5 px-3.5 bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 hover:from-blue-800 hover:to-indigo-800 text-white font-black text-xs rounded-xl shadow-md flex items-center gap-1.5 transition-all cursor-pointer hover:scale-105 shrink-0"
+            title="Export Master TPC Analytics CSV"
           >
             <Download className="w-4 h-4" /> 
             <span>Export CSV</span>
           </button>
         </div>
       </div>
+
 
 
       {/* Command Center 2-Tier Navigation Hub */}
