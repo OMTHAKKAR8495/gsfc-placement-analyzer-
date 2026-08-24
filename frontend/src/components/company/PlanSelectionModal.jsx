@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { 
   X, Check, Sparkles, ShieldCheck, Zap, Award, Crown, 
   ArrowRight, HelpCircle, CheckCircle, AlertCircle, FileText, 
-  Video, Eye, MessageSquare, Flame, ChevronRight
+  Video, Eye, MessageSquare, Flame, ChevronRight, Briefcase
 } from 'lucide-react';
+
 
 const TIER_ICONS = {
   plan_bronze: Award,

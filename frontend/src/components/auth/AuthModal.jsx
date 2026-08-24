@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { X, Lock, Mail, Building, User, AlertCircle, Sparkles, Shield, CheckCircle2, Phone, ArrowRight, ArrowLeft, PlusCircle, Check, Eye, EyeOff, Key, RefreshCw } from 'lucide-react';
+import { X, Lock, Mail, Building, User, AlertCircle, Sparkles, Shield, ShieldCheck, GraduationCap, CheckCircle2, Phone, ArrowRight, ArrowLeft, PlusCircle, Check, Eye, EyeOff, Key, RefreshCw } from 'lucide-react';
+
 
 const GOOGLE_ACCOUNTS_PRESETS = [
   {

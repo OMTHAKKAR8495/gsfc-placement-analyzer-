@@ -5,8 +5,9 @@ import {
   Printer, CheckCircle, Trash2, Calendar, Filter, SlidersHorizontal, Layers, 
   CheckSquare, Square, RefreshCw, Eye, EyeOff, GraduationCap, Award, Check, FileText, X, HelpCircle, Globe, Sliders, MapPin,
   Clock, Activity, History, AlertCircle, ExternalLink, Lock, KeyRound, ChevronLeft, ChevronRight, UserCheck, RotateCcw, Smartphone, Laptop,
-  PlusCircle, QrCode, Crown, DollarSign, Video, Plus
+  PlusCircle, QrCode, Crown, DollarSign, Video, Plus, UserPlus, AlertTriangle, Upload
 } from 'lucide-react';
+
 
 import ReportPDFModal from '../common/ReportPDFModal';
 import BatchPDFReportModal from './BatchPDFReportModal';
