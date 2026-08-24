@@ -621,6 +621,25 @@ export default function Navbar({ currentUser, activeRole, onRoleSwitch, onOpenAu
               {activeRole === 'alumni' && <Sparkles className="w-4 h-4 text-amber-300" />}
             </button>
 
+            {/* Mobile Fest & Event Portal Tab */}
+            {(currentUser?.role === 'fest' || currentUser?.role === 'admin' || !currentUser) && (
+              <button
+                onClick={() => handleMobileNavClick('fest')}
+                className={`flex items-center justify-between p-3 rounded-2xl text-xs font-black border transition-all ${
+                  activeRole === 'fest'
+                    ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 border-amber-500 shadow-md font-black'
+                    : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200'
+                }`}
+              >
+                <div className="flex items-center gap-2.5">
+                  <Sparkles className="w-4 h-4 text-amber-500" />
+                  <span>🎪 Fest & Guest Portal</span>
+                </div>
+                {activeRole === 'fest' && <Sparkles className="w-4 h-4 text-slate-950" />}
+              </button>
+            )}
+
+
             {(currentUser?.role === 'student' || currentUser?.role === 'admin') && (
               <button
                 onClick={() => handleMobileNavClick('interview')}

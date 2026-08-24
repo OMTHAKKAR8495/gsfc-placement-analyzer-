@@ -3,7 +3,7 @@
  * Provides offline caching for static assets, student dashboard data, and background sync
  */
 
-const CACHE_NAME = 'campushire-pwa-v1';
+const CACHE_NAME = 'campushire-pwa-v2';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -31,13 +31,29 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Fetch Event: Network-First with Cache Fallback for dynamic API data, Cache-First for static assets
+// Fetch Event: Network-First for Navigation & APIs, Stale-While-Revalidate for Assets
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
   // Skip chrome-extension, socket.io, or non-GET requests
   if (request.method !== 'GET' || url.protocol.startsWith('chrome-extension') || url.pathname.startsWith('/socket.io/')) {
+    return;
+  }
+
+  // HTML / Navigation Requests: Always Network-First to guarantee latest chunk hashes
+  if (request.mode === 'navigate' || url.pathname === '/' || url.pathname === '/index.html') {
+    event.respondWith(
+      fetch(request)
+        .then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            const responseToCache = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, responseToCache));
+          }
+          return networkResponse;
+        })
+        .catch(() => caches.match(request))
+    );
     return;
   }
 
@@ -78,3 +94,4 @@ self.addEventListener('fetch', (event) => {
     })
   );
 });
+
