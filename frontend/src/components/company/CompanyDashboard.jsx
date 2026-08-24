@@ -256,12 +256,25 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
       localStorage.setItem('gsfc_company_active_tab', tab);
     } catch(e) {}
   };
-  const [accreditationModalOpen, setAccreditationModalOpen] = useState(false);
-  const [requirements, setRequirements] = useState(DEFAULT_COMPANY_REQUIREMENTS);
+
+  const isGsfcLimitedDemo = useMemo(() => {
+    const compName = (company?.company_name || currentUser?.company_name || currentUser?.name || '').toLowerCase();
+    const email = (currentUser?.email || '').toLowerCase();
+    return compName.includes('gsfc limited') || email.includes('gsfclimited@gmail.com');
+  }, [company, currentUser]);
+
+
+  const [requirements, setRequirements] = useState(() => {
+    const compName = (company?.company_name || currentUser?.company_name || currentUser?.name || '').toLowerCase();
+    const email = (currentUser?.email || '').toLowerCase();
+    const isDemo = compName.includes('gsfc limited') || email.includes('gsfclimited@gmail.com');
+    return isDemo ? DEFAULT_COMPANY_REQUIREMENTS : [];
+  });
   const [activeReqApplicants, setActiveReqApplicants] = useState(null);
   const [applicantsData, setApplicantsData] = useState([]);
   const [showPostModal, setShowPostModal] = useState(false);
   const [loading, setLoading] = useState(false);
+
 
   // In-Portal Video Meetings & Anti-Cheating Proctoring State
   const [companyMeetings, setCompanyMeetings] = useState([]);
@@ -1057,15 +1070,26 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
 
   const fetchCompanyRequirements = async () => {
     const compId = company?.id || currentUser?.owner_id || currentUser?.profile?.id || currentUser?.id;
-    if (!compId) return;
+    if (!compId) {
+      setRequirements(isGsfcLimitedDemo ? DEFAULT_COMPANY_REQUIREMENTS : []);
+      return;
+    }
     try {
       const res = await fetch(`/api/company/requirements?companyId=${compId}`);
-      const data = await res.json();
-      setRequirements(Array.isArray(data) ? data : []);
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          setRequirements(data);
+          return;
+        }
+      }
+      setRequirements(isGsfcLimitedDemo ? DEFAULT_COMPANY_REQUIREMENTS : []);
     } catch (err) {
       console.error('Error fetching company requirements:', err);
+      setRequirements(isGsfcLimitedDemo ? DEFAULT_COMPANY_REQUIREMENTS : []);
     }
   };
+
 
   const fetchCandidateDatabase = async () => {
     const compId = company?.id || currentUser?.owner_id || currentUser?.profile?.id || currentUser?.id;

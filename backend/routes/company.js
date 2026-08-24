@@ -27,10 +27,15 @@ router.get('/requirements', (req, res) => {
 
     let requirements = db.prepare(query).all(...params);
 
-    // Auto-seed Demo Applications if recruiter currently has 0 applications
+    // Auto-seed Demo Applications ONLY for default GSFC Limited demo persona
     if (companyId && requirements.length === 0) {
       let company = db.prepare('SELECT * FROM company_profiles WHERE id = ? OR user_id = ?').get(companyId, companyId);
-      if (company) {
+      const isGsfcDemo = company && (
+        company.id === 'c_gsfc_limited' ||
+        company.company_name?.toLowerCase().includes('gsfc limited') ||
+        company.contact_email?.toLowerCase().includes('gsfclimited@gmail.com')
+      );
+      if (isGsfcDemo) {
         const demoQBank1 = JSON.stringify([
           { id: 'q_demo_1', text: 'How do you optimize SQL queries and indexes under high database load?', category: 'Technical', difficulty: 'Medium', skillTags: ['SQL', 'Database'], source: 'recruiter' },
           { id: 'q_demo_2', text: 'Walk through your experience building asynchronous web services with FastAPI or Node.', category: 'Technical', difficulty: 'Medium', skillTags: ['FastAPI', 'Node.js'], source: 'recruiter' },
@@ -76,6 +81,7 @@ router.get('/requirements', (req, res) => {
         requirements = db.prepare(query).all(...params);
       }
     }
+
 
     res.json(requirements);
   } catch (err) {
