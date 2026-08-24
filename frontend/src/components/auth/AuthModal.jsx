@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { X, Lock, Mail, Building, User, AlertCircle, Sparkles, Shield, ShieldCheck, GraduationCap, CheckCircle2, Phone, ArrowRight, ArrowLeft, PlusCircle, Check, Eye, EyeOff, Key, RefreshCw } from 'lucide-react';
+import { X, Lock, Mail, Building, User, AlertCircle, Sparkles, Shield, ShieldCheck, GraduationCap, CheckCircle2, Phone, ArrowRight, ArrowLeft, PlusCircle, Check, Eye, EyeOff, Key, RefreshCw, Crown, Zap, Award } from 'lucide-react';
+
 
 
 const GOOGLE_ACCOUNTS_PRESETS = [
@@ -1360,33 +1361,78 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialRole 
               )}
 
               {!isLogin && role === 'company' && (
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs text-slate-700 mb-1 font-bold">Company Name *</label>
-                    <input
-                      type="text"
-                      name="company_name"
-                      value={formData.company_name}
-                      onChange={handleChange}
-                      required
-                      placeholder="e.g. Reliance / Google"
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 font-bold focus:outline-none focus:border-blue-900"
-                    />
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs text-slate-700 mb-1 font-bold">Company Name *</label>
+                      <input
+                        type="text"
+                        name="company_name"
+                        value={formData.company_name}
+                        onChange={handleChange}
+                        required
+                        placeholder="e.g. Reliance / Google"
+                        className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 font-bold focus:outline-none focus:border-blue-900"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-slate-700 mb-1 font-bold">Industry Sector *</label>
+                      <input
+                        type="text"
+                        name="industry"
+                        value={formData.industry}
+                        onChange={handleChange}
+                        required
+                        placeholder="e.g. Chemical / IT"
+                        className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 font-bold focus:outline-none focus:border-blue-900"
+                      />
+                    </div>
                   </div>
-                  <div>
-                    <label className="block text-xs text-slate-700 mb-1 font-bold">Industry Sector *</label>
-                    <input
-                      type="text"
-                      name="industry"
-                      value={formData.industry}
-                      onChange={handleChange}
-                      required
-                      placeholder="e.g. Chemical / IT"
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 font-bold focus:outline-none focus:border-blue-900"
-                    />
+
+                  {/* Plan Selector at Registration */}
+                  <div className="space-y-1.5 pt-1">
+                    <div className="flex items-center justify-between">
+                      <label className="block text-xs text-slate-700 font-bold">Select Starting Recruiter Plan *</label>
+                      <span className="text-[10px] text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">14-Day Free Trial</span>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                      {[
+                        { id: 'plan_bronze', name: 'Bronze Free', price: '₹0', drives: '3 Drives', icon: Award, color: 'text-amber-700' },
+                        { id: 'plan_silver', name: 'Silver Growth', price: '₹9,999', drives: '15 Drives', icon: Zap, color: 'text-blue-700' },
+                        { id: 'plan_gold', name: 'Gold Enterprise', price: '₹24,999', drives: 'Unlimited', icon: Crown, color: 'text-amber-500' },
+                        { id: 'plan_diamond', name: 'Diamond Apex', price: '₹59,999', drives: 'VIP SLA', icon: Sparkles, color: 'text-purple-600' }
+                      ].map(tier => {
+                        const isSelected = (formData.selected_plan_id || 'plan_silver') === tier.id;
+                        const IconComponent = tier.icon;
+                        return (
+                          <div
+                            key={tier.id}
+                            onClick={() => setFormData(prev => ({ ...prev, selected_plan_id: tier.id }))}
+                            className={`p-2 rounded-xl border-2 cursor-pointer transition-all text-center relative ${
+                              isSelected
+                                ? 'bg-blue-900/10 border-blue-900 shadow-md ring-2 ring-blue-400/30'
+                                : 'bg-slate-50 border-slate-200 hover:border-slate-300'
+                            }`}
+                          >
+                            <div className="flex items-center justify-center mb-0.5">
+                              <IconComponent className={`w-3.5 h-3.5 ${tier.color}`} />
+                            </div>
+                            <p className="text-[11px] font-black text-slate-900 leading-tight">{tier.name}</p>
+                            <p className="text-xs font-black text-blue-900 mt-0.5">{tier.price}</p>
+                            <p className="text-[9px] text-slate-500 font-bold">{tier.drives}</p>
+                            {isSelected && (
+                              <span className="absolute -top-1.5 -right-1 bg-blue-900 text-white rounded-full p-0.5 shadow-sm">
+                                <Check className="w-2.5 h-2.5" />
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
               )}
+
 
               {!isLogin && role === 'alumni' && (
                 <div className="space-y-3">
