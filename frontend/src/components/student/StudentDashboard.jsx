@@ -1012,10 +1012,11 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
     return matchesSearch && matchesBranch && matchesBookmark;
   });
 
-  if (mockSessionActive && mockTargetRequirement && student) {
+  if (mockSessionActive && mockTargetRequirement) {
     return (
       <MockInterviewChat
         student={student}
+        currentUser={currentUser}
         requirement={mockTargetRequirement}
         onBack={() => setMockSessionActive(false)}
       />
