@@ -7,15 +7,39 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const dbPath = path.join(__dirname, 'campushire.db');
-const db = new Database(dbPath);
+const isServerless = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME || process.env.NETLIFY);
+let dbPath = path.join(__dirname, 'campushire.db');
 
-db.pragma('journal_mode = WAL');
-db.pragma('synchronous = NORMAL');
-db.pragma('temp_store = MEMORY');
-db.pragma('cache_size = -64000');
-db.pragma('busy_timeout = 10000');
-db.pragma('foreign_keys = ON');
+// In serverless environments (Vercel), copy local database to /tmp so writes succeed
+if (isServerless) {
+  const tmpDbPath = path.join('/tmp', 'campushire.db');
+  try {
+    if (!fs.existsSync(tmpDbPath)) {
+      if (fs.existsSync(dbPath)) {
+        fs.copyFileSync(dbPath, tmpDbPath);
+      }
+    }
+    dbPath = tmpDbPath;
+  } catch (e) {
+    console.warn('Serverless /tmp db setup notice:', e.message);
+  }
+}
+
+let db;
+try {
+  db = new Database(dbPath);
+  db.pragma('journal_mode = WAL');
+  db.pragma('synchronous = NORMAL');
+  db.pragma('temp_store = MEMORY');
+  db.pragma('cache_size = -64000');
+  db.pragma('busy_timeout = 10000');
+  db.pragma('foreign_keys = ON');
+} catch (err) {
+  console.warn('Database initialization fallback to /tmp:', err.message);
+  dbPath = path.join('/tmp', 'campushire_fallback.db');
+  db = new Database(dbPath);
+}
+
 
 export function initDatabase() {
   const schemaPath = path.join(__dirname, 'schema.sql');

@@ -1,7 +1,7 @@
 import jwt from 'jsonwebtoken';
 import db from '../db/index.js';
 
-export const JWT_SECRET = process.env.JWT_SECRET || 'gscf_placement_secret_key_2026_safe';
+export const JWT_SECRET = process.env.JWT_SECRET || 'campushire_secret_key_2026';
 
 // Middleware to authenticate JWT via Cookie or Bearer header
 export function authenticateToken(req, res, next) {
@@ -21,7 +21,13 @@ export function authenticateToken(req, res, next) {
         }
       }
 
-      req.user = user;
+      req.user = {
+        id: user.userId || user.id,
+        email: user.email,
+        role: user.role,
+        owner_id: user.owner_id || user.userId || user.id,
+        ...user
+      };
       next();
     });
     return;
@@ -32,9 +38,10 @@ export function authenticateToken(req, res, next) {
     try {
       const parsedUser = JSON.parse(sessionUserHeader);
       req.user = {
-        id: parsedUser.id || 'u_guest',
+        id: parsedUser.id || parsedUser.userId || 'u_guest',
+        email: parsedUser.email || '',
         role: parsedUser.role || 'student',
-        owner_id: parsedUser.owner_id || parsedUser.profile?.id || 's_arav'
+        owner_id: parsedUser.owner_id || parsedUser.profile?.id || parsedUser.id || 's_guest'
       };
       next();
       return;
@@ -43,15 +50,17 @@ export function authenticateToken(req, res, next) {
     }
   }
 
-  // Default guest session for demo mode fallback with strict role assignment
+  // Default session context from explicit headers if provided
   req.user = {
-    id: req.headers['x-user-id'] || 'u_demo',
+    id: req.headers['x-user-id'] || 'u_guest',
+    email: req.headers['x-user-email'] || '',
     role: req.headers['x-user-role'] || 'student',
-    owner_id: req.headers['x-owner-id'] || 's_arav'
+    owner_id: req.headers['x-owner-id'] || req.headers['x-user-id'] || 's_guest'
   };
 
   next();
 }
+
 
 // Double-Submit Cookie CSRF Protection Middleware
 export function verifyCsrfToken(req, res, next) {

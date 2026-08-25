@@ -317,7 +317,11 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
   const fetchSubscriptionStatus = async () => {
     try {
       setLoadingSubscription(true);
-      const companyId = company?.id || company?.user_id || currentUser?.id || 'c_gsfc_limited';
+      const companyId = company?.id || currentUser?.owner_id || currentUser?.profile?.id || currentUser?.id;
+      if (!companyId) {
+        setLoadingSubscription(false);
+        return;
+      }
       const [subRes, invRes] = await Promise.all([
         fetch(`/api/subscriptions/current/${companyId}`),
         fetch(`/api/subscriptions/invoices/${companyId}`)
@@ -336,6 +340,7 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
       setLoadingSubscription(false);
     }
   };
+
 
   useEffect(() => {
     fetchSubscriptionStatus();
@@ -1211,9 +1216,10 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
         ? postForm.preferred_skills.split(',').map(s => s.trim()).filter(Boolean)
         : (postForm.preferred_skills || []);
 
-      const compId = company?.id || currentUser?.owner_id || currentUser?.profile?.id || 'c_gsfc_limited';
-      const compName = company?.company_name || currentUser?.profile?.company_name || 'GSFC Limited';
-      const compLogo = postForm.company_logo_url || 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/18/Gujarat_State_Fertilizers_and_Chemicals_logo.svg/300px-Gujarat_State_Fertilizers_and_Chemicals_logo.svg.png';
+      const compId = company?.id || currentUser?.owner_id || currentUser?.profile?.id || currentUser?.id || `c_${Date.now()}`;
+      const compName = company?.company_name || currentUser?.profile?.company_name || currentUser?.name || 'Corporate Recruiter';
+      const compLogo = postForm.company_logo_url || company?.logo_url || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=100';
+
 
       const newDriveRecord = {
         id: editingReqId || `req_${Date.now()}`,
