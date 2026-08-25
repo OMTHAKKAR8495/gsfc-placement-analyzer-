@@ -323,16 +323,33 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
         setLoadingSubscription(false);
         return;
       }
-      const [subRes, invRes] = await Promise.all([
+
+      // Check local cache first for instant responsiveness
+      try {
+        const cachedSubStr = localStorage.getItem('gsfc_cached_sub_' + companyId);
+        if (cachedSubStr) {
+          const cachedSub = JSON.parse(cachedSubStr);
+          if (cachedSub && cachedSub.has_subscription) {
+            setCurrentSubscription(cachedSub);
+          }
+        }
+      } catch (e) {}
+
+      const [subRes, invRes] = await Promise.allSettled([
         fetch(`/api/subscriptions/current/${companyId}`),
         fetch(`/api/subscriptions/invoices/${companyId}`)
       ]);
-      if (subRes.ok) {
-        const subData = await subRes.json();
-        setCurrentSubscription(subData);
+      if (subRes.status === 'fulfilled' && subRes.value.ok) {
+        const subData = await subRes.value.json();
+        if (subData && subData.has_subscription) {
+          setCurrentSubscription(subData);
+          try {
+            localStorage.setItem('gsfc_cached_sub_' + companyId, JSON.stringify(subData));
+          } catch(e) {}
+        }
       }
-      if (invRes.ok) {
-        const invData = await invRes.json();
+      if (invRes.status === 'fulfilled' && invRes.value.ok) {
+        const invData = await invRes.value.json();
         setCompanyInvoices(Array.isArray(invData) ? invData : []);
       }
     } catch (err) {
