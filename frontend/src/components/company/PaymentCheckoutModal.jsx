@@ -109,10 +109,19 @@ export default function PaymentCheckoutModal({
   };
 
   const handleLaunchRazorpayPayment = () => {
-    // 1. Open official Razorpay Payment Page in a new tab
-    window.open(RAZORPAY_PAYMENT_LINK, '_blank', 'noopener,noreferrer');
+    // Open official Razorpay Payment Page with prefill params so Razorpay skips the mobile number prompt
+    const prefillQuery = new URLSearchParams({
+      'prefill[contact]': '9558413347',
+      'prefill[email]': billingDetails.email || 'omthakkar168@gmail.com',
+      'prefill[name]': billingDetails.name || 'Corporate Recruiter',
+      'notes[plan]': activeItemName,
+      'notes[amount]': activeAmount
+    }).toString();
+
+    const targetPaymentUrl = `${RAZORPAY_PAYMENT_LINK}?${prefillQuery}`;
+    window.open(targetPaymentUrl, '_blank', 'noopener,noreferrer');
     
-    // 2. Move to Awaiting Payment Confirmation state
+    // Move to Awaiting Payment Confirmation state
     setStep('awaiting_payment');
   };
 
