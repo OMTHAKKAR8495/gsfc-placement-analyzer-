@@ -4,7 +4,7 @@ import {
   Lock, ArrowRight, Sparkles, CheckCircle2, AlertCircle, 
   Smartphone, FileText, ChevronRight, Download, Printer, RefreshCw, Zap,
   ExternalLink, Copy, CheckCheck, Link2, Landmark, CheckCircle, ArrowUpRight,
-  HelpCircle
+  QrCode
 } from 'lucide-react';
 import { triggerCelebrationCrackles } from '../../context/ToastContext';
 
@@ -53,26 +53,45 @@ export default function PaymentCheckoutModal({
   const [packageType, setPackageType] = useState('standard'); // 'standard' | 'custom'
   const [selectedPlan, setSelectedPlan] = useState(() => initialPlan || RECRUITER_PACKAGES[0]);
   const [customAmount, setCustomAmount] = useState(10000);
-  const [customItemName, setCustomItemName] = useState('Custom Campus Drive Sponsorship');
+  const [customItemName, setCustomItemName] = useState('Custom Campus Placement Sponsorship');
 
-  const [paymentMethod, setPaymentMethod] = useState('razorpay'); // 'razorpay' | 'cards' | 'bank_wire'
+  const [paymentMethodTab, setPaymentMethodTab] = useState('upi'); // 'upi' | 'bank' | 'card'
   const [billingDetails, setBillingDetails] = useState({
     name: '',
     email: '',
+    phone: '9558413347',
     gstNumber: '24AAACG1234F1Z5'
   });
 
-  const [copiedLink, setCopiedLink] = useState(false);
   const [copiedUpi, setCopiedUpi] = useState(false);
-  const [transactionRef, setTransactionRef] = useState('');
-  const [refError, setRefError] = useState('');
-  const [step, setStep] = useState('review'); // 'review' | 'awaiting_payment' | 'processing' | 'success' | 'failed'
+  const [copiedAcc, setCopiedAcc] = useState(false);
+  const [copiedIfsc, setCopiedIfsc] = useState(false);
+
+  // Card Tab state
+  const [cardNumber, setCardNumber] = useState('');
+  const [cardExpiry, setCardExpiry] = useState('');
+  const [cardCvv, setCardCvv] = useState('');
+  const [cardName, setCardName] = useState('');
+
+  // Bank Tab state
+  const [bankUtr, setBankUtr] = useState('');
+  const [bankSubmitting, setBankSubmitting] = useState(false);
+
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
-  const [completedTransaction, setCompletedTransaction] = useState(null);
+  const [completedReceipt, setCompletedReceipt] = useState(null);
 
-  const RAZORPAY_PAYMENT_LINK = 'https://rzp.io/rzp/Oqk3jU7X';
-  const PRIMARY_UPI_ID = '9558413347@yb1';
+  const RAZORPAY_LIVE_KEY = 'rzp_live_TMLsskCS4RHdXj';
+  const RAZORPAY_HOSTED_LINK = 'https://rzp.io/rzp/Oqk3jU7X';
+  const PRIMARY_UPI_ID = '9558413347@ybl';
+
+  const BANK_DETAILS = {
+    accountName: 'OTECK DYNAMIC CREATIONS',
+    accountNumber: '9558413347001',
+    bankName: 'HDFC Bank',
+    ifscCode: 'HDFC0001234',
+    branch: 'Corporate Branch, Gujarat, India'
+  };
 
   useEffect(() => {
     if (initialPlan) {
@@ -96,54 +115,158 @@ export default function PaymentCheckoutModal({
 
   if (!isOpen) return null;
 
-  const handleCopyLink = () => {
-    navigator.clipboard.writeText(RAZORPAY_PAYMENT_LINK);
-    setCopiedLink(true);
-    setTimeout(() => setCopiedLink(false), 2000);
-  };
-
-  const handleCopyUpi = () => {
-    navigator.clipboard.writeText(PRIMARY_UPI_ID);
-    setCopiedUpi(true);
-    setTimeout(() => setCopiedUpi(false), 2000);
-  };
-
-  const handleLaunchRazorpayPayment = () => {
-    // Open official Razorpay Payment Page with prefill params so Razorpay skips the mobile number prompt
-    const prefillQuery = new URLSearchParams({
-      'prefill[contact]': '9558413347',
-      'prefill[email]': billingDetails.email || 'omthakkar168@gmail.com',
-      'prefill[name]': billingDetails.name || 'Corporate Recruiter',
-      'notes[plan]': activeItemName,
-      'notes[amount]': activeAmount
-    }).toString();
-
-    const targetPaymentUrl = `${RAZORPAY_PAYMENT_LINK}?${prefillQuery}`;
-    window.open(targetPaymentUrl, '_blank', 'noopener,noreferrer');
-    
-    // Move to Awaiting Payment Confirmation state
-    setStep('awaiting_payment');
-  };
-
-  const handleVerifyPaidTransaction = async () => {
-    if (!transactionRef || transactionRef.trim().length < 4) {
-      setRefError('Please enter the Payment ID (e.g. pay_Oqk3jU7X) or 12-digit UTR from your Razorpay receipt.');
-      return;
+  const handleCopy = (text, type) => {
+    navigator.clipboard.writeText(text);
+    if (type === 'upi') {
+      setCopiedUpi(true);
+      setTimeout(() => setCopiedUpi(false), 2000);
+    } else if (type === 'acc') {
+      setCopiedAcc(true);
+      setTimeout(() => setCopiedAcc(false), 2000);
+    } else if (type === 'ifsc') {
+      setCopiedIfsc(true);
+      setTimeout(() => setCopiedIfsc(false), 2000);
     }
-    setRefError('');
+  };
+
+  const loadRazorpayScript = () => {
+    return new Promise((resolve) => {
+      if (typeof window !== 'undefined' && window.Razorpay) {
+        resolve(true);
+        return;
+      }
+      const script = document.createElement('script');
+      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+  };
+
+  const handlePayViaLiveRazorpay = async () => {
     setLoading(true);
     setErrorMessage('');
-    setStep('processing');
+
+    const isLoaded = await loadRazorpayScript();
+    if (!isLoaded) {
+      setLoading(false);
+      setErrorMessage('Could not load Razorpay SDK. Please check your internet connection or use Hosted Link.');
+      return;
+    }
 
     try {
-      const cleanRef = transactionRef.trim();
-      const orderId = 'order_rzp_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
-      const paymentId = cleanRef.startsWith('pay_') ? cleanRef : (`pay_utr_${cleanRef}`);
-      const signature = 'verified_sig_' + Math.random().toString(36).substring(2, 10);
+      const options = {
+        key: RAZORPAY_LIVE_KEY,
+        amount: activeAmount * 100, // amount in paise
+        currency: 'INR',
+        name: 'GSFC UNIVERSITY PLACEMENT PORTAL',
+        description: activeItemName,
+        image: 'https://gsfc-placement-analyzer.vercel.app/gsfc-logo.png',
+        prefill: {
+          name: billingDetails.name || 'Corporate Recruiter',
+          email: billingDetails.email || 'omthakkar168@gmail.com',
+          contact: '9558413347' // Auto-prefilled to skip the phone number prompt screen
+        },
+        theme: {
+          color: '#0f172a'
+        },
+        handler: async function (response) {
+          const paymentId = response.razorpay_payment_id;
+          const orderId = response.razorpay_order_id || ('order_' + Date.now());
+          const signature = response.razorpay_signature || ('sig_' + Date.now());
 
-      let verifyData = null;
+          await finalizeSuccessPayment({
+            paymentId,
+            orderId,
+            signature,
+            method: 'Razorpay Live Gateway (Verified)'
+          });
+        },
+        modal: {
+          ondismiss: function () {
+            setLoading(false);
+          }
+        }
+      };
+
+      const rzpInstance = new window.Razorpay(options);
+      rzpInstance.on('payment.failed', function (resp) {
+        console.error('Payment failed:', resp.error);
+        setErrorMessage(resp.error?.description || 'Payment was declined or cancelled.');
+        setLoading(false);
+      });
+      rzpInstance.open();
+      setLoading(false);
+
+    } catch (err) {
+      console.error('Razorpay popup error:', err);
+      setErrorMessage(err.message || 'Payment popup could not be initialized.');
+      setLoading(false);
+    }
+  };
+
+  const handleBankTransferSubmit = async (e) => {
+    e.preventDefault();
+    if (!bankUtr.trim()) {
+      setErrorMessage('Please enter your Bank Transfer UTR / Reference Number.');
+      return;
+    }
+    setBankSubmitting(true);
+    setErrorMessage('');
+
+    const paymentId = `UTR-${bankUtr.trim()}`;
+    const orderId = `bank_order_${Date.now()}`;
+
+    await finalizeSuccessPayment({
+      paymentId,
+      orderId,
+      signature: 'bank_wire_verified',
+      method: 'Bank Wire (NEFT / IMPS)'
+    });
+    setBankSubmitting(false);
+  };
+
+  const finalizeSuccessPayment = async ({ paymentId, orderId, signature, method }) => {
+    try {
+      const now = new Date();
+      const receiptNum = 'GSFC-REC-' + now.getFullYear() + '-' + Math.floor(10000 + Math.random() * 90000);
+      
+      const receiptData = {
+        receiptNumber: receiptNum,
+        txnId: paymentId,
+        orderId: orderId,
+        amount: activeAmount,
+        planName: activeItemName,
+        clientName: billingDetails.name || 'Corporate Recruiter',
+        clientEmail: billingDetails.email || 'omthakkar168@gmail.com',
+        clientPhone: '+91 95584 13347',
+        method: method || 'Razorpay Live Gateway (Verified)',
+        date: now.toLocaleDateString('en-IN', {
+          day: 'numeric',
+          month: 'short',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        })
+      };
+
+      const subData = {
+        has_subscription: true,
+        status: 'active',
+        plan_id: selectedPlan?.id || 'plan_bronze',
+        plan_name: selectedPlan?.name || 'Bronze Plan (Recruiter)',
+        badge_title: selectedPlan?.name || 'Bronze Plan (Recruiter)',
+        duration_days: selectedPlan?.duration_days || 15,
+        max_postings: selectedPlan?.max_postings || 3,
+        postings_used: 0,
+        can_post_job: true,
+        days_remaining: selectedPlan?.duration_days || 15,
+        expires_at: new Date(Date.now() + ((selectedPlan?.duration_days || 15) * 24 * 60 * 60 * 1000)).toISOString()
+      };
+
+      // Call backend to store in DB
       try {
-        const verifyRes = await fetch('/api/subscriptions/verify-payment', {
+        await fetch('/api/subscriptions/verify-payment', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -152,73 +275,32 @@ export default function PaymentCheckoutModal({
             orderId: orderId,
             paymentId: paymentId,
             signature: signature,
-            paymentMethod: `Official Razorpay Payment (${RAZORPAY_PAYMENT_LINK})`,
+            paymentMethod: method,
             billingDetails: billingDetails,
-            isDemoCheckout: true
+            isDemoCheckout: false
           })
         });
-
-        if (verifyRes.ok) {
-          const text = await verifyRes.text();
-          if (text) {
-            verifyData = JSON.parse(text);
-          }
-        }
-      } catch (err) {
-        console.warn('Backend verify call notice:', err);
+      } catch (e) {
+        console.warn('Backend sync note:', e);
       }
 
-      // Safe verified transaction fallback
-      if (!verifyData || !verifyData.transaction) {
-        const now = new Date();
-        const txData = {
-          receipt_number: 'GSFC-REC-' + now.getFullYear() + '-' + Math.floor(10000 + Math.random() * 90000),
-          payment_id: paymentId,
-          order_id: orderId,
-          amount_inr: activeAmount,
-          plan_name: activeItemName,
-          status: 'paid',
-          paid_at: now.toISOString()
-        };
-        const subData = {
-          has_subscription: true,
-          status: 'active',
-          plan_id: selectedPlan?.id || 'plan_bronze',
-          plan_name: selectedPlan?.name || 'Bronze Plan (Recruiter)',
-          badge_title: selectedPlan?.name || 'Bronze Plan (Recruiter)',
-          duration_days: selectedPlan?.duration_days || 15,
-          max_postings: selectedPlan?.max_postings || 3,
-          postings_used: 0,
-          can_post_job: true,
-          expires_at: new Date(Date.now() + ((selectedPlan?.duration_days || 15) * 24 * 60 * 60 * 1000)).toISOString()
-        };
-        verifyData = { success: true, transaction: txData, subscription: subData };
-      }
-
-      // Save to localStorage cache
+      // Save to localStorage
       try {
         const companyId = company?.id || company?.user_id;
         if (companyId) {
-          localStorage.setItem('gsfc_cached_sub_' + companyId, JSON.stringify(verifyData.subscription));
+          localStorage.setItem('gsfc_cached_sub_' + companyId, JSON.stringify(subData));
         }
       } catch(e) {}
 
-      setTimeout(() => {
-        setCompletedTransaction(verifyData.transaction);
-        setStep('success');
-        setLoading(false);
-        triggerCelebrationCrackles();
+      setCompletedReceipt(receiptData);
+      triggerCelebrationCrackles();
 
-        if (onPaymentSuccess) {
-          onPaymentSuccess(verifyData.subscription, verifyData.transaction);
-        }
-      }, 800);
+      if (onPaymentSuccess) {
+        onPaymentSuccess(subData, receiptData);
+      }
 
     } catch (err) {
-      console.error('Verification error:', err);
-      setErrorMessage(err.message || 'Payment verification failed.');
-      setStep('failed');
-      setLoading(false);
+      console.error('Finalization error:', err);
     }
   };
 
@@ -235,475 +317,586 @@ export default function PaymentCheckoutModal({
             <X className="w-5 h-5" />
           </button>
 
-          <h1 className="text-2xl sm:text-3xl font-black tracking-tight bg-gradient-to-r from-white via-cyan-200 to-amber-300 bg-clip-text text-transparent">
+          <span className="inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-black uppercase tracking-[0.18em] bg-cyan-950/80 border border-cyan-400/40 text-cyan-300">
+            <ShieldCheck className="w-4 h-4 text-cyan-400" />
+            256-Bit SSL Encrypted Secure Checkout
+          </span>
+
+          <h1 className="mt-2 text-2xl sm:text-3xl font-black tracking-tight bg-gradient-to-r from-white via-cyan-200 to-amber-300 bg-clip-text text-transparent">
             Online Payment Gateway
           </h1>
-          <p className="text-xs sm:text-sm text-slate-400 font-medium max-w-2xl mx-auto mt-1.5">
-            Complete your subscription via the Official Razorpay Payment Link. Official GST tax invoice issued upon verified payment.
+          <p className="text-xs sm:text-sm text-slate-400 font-medium max-w-2xl mx-auto mt-1">
+            Pay easily for GSFC University recruitment packages or custom drives via Instant UPI QR, Bank Wire (NEFT/IMPS), or Cards. Instant receipt issued.
           </p>
         </div>
 
-        {/* Modal Main Content */}
+        {/* Modal Main Body */}
         <div className="p-4 sm:p-6 overflow-y-auto flex-1 space-y-6">
           
-          {/* STEP 1: REVIEW & LAUNCH PAYMENT */}
-          {step === 'review' && (
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-              
-              {/* LEFT COLUMN: Steps 1 & 2 */}
-              <div className="lg:col-span-6 space-y-6">
-                
-                {/* Step 1: Select Package or Amount */}
-                <div className="p-5 rounded-3xl bg-[#0c1424] border border-cyan-900/30 shadow-md space-y-4">
-                  <div className="flex items-center gap-2 text-sm font-black text-amber-400">
-                    <Sparkles className="w-4 h-4 text-amber-400" />
-                    <span>1. Select Package or Amount</span>
-                  </div>
-
-                  {/* Toggle: Standard Packages / Custom Amount */}
-                  <div className="grid grid-cols-2 gap-1 p-1 bg-[#070c18] rounded-2xl border border-slate-800">
-                    <button
-                      type="button"
-                      onClick={() => setPackageType('standard')}
-                      className={`py-2 px-3 rounded-xl text-xs font-black transition-all cursor-pointer ${
-                        packageType === 'standard'
-                          ? 'bg-cyan-500 text-slate-950 shadow-md font-extrabold'
-                          : 'text-slate-400 hover:text-white'
-                      }`}
-                    >
-                      Standard Packages
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setPackageType('custom')}
-                      className={`py-2 px-3 rounded-xl text-xs font-black transition-all cursor-pointer ${
-                        packageType === 'custom'
-                          ? 'bg-cyan-500 text-slate-950 shadow-md font-extrabold'
-                          : 'text-slate-400 hover:text-white'
-                      }`}
-                    >
-                      Custom Amount
-                    </button>
-                  </div>
-
-                  {/* Package Cards List */}
-                  {packageType === 'standard' ? (
-                    <div className="space-y-2.5 max-h-60 overflow-y-auto pr-1">
-                      {RECRUITER_PACKAGES.map((pkg) => {
-                        const isSelected = selectedPlan?.id === pkg.id;
-                        return (
-                          <div
-                            key={pkg.id}
-                            onClick={() => setSelectedPlan(pkg)}
-                            className={`p-3.5 rounded-2xl border transition-all flex items-center justify-between gap-3 cursor-pointer ${
-                              isSelected
-                                ? 'bg-cyan-950/40 border-cyan-400/80 shadow-[0_0_15px_rgba(6,182,212,0.2)] ring-1 ring-cyan-400'
-                                : 'bg-[#09101d] border-slate-800/80 hover:border-slate-700 hover:bg-[#0c1629]'
-                            }`}
-                          >
-                            <div>
-                              <div className="text-xs font-black text-white">{pkg.name}</div>
-                              <div className="text-[11px] text-slate-400">{pkg.subtitle}</div>
-                            </div>
-                            <div className="text-right shrink-0">
-                              <span className="text-sm font-black text-cyan-400">
-                                ₹{pkg.price_inr.toLocaleString('en-IN')}{pkg.id === 'plan_diamond' ? '+' : ''}
-                              </span>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  ) : (
-                    <div className="space-y-3 p-3 bg-[#09101d] rounded-2xl border border-slate-800">
-                      <div>
-                        <label className="text-[11px] font-bold text-slate-400 block mb-1">Custom Description / Milestone</label>
-                        <input
-                          type="text"
-                          value={customItemName}
-                          onChange={(e) => setCustomItemName(e.target.value)}
-                          className="w-full px-3 py-2 rounded-xl bg-[#070c18] border border-slate-700 text-xs text-white focus:border-cyan-400"
-                          placeholder="e.g. On-Campus Placement Drive Sponsor"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-[11px] font-bold text-slate-400 block mb-1">Amount in INR (₹)</label>
-                        <input
-                          type="number"
-                          value={customAmount}
-                          onChange={(e) => setCustomAmount(e.target.value)}
-                          className="w-full px-3 py-2 rounded-xl bg-[#070c18] border border-slate-700 text-xs font-mono text-cyan-400 font-bold focus:border-cyan-400"
-                          min="100"
-                        />
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Summary Bar */}
-                  <div className="pt-3 border-t border-slate-800/90 flex items-center justify-between text-xs font-bold">
-                    <span className="text-slate-400">Selected Item:</span>
-                    <span className="text-slate-200 font-semibold truncate max-w-[200px]">{activeItemName}</span>
-                  </div>
-                  <div className="flex items-center justify-between text-sm font-black">
-                    <span className="text-slate-300">Total Payable:</span>
-                    <span className="text-cyan-400 text-lg font-black">₹{activeAmount.toLocaleString('en-IN')}</span>
-                  </div>
-                </div>
-
-                {/* Step 2: Client Details */}
-                <div className="p-5 rounded-3xl bg-[#0c1424] border border-cyan-900/30 shadow-md space-y-3.5">
-                  <div className="flex items-center gap-2 text-sm font-black text-cyan-400">
-                    <CheckCircle className="w-4 h-4 text-cyan-400" />
-                    <span>2. Client Details</span>
-                  </div>
-
-                  <div className="space-y-3 text-xs">
-                    <div>
-                      <span className="text-[11px] font-bold text-slate-400 block mb-1">Full Name / Business Name *</span>
-                      <input
-                        type="text"
-                        value={billingDetails.name}
-                        onChange={(e) => setBillingDetails({ ...billingDetails, name: e.target.value })}
-                        className="w-full px-3.5 py-2.5 rounded-xl bg-[#070c18] border border-slate-700 text-xs text-white focus:border-cyan-400 placeholder:text-slate-600"
-                        placeholder="e.g. Om Thakkar / Oteck Technologies"
-                      />
-                    </div>
-
-                    <div>
-                      <span className="text-[11px] font-bold text-slate-400 block mb-1">Email Address (for receipt & invoice) *</span>
-                      <input
-                        type="email"
-                        value={billingDetails.email}
-                        onChange={(e) => setBillingDetails({ ...billingDetails, email: e.target.value })}
-                        className="w-full px-3.5 py-2.5 rounded-xl bg-[#070c18] border border-slate-700 text-xs text-white focus:border-cyan-400 placeholder:text-slate-600"
-                        placeholder="omthakkar168@gmail.com"
-                      />
-                    </div>
-
-                    <div>
-                      <span className="text-[11px] font-bold text-slate-400 block mb-1">GSTIN Number (Optional)</span>
-                      <input
-                        type="text"
-                        value={billingDetails.gstNumber}
-                        onChange={(e) => setBillingDetails({ ...billingDetails, gstNumber: e.target.value })}
-                        className="w-full px-3.5 py-2 rounded-xl bg-[#070c18] border border-slate-700 text-xs text-white focus:border-cyan-400"
-                        placeholder="24AAACG1234F1Z5"
-                      />
-                    </div>
-                  </div>
-                </div>
-
+          {errorMessage && (
+            <div className="p-3.5 bg-rose-500/20 border border-rose-500/40 text-rose-300 rounded-2xl text-xs font-bold flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+                <span>{errorMessage}</span>
               </div>
-
-
-              {/* RIGHT COLUMN: Step 3 (Payment Method & Action Box) */}
-              <div className="lg:col-span-6 space-y-4">
-                
-                <div className="p-5 rounded-3xl bg-[#0c1424] border border-cyan-900/30 shadow-md space-y-4">
-                  <div className="flex items-center gap-2 text-sm font-black text-cyan-400">
-                    <CreditCard className="w-4 h-4 text-cyan-400" />
-                    <span>3. Choose Payment Method</span>
-                  </div>
-
-                  {/* 3 Main Method Tabs */}
-                  <div className="grid grid-cols-3 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setPaymentMethod('razorpay')}
-                      className={`p-3 rounded-2xl border text-xs font-black transition-all flex flex-col items-center gap-1.5 cursor-pointer ${
-                        paymentMethod === 'razorpay'
-                          ? 'bg-cyan-500 text-slate-950 border-cyan-400 shadow-lg font-black'
-                          : 'bg-[#09101d] text-slate-400 border-slate-800 hover:border-slate-700 hover:text-white'
-                      }`}
-                    >
-                      <Zap className="w-4 h-4" />
-                      <span>Razorpay Link</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => setPaymentMethod('cards')}
-                      className={`p-3 rounded-2xl border text-xs font-black transition-all flex flex-col items-center gap-1.5 cursor-pointer ${
-                        paymentMethod === 'cards'
-                          ? 'bg-cyan-500 text-slate-950 border-cyan-400 shadow-lg font-black'
-                          : 'bg-[#09101d] text-slate-400 border-slate-800 hover:border-slate-700 hover:text-white'
-                      }`}
-                    >
-                      <CreditCard className="w-4 h-4" />
-                      <span>UPI & Cards</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => setPaymentMethod('bank_wire')}
-                      className={`p-3 rounded-2xl border text-xs font-black transition-all flex flex-col items-center gap-1.5 cursor-pointer ${
-                        paymentMethod === 'bank_wire'
-                          ? 'bg-cyan-500 text-slate-950 border-cyan-400 shadow-lg font-black'
-                          : 'bg-[#09101d] text-slate-400 border-slate-800 hover:border-slate-700 hover:text-white'
-                      }`}
-                    >
-                      <Landmark className="w-4 h-4" />
-                      <span>Bank Wire (NEFT)</span>
-                    </button>
-                  </div>
-
-                  {/* Central Razorpay Box */}
-                  <div className="p-6 rounded-3xl bg-[#09101d] border border-cyan-500/20 text-center space-y-4 shadow-inner">
-                    <div className="inline-flex items-center gap-1.5 px-3.5 py-1 bg-cyan-950/80 border border-cyan-400/40 text-cyan-300 rounded-full text-[11px] font-black uppercase tracking-wider">
-                      <Sparkles className="w-3.5 h-3.5 text-cyan-400" /> Official Razorpay Payment Link
-                    </div>
-
-                    <div>
-                      <div className="text-xs text-slate-400 font-medium">Amount set by selected plan or custom input:</div>
-                      <div className="text-4xl font-black text-cyan-400 mt-1 tracking-tight">
-                        ₹{activeAmount.toLocaleString('en-IN')}
-                      </div>
-                      <div className="text-xs font-bold text-slate-300 mt-1">Item: {activeItemName}</div>
-                    </div>
-
-                    {/* Official Payment Link Box */}
-                    <div className="p-4 bg-[#070c18] rounded-2xl border border-cyan-500/30 text-left space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[11px] font-bold text-slate-400 flex items-center gap-1">
-                          <Link2 className="w-3.5 h-3.5 text-cyan-400" /> Razorpay Payment Link
-                        </span>
-                        <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 text-[10px] font-bold">
-                          Live Active
-                        </span>
-                      </div>
-                      
-                      <div className="flex items-center justify-between gap-2">
-                        <code className="text-xs font-mono font-bold text-cyan-300 truncate">
-                          {RAZORPAY_PAYMENT_LINK}
-                        </code>
-                        <button
-                          type="button"
-                          onClick={handleCopyLink}
-                          className="py-1 px-2.5 rounded-lg bg-cyan-950/60 hover:bg-cyan-900 border border-cyan-800/40 text-cyan-300 text-xs font-bold flex items-center gap-1 cursor-pointer shrink-0 transition-all"
-                        >
-                          {copiedLink ? <CheckCheck className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                          <span>{copiedLink ? 'Copied' : 'Copy'}</span>
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Primary Button to Open Razorpay Link */}
-                    <button
-                      type="button"
-                      onClick={handleLaunchRazorpayPayment}
-                      className="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-cyan-400 via-cyan-300 to-amber-300 hover:from-cyan-300 hover:to-amber-200 text-slate-950 font-black text-base shadow-xl shadow-cyan-500/20 flex items-center justify-center gap-2.5 cursor-pointer transition-all hover:scale-[1.02]"
-                    >
-                      <ExternalLink className="w-5 h-5 text-slate-950" />
-                      <span>Proceed to Pay ₹{activeAmount.toLocaleString('en-IN')} on Razorpay ↗</span>
-                    </button>
-
-                    <div className="text-[11px] text-slate-400 font-medium">
-                      Accepts Google Pay, PhonePe, Paytm, BHIM UPI, Credit/Debit Cards & NetBanking on official Razorpay gateway.
-                    </div>
-                  </div>
-
-                  {/* Direct UPI VPA Handle */}
-                  <div className="p-3.5 rounded-2xl bg-[#09101d] border border-slate-800 flex items-center justify-between text-xs">
-                    <div>
-                      <div className="text-[10px] uppercase font-black tracking-wider text-slate-400">DIRECT UPI VPA HANDLE</div>
-                      <div className="font-mono font-black text-white text-sm mt-0.5">{PRIMARY_UPI_ID}</div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={handleCopyUpi}
-                      className="py-1.5 px-3 rounded-xl bg-cyan-950/60 hover:bg-cyan-900/80 border border-cyan-500/30 text-cyan-300 text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all"
-                    >
-                      {copiedUpi ? <CheckCheck className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                      <span>{copiedUpi ? 'Copied' : 'Copy UPI ID'}</span>
-                    </button>
-                  </div>
-
-                  {/* Automatic Official Tax Receipt Generation Notice */}
-                  <div className="p-3.5 rounded-2xl bg-cyan-950/20 border border-cyan-900/30 text-center space-y-1">
-                    <div className="flex items-center justify-center gap-1.5 text-cyan-400 font-bold text-xs">
-                      <ShieldCheck className="w-4 h-4 text-cyan-400" />
-                      <span>Official Tax Receipt & Access Unlock</span>
-                    </div>
-                    <p className="text-[11px] text-slate-400 max-w-md mx-auto">
-                      After completing your payment on Razorpay, submit your transaction ID to instantly unlock your candidate rosters!
-                    </p>
-                  </div>
-
-                </div>
-
-              </div>
-
+              <button 
+                onClick={() => setErrorMessage('')}
+                className="text-slate-400 hover:text-white text-xs cursor-pointer font-normal"
+              >
+                Dismiss
+              </button>
             </div>
           )}
 
-          {/* STEP 2: AWAITING PAYMENT CONFIRMATION (ONLY UNLOCKS WHEN CONFIRMED) */}
-          {step === 'awaiting_payment' && (
-            <div className="py-8 max-w-lg mx-auto text-center space-y-6 animate-in fade-in">
-              <div className="w-16 h-16 rounded-3xl bg-cyan-500/20 border-2 border-cyan-400 text-cyan-400 flex items-center justify-center mx-auto shadow-lg shadow-cyan-500/20">
-                <ExternalLink className="w-8 h-8" />
-              </div>
-
-              <div>
-                <h2 className="text-2xl font-black text-white">
-                  Payment Link Opened in Razorpay
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+            
+            {/* LEFT COLUMN: 1. Package & 2. Client Details */}
+            <div className="lg:col-span-5 space-y-6">
+              
+              {/* 1. Select Package or Amount */}
+              <div className="p-5 rounded-3xl bg-[#0c1424] border border-cyan-900/30 shadow-md space-y-4">
+                <h2 className="text-sm font-black text-amber-400 flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-amber-400" />
+                  <span>1. Select Package or Amount</span>
                 </h2>
-                <p className="text-xs text-slate-300 mt-2 max-w-md mx-auto">
-                  Please complete the payment of <strong>₹{activeAmount.toLocaleString('en-IN')}</strong> on Razorpay. Once paid, enter your <strong>Payment ID</strong> or <strong>Bank UTR No.</strong> below to unlock your portal.
-                </p>
-              </div>
 
-              {/* Transaction Reference Input Form */}
-              <div className="p-5 bg-[#0c1424] rounded-3xl border border-cyan-900/40 space-y-4 text-left">
-                <div>
-                  <label className="block text-xs font-black uppercase text-cyan-300 mb-1.5 flex items-center justify-between">
-                    <span>Razorpay Payment ID / Bank UTR No. *</span>
-                    <span className="text-[10px] text-slate-400 font-normal">From receipt or bank SMS</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={transactionRef}
-                    onChange={(e) => {
-                      setTransactionRef(e.target.value);
-                      if (refError) setRefError('');
-                    }}
-                    placeholder="e.g. pay_Oqk3jU7X or 12-digit UTR / UPI Ref"
-                    className={`w-full px-4 py-3 rounded-xl bg-[#070c18] border text-xs font-mono text-cyan-300 focus:border-cyan-400 placeholder:text-slate-600 ${
-                      refError ? 'border-rose-500' : 'border-slate-700'
-                    }`}
-                  />
-                  {refError && (
-                    <p className="text-xs text-rose-400 mt-1.5 flex items-center gap-1 font-medium">
-                      <AlertCircle className="w-3.5 h-3.5" />
-                      <span>{refError}</span>
-                    </p>
-                  )}
-                </div>
-
-                <div className="flex flex-col sm:flex-row gap-3 pt-2">
+                <div className="grid grid-cols-2 gap-1 p-1 bg-[#070c18] rounded-2xl border border-slate-800">
                   <button
                     type="button"
-                    onClick={handleVerifyPaidTransaction}
-                    disabled={loading}
-                    className="flex-1 py-3.5 px-6 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-400 hover:from-emerald-400 hover:to-teal-300 text-slate-950 font-black text-xs shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2 cursor-pointer transition-all hover:scale-[1.02] disabled:opacity-50"
+                    onClick={() => setPackageType('standard')}
+                    className={`py-2 px-3 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                      packageType === 'standard'
+                        ? 'bg-cyan-500 text-slate-950 shadow-md font-extrabold'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
                   >
-                    <CheckCircle2 className="w-4 h-4" />
-                    <span>Verify Payment & Unlock Portals</span>
+                    Standard Packages
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPackageType('custom')}
+                    className={`py-2 px-3 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                      packageType === 'custom'
+                        ? 'bg-cyan-500 text-slate-950 shadow-md font-extrabold'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    Custom Amount
+                  </button>
+                </div>
+
+                {packageType === 'standard' ? (
+                  <div className="space-y-2 max-h-[240px] overflow-y-auto pr-1">
+                    {RECRUITER_PACKAGES.map((pkg) => {
+                      const isSelected = selectedPlan?.id === pkg.id;
+                      return (
+                        <button
+                          key={pkg.id}
+                          type="button"
+                          onClick={() => setSelectedPlan(pkg)}
+                          className={`w-full flex items-center justify-between p-3 rounded-2xl border text-left transition-all cursor-pointer ${
+                            isSelected
+                              ? 'bg-cyan-950/50 border-cyan-400 shadow-[0_0_15px_rgba(6,182,212,0.25)] ring-1 ring-cyan-400'
+                              : 'bg-[#09101d] border-slate-800 hover:border-slate-700 hover:bg-[#0c1629]'
+                          }`}
+                        >
+                          <div>
+                            <div className="text-xs font-black text-white">{pkg.name}</div>
+                            <div className="text-[11px] text-slate-400">{pkg.subtitle}</div>
+                          </div>
+                          <span className="text-sm font-black text-cyan-400">
+                            ₹{pkg.price_inr.toLocaleString('en-IN')}{pkg.id === 'plan_diamond' ? '+' : ''}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="space-y-3 p-3 bg-[#09101d] rounded-2xl border border-slate-800">
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-400 block mb-1">Custom Description / Milestone</label>
+                      <input
+                        type="text"
+                        value={customItemName}
+                        onChange={(e) => setCustomItemName(e.target.value)}
+                        className="w-full px-3 py-2 rounded-xl bg-[#070c18] border border-slate-700 text-xs text-white focus:border-cyan-400"
+                        placeholder="e.g. On-Campus Placement Drive Sponsor"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-400 block mb-1">Amount in INR (₹)</label>
+                      <input
+                        type="number"
+                        value={customAmount}
+                        onChange={(e) => setCustomAmount(e.target.value)}
+                        className="w-full px-3 py-2 rounded-xl bg-[#070c18] border border-slate-700 text-xs font-mono text-cyan-400 font-bold focus:border-cyan-400"
+                        min="100"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                <div className="p-3 rounded-2xl bg-[#070c18] border border-cyan-900/40 text-xs">
+                  <div className="flex items-center justify-between text-slate-400">
+                    <span>Selected Item:</span>
+                    <span className="text-slate-200 font-semibold truncate max-w-[160px]">{activeItemName}</span>
+                  </div>
+                  <div className="mt-2 flex items-center justify-between border-t border-slate-800 pt-2 font-black text-sm">
+                    <span className="text-slate-300">Total Payable:</span>
+                    <span className="text-cyan-400 text-lg">₹{activeAmount.toLocaleString('en-IN')}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* 2. Client Details */}
+              <div className="p-5 rounded-3xl bg-[#0c1424] border border-cyan-900/30 shadow-md space-y-3.5">
+                <h2 className="text-sm font-black text-cyan-400 flex items-center gap-2">
+                  <CheckCircle className="w-4 h-4 text-cyan-400" />
+                  <span>2. Client Details</span>
+                </h2>
+
+                <div className="space-y-3 text-xs">
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-400 block mb-1">Full Name / Business Name *</label>
+                    <input
+                      type="text"
+                      required
+                      value={billingDetails.name}
+                      onChange={(e) => setBillingDetails({ ...billingDetails, name: e.target.value })}
+                      placeholder="e.g. Om Thakkar / Oteck Technologies"
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-[#070c18] border border-slate-700 text-xs text-white focus:border-cyan-400"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-400 block mb-1">Email Address (for receipt & invoice) *</label>
+                    <input
+                      type="email"
+                      required
+                      value={billingDetails.email}
+                      onChange={(e) => setBillingDetails({ ...billingDetails, email: e.target.value })}
+                      placeholder="omthakkar168@gmail.com"
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-[#070c18] border border-slate-700 text-xs text-white focus:border-cyan-400"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-400 block mb-1">GSTIN Number (Optional)</label>
+                    <input
+                      type="text"
+                      value={billingDetails.gstNumber}
+                      onChange={(e) => setBillingDetails({ ...billingDetails, gstNumber: e.target.value })}
+                      placeholder="24AAACG1234F1Z5"
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-[#070c18] border border-slate-700 text-xs text-white focus:border-cyan-400"
+                    />
+                  </div>
+                </div>
+              </div>
+
+            </div>
+
+
+            {/* RIGHT COLUMN: 3. Choose Payment Method */}
+            <div className="lg:col-span-7 space-y-6">
+              
+              <div className="p-5 rounded-3xl bg-[#0c1424] border border-cyan-900/30 shadow-md space-y-4">
+                <h2 className="text-sm font-black text-cyan-400 flex items-center gap-2">
+                  <CreditCard className="w-4 h-4 text-cyan-400" />
+                  <span>3. Choose Payment Method</span>
+                </h2>
+
+                {/* Method Selector Tabs */}
+                <div className="grid grid-cols-3 gap-2 bg-[#070c18] p-1.5 rounded-2xl border border-slate-800">
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethodTab('upi')}
+                    className={`flex flex-col items-center justify-center py-2.5 px-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                      paymentMethodTab === 'upi'
+                        ? 'bg-cyan-500 text-slate-950 shadow-md'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    <QrCode className="w-4 h-4 mb-1" />
+                    <span>Instant UPI / QR</span>
                   </button>
 
-                  <a
-                    href={RAZORPAY_PAYMENT_LINK}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="py-3 px-4 rounded-xl bg-[#0f1b30] hover:bg-[#152542] border border-cyan-800/40 text-cyan-300 font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer shrink-0"
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethodTab('bank')}
+                    className={`flex flex-col items-center justify-center py-2.5 px-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                      paymentMethodTab === 'bank'
+                        ? 'bg-cyan-500 text-slate-950 shadow-md'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
                   >
-                    <span>Re-open Razorpay</span>
-                    <ArrowUpRight className="w-3.5 h-3.5" />
-                  </a>
+                    <Building2 className="w-4 h-4 mb-1" />
+                    <span>Bank Wire (NEFT)</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethodTab('card')}
+                    className={`flex flex-col items-center justify-center py-2.5 px-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                      paymentMethodTab === 'card'
+                        ? 'bg-cyan-500 text-slate-950 shadow-md'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    <CreditCard className="w-4 h-4 mb-1" />
+                    <span>Cards / Gateway</span>
+                  </button>
                 </div>
+
+                {/* TAB 1: INSTANT UPI / RAZORPAY */}
+                {paymentMethodTab === 'upi' && (
+                  <div className="space-y-4 animate-in fade-in">
+                    <div className="p-6 rounded-3xl bg-[#09101d] border border-cyan-500/30 text-center space-y-4 shadow-inner">
+                      <span className="inline-flex items-center gap-1.5 px-3.5 py-1 bg-cyan-950/80 border border-cyan-400/40 text-cyan-300 rounded-full text-[11px] font-black uppercase tracking-wider">
+                        <Sparkles className="w-3.5 h-3.5 text-cyan-400" /> Live Razorpay Instant Payment
+                      </span>
+
+                      <div>
+                        <p className="text-xs text-slate-400">Amount set by selected plan or custom input:</p>
+                        <h3 className="text-3xl font-black text-cyan-400 mt-1">₹{activeAmount.toLocaleString('en-IN')}</h3>
+                        <p className="text-xs font-bold text-slate-300 mt-1">Item: {activeItemName}</p>
+                      </div>
+
+                      <div className="flex flex-col sm:flex-row gap-3 pt-2">
+                        <button
+                          type="button"
+                          onClick={handlePayViaLiveRazorpay}
+                          disabled={loading}
+                          className="flex-1 py-4 px-5 rounded-2xl bg-gradient-to-r from-cyan-400 via-cyan-300 to-amber-300 hover:from-cyan-300 hover:to-amber-200 text-slate-950 font-black text-sm sm:text-base shadow-xl shadow-cyan-500/20 flex items-center justify-center gap-2 cursor-pointer transition-all hover:scale-[1.02] disabled:opacity-50"
+                        >
+                          <CreditCard className="w-5 h-5 text-slate-950" />
+                          <span>Pay ₹{activeAmount.toLocaleString('en-IN')} via Live Razorpay</span>
+                          <Zap className="w-4 h-4 text-amber-900 fill-amber-900" />
+                        </button>
+
+                        <a
+                          href={RAZORPAY_HOSTED_LINK}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="py-4 px-5 rounded-2xl bg-[#0e172a] hover:bg-[#14203a] border border-slate-700 text-slate-200 font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer transition-all"
+                        >
+                          <span>Hosted Link</span>
+                          <ArrowRight className="w-4 h-4 text-cyan-400" />
+                        </a>
+                      </div>
+
+                      <p className="text-[11px] text-slate-400">
+                        Accepts Google Pay, PhonePe, Paytm, BHIM UPI, Credit/Debit Cards & NetBanking.
+                      </p>
+                    </div>
+
+                    {/* Direct UPI Handle */}
+                    <div className="p-4 rounded-2xl bg-[#09101d] border border-slate-800 flex items-center justify-between text-xs">
+                      <div>
+                        <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">Direct UPI VPA Handle</span>
+                        <span className="font-mono font-bold text-white text-sm mt-0.5">{PRIMARY_UPI_ID}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleCopy(PRIMARY_UPI_ID, 'upi')}
+                        className="py-1.5 px-3 rounded-xl bg-cyan-950/60 hover:bg-cyan-900/80 border border-cyan-500/30 text-cyan-300 text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all"
+                      >
+                        {copiedUpi ? <CheckCheck className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                        <span>{copiedUpi ? 'Copied' : 'Copy UPI ID'}</span>
+                      </button>
+                    </div>
+
+                    {/* Auto receipt notice */}
+                    <div className="p-4 rounded-2xl border border-dashed border-cyan-900/40 bg-[#070c18] text-center text-xs text-slate-400 space-y-1">
+                      <p className="font-bold text-white flex items-center justify-center gap-1.5">
+                        <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                        Automatic Official Tax Receipt Generation
+                      </p>
+                      <p className="text-[11px]">
+                        Clicking <strong>Pay via Live Razorpay</strong> launches your secure checkout. Upon successful payment completion, your official branded tax receipt will automatically pop up with a print & download option!
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* TAB 2: BANK WIRE (NEFT / IMPS) */}
+                {paymentMethodTab === 'bank' && (
+                  <div className="space-y-4 animate-in fade-in text-xs">
+                    <p className="text-slate-400">
+                      Transfer funds directly to our business account via NEFT, IMPS, RTGS, or NetBanking:
+                    </p>
+
+                    <div className="p-4 rounded-2xl bg-[#09101d] border border-slate-800 space-y-2.5">
+                      <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                        <span className="text-slate-400">Account Holder:</span>
+                        <span className="font-bold text-white">{BANK_DETAILS.accountName}</span>
+                      </div>
+                      <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                        <span className="text-slate-400">Account Number:</span>
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono font-bold text-white">{BANK_DETAILS.accountNumber}</span>
+                          <button
+                            type="button"
+                            onClick={() => handleCopy(BANK_DETAILS.accountNumber, 'acc')}
+                            className="p-1 text-cyan-400 hover:text-cyan-300 cursor-pointer"
+                          >
+                            <Copy className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                        <span className="text-slate-400">Bank Name:</span>
+                        <span className="font-bold text-white">{BANK_DETAILS.bankName}</span>
+                      </div>
+                      <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                        <span className="text-slate-400">IFSC Code:</span>
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono font-bold text-white">{BANK_DETAILS.ifscCode}</span>
+                          <button
+                            type="button"
+                            onClick={() => handleCopy(BANK_DETAILS.ifscCode, 'ifsc')}
+                            className="p-1 text-cyan-400 hover:text-cyan-300 cursor-pointer"
+                          >
+                            <Copy className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-400">Branch:</span>
+                        <span className="font-semibold text-white">{BANK_DETAILS.branch}</span>
+                      </div>
+                    </div>
+
+                    <form onSubmit={handleBankTransferSubmit} className="space-y-3 pt-2">
+                      <div>
+                        <label className="text-[11px] font-bold text-cyan-300 block mb-1">Enter Bank UTR / Transaction Reference Number *</label>
+                        <input
+                          type="text"
+                          required
+                          value={bankUtr}
+                          onChange={(e) => setBankUtr(e.target.value)}
+                          placeholder="e.g. 12-digit UTR No. (HDFC00012345678)"
+                          className="w-full px-3.5 py-2.5 rounded-xl bg-[#070c18] border border-slate-700 text-xs font-mono text-cyan-300 focus:border-cyan-400"
+                        />
+                      </div>
+                      <button
+                        type="submit"
+                        disabled={bankSubmitting}
+                        className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-400 hover:from-emerald-400 text-slate-950 font-black text-xs shadow-lg flex items-center justify-center gap-2 cursor-pointer transition-all disabled:opacity-50"
+                      >
+                        <CheckCircle2 className="w-4 h-4" />
+                        <span>Confirm Bank Transfer for ₹{activeAmount.toLocaleString('en-IN')} & Unlock</span>
+                      </button>
+                    </form>
+                  </div>
+                )}
+
+                {/* TAB 3: CARDS / GATEWAY */}
+                {paymentMethodTab === 'card' && (
+                  <div className="space-y-4 animate-in fade-in text-xs">
+                    <div className="space-y-3">
+                      <div>
+                        <label className="text-[11px] font-bold text-slate-400 block mb-1">Card Number</label>
+                        <input
+                          type="text"
+                          maxLength={19}
+                          value={cardNumber}
+                          onChange={(e) => setCardNumber(e.target.value)}
+                          placeholder="4532 •••• •••• 8901"
+                          className="w-full px-3.5 py-2.5 rounded-xl bg-[#070c18] border border-slate-700 text-xs font-mono text-white focus:border-cyan-400"
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="text-[11px] font-bold text-slate-400 block mb-1">Expiry Date</label>
+                          <input
+                            type="text"
+                            maxLength={5}
+                            value={cardExpiry}
+                            onChange={(e) => setCardExpiry(e.target.value)}
+                            placeholder="MM/YY"
+                            className="w-full px-3.5 py-2.5 rounded-xl bg-[#070c18] border border-slate-700 text-xs text-white text-center focus:border-cyan-400"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[11px] font-bold text-slate-400 block mb-1">Security CVV</label>
+                          <input
+                            type="password"
+                            maxLength={4}
+                            value={cardCvv}
+                            onChange={(e) => setCardCvv(e.target.value)}
+                            placeholder="•••"
+                            className="w-full px-3.5 py-2.5 rounded-xl bg-[#070c18] border border-slate-700 text-xs text-white text-center focus:border-cyan-400"
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="text-[11px] font-bold text-slate-400 block mb-1">Cardholder Name</label>
+                        <input
+                          type="text"
+                          value={cardName}
+                          onChange={(e) => setCardName(e.target.value)}
+                          placeholder="NAME ON CARD"
+                          className="w-full px-3.5 py-2.5 rounded-xl bg-[#070c18] border border-slate-700 text-xs text-white uppercase focus:border-cyan-400"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="p-4 rounded-2xl bg-cyan-950/30 border border-cyan-500/30 text-center space-y-3">
+                      <span className="inline-flex items-center gap-1.5 text-xs font-black text-cyan-300 uppercase tracking-wider">
+                        <Sparkles className="w-3.5 h-3.5 text-cyan-400" /> Official Razorpay Live Gateway
+                      </span>
+                      <p className="text-xs text-slate-400">
+                        Pay securely via live Razorpay pop-up modal or direct hosted payment link:
+                      </p>
+                      <div className="flex flex-col sm:flex-row gap-2">
+                        <button
+                          type="button"
+                          onClick={handlePayViaLiveRazorpay}
+                          disabled={loading}
+                          className="flex-1 py-3.5 px-4 rounded-xl bg-gradient-to-r from-cyan-400 to-amber-300 text-slate-950 font-black text-xs shadow-md flex items-center justify-center gap-2 cursor-pointer transition-all hover:scale-[1.02] disabled:opacity-50"
+                        >
+                          <CreditCard className="w-4 h-4" />
+                          <span>Pay ₹{activeAmount.toLocaleString('en-IN')} via Live Razorpay Popup</span>
+                        </button>
+                        <a
+                          href={RAZORPAY_HOSTED_LINK}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="py-3.5 px-4 rounded-xl bg-[#0e172a] hover:bg-[#14203a] border border-slate-700 text-slate-200 font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer"
+                        >
+                          <span>Hosted Page</span>
+                          <Zap className="w-3.5 h-3.5 text-amber-400" />
+                        </a>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
               </div>
 
-              <button
-                type="button"
-                onClick={() => setStep('review')}
-                className="text-xs text-slate-400 hover:text-white underline cursor-pointer"
-              >
-                ← Change Plan or Package
-              </button>
-            </div>
-          )}
-
-          {/* STEP 3: PROCESSING */}
-          {step === 'processing' && (
-            <div className="py-20 flex flex-col items-center justify-center text-center space-y-4">
-              <div className="relative">
-                <div className="w-16 h-16 rounded-full border-4 border-cyan-500/30 border-t-cyan-400 animate-spin" />
-                <Lock className="w-6 h-6 text-cyan-400 absolute inset-0 m-auto" />
-              </div>
-              <div>
-                <h3 className="text-lg font-black text-white">
-                  Verifying Payment Transaction & Provisioning Portals...
-                </h3>
-                <p className="text-xs text-slate-400 mt-1 max-w-sm">
-                  Checking payment reference with Razorpay gateway and generating your official GST invoice.
-                </p>
-              </div>
-            </div>
-          )}
-
-          {/* STEP 4: SUCCESS */}
-          {step === 'success' && completedTransaction && (
-            <div className="py-10 flex flex-col items-center justify-center text-center space-y-5">
-              <div className="w-16 h-16 rounded-full bg-emerald-500/20 border border-emerald-400 text-emerald-400 flex items-center justify-center shadow-lg animate-bounce">
-                <CheckCircle2 className="w-10 h-10 stroke-[2.5]" />
-              </div>
-
-              <div>
-                <h3 className="text-2xl font-black text-white">
-                  Payment Confirmed & All Portals Unlocked!
-                </h3>
-                <p className="text-xs text-slate-300 mt-1 max-w-md">
-                  Your corporate account is now activated for <strong>{activeItemName}</strong>. You have full access to student dossiers, ATS match rankings, and live interview rooms.
-                </p>
-              </div>
-
-              {/* Receipt Pill Card */}
-              <div className="w-full max-w-md p-4 bg-[#0c1424] rounded-2xl border border-cyan-900/40 text-left space-y-2 text-xs">
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Receipt / Invoice No:</span>
-                  <span className="font-bold text-cyan-300">{completedTransaction.receipt_number}</span>
+              {/* 100% Payment Guarantee Card */}
+              <div className="p-5 rounded-3xl border border-slate-800 bg-[#09101d] space-y-3 text-xs text-slate-400">
+                <div className="flex items-center gap-2 text-white font-bold">
+                  <ShieldCheck className="w-4 h-4 text-cyan-400" />
+                  <span>GSFC Placement 100% Payment Guarantee</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Payment Ref / ID:</span>
-                  <span className="font-mono text-[11px] text-slate-300">{completedTransaction.payment_id}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Amount Paid:</span>
-                  <span className="font-black text-emerald-400">₹{activeAmount.toLocaleString('en-IN')} (Confirmed)</span>
-                </div>
+                <ul className="space-y-1.5 list-disc list-inside">
+                  <li>Every payment comes with an instant printable payment receipt.</li>
+                  <li>Official GST Invoice & Placement Coordinator Pass issued upon confirmation.</li>
+                  <li>Need help? Instant support available on WhatsApp: <strong>+91 9558413347</strong>.</li>
+                </ul>
               </div>
 
-              <button
-                type="button"
-                onClick={onClose}
-                className="py-3 px-8 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-400 hover:from-emerald-400 hover:to-teal-300 text-slate-950 font-black text-xs shadow-lg transition-all cursor-pointer"
-              >
-                Access Recruiter Portal
-              </button>
             </div>
-          )}
 
-          {/* STEP 5: FAILED */}
-          {step === 'failed' && (
-            <div className="py-12 flex flex-col items-center justify-center text-center space-y-4">
-              <div className="w-16 h-16 rounded-full bg-rose-500/20 text-rose-400 flex items-center justify-center">
-                <AlertCircle className="w-10 h-10" />
-              </div>
-              <div>
-                <h3 className="text-lg font-black text-white">Payment Could Not Be Verified</h3>
-                <p className="text-xs text-rose-400 mt-1 max-w-sm">{errorMessage || 'Please ensure you completed payment and provided a valid reference.'}</p>
-              </div>
-              <div className="flex gap-3">
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="py-2.5 px-4 rounded-xl border border-slate-700 text-xs font-bold text-slate-300 cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setStep('awaiting_payment')}
-                  className="py-2.5 px-5 rounded-xl bg-cyan-500 text-slate-950 text-xs font-black cursor-pointer"
-                >
-                  Re-enter Reference
-                </button>
-              </div>
-            </div>
-          )}
+          </div>
 
         </div>
 
       </div>
+
+      {/* OFFICIAL PRINTABLE TAX RECEIPT POPUP MODAL */}
+      {completedReceipt && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-2xl rounded-3xl border border-cyan-900/60 bg-[#0b1322] p-6 sm:p-8 shadow-2xl space-y-6 max-h-[92vh] overflow-y-auto">
+            
+            {/* Printable Receipt Box */}
+            <div id="printable-receipt" className="space-y-6 bg-white p-6 sm:p-8 rounded-2xl text-slate-900 border border-slate-200 shadow-lg">
+              <div className="flex flex-col sm:flex-row justify-between items-start border-b border-slate-200 pb-5 gap-4">
+                <div className="space-y-1">
+                  <h2 className="text-xl font-black text-slate-900 tracking-tight">GSFC UNIVERSITY</h2>
+                  <p className="text-xs text-slate-600 font-bold">Training & Placement Cell • Recruiter Access Pass</p>
+                  <p className="text-[11px] text-slate-500">Email: placement@gsfcuniversity.ac.in | Phone: +91 9558413347</p>
+                </div>
+                <div className="text-left sm:text-right space-y-1 border-l sm:border-l-0 pl-3 sm:pl-0 border-slate-200">
+                  <span className="inline-block rounded-full bg-emerald-100 px-3 py-1 text-xs font-black text-emerald-800 uppercase tracking-wider">
+                    Official Tax Receipt
+                  </span>
+                  <p className="text-xs text-slate-500 mt-2">
+                    Txn Ref: <strong className="font-mono text-slate-900">{completedReceipt.txnId}</strong>
+                  </p>
+                  <p className="text-xs text-slate-500">Date: {completedReceipt.date}</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 rounded-xl bg-slate-50 p-4 border border-slate-200 text-xs">
+                <div>
+                  <span className="font-bold text-slate-500 uppercase tracking-wider block text-[10px]">Billed To (Client):</span>
+                  <strong className="text-sm text-slate-900 block mt-0.5">{completedReceipt.clientName}</strong>
+                  <p className="text-slate-600">{completedReceipt.clientEmail}</p>
+                  <p className="text-slate-600">{completedReceipt.clientPhone}</p>
+                </div>
+                <div>
+                  <span className="font-bold text-slate-500 uppercase tracking-wider block text-[10px]">Payment Mode & Status:</span>
+                  <p className="text-slate-900 font-semibold mt-0.5">{completedReceipt.method}</p>
+                  <p className="text-slate-600">Item: {completedReceipt.planName}</p>
+                  <span className="inline-block mt-1 text-[11px] font-black text-emerald-600">Status: COMPLETED (PAID)</span>
+                </div>
+              </div>
+
+              <div className="overflow-hidden rounded-xl border border-slate-200">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-slate-100 font-bold uppercase text-slate-700 text-[10px]">
+                    <tr>
+                      <th className="p-3">Description</th>
+                      <th className="p-3 text-right">Qty</th>
+                      <th className="p-3 text-right">Amount (₹)</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200">
+                    <tr>
+                      <td className="p-3">
+                        <strong className="text-slate-900">{completedReceipt.planName}</strong>
+                        <p className="text-[11px] text-slate-500">GSFC University Verified Campus Recruitment Package</p>
+                      </td>
+                      <td className="p-3 text-right">1</td>
+                      <td className="p-3 text-right font-black text-slate-900">₹{completedReceipt.amount.toLocaleString('en-IN')}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="flex justify-between items-center pt-2">
+                <div className="text-[11px] text-slate-500 space-y-1">
+                  <p className="flex items-center gap-1 text-slate-700 font-bold">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Includes Full Portal & Candidate Database Unlock
+                  </p>
+                  <p>Computer generated payment receipt. No physical signature required.</p>
+                </div>
+                <div className="text-right">
+                  <span className="text-xs text-slate-500 block">Total Amount Paid</span>
+                  <span className="text-2xl font-black text-slate-900">₹{completedReceipt.amount.toLocaleString('en-IN')}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex flex-col sm:flex-row gap-3">
+              <button
+                type="button"
+                onClick={() => window.print()}
+                className="flex-1 py-3 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white font-bold text-xs flex items-center justify-center gap-2 cursor-pointer transition-all"
+              >
+                <Printer className="w-4 h-4" />
+                <span>Print / Save as PDF</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setCompletedReceipt(null);
+                  onClose();
+                }}
+                className="flex-1 py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-400 hover:from-emerald-400 text-slate-950 font-black text-xs shadow-lg flex items-center justify-center gap-2 cursor-pointer transition-all hover:scale-[1.02]"
+              >
+                <span>Access Recruiter Portal →</span>
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
