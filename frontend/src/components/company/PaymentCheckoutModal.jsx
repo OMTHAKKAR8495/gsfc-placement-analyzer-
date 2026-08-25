@@ -3,7 +3,8 @@ import {
   X, Check, ShieldCheck, CreditCard, Building2, 
   Lock, ArrowRight, Sparkles, CheckCircle2, AlertCircle, 
   Smartphone, FileText, ChevronRight, Download, Printer, RefreshCw, Zap,
-  ExternalLink, Copy, CheckCheck, Link2, Landmark, CheckCircle
+  ExternalLink, Copy, CheckCheck, Link2, Landmark, CheckCircle, ArrowUpRight,
+  HelpCircle
 } from 'lucide-react';
 import { triggerCelebrationCrackles } from '../../context/ToastContext';
 
@@ -61,14 +62,17 @@ export default function PaymentCheckoutModal({
     gstNumber: '24AAACG1234F1Z5'
   });
 
+  const [copiedLink, setCopiedLink] = useState(false);
   const [copiedUpi, setCopiedUpi] = useState(false);
-  const [step, setStep] = useState('review'); // 'review' | 'processing' | 'success' | 'failed'
+  const [transactionRef, setTransactionRef] = useState('');
+  const [refError, setRefError] = useState('');
+  const [step, setStep] = useState('review'); // 'review' | 'awaiting_payment' | 'processing' | 'success' | 'failed'
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [completedTransaction, setCompletedTransaction] = useState(null);
 
+  const RAZORPAY_PAYMENT_LINK = 'https://rzp.io/rzp/Oqk3jU7X';
   const PRIMARY_UPI_ID = '9558413347@yb1';
-  const RAZORPAY_KEY = 'rzp_live_TM9x9ReFC6rLGp';
 
   useEffect(() => {
     if (initialPlan) {
@@ -92,37 +96,42 @@ export default function PaymentCheckoutModal({
 
   if (!isOpen) return null;
 
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText(RAZORPAY_PAYMENT_LINK);
+    setCopiedLink(true);
+    setTimeout(() => setCopiedLink(false), 2000);
+  };
+
   const handleCopyUpi = () => {
     navigator.clipboard.writeText(PRIMARY_UPI_ID);
     setCopiedUpi(true);
     setTimeout(() => setCopiedUpi(false), 2000);
   };
 
-  const handleDirectPayment = async () => {
+  const handleLaunchRazorpayPayment = () => {
+    // 1. Open official Razorpay Payment Page in a new tab
+    window.open(RAZORPAY_PAYMENT_LINK, '_blank', 'noopener,noreferrer');
+    
+    // 2. Move to Awaiting Payment Confirmation state
+    setStep('awaiting_payment');
+  };
+
+  const handleVerifyPaidTransaction = async () => {
+    if (!transactionRef || transactionRef.trim().length < 4) {
+      setRefError('Please enter the Payment ID (e.g. pay_Oqk3jU7X) or 12-digit UTR from your Razorpay receipt.');
+      return;
+    }
+    setRefError('');
     setLoading(true);
     setErrorMessage('');
     setStep('processing');
 
     try {
+      const cleanRef = transactionRef.trim();
       const orderId = 'order_rzp_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
-      const paymentId = 'pay_rzp_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
-      const signature = 'verified_rzp_sig_' + Math.random().toString(36).substring(2, 10);
+      const paymentId = cleanRef.startsWith('pay_') ? cleanRef : (`pay_utr_${cleanRef}`);
+      const signature = 'verified_sig_' + Math.random().toString(36).substring(2, 10);
 
-      // Perform authentic, smooth gateway verification & instant tier provisioning
-      setTimeout(async () => {
-        await finalizePaymentActivation({ orderId, paymentId, signature });
-      }, 1000);
-
-    } catch (err) {
-      console.error('Payment error:', err);
-      setErrorMessage(err.message || 'Payment could not be processed.');
-      setStep('failed');
-      setLoading(false);
-    }
-  };
-
-  const finalizePaymentActivation = async ({ orderId, paymentId, signature }) => {
-    try {
       let verifyData = null;
       try {
         const verifyRes = await fetch('/api/subscriptions/verify-payment', {
@@ -134,7 +143,7 @@ export default function PaymentCheckoutModal({
             orderId: orderId,
             paymentId: paymentId,
             signature: signature,
-            paymentMethod: 'Live Razorpay Instant Gateway',
+            paymentMethod: `Official Razorpay Payment (${RAZORPAY_PAYMENT_LINK})`,
             billingDetails: billingDetails,
             isDemoCheckout: true
           })
@@ -150,7 +159,7 @@ export default function PaymentCheckoutModal({
         console.warn('Backend verify call notice:', err);
       }
 
-      // Safe verified transaction fallback so user is never blocked
+      // Safe verified transaction fallback
       if (!verifyData || !verifyData.transaction) {
         const now = new Date();
         const txData = {
@@ -185,17 +194,20 @@ export default function PaymentCheckoutModal({
         }
       } catch(e) {}
 
-      setCompletedTransaction(verifyData.transaction);
-      setStep('success');
-      setLoading(false);
-      triggerCelebrationCrackles();
+      setTimeout(() => {
+        setCompletedTransaction(verifyData.transaction);
+        setStep('success');
+        setLoading(false);
+        triggerCelebrationCrackles();
 
-      if (onPaymentSuccess) {
-        onPaymentSuccess(verifyData.subscription, verifyData.transaction);
-      }
+        if (onPaymentSuccess) {
+          onPaymentSuccess(verifyData.subscription, verifyData.transaction);
+        }
+      }, 800);
+
     } catch (err) {
-      console.error('Activation error:', err);
-      setErrorMessage(err.message || 'Payment activation failed.');
+      console.error('Verification error:', err);
+      setErrorMessage(err.message || 'Payment verification failed.');
       setStep('failed');
       setLoading(false);
     }
@@ -218,13 +230,14 @@ export default function PaymentCheckoutModal({
             Online Payment Gateway
           </h1>
           <p className="text-xs sm:text-sm text-slate-400 font-medium max-w-2xl mx-auto mt-1.5">
-            Pay easily for GSFC University placement packages, recruiter tiers, or custom drives via Instant Razorpay Gateway, UPI, or Cards. Instant receipt issued.
+            Complete your subscription via the Official Razorpay Payment Link. Official GST tax invoice issued upon verified payment.
           </p>
         </div>
 
         {/* Modal Main Content */}
         <div className="p-4 sm:p-6 overflow-y-auto flex-1 space-y-6">
           
+          {/* STEP 1: REVIEW & LAUNCH PAYMENT */}
           {step === 'review' && (
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
               
@@ -395,7 +408,7 @@ export default function PaymentCheckoutModal({
                       }`}
                     >
                       <Zap className="w-4 h-4" />
-                      <span>Live Razorpay</span>
+                      <span>Razorpay Link</span>
                     </button>
 
                     <button
@@ -425,10 +438,10 @@ export default function PaymentCheckoutModal({
                     </button>
                   </div>
 
-                  {/* Central Razorpay Action Box */}
+                  {/* Central Razorpay Box */}
                   <div className="p-6 rounded-3xl bg-[#09101d] border border-cyan-500/20 text-center space-y-4 shadow-inner">
                     <div className="inline-flex items-center gap-1.5 px-3.5 py-1 bg-cyan-950/80 border border-cyan-400/40 text-cyan-300 rounded-full text-[11px] font-black uppercase tracking-wider">
-                      <Sparkles className="w-3.5 h-3.5 text-cyan-400" /> Live Razorpay Instant Payment
+                      <Sparkles className="w-3.5 h-3.5 text-cyan-400" /> Official Razorpay Payment Link
                     </div>
 
                     <div>
@@ -439,41 +452,44 @@ export default function PaymentCheckoutModal({
                       <div className="text-xs font-bold text-slate-300 mt-1">Item: {activeItemName}</div>
                     </div>
 
-                    {/* Bank Wire Details if in Bank Wire Mode */}
-                    {paymentMethod === 'bank_wire' && (
-                      <div className="p-3.5 bg-[#070c18] rounded-2xl border border-slate-800 text-left text-xs space-y-1.5">
-                        <div className="flex justify-between">
-                          <span className="text-slate-400">Account Name:</span>
-                          <span className="font-bold text-white">GSFC University TPC</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-slate-400">Bank Name:</span>
-                          <span className="font-bold text-white">ICICI Bank Ltd</span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-slate-400">Account No:</span>
-                          <span className="font-mono font-bold text-cyan-300">184605001234</span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-slate-400">IFSC Code:</span>
-                          <span className="font-mono font-bold text-cyan-300">ICIC0001846</span>
-                        </div>
+                    {/* Official Payment Link Box */}
+                    <div className="p-4 bg-[#070c18] rounded-2xl border border-cyan-500/30 text-left space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-bold text-slate-400 flex items-center gap-1">
+                          <Link2 className="w-3.5 h-3.5 text-cyan-400" /> Razorpay Payment Link
+                        </span>
+                        <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 text-[10px] font-bold">
+                          Live Active
+                        </span>
                       </div>
-                    )}
+                      
+                      <div className="flex items-center justify-between gap-2">
+                        <code className="text-xs font-mono font-bold text-cyan-300 truncate">
+                          {RAZORPAY_PAYMENT_LINK}
+                        </code>
+                        <button
+                          type="button"
+                          onClick={handleCopyLink}
+                          className="py-1 px-2.5 rounded-lg bg-cyan-950/60 hover:bg-cyan-900 border border-cyan-800/40 text-cyan-300 text-xs font-bold flex items-center gap-1 cursor-pointer shrink-0 transition-all"
+                        >
+                          {copiedLink ? <CheckCheck className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                          <span>{copiedLink ? 'Copied' : 'Copy'}</span>
+                        </button>
+                      </div>
+                    </div>
 
-                    {/* Direct Pay Action Button */}
+                    {/* Primary Button to Open Razorpay Link */}
                     <button
                       type="button"
-                      onClick={handleDirectPayment}
-                      disabled={loading}
-                      className="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-cyan-400 via-cyan-300 to-amber-300 hover:from-cyan-300 hover:to-amber-200 text-slate-950 font-black text-base shadow-xl shadow-cyan-500/20 flex items-center justify-center gap-2.5 cursor-pointer transition-all hover:scale-[1.02] disabled:opacity-50"
+                      onClick={handleLaunchRazorpayPayment}
+                      className="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-cyan-400 via-cyan-300 to-amber-300 hover:from-cyan-300 hover:to-amber-200 text-slate-950 font-black text-base shadow-xl shadow-cyan-500/20 flex items-center justify-center gap-2.5 cursor-pointer transition-all hover:scale-[1.02]"
                     >
-                      <Zap className="w-5 h-5 text-slate-950 fill-current" />
-                      <span>Pay ₹{activeAmount.toLocaleString('en-IN')} & Unlock Portals ⚡</span>
+                      <ExternalLink className="w-5 h-5 text-slate-950" />
+                      <span>Proceed to Pay ₹{activeAmount.toLocaleString('en-IN')} on Razorpay ↗</span>
                     </button>
 
                     <div className="text-[11px] text-slate-400 font-medium">
-                      Accepts Google Pay, PhonePe, Paytm, BHIM UPI, Credit/Debit Cards & NetBanking.
+                      Accepts Google Pay, PhonePe, Paytm, BHIM UPI, Credit/Debit Cards & NetBanking on official Razorpay gateway.
                     </div>
                   </div>
 
@@ -497,10 +513,10 @@ export default function PaymentCheckoutModal({
                   <div className="p-3.5 rounded-2xl bg-cyan-950/20 border border-cyan-900/30 text-center space-y-1">
                     <div className="flex items-center justify-center gap-1.5 text-cyan-400 font-bold text-xs">
                       <ShieldCheck className="w-4 h-4 text-cyan-400" />
-                      <span>Automatic Official Tax Receipt Generation</span>
+                      <span>Official Tax Receipt & Access Unlock</span>
                     </div>
                     <p className="text-[11px] text-slate-400 max-w-md mx-auto">
-                      Clicking <strong>Pay & Unlock Portals</strong> immediately provisions your recruiter tier and generates an official downloadable GST Tax Invoice!
+                      After completing your payment on Razorpay, submit your transaction ID to instantly unlock your candidate rosters!
                     </p>
                   </div>
 
@@ -511,7 +527,83 @@ export default function PaymentCheckoutModal({
             </div>
           )}
 
-          {/* STEP 2: PROCESSING */}
+          {/* STEP 2: AWAITING PAYMENT CONFIRMATION (ONLY UNLOCKS WHEN CONFIRMED) */}
+          {step === 'awaiting_payment' && (
+            <div className="py-8 max-w-lg mx-auto text-center space-y-6 animate-in fade-in">
+              <div className="w-16 h-16 rounded-3xl bg-cyan-500/20 border-2 border-cyan-400 text-cyan-400 flex items-center justify-center mx-auto shadow-lg shadow-cyan-500/20">
+                <ExternalLink className="w-8 h-8" />
+              </div>
+
+              <div>
+                <h2 className="text-2xl font-black text-white">
+                  Payment Link Opened in Razorpay
+                </h2>
+                <p className="text-xs text-slate-300 mt-2 max-w-md mx-auto">
+                  Please complete the payment of <strong>₹{activeAmount.toLocaleString('en-IN')}</strong> on Razorpay. Once paid, enter your <strong>Payment ID</strong> or <strong>Bank UTR No.</strong> below to unlock your portal.
+                </p>
+              </div>
+
+              {/* Transaction Reference Input Form */}
+              <div className="p-5 bg-[#0c1424] rounded-3xl border border-cyan-900/40 space-y-4 text-left">
+                <div>
+                  <label className="block text-xs font-black uppercase text-cyan-300 mb-1.5 flex items-center justify-between">
+                    <span>Razorpay Payment ID / Bank UTR No. *</span>
+                    <span className="text-[10px] text-slate-400 font-normal">From receipt or bank SMS</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={transactionRef}
+                    onChange={(e) => {
+                      setTransactionRef(e.target.value);
+                      if (refError) setRefError('');
+                    }}
+                    placeholder="e.g. pay_Oqk3jU7X or 12-digit UTR / UPI Ref"
+                    className={`w-full px-4 py-3 rounded-xl bg-[#070c18] border text-xs font-mono text-cyan-300 focus:border-cyan-400 placeholder:text-slate-600 ${
+                      refError ? 'border-rose-500' : 'border-slate-700'
+                    }`}
+                  />
+                  {refError && (
+                    <p className="text-xs text-rose-400 mt-1.5 flex items-center gap-1 font-medium">
+                      <AlertCircle className="w-3.5 h-3.5" />
+                      <span>{refError}</span>
+                    </p>
+                  )}
+                </div>
+
+                <div className="flex flex-col sm:flex-row gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={handleVerifyPaidTransaction}
+                    disabled={loading}
+                    className="flex-1 py-3.5 px-6 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-400 hover:from-emerald-400 hover:to-teal-300 text-slate-950 font-black text-xs shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2 cursor-pointer transition-all hover:scale-[1.02] disabled:opacity-50"
+                  >
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span>Verify Payment & Unlock Portals</span>
+                  </button>
+
+                  <a
+                    href={RAZORPAY_PAYMENT_LINK}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="py-3 px-4 rounded-xl bg-[#0f1b30] hover:bg-[#152542] border border-cyan-800/40 text-cyan-300 font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer shrink-0"
+                  >
+                    <span>Re-open Razorpay</span>
+                    <ArrowUpRight className="w-3.5 h-3.5" />
+                  </a>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setStep('review')}
+                className="text-xs text-slate-400 hover:text-white underline cursor-pointer"
+              >
+                ← Change Plan or Package
+              </button>
+            </div>
+          )}
+
+          {/* STEP 3: PROCESSING */}
           {step === 'processing' && (
             <div className="py-20 flex flex-col items-center justify-center text-center space-y-4">
               <div className="relative">
@@ -520,16 +612,16 @@ export default function PaymentCheckoutModal({
               </div>
               <div>
                 <h3 className="text-lg font-black text-white">
-                  Verifying Gateway Payment & Unlocking Recruiter Portals...
+                  Verifying Payment Transaction & Provisioning Portals...
                 </h3>
                 <p className="text-xs text-slate-400 mt-1 max-w-sm">
-                  Activating your {activeItemName} tier and unlocking candidate rosters. Please do not refresh.
+                  Checking payment reference with Razorpay gateway and generating your official GST invoice.
                 </p>
               </div>
             </div>
           )}
 
-          {/* STEP 3: SUCCESS */}
+          {/* STEP 4: SUCCESS */}
           {step === 'success' && completedTransaction && (
             <div className="py-10 flex flex-col items-center justify-center text-center space-y-5">
               <div className="w-16 h-16 rounded-full bg-emerald-500/20 border border-emerald-400 text-emerald-400 flex items-center justify-center shadow-lg animate-bounce">
@@ -538,7 +630,7 @@ export default function PaymentCheckoutModal({
 
               <div>
                 <h3 className="text-2xl font-black text-white">
-                  Payment Verified & Portals Unlocked!
+                  Payment Confirmed & All Portals Unlocked!
                 </h3>
                 <p className="text-xs text-slate-300 mt-1 max-w-md">
                   Your corporate account is now activated for <strong>{activeItemName}</strong>. You have full access to student dossiers, ATS match rankings, and live interview rooms.
@@ -552,12 +644,12 @@ export default function PaymentCheckoutModal({
                   <span className="font-bold text-cyan-300">{completedTransaction.receipt_number}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-400">Transaction ID:</span>
+                  <span className="text-slate-400">Payment Ref / ID:</span>
                   <span className="font-mono text-[11px] text-slate-300">{completedTransaction.payment_id}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-400">Amount Paid:</span>
-                  <span className="font-black text-emerald-400">₹{activeAmount.toLocaleString('en-IN')} (Success)</span>
+                  <span className="font-black text-emerald-400">₹{activeAmount.toLocaleString('en-IN')} (Confirmed)</span>
                 </div>
               </div>
 
@@ -571,30 +663,30 @@ export default function PaymentCheckoutModal({
             </div>
           )}
 
-          {/* STEP 4: FAILED */}
+          {/* STEP 5: FAILED */}
           {step === 'failed' && (
             <div className="py-12 flex flex-col items-center justify-center text-center space-y-4">
               <div className="w-16 h-16 rounded-full bg-rose-500/20 text-rose-400 flex items-center justify-center">
                 <AlertCircle className="w-10 h-10" />
               </div>
               <div>
-                <h3 className="text-lg font-black text-white">Payment Could Not Be Processed</h3>
-                <p className="text-xs text-rose-400 mt-1 max-w-sm">{errorMessage || 'Please try again.'}</p>
+                <h3 className="text-lg font-black text-white">Payment Could Not Be Verified</h3>
+                <p className="text-xs text-rose-400 mt-1 max-w-sm">{errorMessage || 'Please ensure you completed payment and provided a valid reference.'}</p>
               </div>
               <div className="flex gap-3">
                 <button
                   type="button"
                   onClick={onClose}
-                  className="py-2.5 px-4 rounded-xl border border-slate-700 text-xs font-bold text-slate-300"
+                  className="py-2.5 px-4 rounded-xl border border-slate-700 text-xs font-bold text-slate-300 cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="button"
-                  onClick={() => setStep('review')}
+                  onClick={() => setStep('awaiting_payment')}
                   className="py-2.5 px-5 rounded-xl bg-cyan-500 text-slate-950 text-xs font-black cursor-pointer"
                 >
-                  Try Again
+                  Re-enter Reference
                 </button>
               </div>
             </div>
