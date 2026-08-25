@@ -485,6 +485,9 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
   const [authenticityModalOpen, setAuthenticityModalOpen] = useState(false);
   const [selectedAuthenticityCandidate, setSelectedAuthenticityCandidate] = useState(null);
 
+  // NAAC & NIRF Accreditation Intelligence Modal State
+  const [accreditationModalOpen, setAccreditationModalOpen] = useState(false);
+
   const handleOpenAuthenticityCheck = (candidateApp) => {
     setSelectedAuthenticityCandidate(candidateApp);
     setAuthenticityModalOpen(true);
@@ -867,11 +870,29 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
         if (questionModalOpen) setQuestionModalOpen(false);
         if (uploadQuestionsModalOpen) setUploadQuestionsModalOpen(false);
         if (evalModalOpen) setEvalModalOpen(false);
+        if (accreditationModalOpen) setAccreditationModalOpen(false);
+        if (authenticityModalOpen) setAuthenticityModalOpen(false);
+        if (offerLetterModalOpen) setOfferLetterModalOpen(false);
+        if (notificationLogsModalOpen) setNotificationLogsModalOpen(false);
+        if (scheduleMeetingModalOpen) setScheduleMeetingModalOpen(false);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [attendanceReportModalOpen, pdfReportModalOpen, showPostModal, activeReqApplicants, questionModalOpen, uploadQuestionsModalOpen, evalModalOpen]);
+  }, [
+    attendanceReportModalOpen,
+    pdfReportModalOpen,
+    showPostModal,
+    activeReqApplicants,
+    questionModalOpen,
+    uploadQuestionsModalOpen,
+    evalModalOpen,
+    accreditationModalOpen,
+    authenticityModalOpen,
+    offerLetterModalOpen,
+    notificationLogsModalOpen,
+    scheduleMeetingModalOpen
+  ]);
 
   // Toggle Accepting Applications on a Placement Drive (Stop / Reopen)
   const handleToggleApplications = async (reqId) => {
