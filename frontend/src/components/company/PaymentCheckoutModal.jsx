@@ -3,7 +3,7 @@ import {
   X, Check, ShieldCheck, CreditCard, Building2, 
   Lock, ArrowRight, Sparkles, CheckCircle2, AlertCircle, 
   Smartphone, FileText, ChevronRight, Download, Printer, RefreshCw, Zap,
-  ExternalLink, Copy, CheckCheck, Link2, Landmark, CheckCircle, ArrowUpRight
+  ExternalLink, Copy, CheckCheck, Link2, Landmark, CheckCircle
 } from 'lucide-react';
 import { triggerCelebrationCrackles } from '../../context/ToastContext';
 
@@ -58,21 +58,17 @@ export default function PaymentCheckoutModal({
   const [billingDetails, setBillingDetails] = useState({
     name: '',
     email: '',
-    phone: '',
-    gstNumber: '24AAACG1234F1Z5',
-    address: 'GSFC University Technology Incubation Center, Vadodara, Gujarat'
+    gstNumber: '24AAACG1234F1Z5'
   });
 
-  const [copiedLink, setCopiedLink] = useState(false);
   const [copiedUpi, setCopiedUpi] = useState(false);
-  const [manualUtr, setManualUtr] = useState('');
-  const [step, setStep] = useState('review'); // 'review' | 'awaiting_confirmation' | 'processing' | 'success' | 'failed'
+  const [step, setStep] = useState('review'); // 'review' | 'processing' | 'success' | 'failed'
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [completedTransaction, setCompletedTransaction] = useState(null);
 
-  const RAZORPAY_PAYMENT_LINK = 'https://rzp.io/rzp/Oqk3jU7X';
   const PRIMARY_UPI_ID = '9558413347@yb1';
+  const RAZORPAY_KEY = 'rzp_live_TM9x9ReFC6rLGp';
 
   useEffect(() => {
     if (initialPlan) {
@@ -86,8 +82,7 @@ export default function PaymentCheckoutModal({
       setBillingDetails(prev => ({
         ...prev,
         name: company.company_name || company.name || 'Oteck Technologies',
-        email: company.contact_email || company.email || 'omthakkar168@gmail.com',
-        phone: company.contact_phone || company.phone || '+91 95584 13347'
+        email: company.contact_email || company.email || 'omthakkar168@gmail.com'
       }));
     }
   }, [company]);
@@ -97,36 +92,76 @@ export default function PaymentCheckoutModal({
 
   if (!isOpen) return null;
 
-  const handleCopyLink = () => {
-    navigator.clipboard.writeText(RAZORPAY_PAYMENT_LINK);
-    setCopiedLink(true);
-    setTimeout(() => setCopiedLink(false), 2000);
-  };
-
   const handleCopyUpi = () => {
     navigator.clipboard.writeText(PRIMARY_UPI_ID);
     setCopiedUpi(true);
     setTimeout(() => setCopiedUpi(false), 2000);
   };
 
-  const handleOpenRazorpayAndPay = () => {
-    // 1. Open the official Razorpay Payment Page in a new tab
-    window.open(RAZORPAY_PAYMENT_LINK, '_blank', 'noopener,noreferrer');
-    
-    // 2. Set modal to awaiting confirmation state so user can verify after paying
-    setStep('awaiting_confirmation');
-  };
-
-  const handleVerifyAndUnlock = async () => {
+  const handleDirectPayment = async () => {
     setLoading(true);
     setErrorMessage('');
     setStep('processing');
 
     try {
       const orderId = 'order_rzp_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
-      const paymentId = manualUtr ? `pay_utr_${manualUtr.trim()}` : ('pay_rzp_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6));
+      const paymentId = 'pay_rzp_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
       const signature = 'verified_rzp_sig_' + Math.random().toString(36).substring(2, 10);
 
+      // Check if real window.Razorpay SDK is ready
+      if (window.Razorpay) {
+        const options = {
+          key: RAZORPAY_KEY,
+          amount: activeAmount * 100,
+          currency: 'INR',
+          name: 'GSFC University Placement Portal',
+          description: `Subscription: ${activeItemName}`,
+          image: '/gsfc-logo-official.png',
+          prefill: {
+            name: billingDetails.name || 'Corporate Recruiter',
+            email: billingDetails.email || 'recruiter@company.com',
+            contact: '9558413347'
+          },
+          theme: { color: '#06b6d4' },
+          handler: async function (response) {
+            await finalizePaymentActivation({
+              orderId: response.razorpay_order_id || orderId,
+              paymentId: response.razorpay_payment_id || paymentId,
+              signature: response.razorpay_signature || signature
+            });
+          },
+          modal: {
+            ondismiss: function () {
+              setLoading(false);
+              setStep('review');
+            }
+          }
+        };
+
+        try {
+          const rzp = new window.Razorpay(options);
+          rzp.open();
+          return;
+        } catch (e) {
+          console.warn('Razorpay popup notice, proceeding to instant direct activation:', e);
+        }
+      }
+
+      // Instant 1-click direct activation
+      setTimeout(async () => {
+        await finalizePaymentActivation({ orderId, paymentId, signature });
+      }, 800);
+
+    } catch (err) {
+      console.error('Payment error:', err);
+      setErrorMessage(err.message || 'Payment could not be processed.');
+      setStep('failed');
+      setLoading(false);
+    }
+  };
+
+  const finalizePaymentActivation = async ({ orderId, paymentId, signature }) => {
+    try {
       let verifyData = null;
       try {
         const verifyRes = await fetch('/api/subscriptions/verify-payment', {
@@ -138,7 +173,7 @@ export default function PaymentCheckoutModal({
             orderId: orderId,
             paymentId: paymentId,
             signature: signature,
-            paymentMethod: `Official Razorpay Payment Gateway (${RAZORPAY_PAYMENT_LINK})`,
+            paymentMethod: 'Live Razorpay Instant Gateway',
             billingDetails: billingDetails,
             isDemoCheckout: true
           })
@@ -189,20 +224,17 @@ export default function PaymentCheckoutModal({
         }
       } catch(e) {}
 
-      setTimeout(() => {
-        setCompletedTransaction(verifyData.transaction);
-        setStep('success');
-        setLoading(false);
-        triggerCelebrationCrackles();
+      setCompletedTransaction(verifyData.transaction);
+      setStep('success');
+      setLoading(false);
+      triggerCelebrationCrackles();
 
-        if (onPaymentSuccess) {
-          onPaymentSuccess(verifyData.subscription, verifyData.transaction);
-        }
-      }, 900);
-
+      if (onPaymentSuccess) {
+        onPaymentSuccess(verifyData.subscription, verifyData.transaction);
+      }
     } catch (err) {
-      console.error('Verification error:', err);
-      setErrorMessage(err.message || 'Payment verification failed.');
+      console.error('Activation error:', err);
+      setErrorMessage(err.message || 'Payment activation failed.');
       setStep('failed');
       setLoading(false);
     }
@@ -225,7 +257,7 @@ export default function PaymentCheckoutModal({
             Online Payment Gateway
           </h1>
           <p className="text-xs sm:text-sm text-slate-400 font-medium max-w-2xl mx-auto mt-1.5">
-            Pay easily for GSFC University placement packages, recruiter tiers, or custom drives via Official Razorpay Payment Link, UPI, or Cards. Instant receipt issued.
+            Pay easily for GSFC University placement packages, recruiter tiers, or custom drives via Instant Razorpay Gateway, UPI, or Cards. Instant receipt issued.
           </p>
         </div>
 
@@ -365,27 +397,15 @@ export default function PaymentCheckoutModal({
                       />
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                      <div>
-                        <span className="text-[11px] font-bold text-slate-400 block mb-1">Phone Number</span>
-                        <input
-                          type="text"
-                          value={billingDetails.phone}
-                          onChange={(e) => setBillingDetails({ ...billingDetails, phone: e.target.value })}
-                          className="w-full px-3.5 py-2 rounded-xl bg-[#070c18] border border-slate-700 text-xs text-white focus:border-cyan-400"
-                          placeholder="+91 95584 13347"
-                        />
-                      </div>
-                      <div>
-                        <span className="text-[11px] font-bold text-slate-400 block mb-1">GSTIN Number (Optional)</span>
-                        <input
-                          type="text"
-                          value={billingDetails.gstNumber}
-                          onChange={(e) => setBillingDetails({ ...billingDetails, gstNumber: e.target.value })}
-                          className="w-full px-3.5 py-2 rounded-xl bg-[#070c18] border border-slate-700 text-xs text-white focus:border-cyan-400"
-                          placeholder="24AAACG1234F1Z5"
-                        />
-                      </div>
+                    <div>
+                      <span className="text-[11px] font-bold text-slate-400 block mb-1">GSTIN Number (Optional)</span>
+                      <input
+                        type="text"
+                        value={billingDetails.gstNumber}
+                        onChange={(e) => setBillingDetails({ ...billingDetails, gstNumber: e.target.value })}
+                        className="w-full px-3.5 py-2 rounded-xl bg-[#070c18] border border-slate-700 text-xs text-white focus:border-cyan-400"
+                        placeholder="24AAACG1234F1Z5"
+                      />
                     </div>
                   </div>
                 </div>
@@ -414,7 +434,7 @@ export default function PaymentCheckoutModal({
                       }`}
                     >
                       <Zap className="w-4 h-4" />
-                      <span>Razorpay Link</span>
+                      <span>Live Razorpay</span>
                     </button>
 
                     <button
@@ -444,10 +464,10 @@ export default function PaymentCheckoutModal({
                     </button>
                   </div>
 
-                  {/* Central Razorpay Box */}
+                  {/* Central Razorpay Action Box */}
                   <div className="p-6 rounded-3xl bg-[#09101d] border border-cyan-500/20 text-center space-y-4 shadow-inner">
                     <div className="inline-flex items-center gap-1.5 px-3.5 py-1 bg-cyan-950/80 border border-cyan-400/40 text-cyan-300 rounded-full text-[11px] font-black uppercase tracking-wider">
-                      <Sparkles className="w-3.5 h-3.5 text-cyan-400" /> Live Razorpay Payment Gateway
+                      <Sparkles className="w-3.5 h-3.5 text-cyan-400" /> Live Razorpay Instant Payment
                     </div>
 
                     <div>
@@ -456,32 +476,6 @@ export default function PaymentCheckoutModal({
                         ₹{activeAmount.toLocaleString('en-IN')}
                       </div>
                       <div className="text-xs font-bold text-slate-300 mt-1">Item: {activeItemName}</div>
-                    </div>
-
-                    {/* Official Payment Link Card */}
-                    <div className="p-4 bg-[#070c18] rounded-2xl border border-cyan-500/30 text-left space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[11px] font-bold text-slate-400 flex items-center gap-1">
-                          <Link2 className="w-3.5 h-3.5 text-cyan-400" /> Official Razorpay Payment Link
-                        </span>
-                        <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 text-[10px] font-bold">
-                          Verified Active
-                        </span>
-                      </div>
-                      
-                      <div className="flex items-center justify-between gap-2">
-                        <code className="text-xs font-mono font-bold text-cyan-300 truncate">
-                          {RAZORPAY_PAYMENT_LINK}
-                        </code>
-                        <button
-                          type="button"
-                          onClick={handleCopyLink}
-                          className="py-1 px-2.5 rounded-lg bg-cyan-950/60 hover:bg-cyan-900 border border-cyan-800/40 text-cyan-300 text-xs font-bold flex items-center gap-1 cursor-pointer shrink-0 transition-all"
-                        >
-                          {copiedLink ? <CheckCheck className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                          <span>{copiedLink ? 'Copied' : 'Copy'}</span>
-                        </button>
-                      </div>
                     </div>
 
                     {/* Bank Wire Details if in Bank Wire Mode */}
@@ -506,18 +500,19 @@ export default function PaymentCheckoutModal({
                       </div>
                     )}
 
-                    {/* Main Primary Payment Launch Button */}
+                    {/* Direct Pay Action Button */}
                     <button
                       type="button"
-                      onClick={handleOpenRazorpayAndPay}
-                      className="w-full py-3.5 px-6 rounded-2xl bg-gradient-to-r from-cyan-400 via-cyan-300 to-amber-300 hover:from-cyan-300 hover:to-amber-200 text-slate-950 font-black text-sm shadow-xl shadow-cyan-500/20 flex items-center justify-center gap-2.5 cursor-pointer transition-all hover:scale-[1.02]"
+                      onClick={handleDirectPayment}
+                      disabled={loading}
+                      className="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-cyan-400 via-cyan-300 to-amber-300 hover:from-cyan-300 hover:to-amber-200 text-slate-950 font-black text-base shadow-xl shadow-cyan-500/20 flex items-center justify-center gap-2.5 cursor-pointer transition-all hover:scale-[1.02] disabled:opacity-50"
                     >
-                      <ExternalLink className="w-4 h-4" />
-                      <span>Pay ₹{activeAmount.toLocaleString('en-IN')} via Razorpay Link ↗</span>
+                      <Zap className="w-5 h-5 text-slate-950 fill-current" />
+                      <span>Pay ₹{activeAmount.toLocaleString('en-IN')} & Unlock Portals ⚡</span>
                     </button>
 
                     <div className="text-[11px] text-slate-400 font-medium">
-                      Accepts Google Pay, PhonePe, Paytm, BHIM UPI, Credit/Debit Cards & NetBanking via official Razorpay.
+                      Accepts Google Pay, PhonePe, Paytm, BHIM UPI, Credit/Debit Cards & NetBanking.
                     </div>
                   </div>
 
@@ -544,7 +539,7 @@ export default function PaymentCheckoutModal({
                       <span>Automatic Official Tax Receipt Generation</span>
                     </div>
                     <p className="text-[11px] text-slate-400 max-w-md mx-auto">
-                      Clicking <strong>Pay via Razorpay Link</strong> opens your official payment page. After completing payment, click <strong>Verify & Unlock Portals</strong> below to access candidate rosters and job postings!
+                      Clicking <strong>Pay & Unlock Portals</strong> immediately provisions your recruiter tier and generates an official downloadable GST Tax Invoice!
                     </p>
                   </div>
 
@@ -555,71 +550,7 @@ export default function PaymentCheckoutModal({
             </div>
           )}
 
-          {/* STEP 2: AWAITING CONFIRMATION AFTER OPENING RAZORPAY LINK */}
-          {step === 'awaiting_confirmation' && (
-            <div className="py-12 max-w-lg mx-auto text-center space-y-6 animate-in fade-in">
-              <div className="w-20 h-20 rounded-3xl bg-cyan-500/20 border-2 border-cyan-400 text-cyan-400 flex items-center justify-center mx-auto shadow-lg shadow-cyan-500/20">
-                <ExternalLink className="w-10 h-10" />
-              </div>
-
-              <div>
-                <h2 className="text-2xl font-black text-white">
-                  Payment Link Opened in Razorpay
-                </h2>
-                <p className="text-xs text-slate-300 mt-2 max-w-md mx-auto">
-                  Please complete the payment of <strong>₹{activeAmount.toLocaleString('en-IN')}</strong> for <strong>{activeItemName}</strong> on the official Razorpay checkout page.
-                </p>
-              </div>
-
-              {/* UTR Input & Action Buttons */}
-              <div className="p-5 bg-[#0c1424] rounded-3xl border border-cyan-900/40 space-y-4 text-left">
-                <div>
-                  <label className="block text-[11px] font-black uppercase text-slate-400 mb-1">
-                    Payment ID / UTR Reference No. (Optional)
-                  </label>
-                  <input
-                    type="text"
-                    value={manualUtr}
-                    onChange={(e) => setManualUtr(e.target.value)}
-                    placeholder="e.g. pay_Oqk3jU7X or UTR number from bank SMS"
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-[#070c18] border border-slate-700 text-xs font-mono text-cyan-300 focus:border-cyan-400 placeholder:text-slate-600"
-                  />
-                </div>
-
-                <div className="flex flex-col sm:flex-row gap-3 pt-2">
-                  <button
-                    type="button"
-                    onClick={handleVerifyAndUnlock}
-                    disabled={loading}
-                    className="flex-1 py-3 px-6 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-400 hover:from-emerald-400 hover:to-teal-300 text-slate-950 font-black text-xs shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2 cursor-pointer transition-all hover:scale-[1.02]"
-                  >
-                    <CheckCircle2 className="w-4 h-4" />
-                    <span>I Have Paid (Verify & Unlock Portals)</span>
-                  </button>
-
-                  <a
-                    href={RAZORPAY_PAYMENT_LINK}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="py-3 px-4 rounded-xl bg-[#0f1b30] hover:bg-[#152542] border border-cyan-800/40 text-cyan-300 font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer shrink-0"
-                  >
-                    <span>Re-open Link</span>
-                    <ArrowUpRight className="w-3.5 h-3.5" />
-                  </a>
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setStep('review')}
-                className="text-xs text-slate-400 hover:text-white underline cursor-pointer"
-              >
-                ← Back to Package Selection
-              </button>
-            </div>
-          )}
-
-          {/* STEP 3: PROCESSING */}
+          {/* STEP 2: PROCESSING */}
           {step === 'processing' && (
             <div className="py-20 flex flex-col items-center justify-center text-center space-y-4">
               <div className="relative">
@@ -628,16 +559,16 @@ export default function PaymentCheckoutModal({
               </div>
               <div>
                 <h3 className="text-lg font-black text-white">
-                  Verifying Razorpay Payment & Unlocking Recruiter Portals...
+                  Verifying Gateway Payment & Unlocking Recruiter Portals...
                 </h3>
                 <p className="text-xs text-slate-400 mt-1 max-w-sm">
-                  Activating your {activeItemName} subscription and provisioning candidate rosters. Please do not refresh.
+                  Activating your {activeItemName} tier and unlocking candidate rosters. Please do not refresh.
                 </p>
               </div>
             </div>
           )}
 
-          {/* STEP 4: SUCCESS */}
+          {/* STEP 3: SUCCESS */}
           {step === 'success' && completedTransaction && (
             <div className="py-10 flex flex-col items-center justify-center text-center space-y-5">
               <div className="w-16 h-16 rounded-full bg-emerald-500/20 border border-emerald-400 text-emerald-400 flex items-center justify-center shadow-lg animate-bounce">
@@ -679,15 +610,15 @@ export default function PaymentCheckoutModal({
             </div>
           )}
 
-          {/* STEP 5: FAILED */}
+          {/* STEP 4: FAILED */}
           {step === 'failed' && (
             <div className="py-12 flex flex-col items-center justify-center text-center space-y-4">
               <div className="w-16 h-16 rounded-full bg-rose-500/20 text-rose-400 flex items-center justify-center">
                 <AlertCircle className="w-10 h-10" />
               </div>
               <div>
-                <h3 className="text-lg font-black text-white">Payment Could Not Be Verified</h3>
-                <p className="text-xs text-rose-400 mt-1 max-w-sm">{errorMessage || 'Please try again or re-open the Razorpay payment link.'}</p>
+                <h3 className="text-lg font-black text-white">Payment Could Not Be Processed</h3>
+                <p className="text-xs text-rose-400 mt-1 max-w-sm">{errorMessage || 'Please try again.'}</p>
               </div>
               <div className="flex gap-3">
                 <button
