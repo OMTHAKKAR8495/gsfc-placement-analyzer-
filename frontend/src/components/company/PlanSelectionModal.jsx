@@ -158,13 +158,24 @@ export default function PlanSelectionModal({
           </div>
 
           {currentSubscription && currentSubscription.has_subscription && (
-            <div className="mt-4 p-3 bg-white/10 border border-white/15 rounded-2xl flex items-center justify-between gap-3 text-xs">
+            <div className="mt-4 p-3 bg-white/10 border border-white/15 rounded-2xl flex flex-wrap items-center justify-between gap-3 text-xs">
               <div className="flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
                 <span className="font-bold">Current Active Plan:</span>
                 <span className="px-2 py-0.5 bg-amber-400 text-slate-950 font-black rounded-lg">{currentSubscription.plan_name}</span>
                 <span className="text-slate-300">({currentSubscription.postings_used} of {currentSubscription.is_unlimited ? '∞' : currentSubscription.max_postings} postings used • {currentSubscription.days_remaining} days left)</span>
               </div>
+              <button
+                type="button"
+                onClick={() => {
+                  localStorage.clear();
+                  window.location.reload();
+                }}
+                className="py-1 px-2.5 rounded-lg bg-rose-500/20 hover:bg-rose-500/40 text-rose-300 border border-rose-400/30 text-[11px] font-bold cursor-pointer transition-all"
+                title="Clear test subscription and lock portals"
+              >
+                Reset to Unpaid State ↺
+              </button>
             </div>
           )}
         </div>
