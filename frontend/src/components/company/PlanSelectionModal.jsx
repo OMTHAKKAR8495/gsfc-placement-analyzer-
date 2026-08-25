@@ -27,6 +27,66 @@ const TIER_CARD_ACCENTS = {
   plan_diamond: 'border-cyan-400/60 hover:border-cyan-300 ring-2 ring-cyan-400/30 shadow-cyan-500/20'
 };
 
+const DEFAULT_SUBSCRIPTION_PLANS = [
+  {
+    id: 'plan_bronze',
+    name: 'Bronze Recruiter Plan',
+    badge_title: 'Bronze Tier',
+    price_inr: 10000,
+    duration_days: 90,
+    max_postings: 3,
+    description: 'Essential on-campus recruitment package with candidate database search, shortlist view, and 3 campus placement drives.',
+    features: {
+      max_postings: 3,
+      resume_download: true,
+      shortlist_view: true,
+      ats_score_view: false,
+      candidate_readiness: false,
+      online_meetings: false,
+      homepage_featured: false,
+      support_level: 'Standard TPC Listing & Email Support'
+    }
+  },
+  {
+    id: 'plan_silver',
+    name: 'Silver Pro Recruiter Plan',
+    badge_title: 'Silver Tier (Popular)',
+    price_inr: 25000,
+    duration_days: 180,
+    max_postings: 10,
+    description: 'High-growth hiring tier with full resume PDF downloads, AI ATS ranking, candidate screening, and 10 campus drives.',
+    features: {
+      max_postings: 10,
+      resume_download: true,
+      shortlist_view: true,
+      ats_score_view: true,
+      candidate_readiness: true,
+      online_meetings: false,
+      homepage_featured: false,
+      support_level: 'Priority Placement Listing & WhatsApp TPC Support'
+    }
+  },
+  {
+    id: 'plan_gold',
+    name: 'Gold Enterprise Sovereign',
+    badge_title: 'Gold Tier (Recommended)',
+    price_inr: 50000,
+    duration_days: 365,
+    max_postings: -1,
+    description: 'Unlimited campus placement drives, AI predictive match score insights, in-portal video interviews, and dedicated TPC concierge.',
+    features: {
+      max_postings: -1,
+      resume_download: true,
+      shortlist_view: true,
+      ats_score_view: true,
+      candidate_readiness: true,
+      online_meetings: true,
+      homepage_featured: true,
+      support_level: 'Dedicated TPC Account Manager, Priority Campus Interview Rooms'
+    }
+  }
+];
+
 export default function PlanSelectionModal({ 
   isOpen, 
   onClose, 
@@ -34,9 +94,9 @@ export default function PlanSelectionModal({
   onSelectPlan, 
   companyName = 'Corporate Recruiter' 
 }) {
-  const [plans, setPlans] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [selectedPlanId, setSelectedPlanId] = useState('plan_gold');
+  const [plans, setPlans] = useState(DEFAULT_SUBSCRIPTION_PLANS);
+  const [loading, setLoading] = useState(false);
+  const [selectedPlanId, setSelectedPlanId] = useState('plan_silver');
 
   useEffect(() => {
     if (!isOpen) return;
@@ -45,19 +105,22 @@ export default function PlanSelectionModal({
 
   const fetchPlans = async () => {
     try {
-      setLoading(true);
       const res = await fetch('/api/subscriptions/plans');
       if (res.ok) {
         const data = await res.json();
-        setPlans(data);
-        if (data.length > 0 && !selectedPlanId) {
-          setSelectedPlanId(data[1]?.id || data[0]?.id);
+        if (Array.isArray(data) && data.length > 0) {
+          const parsed = data.map(p => ({
+            ...p,
+            features: typeof p.features_json === 'string' ? JSON.parse(p.features_json) : (p.features || {})
+          }));
+          setPlans(parsed);
+          return;
         }
       }
+      setPlans(DEFAULT_SUBSCRIPTION_PLANS);
     } catch (err) {
       console.error('Error fetching subscription plans:', err);
-    } finally {
-      setLoading(false);
+      setPlans(DEFAULT_SUBSCRIPTION_PLANS);
     }
   };
 
@@ -108,13 +171,8 @@ export default function PlanSelectionModal({
 
         {/* Plans Grid */}
         <div className="p-6 sm:p-8 overflow-y-auto flex-1 bg-slate-50/50 dark:bg-slate-900/50">
-          {loading ? (
-            <div className="py-20 flex flex-col items-center justify-center gap-3 text-slate-400">
-              <div className="w-8 h-8 border-3 border-amber-500 border-t-transparent rounded-full animate-spin" />
-              <p className="text-xs font-semibold">Loading live university recruitment tiers...</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5 sm:gap-6">
+
               {plans.map((plan) => {
                 const IconComponent = TIER_ICONS[plan.id] || Award;
                 const isSelected = selectedPlanId === plan.id;
@@ -241,6 +299,7 @@ export default function PlanSelectionModal({
                         }`}
                       >
                         {isCurrent ? (
+
                           <>
                             <Check className="w-4 h-4 text-emerald-600" />
                             <span>Active Tier</span>
@@ -257,8 +316,10 @@ export default function PlanSelectionModal({
                 );
               })}
             </div>
-          )}
-        </div>
+          </div>
+
+
+
 
         {/* Footer Guarantee */}
         <div className="p-4 sm:p-6 bg-slate-100 dark:bg-slate-800/80 border-t border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs shrink-0">

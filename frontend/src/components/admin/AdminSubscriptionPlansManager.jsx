@@ -8,11 +8,44 @@ import {
 import RecruiterInvoiceModal from '../company/RecruiterInvoiceModal';
 import { useToast } from '../../context/ToastContext';
 
+const DEFAULT_PLANS = [
+  {
+    id: 'plan_bronze',
+    name: 'Bronze Recruiter Plan',
+    badge_title: 'Bronze Tier',
+    price_inr: 10000,
+    duration_days: 90,
+    max_postings: 3,
+    description: 'Essential on-campus recruitment package with candidate database search, shortlist view, and 3 campus placement drives.',
+    features: { max_postings: 3, resume_download: true, shortlist_view: true, ats_score_view: false, online_meetings: false }
+  },
+  {
+    id: 'plan_silver',
+    name: 'Silver Pro Recruiter Plan',
+    badge_title: 'Silver Tier',
+    price_inr: 25000,
+    duration_days: 180,
+    max_postings: 10,
+    description: 'High-growth hiring tier with full resume PDF downloads, AI ATS ranking, candidate screening, and 10 campus drives.',
+    features: { max_postings: 10, resume_download: true, shortlist_view: true, ats_score_view: true, candidate_readiness: true, online_meetings: false }
+  },
+  {
+    id: 'plan_gold',
+    name: 'Gold Enterprise Sovereign',
+    badge_title: 'Gold Tier (Recommended)',
+    price_inr: 50000,
+    duration_days: 365,
+    max_postings: -1,
+    description: 'Unlimited campus placement drives, AI predictive match score insights, in-portal video interviews, and dedicated TPC concierge.',
+    features: { max_postings: -1, resume_download: true, shortlist_view: true, ats_score_view: true, candidate_readiness: true, online_meetings: true }
+  }
+];
+
 export default function AdminSubscriptionPlansManager() {
   const [overview, setOverview] = useState(null);
-  const [plans, setPlans] = useState([]);
+  const [plans, setPlans] = useState(DEFAULT_PLANS);
   const [transactions, setTransactions] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   
@@ -38,7 +71,6 @@ export default function AdminSubscriptionPlansManager() {
   }, []);
 
   const fetchData = async () => {
-    setLoading(true);
     try {
       const [overRes, plansRes, txRes, compRes] = await Promise.all([
         fetch('/api/admin/subscriptions/overview'),
@@ -47,16 +79,23 @@ export default function AdminSubscriptionPlansManager() {
         fetch('/api/admin/companies')
       ]);
 
-      if (overRes.ok) setOverview(await overRes.json());
-      if (plansRes.ok) setPlans(await plansRes.json());
-      if (txRes.ok) setTransactions(await txRes.json());
-      if (compRes.ok) setCompaniesList(await compRes.json());
+      if (overRes && overRes.ok) setOverview(await overRes.json());
+      if (plansRes && plansRes.ok) {
+        const pData = await plansRes.json();
+        if (Array.isArray(pData) && pData.length > 0) {
+          setPlans(pData);
+        } else {
+          setPlans(DEFAULT_PLANS);
+        }
+      }
+      if (txRes && txRes.ok) setTransactions(await txRes.json());
+      if (compRes && compRes.ok) setCompaniesList(await compRes.json());
     } catch (err) {
       console.error('Error fetching admin subscriptions data:', err);
-    } finally {
-      setLoading(false);
+      setPlans(DEFAULT_PLANS);
     }
   };
+
 
   const handleSavePlan = async (e) => {
     if (e && e.preventDefault) e.preventDefault();

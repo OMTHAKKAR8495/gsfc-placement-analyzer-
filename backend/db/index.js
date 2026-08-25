@@ -416,79 +416,58 @@ function applyMigrations() {
       );
     `);
 
-    // Seed default subscription plans if table is empty or missing
+    // Seed default subscription plans
     const defaultPlans = [
       {
         id: 'plan_bronze',
-        name: 'Bronze Starter',
+        name: 'Bronze Recruiter Plan',
         badge_title: 'Bronze Tier',
-        price_inr: 4999,
+        price_inr: 10000,
         duration_days: 90,
-        max_postings: 2,
-        description: 'Ideal for early-stage startups & companies testing on-campus hiring for niche roles.',
+        max_postings: 3,
+        description: 'Essential on-campus recruitment package with candidate search, shortlist view, and 3 campus placement drives.',
         features_json: JSON.stringify({
-          max_postings: 2,
-          resume_download: false,
+          max_postings: 3,
+          resume_download: true,
           shortlist_view: true,
           ats_score_view: false,
           candidate_readiness: false,
           online_meetings: false,
           homepage_featured: false,
           direct_messaging: false,
-          support_level: 'Standard Listing, Email Support (48h SLA)'
+          support_level: 'Standard TPC Listing & Email Support'
         }),
         display_order: 1
       },
       {
         id: 'plan_silver',
-        name: 'Silver Growth',
+        name: 'Silver Pro Recruiter Plan',
         badge_title: 'Silver Tier',
-        price_inr: 12999,
+        price_inr: 25000,
         duration_days: 180,
-        max_postings: 5,
-        description: 'Designed for growing enterprises looking for full resume access and candidate stream analytics.',
+        max_postings: 10,
+        description: 'High-growth hiring tier with full resume PDF downloads, AI ATS ranking, candidate screening, and 10 campus drives.',
         features_json: JSON.stringify({
-          max_postings: 5,
+          max_postings: 10,
           resume_download: true,
           shortlist_view: true,
-          ats_score_view: false,
-          candidate_readiness: false,
+          ats_score_view: true,
+          candidate_readiness: true,
           online_meetings: false,
           homepage_featured: false,
-          direct_messaging: false,
-          support_level: 'Priority Listing & Analytics, WhatsApp Support'
+          direct_messaging: true,
+          support_level: 'Priority Placement Listing & WhatsApp TPC Support'
         }),
         display_order: 2
       },
       {
         id: 'plan_gold',
-        name: 'Gold Corporate Pro',
-        badge_title: 'Gold Tier',
-        price_inr: 29999,
-        duration_days: 365,
-        max_postings: 15,
-        description: 'Full-suite recruitment access with AI ATS match score insights and in-portal video interview scheduling.',
-        features_json: JSON.stringify({
-          max_postings: 15,
-          resume_download: true,
-          shortlist_view: true,
-          ats_score_view: true,
-          candidate_readiness: false,
-          online_meetings: true,
-          homepage_featured: false,
-          direct_messaging: true,
-          support_level: 'Dedicated TPC Coordinator & Video Interview Rooms'
-        }),
-        display_order: 3
-      },
-      {
-        id: 'plan_diamond',
-        name: 'Diamond Enterprise Sovereign',
-        badge_title: 'Diamond Tier',
-        price_inr: 59999,
+        name: 'Gold Enterprise Sovereign',
+        badge_title: 'Gold Tier (Enterprise)',
+        price_inr: 50000,
         duration_days: 365,
         max_postings: -1,
-        description: 'Ultimate unrestricted institutional access, AI predictive readiness scoring, and VIP featured branding.',
+        description: 'Unlimited campus placement drives, AI predictive match score insights, in-portal video interviews, and dedicated TPC concierge.',
         features_json: JSON.stringify({
           max_postings: -1,
           resume_download: true,
@@ -498,21 +477,31 @@ function applyMigrations() {
           online_meetings: true,
           homepage_featured: true,
           direct_messaging: true,
-          support_level: 'VIP TPC Director Concierge, Priority Job Fair Booth'
+          support_level: 'Dedicated TPC Account Manager, Priority Campus Interview Rooms'
         }),
-        display_order: 4
+        display_order: 3
       }
     ];
 
-    const insertPlanStmt = db.prepare(`
-      INSERT OR IGNORE INTO subscription_plans 
+    const upsertPlanStmt = db.prepare(`
+      INSERT INTO subscription_plans 
       (id, name, badge_title, price_inr, duration_days, max_postings, description, features_json, display_order)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(id) DO UPDATE SET
+        name = excluded.name,
+        badge_title = excluded.badge_title,
+        price_inr = excluded.price_inr,
+        duration_days = excluded.duration_days,
+        max_postings = excluded.max_postings,
+        description = excluded.description,
+        features_json = excluded.features_json,
+        display_order = excluded.display_order
     `);
 
     for (const p of defaultPlans) {
-      insertPlanStmt.run(p.id, p.name, p.badge_title, p.price_inr, p.duration_days, p.max_postings, p.description, p.features_json, p.display_order);
+      upsertPlanStmt.run(p.id, p.name, p.badge_title, p.price_inr, p.duration_days, p.max_postings, p.description, p.features_json, p.display_order);
     }
+
 
 
     // Auto-compute admission_year, passing_year, and batch_year for any records missing them
