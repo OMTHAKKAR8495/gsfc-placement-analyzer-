@@ -324,29 +324,22 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
         return;
       }
 
-      // Check local cache first for instant responsiveness
-      try {
-        const cachedSubStr = localStorage.getItem('gsfc_cached_sub_' + companyId);
-        if (cachedSubStr) {
-          const cachedSub = JSON.parse(cachedSubStr);
-          if (cachedSub && cachedSub.has_subscription) {
-            setCurrentSubscription(cachedSub);
-          }
-        }
-      } catch (e) {}
-
       const [subRes, invRes] = await Promise.allSettled([
         fetch(`/api/subscriptions/current/${companyId}`),
         fetch(`/api/subscriptions/invoices/${companyId}`)
       ]);
       if (subRes.status === 'fulfilled' && subRes.value.ok) {
         const subData = await subRes.value.json();
-        if (subData && subData.has_subscription) {
+        if (subData && subData.has_subscription && subData.days_remaining > 0 && subData.status === 'active') {
           setCurrentSubscription(subData);
+        } else {
+          setCurrentSubscription({ has_subscription: false, status: 'no_plan' });
           try {
-            localStorage.setItem('gsfc_cached_sub_' + companyId, JSON.stringify(subData));
+            localStorage.removeItem('gsfc_cached_sub_' + companyId);
           } catch(e) {}
         }
+      } else {
+        setCurrentSubscription({ has_subscription: false, status: 'no_plan' });
       }
       if (invRes.status === 'fulfilled' && invRes.value.ok) {
         const invData = await invRes.value.json();
@@ -354,6 +347,7 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
       }
     } catch (err) {
       console.error('Error fetching subscription status:', err);
+      setCurrentSubscription({ has_subscription: false, status: 'no_plan' });
     } finally {
       setLoadingSubscription(false);
     }
@@ -369,7 +363,8 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
     return !!(
       currentSubscription?.has_subscription && 
       !currentSubscription?.is_expired && 
-      currentSubscription?.status === 'active'
+      currentSubscription?.status === 'active' &&
+      (currentSubscription?.days_remaining > 0 || currentSubscription?.is_unlimited)
     );
   }, [isGsfcLimitedDemo, currentSubscription]);
 
@@ -1525,7 +1520,7 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
               )}
 
               {/* Recruiter Subscription Status Pill */}
-              {currentSubscription && (
+              {currentSubscription?.has_subscription && currentSubscription?.days_remaining > 0 ? (
                 <div 
                   onClick={() => setShowPlanModal(true)}
                   className="px-3 py-1 bg-gradient-to-r from-amber-500/15 via-blue-500/10 to-amber-500/10 hover:from-amber-500/25 border border-amber-400/50 rounded-xl text-slate-800 text-xs font-bold flex items-center gap-2 cursor-pointer shadow-sm hover:scale-105 transition-all"
@@ -1533,7 +1528,7 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
                 >
                   <Crown className="w-4 h-4 text-amber-600 shrink-0" />
                   <span>
-                    <strong className="text-amber-800 font-black">{currentSubscription.badge_title || currentSubscription.plan_name || 'No Active Plan'}</strong>
+                    <strong className="text-amber-800 font-black">{currentSubscription.badge_title || currentSubscription.plan_name}</strong>
                     {' • '}
                     {currentSubscription.is_unlimited ? 'Unlimited Postings' : `${currentSubscription.postings_used}/${currentSubscription.max_postings} Postings Used`}
                     {currentSubscription.days_remaining > 0 && ` • ${currentSubscription.days_remaining}d left`}
@@ -1542,6 +1537,16 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
                     Upgrade
                   </span>
                 </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setShowPlanModal(true)}
+                  className="px-3 py-1 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 border border-rose-300 dark:border-rose-800 text-rose-800 dark:text-rose-300 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-sm transition-all"
+                  title="No active plan. Subscribe to post requirements."
+                >
+                  <Lock className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />
+                  <span>No Active Plan • Subscribe Now</span>
+                </button>
               )}
             </div>
             <p className="text-xs text-slate-700 mt-1 font-bold">{company?.industry || 'Technology'} • {company?.website}</p>
@@ -3093,21 +3098,30 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
 
             <div>
               <div className="inline-flex items-center gap-2 px-3 py-1 bg-amber-500/20 border border-amber-400/30 rounded-full text-amber-300 text-xs font-black tracking-wider uppercase mb-2.5">
-                <Crown className="w-3.5 h-3.5 text-amber-400" />
-                <span>Active Corporate Membership</span>
+                {currentSubscription?.has_subscription && currentSubscription?.days_remaining > 0 ? (
+                  <>
+                    <Crown className="w-3.5 h-3.5 text-amber-400" />
+                    <span>Active Corporate Membership</span>
+                  </>
+                ) : (
+                  <>
+                    <Lock className="w-3.5 h-3.5 text-rose-400" />
+                    <span className="text-rose-300">No Active Subscription (Payment Required)</span>
+                  </>
+                )}
               </div>
               <h2 className="text-2xl sm:text-3xl font-black text-white flex items-center gap-3">
-                <span>{currentSubscription?.plan_name || 'No Active Plan'}</span>
-                {currentSubscription?.badge_title && (
+                <span>{currentSubscription?.has_subscription && currentSubscription?.days_remaining > 0 ? (currentSubscription?.plan_name) : 'No Active Recruiter Plan'}</span>
+                {currentSubscription?.has_subscription && currentSubscription?.days_remaining > 0 && currentSubscription?.badge_title && (
                   <span className="text-xs px-2.5 py-1 bg-amber-400 text-slate-950 rounded-full font-black uppercase">
                     {currentSubscription.badge_title}
                   </span>
                 )}
               </h2>
               <p className="mt-1 text-xs sm:text-sm text-slate-300 max-w-xl">
-                {currentSubscription?.has_subscription 
+                {currentSubscription?.has_subscription && currentSubscription?.days_remaining > 0
                   ? `Your recruitment tier is active with ${currentSubscription.days_remaining} days of campus recruitment access remaining.`
-                  : 'Upgrade to an active recruitment plan to post job requirement drives and access verified student dossiers.'}
+                  : 'You do not have an active subscription. Please select a plan and complete payment via Razorpay to post hiring requirements and view candidate databases.'}
               </p>
             </div>
 
@@ -3117,7 +3131,7 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
                 className="py-3 px-6 rounded-2xl bg-gradient-to-r from-amber-500 via-amber-600 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 font-black text-xs shadow-lg shadow-amber-500/20 transition-all flex items-center gap-2 cursor-pointer hover:scale-105"
               >
                 <Sparkles className="w-4 h-4 fill-slate-950" />
-                <span>{currentSubscription?.has_subscription ? 'Upgrade / Switch Tier' : 'Choose Plan Now'}</span>
+                <span>{currentSubscription?.has_subscription && currentSubscription?.days_remaining > 0 ? 'Upgrade / Switch Tier' : 'Choose Plan & Pay via Razorpay'}</span>
               </button>
             </div>
           </div>
