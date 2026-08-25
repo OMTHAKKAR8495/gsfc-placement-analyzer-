@@ -33,7 +33,7 @@ const DEFAULT_SUBSCRIPTION_PLANS = [
     name: 'Bronze Recruiter Plan',
     badge_title: 'Bronze Tier',
     price_inr: 10000,
-    duration_days: 90,
+    duration_days: 15,
     max_postings: 3,
     description: 'Essential on-campus recruitment package with candidate database search, shortlist view, and 3 campus placement drives.',
     features: {
@@ -52,7 +52,7 @@ const DEFAULT_SUBSCRIPTION_PLANS = [
     name: 'Silver Pro Recruiter Plan',
     badge_title: 'Silver Tier (Popular)',
     price_inr: 25000,
-    duration_days: 180,
+    duration_days: 30,
     max_postings: 10,
     description: 'High-growth hiring tier with full resume PDF downloads, AI ATS ranking, candidate screening, and 10 campus drives.',
     features: {
@@ -71,7 +71,7 @@ const DEFAULT_SUBSCRIPTION_PLANS = [
     name: 'Gold Enterprise Sovereign',
     badge_title: 'Gold Tier (Recommended)',
     price_inr: 50000,
-    duration_days: 365,
+    duration_days: 60,
     max_postings: -1,
     description: 'Unlimited campus placement drives, AI predictive match score insights, in-portal video interviews, and dedicated TPC concierge.',
     features: {
