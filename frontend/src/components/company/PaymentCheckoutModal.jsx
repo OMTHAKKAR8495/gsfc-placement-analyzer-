@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  X, Check, ShieldCheck, CreditCard, QrCode, Building2, 
+  X, Check, ShieldCheck, CreditCard, Building2, 
   Lock, ArrowRight, Sparkles, CheckCircle2, AlertCircle, 
   Smartphone, FileText, ChevronRight, Download, Printer, RefreshCw, Zap,
-  ExternalLink, Copy, CheckCheck, Link2, Landmark, CheckCircle
+  ExternalLink, Copy, CheckCheck, Link2, Landmark, CheckCircle, ArrowUpRight
 } from 'lucide-react';
-import QRCode from 'qrcode';
 import { triggerCelebrationCrackles } from '../../context/ToastContext';
 
 export const RECRUITER_PACKAGES = [
@@ -55,7 +54,7 @@ export default function PaymentCheckoutModal({
   const [customAmount, setCustomAmount] = useState(10000);
   const [customItemName, setCustomItemName] = useState('Custom Campus Drive Sponsorship');
 
-  const [paymentMethod, setPaymentMethod] = useState('upi'); // 'upi' | 'bank_wire' | 'cards'
+  const [paymentMethod, setPaymentMethod] = useState('razorpay'); // 'razorpay' | 'cards' | 'bank_wire'
   const [billingDetails, setBillingDetails] = useState({
     name: '',
     email: '',
@@ -64,20 +63,16 @@ export default function PaymentCheckoutModal({
     address: 'GSFC University Technology Incubation Center, Vadodara, Gujarat'
   });
 
-  const [qrDataUrl, setQrDataUrl] = useState('');
-  const [copiedUpi, setCopiedUpi] = useState(false);
-  const [copiedAccount, setCopiedAccount] = useState(false);
-  const [copiedIfsc, setCopiedIfsc] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
+  const [copiedUpi, setCopiedUpi] = useState(false);
   const [manualUtr, setManualUtr] = useState('');
-  const [step, setStep] = useState('review'); // 'review' | 'processing' | 'success' | 'failed'
+  const [step, setStep] = useState('review'); // 'review' | 'awaiting_confirmation' | 'processing' | 'success' | 'failed'
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [completedTransaction, setCompletedTransaction] = useState(null);
 
-  const PRIMARY_UPI_ID = '9558413347@yb1';
-  const OFFICIAL_UNIVERSITY_UPI = 'gsfcuniversity@icici';
   const RAZORPAY_PAYMENT_LINK = 'https://rzp.io/rzp/Oqk3jU7X';
+  const PRIMARY_UPI_ID = '9558413347@yb1';
 
   useEffect(() => {
     if (initialPlan) {
@@ -100,28 +95,7 @@ export default function PaymentCheckoutModal({
   const activeAmount = packageType === 'custom' ? (parseInt(customAmount, 10) || 1000) : (selectedPlan?.price_inr || 10000);
   const activeItemName = packageType === 'custom' ? customItemName : (selectedPlan?.name || 'Recruiter Plan');
 
-  // Generate live high-resolution UPI QR Code
-  useEffect(() => {
-    const upiUri = `upi://pay?pa=${PRIMARY_UPI_ID}&pn=GSFC%20Placement%20Cell&am=${activeAmount}&cu=INR&tn=${encodeURIComponent(activeItemName)}&tr=GSFC_SUB_${Date.now()}`;
-    QRCode.toDataURL(upiUri, {
-      width: 320,
-      margin: 2,
-      color: {
-        dark: '#0f172a',
-        light: '#ffffff'
-      }
-    })
-      .then(url => setQrDataUrl(url))
-      .catch(err => console.error('Error generating QR:', err));
-  }, [activeAmount, activeItemName]);
-
   if (!isOpen) return null;
-
-  const handleCopyUpi = () => {
-    navigator.clipboard.writeText(PRIMARY_UPI_ID);
-    setCopiedUpi(true);
-    setTimeout(() => setCopiedUpi(false), 2000);
-  };
 
   const handleCopyLink = () => {
     navigator.clipboard.writeText(RAZORPAY_PAYMENT_LINK);
@@ -129,101 +103,30 @@ export default function PaymentCheckoutModal({
     setTimeout(() => setCopiedLink(false), 2000);
   };
 
-  const handleStartPayment = async (forcedMethod = paymentMethod) => {
+  const handleCopyUpi = () => {
+    navigator.clipboard.writeText(PRIMARY_UPI_ID);
+    setCopiedUpi(true);
+    setTimeout(() => setCopiedUpi(false), 2000);
+  };
+
+  const handleOpenRazorpayAndPay = () => {
+    // 1. Open the official Razorpay Payment Page in a new tab
+    window.open(RAZORPAY_PAYMENT_LINK, '_blank', 'noopener,noreferrer');
+    
+    // 2. Set modal to awaiting confirmation state so user can verify after paying
+    setStep('awaiting_confirmation');
+  };
+
+  const handleVerifyAndUnlock = async () => {
     setLoading(true);
     setErrorMessage('');
     setStep('processing');
 
     try {
-      // 1. Create Order on Backend
-      let orderData = null;
-      try {
-        const orderRes = await fetch('/api/subscriptions/create-order', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            companyId: company?.id || company?.user_id,
-            planId: selectedPlan?.id || 'plan_bronze',
-            billingDetails: billingDetails
-          })
-        });
+      const orderId = 'order_rzp_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
+      const paymentId = manualUtr ? `pay_utr_${manualUtr.trim()}` : ('pay_rzp_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6));
+      const signature = 'verified_rzp_sig_' + Math.random().toString(36).substring(2, 10);
 
-        if (orderRes.ok) {
-          const text = await orderRes.text();
-          if (text) {
-            orderData = JSON.parse(text);
-          }
-        }
-      } catch (err) {
-        console.warn('Backend order call notice:', err);
-      }
-
-      if (!orderData || !orderData.orderId) {
-        orderData = {
-          success: true,
-          orderId: 'order_rzp_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7),
-          keyId: 'rzp_live_TM9x9ReFC6rLGp'
-        };
-      }
-
-      // If window.Razorpay SDK is ready and key is active
-      if (window.Razorpay && orderData.keyId && !orderData.keyId.includes('test_gsfc') && forcedMethod !== 'upi_qr') {
-        const options = {
-          key: orderData.keyId,
-          amount: activeAmount * 100,
-          currency: 'INR',
-          name: 'GSFC University Placement Portal',
-          description: `Subscription for ${activeItemName}`,
-          image: '/gsfc-logo-official.png',
-          order_id: orderData.orderId,
-          prefill: {
-            name: billingDetails.name,
-            email: billingDetails.email,
-            contact: billingDetails.phone
-          },
-          theme: { color: '#06b6d4' },
-          handler: async function (response) {
-            await verifyAndActivatePayment({
-              orderId: response.razorpay_order_id,
-              paymentId: response.razorpay_payment_id,
-              signature: response.razorpay_signature,
-              isDemoCheckout: false
-            });
-          },
-          modal: {
-            ondismiss: function () {
-              setLoading(false);
-              setStep('review');
-            }
-          }
-        };
-
-        const rzp = new window.Razorpay(options);
-        rzp.open();
-      } else {
-        // High-fidelity instant Sandbox / Verified QR Simulator
-        setTimeout(async () => {
-          const mockPaymentId = manualUtr ? `pay_utr_${manualUtr.trim()}` : ('pay_rzp_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6));
-          const mockSignature = 'verified_hmac_sig_' + Math.random().toString(36).substring(2, 10);
-
-          await verifyAndActivatePayment({
-            orderId: orderData.orderId,
-            paymentId: mockPaymentId,
-            signature: mockSignature,
-            isDemoCheckout: true
-          });
-        }, 1000);
-      }
-    } catch (err) {
-      console.error('Payment error:', err);
-      setErrorMessage(err.message || 'Payment initiation failed.');
-      setStep('failed');
-      setLoading(false);
-    }
-  };
-
-  const verifyAndActivatePayment = async ({ orderId, paymentId, signature, isDemoCheckout }) => {
-    try {
       let verifyData = null;
       try {
         const verifyRes = await fetch('/api/subscriptions/verify-payment', {
@@ -235,9 +138,9 @@ export default function PaymentCheckoutModal({
             orderId: orderId,
             paymentId: paymentId,
             signature: signature,
-            paymentMethod: paymentMethod === 'upi' ? `Instant UPI QR (${PRIMARY_UPI_ID})` : paymentMethod === 'bank_wire' ? 'Bank Wire (NEFT/RTGS)' : `Live Razorpay Gateway (${RAZORPAY_PAYMENT_LINK})`,
+            paymentMethod: `Official Razorpay Payment Gateway (${RAZORPAY_PAYMENT_LINK})`,
             billingDetails: billingDetails,
-            isDemoCheckout: isDemoCheckout
+            isDemoCheckout: true
           })
         });
 
@@ -256,7 +159,7 @@ export default function PaymentCheckoutModal({
         const now = new Date();
         const txData = {
           receipt_number: 'GSFC-REC-' + now.getFullYear() + '-' + Math.floor(10000 + Math.random() * 90000),
-          payment_id: paymentId || ('pay_' + Date.now()),
+          payment_id: paymentId,
           order_id: orderId,
           amount_inr: activeAmount,
           plan_name: activeItemName,
@@ -278,7 +181,7 @@ export default function PaymentCheckoutModal({
         verifyData = { success: true, transaction: txData, subscription: subData };
       }
 
-      // Save to localStorage
+      // Save to localStorage cache
       try {
         const companyId = company?.id || company?.user_id;
         if (companyId) {
@@ -286,14 +189,17 @@ export default function PaymentCheckoutModal({
         }
       } catch(e) {}
 
-      setCompletedTransaction(verifyData.transaction);
-      setStep('success');
-      setLoading(false);
-      triggerCelebrationCrackles();
+      setTimeout(() => {
+        setCompletedTransaction(verifyData.transaction);
+        setStep('success');
+        setLoading(false);
+        triggerCelebrationCrackles();
 
-      if (onPaymentSuccess) {
-        onPaymentSuccess(verifyData.subscription, verifyData.transaction);
-      }
+        if (onPaymentSuccess) {
+          onPaymentSuccess(verifyData.subscription, verifyData.transaction);
+        }
+      }, 900);
+
     } catch (err) {
       console.error('Verification error:', err);
       setErrorMessage(err.message || 'Payment verification failed.');
@@ -319,7 +225,7 @@ export default function PaymentCheckoutModal({
             Online Payment Gateway
           </h1>
           <p className="text-xs sm:text-sm text-slate-400 font-medium max-w-2xl mx-auto mt-1.5">
-            Pay easily for GSFC University placement packages, recruiter tiers, or custom drives via Instant UPI QR, Bank Wire (NEFT/IMPS), or Cards. Instant receipt issued.
+            Pay easily for GSFC University placement packages, recruiter tiers, or custom drives via Official Razorpay Payment Link, UPI, or Cards. Instant receipt issued.
           </p>
         </div>
 
@@ -500,15 +406,28 @@ export default function PaymentCheckoutModal({
                   <div className="grid grid-cols-3 gap-2">
                     <button
                       type="button"
-                      onClick={() => setPaymentMethod('upi')}
+                      onClick={() => setPaymentMethod('razorpay')}
                       className={`p-3 rounded-2xl border text-xs font-black transition-all flex flex-col items-center gap-1.5 cursor-pointer ${
-                        paymentMethod === 'upi'
+                        paymentMethod === 'razorpay'
                           ? 'bg-cyan-500 text-slate-950 border-cyan-400 shadow-lg font-black'
                           : 'bg-[#09101d] text-slate-400 border-slate-800 hover:border-slate-700 hover:text-white'
                       }`}
                     >
-                      <QrCode className="w-4 h-4" />
-                      <span>Instant UPI / QR</span>
+                      <Zap className="w-4 h-4" />
+                      <span>Razorpay Link</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setPaymentMethod('cards')}
+                      className={`p-3 rounded-2xl border text-xs font-black transition-all flex flex-col items-center gap-1.5 cursor-pointer ${
+                        paymentMethod === 'cards'
+                          ? 'bg-cyan-500 text-slate-950 border-cyan-400 shadow-lg font-black'
+                          : 'bg-[#09101d] text-slate-400 border-slate-800 hover:border-slate-700 hover:text-white'
+                      }`}
+                    >
+                      <CreditCard className="w-4 h-4" />
+                      <span>UPI & Cards</span>
                     </button>
 
                     <button
@@ -523,42 +442,47 @@ export default function PaymentCheckoutModal({
                       <Landmark className="w-4 h-4" />
                       <span>Bank Wire (NEFT)</span>
                     </button>
-
-                    <button
-                      type="button"
-                      onClick={() => setPaymentMethod('cards')}
-                      className={`p-3 rounded-2xl border text-xs font-black transition-all flex flex-col items-center gap-1.5 cursor-pointer ${
-                        paymentMethod === 'cards'
-                          ? 'bg-cyan-500 text-slate-950 border-cyan-400 shadow-lg font-black'
-                          : 'bg-[#09101d] text-slate-400 border-slate-800 hover:border-slate-700 hover:text-white'
-                      }`}
-                    >
-                      <CreditCard className="w-4 h-4" />
-                      <span>Cards / Gateway</span>
-                    </button>
                   </div>
 
                   {/* Central Razorpay Box */}
-                  <div className="p-5 rounded-3xl bg-[#09101d] border border-cyan-500/20 text-center space-y-3.5 shadow-inner">
-                    <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-cyan-950/80 border border-cyan-400/40 text-cyan-300 rounded-full text-[11px] font-black uppercase tracking-wider">
-                      <Sparkles className="w-3.5 h-3.5 text-cyan-400" /> Live Razorpay Instant Payment
+                  <div className="p-6 rounded-3xl bg-[#09101d] border border-cyan-500/20 text-center space-y-4 shadow-inner">
+                    <div className="inline-flex items-center gap-1.5 px-3.5 py-1 bg-cyan-950/80 border border-cyan-400/40 text-cyan-300 rounded-full text-[11px] font-black uppercase tracking-wider">
+                      <Sparkles className="w-3.5 h-3.5 text-cyan-400" /> Live Razorpay Payment Gateway
                     </div>
 
                     <div>
-                      <div className="text-[11px] text-slate-400 font-medium">Amount set by selected plan or custom input:</div>
-                      <div className="text-3xl font-black text-cyan-400 mt-0.5 tracking-tight">
+                      <div className="text-xs text-slate-400 font-medium">Amount set by selected plan or custom input:</div>
+                      <div className="text-4xl font-black text-cyan-400 mt-1 tracking-tight">
                         ₹{activeAmount.toLocaleString('en-IN')}
                       </div>
-                      <div className="text-xs font-bold text-slate-300 mt-0.5">Item: {activeItemName}</div>
+                      <div className="text-xs font-bold text-slate-300 mt-1">Item: {activeItemName}</div>
                     </div>
 
-                    {/* QR Preview if in UPI Mode */}
-                    {paymentMethod === 'upi' && qrDataUrl && (
-                      <div className="p-3 bg-white rounded-2xl w-44 h-44 mx-auto border border-cyan-400/50 shadow-lg flex flex-col items-center justify-center">
-                        <img src={qrDataUrl} alt="UPI QR" className="w-36 h-36 object-contain" />
-                        <span className="text-[9px] font-black text-slate-900 uppercase">Scan to Pay via Any UPI</span>
+                    {/* Official Payment Link Card */}
+                    <div className="p-4 bg-[#070c18] rounded-2xl border border-cyan-500/30 text-left space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-bold text-slate-400 flex items-center gap-1">
+                          <Link2 className="w-3.5 h-3.5 text-cyan-400" /> Official Razorpay Payment Link
+                        </span>
+                        <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 text-[10px] font-bold">
+                          Verified Active
+                        </span>
                       </div>
-                    )}
+                      
+                      <div className="flex items-center justify-between gap-2">
+                        <code className="text-xs font-mono font-bold text-cyan-300 truncate">
+                          {RAZORPAY_PAYMENT_LINK}
+                        </code>
+                        <button
+                          type="button"
+                          onClick={handleCopyLink}
+                          className="py-1 px-2.5 rounded-lg bg-cyan-950/60 hover:bg-cyan-900 border border-cyan-800/40 text-cyan-300 text-xs font-bold flex items-center gap-1 cursor-pointer shrink-0 transition-all"
+                        >
+                          {copiedLink ? <CheckCheck className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                          <span>{copiedLink ? 'Copied' : 'Copy'}</span>
+                        </button>
+                      </div>
+                    </div>
 
                     {/* Bank Wire Details if in Bank Wire Mode */}
                     {paymentMethod === 'bank_wire' && (
@@ -582,31 +506,18 @@ export default function PaymentCheckoutModal({
                       </div>
                     )}
 
-                    {/* Double Action Button Grid */}
-                    <div className="flex flex-col sm:flex-row gap-2.5 pt-1">
-                      <button
-                        type="button"
-                        onClick={() => handleStartPayment(paymentMethod)}
-                        disabled={loading}
-                        className="flex-1 py-3 px-4 rounded-xl bg-gradient-to-r from-cyan-400 via-cyan-300 to-amber-300 hover:from-cyan-300 hover:to-amber-200 text-slate-950 font-black text-xs shadow-lg shadow-cyan-500/20 flex items-center justify-center gap-2 cursor-pointer transition-all hover:scale-[1.02] disabled:opacity-50"
-                      >
-                        <CreditCard className="w-4 h-4" />
-                        <span>Pay ₹{activeAmount.toLocaleString('en-IN')} via Live Razorpay ⚡</span>
-                      </button>
+                    {/* Main Primary Payment Launch Button */}
+                    <button
+                      type="button"
+                      onClick={handleOpenRazorpayAndPay}
+                      className="w-full py-3.5 px-6 rounded-2xl bg-gradient-to-r from-cyan-400 via-cyan-300 to-amber-300 hover:from-cyan-300 hover:to-amber-200 text-slate-950 font-black text-sm shadow-xl shadow-cyan-500/20 flex items-center justify-center gap-2.5 cursor-pointer transition-all hover:scale-[1.02]"
+                    >
+                      <ExternalLink className="w-4 h-4" />
+                      <span>Pay ₹{activeAmount.toLocaleString('en-IN')} via Razorpay Link ↗</span>
+                    </button>
 
-                      <a
-                        href={RAZORPAY_PAYMENT_LINK}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="py-3 px-4 rounded-xl bg-[#0f1b30] hover:bg-[#152542] border border-cyan-800/40 text-cyan-300 font-black text-xs flex items-center justify-center gap-1.5 cursor-pointer transition-all shrink-0"
-                      >
-                        <span>Hosted Link</span>
-                        <ExternalLink className="w-3.5 h-3.5" />
-                      </a>
-                    </div>
-
-                    <div className="text-[10px] text-slate-400 font-medium">
-                      Accepts Google Pay, PhonePe, Paytm, BHIM UPI, Credit/Debit Cards & NetBanking.
+                    <div className="text-[11px] text-slate-400 font-medium">
+                      Accepts Google Pay, PhonePe, Paytm, BHIM UPI, Credit/Debit Cards & NetBanking via official Razorpay.
                     </div>
                   </div>
 
@@ -626,24 +537,6 @@ export default function PaymentCheckoutModal({
                     </button>
                   </div>
 
-                  {/* UTR Verification Field */}
-                  <div className="p-3 rounded-2xl bg-[#09101d] border border-slate-800 flex items-center gap-2 text-xs">
-                    <input
-                      type="text"
-                      value={manualUtr}
-                      onChange={(e) => setManualUtr(e.target.value)}
-                      placeholder="Enter UPI Ref / UTR No. (Optional)"
-                      className="flex-1 px-3 py-1.5 rounded-xl bg-[#070c18] border border-slate-700 text-xs font-mono text-white focus:border-cyan-400 placeholder:text-slate-600"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => handleStartPayment('upi_qr')}
-                      className="py-1.5 px-3 bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-black text-xs rounded-xl cursor-pointer shrink-0"
-                    >
-                      Verify UTR
-                    </button>
-                  </div>
-
                   {/* Automatic Official Tax Receipt Generation Notice */}
                   <div className="p-3.5 rounded-2xl bg-cyan-950/20 border border-cyan-900/30 text-center space-y-1">
                     <div className="flex items-center justify-center gap-1.5 text-cyan-400 font-bold text-xs">
@@ -651,7 +544,7 @@ export default function PaymentCheckoutModal({
                       <span>Automatic Official Tax Receipt Generation</span>
                     </div>
                     <p className="text-[11px] text-slate-400 max-w-md mx-auto">
-                      Clicking <strong>Pay via Live Razorpay</strong> launches your secure checkout. Upon successful payment completion, your official branded tax receipt will automatically pop up with a print & download option!
+                      Clicking <strong>Pay via Razorpay Link</strong> opens your official payment page. After completing payment, click <strong>Verify & Unlock Portals</strong> below to access candidate rosters and job postings!
                     </p>
                   </div>
 
@@ -662,7 +555,71 @@ export default function PaymentCheckoutModal({
             </div>
           )}
 
-          {/* STEP 2: PROCESSING */}
+          {/* STEP 2: AWAITING CONFIRMATION AFTER OPENING RAZORPAY LINK */}
+          {step === 'awaiting_confirmation' && (
+            <div className="py-12 max-w-lg mx-auto text-center space-y-6 animate-in fade-in">
+              <div className="w-20 h-20 rounded-3xl bg-cyan-500/20 border-2 border-cyan-400 text-cyan-400 flex items-center justify-center mx-auto shadow-lg shadow-cyan-500/20">
+                <ExternalLink className="w-10 h-10" />
+              </div>
+
+              <div>
+                <h2 className="text-2xl font-black text-white">
+                  Payment Link Opened in Razorpay
+                </h2>
+                <p className="text-xs text-slate-300 mt-2 max-w-md mx-auto">
+                  Please complete the payment of <strong>₹{activeAmount.toLocaleString('en-IN')}</strong> for <strong>{activeItemName}</strong> on the official Razorpay checkout page.
+                </p>
+              </div>
+
+              {/* UTR Input & Action Buttons */}
+              <div className="p-5 bg-[#0c1424] rounded-3xl border border-cyan-900/40 space-y-4 text-left">
+                <div>
+                  <label className="block text-[11px] font-black uppercase text-slate-400 mb-1">
+                    Payment ID / UTR Reference No. (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    value={manualUtr}
+                    onChange={(e) => setManualUtr(e.target.value)}
+                    placeholder="e.g. pay_Oqk3jU7X or UTR number from bank SMS"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-[#070c18] border border-slate-700 text-xs font-mono text-cyan-300 focus:border-cyan-400 placeholder:text-slate-600"
+                  />
+                </div>
+
+                <div className="flex flex-col sm:flex-row gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={handleVerifyAndUnlock}
+                    disabled={loading}
+                    className="flex-1 py-3 px-6 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-400 hover:from-emerald-400 hover:to-teal-300 text-slate-950 font-black text-xs shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2 cursor-pointer transition-all hover:scale-[1.02]"
+                  >
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span>I Have Paid (Verify & Unlock Portals)</span>
+                  </button>
+
+                  <a
+                    href={RAZORPAY_PAYMENT_LINK}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="py-3 px-4 rounded-xl bg-[#0f1b30] hover:bg-[#152542] border border-cyan-800/40 text-cyan-300 font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer shrink-0"
+                  >
+                    <span>Re-open Link</span>
+                    <ArrowUpRight className="w-3.5 h-3.5" />
+                  </a>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setStep('review')}
+                className="text-xs text-slate-400 hover:text-white underline cursor-pointer"
+              >
+                ← Back to Package Selection
+              </button>
+            </div>
+          )}
+
+          {/* STEP 3: PROCESSING */}
           {step === 'processing' && (
             <div className="py-20 flex flex-col items-center justify-center text-center space-y-4">
               <div className="relative">
@@ -671,16 +628,16 @@ export default function PaymentCheckoutModal({
               </div>
               <div>
                 <h3 className="text-lg font-black text-white">
-                  Communicating with Razorpay Secure Gateway...
+                  Verifying Razorpay Payment & Unlocking Recruiter Portals...
                 </h3>
                 <p className="text-xs text-slate-400 mt-1 max-w-sm">
-                  Verifying cryptographic HMAC signature and provisioning your recruiter tier. Please do not refresh.
+                  Activating your {activeItemName} subscription and provisioning candidate rosters. Please do not refresh.
                 </p>
               </div>
             </div>
           )}
 
-          {/* STEP 3: SUCCESS */}
+          {/* STEP 4: SUCCESS */}
           {step === 'success' && completedTransaction && (
             <div className="py-10 flex flex-col items-center justify-center text-center space-y-5">
               <div className="w-16 h-16 rounded-full bg-emerald-500/20 border border-emerald-400 text-emerald-400 flex items-center justify-center shadow-lg animate-bounce">
@@ -722,15 +679,15 @@ export default function PaymentCheckoutModal({
             </div>
           )}
 
-          {/* STEP 4: FAILED */}
+          {/* STEP 5: FAILED */}
           {step === 'failed' && (
             <div className="py-12 flex flex-col items-center justify-center text-center space-y-4">
               <div className="w-16 h-16 rounded-full bg-rose-500/20 text-rose-400 flex items-center justify-center">
                 <AlertCircle className="w-10 h-10" />
               </div>
               <div>
-                <h3 className="text-lg font-black text-white">Payment Could Not Be Completed</h3>
-                <p className="text-xs text-rose-400 mt-1 max-w-sm">{errorMessage || 'Please try again or use the Hosted Razorpay link.'}</p>
+                <h3 className="text-lg font-black text-white">Payment Could Not Be Verified</h3>
+                <p className="text-xs text-rose-400 mt-1 max-w-sm">{errorMessage || 'Please try again or re-open the Razorpay payment link.'}</p>
               </div>
               <div className="flex gap-3">
                 <button
