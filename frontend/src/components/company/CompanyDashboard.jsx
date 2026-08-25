@@ -347,7 +347,27 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
     fetchSubscriptionStatus();
   }, [company, currentUser]);
 
+  const hasActivePaidSubscription = useMemo(() => {
+    if (isGsfcLimitedDemo) return true;
+    return !!(
+      currentSubscription?.has_subscription && 
+      !currentSubscription?.is_expired && 
+      currentSubscription?.status === 'active'
+    );
+  }, [isGsfcLimitedDemo, currentSubscription]);
 
+  const handleTabClick = (tab) => {
+    if (tab !== 'my_applications' && tab !== 'subscription_billing' && !hasActivePaidSubscription) {
+      showToast({
+        type: 'info',
+        title: '🔒 Recruiter Subscription Required',
+        message: 'Subscribe to Bronze (15d), Silver (30d), or Gold (60d) to access university candidate database, applied feeds, and live meetings.'
+      });
+      setShowPlanModal(true);
+      return;
+    }
+    setActiveTab(tab);
+  };
 
   // Attendance & TPC Official Report State
   const [attendanceReportModalOpen, setAttendanceReportModalOpen] = useState(false);
@@ -1188,7 +1208,12 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
 
   const handleOpenNewPostModal = () => {
     // 💳 Gated Access: Check if Recruiter has an active paid plan and quota
-    if (currentSubscription && (!currentSubscription.has_subscription || currentSubscription.is_expired || currentSubscription.is_limit_reached)) {
+    if (!hasActivePaidSubscription || (currentSubscription?.is_limit_reached)) {
+      showToast({
+        type: 'warning',
+        title: '🔒 Recruitment Plan Required',
+        message: 'Please choose a Bronze (15d), Silver (30d), or Gold (60d) plan to publish placement requirements and access student candidates.'
+      });
       setShowPlanModal(true);
       return;
     }
@@ -1227,6 +1252,18 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
 
   const handlePostRequirement = async (e) => {
     if (e && e.preventDefault) e.preventDefault();
+
+    if (!hasActivePaidSubscription || (currentSubscription?.is_limit_reached)) {
+      setShowPostModal(false);
+      setShowPlanModal(true);
+      showToast({
+        type: 'warning',
+        title: '🔒 Recruitment Plan Required',
+        message: 'Please complete payment for a recruitment plan to publish your hiring drive.'
+      });
+      return;
+    }
+
     setPostStatus(null);
     setLoading(true);
 
@@ -1535,7 +1572,7 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
 
           {/* PAGE 1: POSTED APPLICATIONS */}
           <button
-            onClick={() => setActiveTab('my_applications')}
+            onClick={() => handleTabClick('my_applications')}
             className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-black transition-all shrink-0 cursor-pointer border ${
               activeTab === 'my_applications'
                 ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-lg ring-2 ring-amber-400/30 scale-105'
@@ -1553,7 +1590,7 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
 
           {/* PAGE 2: ACTIVE HIRING DRIVES */}
           <button
-            onClick={() => setActiveTab('requirements')}
+            onClick={() => handleTabClick('requirements')}
             className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-black transition-all shrink-0 cursor-pointer border ${
               activeTab === 'requirements'
                 ? 'bg-indigo-900 text-white border-indigo-700 shadow-lg ring-2 ring-indigo-500/30 scale-105'
@@ -1571,7 +1608,7 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
 
           {/* PAGE 3: STUDENT DATABASE */}
           <button
-            onClick={() => setActiveTab('database')}
+            onClick={() => handleTabClick('database')}
             className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-black transition-all shrink-0 cursor-pointer border ${
               activeTab === 'database'
                 ? 'bg-sky-700 text-white border-sky-600 shadow-lg ring-2 ring-sky-500/30 scale-105'
@@ -1589,7 +1626,7 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
 
           {/* PAGE 4: APPLIED CANDIDATES & ATTENDANCE FEED */}
           <button
-            onClick={() => setActiveTab('applicants')}
+            onClick={() => handleTabClick('applicants')}
             className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-black transition-all shrink-0 cursor-pointer border ${
               activeTab === 'applicants'
                 ? 'bg-gradient-to-r from-emerald-600 via-teal-700 to-blue-900 text-white border-emerald-500 shadow-lg ring-2 ring-emerald-500/30 scale-105'
@@ -1607,7 +1644,7 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
 
           {/* PAGE 5: IN-PORTAL VIDEO MEETINGS & INTERVIEWS */}
           <button
-            onClick={() => setActiveTab('meetings')}
+            onClick={() => handleTabClick('meetings')}
             className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-black transition-all shrink-0 cursor-pointer border ${
               activeTab === 'meetings'
                 ? 'bg-gradient-to-r from-indigo-600 via-blue-700 to-purple-800 text-white border-indigo-500 shadow-lg ring-2 ring-indigo-500/30 scale-105'
@@ -1625,7 +1662,7 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
 
           {/* PAGE 6: SUBSCRIPTION & BILLING */}
           <button
-            onClick={() => setActiveTab('subscription_billing')}
+            onClick={() => handleTabClick('subscription_billing')}
             className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-black transition-all shrink-0 cursor-pointer border ${
               activeTab === 'subscription_billing'
                 ? 'bg-gradient-to-r from-amber-500 via-amber-600 to-yellow-500 text-slate-950 border-amber-400 shadow-lg ring-2 ring-amber-400/30 scale-105'
