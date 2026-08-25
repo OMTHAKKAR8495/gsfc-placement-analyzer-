@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+
 import Navbar from './components/common/Navbar';
 import AuthModal from './components/auth/AuthModal';
 import StudentDashboard from './components/student/StudentDashboard';

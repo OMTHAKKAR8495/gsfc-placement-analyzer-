@@ -1,4 +1,5 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+
 import { 
   X, Sparkles, User, GraduationCap, Briefcase, Code, 
   FileText, Award, ShieldCheck, Upload, Trash2, Plus, 
