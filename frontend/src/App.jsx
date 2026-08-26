@@ -367,52 +367,48 @@ function App() {
   };
 
   const checkCurrentUser = async () => {
+    const savedUserStr = localStorage.getItem('campushire_user');
+    let localUser = null;
+    try {
+      localUser = savedUserStr ? JSON.parse(savedUserStr) : null;
+    } catch(e) {}
+
     const token = localStorage.getItem('campushire_token');
-    if (!token) {
+
+    // If local user exists, keep them immediately so UI never flashes or switches accounts
+    if (localUser) {
+      setCurrentUser(localUser);
+      const currentHash = window.location.hash.replace(/^#/, '');
+      const baseHash = resolveBaseWorkspace(currentHash);
+      if (currentHash && isRoleAllowedInWorkspace(localUser, baseHash)) {
+        setActiveRole(baseHash);
+        localStorage.setItem('gsfc_active_workspace', baseHash);
+      } else if (isRoleAllowedInWorkspace(localUser, activeRole)) {
+        localStorage.setItem('gsfc_active_workspace', activeRole);
+      } else {
+        const defaultRoleWorkspace = getDefaultWorkspaceForRole(localUser.role);
+        setActiveRole(defaultRoleWorkspace);
+        localStorage.setItem('gsfc_active_workspace', defaultRoleWorkspace);
+      }
+    } else if (!token) {
       setCurrentUser(null);
-      localStorage.removeItem('campushire_user');
-      localStorage.removeItem('gsfc_active_workspace');
       const safeGuestRole = isRoleAllowedInWorkspace(null, activeRole) ? activeRole : 'student';
       if (activeRole !== safeGuestRole) {
         setActiveRole(safeGuestRole);
       }
       localStorage.setItem('gsfc_active_workspace', safeGuestRole);
-      const currentHash = window.location.hash.replace(/^#/, '');
-      if (currentHash && !isRoleAllowedInWorkspace(null, resolveBaseWorkspace(currentHash))) {
-        window.history.replaceState(null, '', `#${safeGuestRole}`);
-      }
       return;
     }
+
+    if (!token) return;
 
     try {
       const res = await fetch('/api/auth/me', {
         headers: { Authorization: `Bearer ${token}` }
       });
 
-      // 204 = demo/offline token — server acknowledged it, keep the localStorage user as-is
       if (res.status === 204) {
-        const savedUser = localStorage.getItem('campushire_user');
-        if (savedUser) {
-          try {
-            const parsedUser = JSON.parse(savedUser);
-            const currentHash = window.location.hash.replace('#', '');
-            const baseHash = resolveBaseWorkspace(currentHash);
-            if (currentHash && isRoleAllowedInWorkspace(parsedUser, baseHash)) {
-              setActiveRole(baseHash);
-              localStorage.setItem('gsfc_active_workspace', baseHash);
-            } else if (isRoleAllowedInWorkspace(parsedUser, activeRole)) {
-              localStorage.setItem('gsfc_active_workspace', activeRole);
-              if (currentHash && !isRoleAllowedInWorkspace(parsedUser, baseHash)) {
-                window.history.replaceState(null, '', `#${activeRole}`);
-              }
-            } else {
-              const defaultRoleWorkspace = getDefaultWorkspaceForRole(parsedUser.role);
-              setActiveRole(defaultRoleWorkspace);
-              localStorage.setItem('gsfc_active_workspace', defaultRoleWorkspace);
-              window.history.replaceState(null, '', `#${defaultRoleWorkspace}`);
-            }
-          } catch(e) {}
-        }
+        // Server acknowledged active session; keep localStorage user
         return;
       }
 
@@ -420,7 +416,6 @@ function App() {
         const data = await res.json();
         if (data && data.user) {
           const freshUser = data.user;
-          // Restore avatar strictly for this user account — stored as base64, not in DB
           try {
             const userEmail = (freshUser.email || '').toLowerCase();
             const savedAvatar = userEmail ? (localStorage.getItem('gsfc_user_avatar_' + userEmail) || freshUser.profile?.photo_url || '') : '';
@@ -438,56 +433,11 @@ function App() {
           if (currentHash && isRoleAllowedInWorkspace(freshUser, baseHash)) {
             setActiveRole(baseHash);
             localStorage.setItem('gsfc_active_workspace', baseHash);
-          } else if (isRoleAllowedInWorkspace(freshUser, activeRole)) {
-            localStorage.setItem('gsfc_active_workspace', activeRole);
-            if (currentHash && !isRoleAllowedInWorkspace(freshUser, baseHash)) {
-              window.history.replaceState(null, '', `#${activeRole}`);
-            }
-          } else {
-            const defaultRoleWorkspace = getDefaultWorkspaceForRole(freshUser.role);
-            setActiveRole(defaultRoleWorkspace);
-            localStorage.setItem('gsfc_active_workspace', defaultRoleWorkspace);
-            window.history.replaceState(null, '', `#${defaultRoleWorkspace}`);
           }
-          return;
-        }
-      }
-      
-      if (res.status === 401 || res.status === 403) {
-        localStorage.removeItem('campushire_token');
-        localStorage.removeItem('campushire_user');
-        localStorage.removeItem('gsfc_active_workspace');
-        setCurrentUser(null);
-        const safeGuestRole = isRoleAllowedInWorkspace(null, activeRole) ? activeRole : 'student';
-        if (activeRole !== safeGuestRole) {
-          setActiveRole(safeGuestRole);
-        }
-        localStorage.setItem('gsfc_active_workspace', safeGuestRole);
-        const currentHash = window.location.hash.replace(/^#/, '');
-        if (currentHash && !isRoleAllowedInWorkspace(null, resolveBaseWorkspace(currentHash))) {
-          window.history.replaceState(null, '', `#${safeGuestRole}`);
         }
       }
     } catch (err) {
-      // Network failure — user already loaded from localStorage initial state, ensure activeRole is safe
       console.warn('Network notice: Preserving active client session.');
-      const user = currentUserRef.current;
-      const currentHash = window.location.hash.replace(/^#/, '');
-      const baseHash = resolveBaseWorkspace(currentHash);
-      if (currentHash && isRoleAllowedInWorkspace(user, baseHash)) {
-        setActiveRole(baseHash);
-        localStorage.setItem('gsfc_active_workspace', baseHash);
-      } else if (isRoleAllowedInWorkspace(user, activeRole)) {
-        localStorage.setItem('gsfc_active_workspace', activeRole);
-        if (currentHash && !isRoleAllowedInWorkspace(user, baseHash)) {
-          window.history.replaceState(null, '', `#${activeRole}`);
-        }
-      } else {
-        const defaultRoleWorkspace = getDefaultWorkspaceForRole(user?.role);
-        setActiveRole(defaultRoleWorkspace);
-        localStorage.setItem('gsfc_active_workspace', defaultRoleWorkspace);
-        window.history.replaceState(null, '', `#${defaultRoleWorkspace}`);
-      }
     }
   };
 
