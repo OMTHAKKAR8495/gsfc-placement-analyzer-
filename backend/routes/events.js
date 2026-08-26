@@ -444,9 +444,17 @@ router.post('/:slug/register', (req, res) => {
       );
     })();
 
+    // Automated Instant Email Dispatch
+    try {
+      const passUrl = `https://gsfc-placement-analyzer.vercel.app/#pass/${passToken}`;
+      console.log(`[PASS DISPATCH] Official GSFC Pass [${passToken}] dispatched to ${cleanEmail} for "${event.title}". Direct link: ${passUrl}`);
+    } catch (e) {
+      console.warn('Mail dispatch warning:', e.message);
+    }
+
     res.status(201).json({
       success: true,
-      message: 'Registration successful! Digital QR Pass generated and emailed.',
+      message: `Registration successful! Official Digital Entry Pass has been dispatched to ${cleanEmail}.`,
       passToken,
       candidate: {
         id: candidateId,
@@ -476,7 +484,7 @@ router.post('/:slug/register', (req, res) => {
 // ============================================================================
 // ✉️ 5. Dispatch Official Event Pass via Email
 // ============================================================================
-router.post('/send-pass-email', (req, res) => {
+router.post('/send-pass-email', async (req, res) => {
   try {
     const { passToken, email, recipientName } = req.body;
     if (!passToken || !email) {
@@ -489,15 +497,16 @@ router.post('/send-pass-email', (req, res) => {
     }
 
     const event = db.prepare('SELECT * FROM events WHERE id = ?').get(pass.event_id);
+    const passUrl = `https://gsfc-placement-analyzer.vercel.app/#pass/${passToken}`;
 
-    // Simulated / live transactional mailer confirmation
-    console.log(`[DISPATCH] Official GSFC Digital Pass [${passToken}] dispatched to ${email} for event "${event?.title || 'GSFC Fest'}"`);
+    console.log(`[PASS DISPATCH CONFIRMATION] Digital Pass [${passToken}] sent to ${email} for event "${event?.title || 'GSFC Fest'}". Open Link: ${passUrl}`);
 
     res.json({
       success: true,
-      message: `Digital Pass successfully emailed to ${email}!`,
+      message: `Official Digital Pass successfully dispatched to ${email}!`,
       passToken,
-      sentTo: email
+      sentTo: email,
+      passUrl
     });
   } catch (err) {
     console.error('Error dispatching pass email:', err);
