@@ -533,6 +533,15 @@ export default function Navbar({ currentUser, activeRole, onRoleSwitch, onOpenAu
                         <Settings className="w-4 h-4 text-slate-500" />
                         <span>Account Settings</span>
                       </button>
+
+                      <button
+                        onClick={() => { setAvatarDropdownOpen(false); onOpenAuth(); }}
+                        className="w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold text-blue-700 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors text-left cursor-pointer"
+                      >
+                        <LogIn className="w-4 h-4 text-blue-600" />
+                        <span>Switch Account / Portal</span>
+                      </button>
+
                       <div className="mx-3 my-1 border-t border-slate-100 dark:border-slate-800" />
                       <button
                         onClick={() => { setAvatarDropdownOpen(false); onLogout(); }}
