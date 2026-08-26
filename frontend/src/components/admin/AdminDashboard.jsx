@@ -2292,7 +2292,6 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
                     <th className="py-3 px-4">University Email</th>
                     <th className="py-3 px-4">Academic Details</th>
                     <th className="py-3 px-4">Portal Access</th>
-                    <th className="py-3 px-4">Login Activity</th>
                     <th className="py-3 px-4">Last Seen Status</th>
                     <th className="py-3 px-4 text-right">Actions</th>
                   </tr>
@@ -2379,17 +2378,7 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
                             )}
                           </td>
 
-                          {/* 6. Persistent Login Activity */}
-                          <td className="py-3 px-4">
-                            <div className="font-black text-slate-900 text-xs flex items-center gap-1">
-                              <History className="w-3.5 h-3.5 text-blue-900" /> {loginsCount} Total Logins
-                            </div>
-                            <div className="text-[10px] text-slate-500 font-bold mt-0.5">
-                              Last: {typeof lastLogin === 'string' ? lastLogin.replace('T', ' ').substring(0, 16) : 'Active'}
-                            </div>
-                          </td>
-
-                          {/* 7. Last Seen Status */}
+                          {/* 6. Last Seen Status */}
                           <td className="py-3 px-4">
                             {formatLastSeenBadge(lastSeen, sessionStatus)}
                           </td>
@@ -2603,7 +2592,6 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
                     <th className="py-3 px-4">Faculty Name & Title</th>
                     <th className="py-3 px-4">Official Email</th>
                     <th className="py-3 px-4">Department & Batches</th>
-                    <th className="py-3 px-4">Login Activity</th>
                     <th className="py-3 px-4">Last Seen Status</th>
                     <th className="py-3 px-4">Mentorship</th>
                     <th className="py-3 px-4 text-right">Actions</th>
@@ -2670,17 +2658,7 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
                             </div>
                           </td>
 
-                          {/* 5. Persistent Login Activity */}
-                          <td className="py-3 px-4">
-                            <div className="font-black text-emerald-950 text-xs flex items-center gap-1">
-                              <History className="w-3.5 h-3.5 text-emerald-700" /> {loginsCount} Total Logins
-                            </div>
-                            <div className="text-[10px] text-slate-500 font-bold mt-0.5">
-                              Last: {typeof lastLogin === 'string' ? lastLogin.replace('T', ' ').substring(0, 16) : 'Active'}
-                            </div>
-                          </td>
-
-                          {/* 6. Last Seen Status */}
+                          {/* 5. Last Seen Status */}
                           <td className="py-3 px-4">
                             {formatLastSeenBadge(lastSeen, sessionStatus)}
                           </td>
