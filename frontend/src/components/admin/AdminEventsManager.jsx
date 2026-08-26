@@ -38,28 +38,35 @@ export default function AdminEventsManager() {
       setLoading(true);
       const res = await fetch('/api/admin/events');
       if (res.ok) {
-        const data = await res.json();
-        setEvents(data);
-      } else {
-        // Fallback default sample events
-        setEvents([
-          {
-            id: 'evt_anveshan_2026',
-            title: 'GSFC Anveshan 2026 Tech & Career Fest',
-            slug: 'anveshan-2026',
-            description: 'Annual Flagship National Technical & Placement Conclave featuring 50+ recruiting companies, competitive hackathons, industry keynotes, and career discovery pavilions.',
-            category: 'Tech Fest & Career Fair',
-            event_date: '2026-09-18',
-            end_date: '2026-09-20',
-            venue: 'GSFC University Auditorium, Dome & Tech Hub',
-            banner_url: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=1200&auto=format&fit=crop&q=80',
-            is_registration_open: 1,
-            total_external_registered: 142,
-            total_checked_in: 98,
-            total_passes_issued: 210
-          }
-        ]);
+        const text = await res.text();
+        if (text) {
+          try {
+            const data = JSON.parse(text);
+            if (Array.isArray(data) && data.length > 0) {
+              setEvents(data);
+              return;
+            }
+          } catch (e) {}
+        }
       }
+      // Fallback default sample events
+      setEvents(prev => prev.length > 0 ? prev : [
+        {
+          id: 'evt_anveshan_2026',
+          title: 'GSFC Anveshan 2026 Tech & Career Fest',
+          slug: 'anveshan-2026',
+          description: 'Annual Flagship National Technical & Placement Conclave featuring 50+ recruiting companies, competitive hackathons, industry keynotes, and career discovery pavilions.',
+          category: 'Tech Fest & Career Fair',
+          event_date: '2026-09-18',
+          end_date: '2026-09-20',
+          venue: 'GSFC University Auditorium, Dome & Tech Hub',
+          banner_url: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=1200&auto=format&fit=crop&q=80',
+          is_registration_open: 1,
+          total_external_registered: 142,
+          total_checked_in: 98,
+          total_passes_issued: 210
+        }
+      ]);
     } catch (err) {
       console.error('Error fetching admin events:', err);
     } finally {
