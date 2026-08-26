@@ -16,7 +16,13 @@ export default class ErrorBoundary extends React.Component {
   }
 
   handleReset = () => {
+    try {
+      localStorage.removeItem('gsfc_student_active_tab');
+      sessionStorage.removeItem('gsfc_student_active_tab');
+      localStorage.removeItem('gsfc_active_workspace');
+    } catch(e) {}
     this.setState({ hasError: false, error: null });
+    window.location.hash = '#student';
     window.location.reload();
   };
 
