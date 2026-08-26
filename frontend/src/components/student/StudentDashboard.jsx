@@ -1643,50 +1643,6 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
         
         {/* Left / Main Workspace Feed */}
         <div className="lg:col-span-2 space-y-6">
-          {/* 📹 LIVE & UPCOMING VIDEO INTERVIEW ALERT BANNER */}
-          {studentMeetings.filter(m => m.status === 'live' || m.status === 'scheduled').length > 0 && (
-            <div className="p-4 sm:p-5 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 rounded-3xl border-2 border-emerald-500 shadow-2xl text-white space-y-3 animate-fadeIn">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="px-2.5 py-0.5 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-full text-[10px] font-black uppercase flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                    In-Portal Video Interview
-                  </span>
-                  <span className="px-2 py-0.5 bg-amber-500/20 text-amber-300 text-[10px] font-bold rounded-full flex items-center gap-1">
-                    <Lock className="w-3 h-3 text-amber-400" /> Anti-Cheating Enforced
-                  </span>
-                </div>
-                <span className="text-xs text-slate-400 font-mono">
-                  {studentMeetings[0].room_id}
-                </span>
-              </div>
-
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div>
-                  <h3 className="text-base font-black text-white">
-                    {studentMeetings[0].title}
-                  </h3>
-                  <p className="text-xs text-slate-300 flex items-center gap-2 mt-0.5">
-                    <Building2 className="w-3.5 h-3.5 text-amber-400" />
-                    <span>{studentMeetings[0].company_name}</span>
-                    <span>•</span>
-                    <Clock className="w-3.5 h-3.5 text-emerald-400" />
-                    <span>{new Date(studentMeetings[0].scheduled_at).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })} ({studentMeetings[0].duration_minutes} Mins)</span>
-                  </p>
-                </div>
-
-                <button
-                  onClick={() => {
-                    window.location.hash = `#meeting/${studentMeetings[0].room_id}`;
-                  }}
-                  className="px-5 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-600 hover:opacity-95 text-white font-black text-xs rounded-2xl shadow-xl shadow-emerald-900/40 flex items-center justify-center gap-2 transition cursor-pointer self-start sm:self-auto shrink-0 animate-bounce"
-                >
-                  <Video className="w-4 h-4" />
-                  <span>Join Live Video Interview</span>
-                </button>
-              </div>
-            </div>
-          )}
 
           {activeTab === 'feed' && (
 

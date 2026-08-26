@@ -2304,8 +2304,20 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
                                 </div>
                             </td>
 
-                            <td className="py-4.5 px-5 text-right whitespace-nowrap min-w-[360px]">
+                            <td className="py-4.5 px-5 text-right whitespace-nowrap min-w-[420px]">
                               <div className="flex items-center justify-end gap-2 flex-wrap">
+                                <button
+                                  onClick={() => {
+                                    setScheduleMeetingDriveId(cand.requirement_id || requirements[0]?.id || '');
+                                    setScheduleMeetingModalOpen(true);
+                                  }}
+                                  className="py-1.5 px-2.5 bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600 text-white rounded-xl text-[11px] font-black inline-flex items-center gap-1 transition-all shadow-md cursor-pointer hover:scale-105"
+                                  title="Schedule and Dispatch Live Video Interview Room Link to this Candidate"
+                                >
+                                  <Video className="w-3.5 h-3.5" />
+                                  <span>📹 Schedule Live Interview</span>
+                                </button>
+
                                 <button
                                   onClick={() => handleOpenAuthenticityCheck(cand)}
                                   className="py-1.5 px-2.5 bg-blue-50 hover:bg-blue-100 text-blue-900 border border-blue-300 rounded-xl text-[11px] font-black inline-flex items-center gap-1 transition-all cursor-pointer hover:scale-105"
