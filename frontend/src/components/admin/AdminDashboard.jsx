@@ -680,26 +680,105 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
   };
 
   const handleToggleStudentAccess = async (student) => {
-    const roll = student.roll_number || student.id;
+    const targetRoll = (student.roll_number || '').trim().toLowerCase();
+    const targetId = (student.id || '').trim();
+    const targetEmail = (student.email || student.user_email || '').trim().toLowerCase();
+
     const currentStatus = student.access_status === 'blocked' ? 'blocked' : 'active';
     const newStatus = currentStatus === 'active' ? 'blocked' : 'active';
 
     try {
-      await fetch(`/api/admin/authorized-students/${encodeURIComponent(roll)}/status`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: newStatus })
-      });
+      if (targetRoll || targetId) {
+        await fetch(`/api/admin/authorized-students/${encodeURIComponent(targetRoll || targetId)}/status`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: newStatus })
+        });
+      }
 
-      setLoggedStudentsList(prev => prev.map(s => {
-        if (s.roll_number === roll || s.id === student.id || s.email === student.email || s.user_email === student.user_email) {
-          return { ...s, access_status: newStatus };
-        }
-        return s;
-      }));
+      setLoggedStudentsList(prev => {
+        const updatedList = prev.map(s => {
+          const sRoll = (s.roll_number || '').trim().toLowerCase();
+          const sId = (s.id || '').trim();
+          const sEmail = (s.email || s.user_email || '').trim().toLowerCase();
+
+          const isMatch = (targetRoll && sRoll && sRoll === targetRoll) ||
+                          (targetId && sId && sId === targetId) ||
+                          (targetEmail && sEmail && sEmail === targetEmail);
+
+          if (isMatch) {
+            return { ...s, access_status: newStatus };
+          }
+          return s;
+        });
+
+        try {
+          localStorage.setItem('gsfc_logged_students_list', JSON.stringify(updatedList));
+          if (targetEmail) {
+            const currentProf = JSON.parse(localStorage.getItem('gsfc_user_profile_' + targetEmail) || '{}');
+            localStorage.setItem('gsfc_user_profile_' + targetEmail, JSON.stringify({ ...currentProf, access_status: newStatus }));
+          }
+        } catch(e) {}
+
+        return updatedList;
+      });
     } catch (err) {
       console.error('Error toggling student access:', err);
     }
+  };
+
+  const handleBlockAllStudents = () => {
+    const count = filteredLoggedStudents.length;
+    if (!window.confirm(`⚠️ Are you sure you want to BLOCK portal access for all ${count} displayed student(s)? They will not be able to log into the student portal.`)) {
+      return;
+    }
+
+    const targetRolls = new Set(filteredLoggedStudents.map(s => (s.roll_number || s.id || '').trim().toLowerCase()));
+    const targetEmails = new Set(filteredLoggedStudents.map(s => (s.email || s.user_email || '').trim().toLowerCase()).filter(Boolean));
+
+    setLoggedStudentsList(prev => {
+      const updatedList = prev.map(s => {
+        const sRoll = (s.roll_number || s.id || '').trim().toLowerCase();
+        const sEmail = (s.email || s.user_email || '').trim().toLowerCase();
+        if (targetRolls.has(sRoll) || (sEmail && targetEmails.has(sEmail))) {
+          return { ...s, access_status: 'blocked' };
+        }
+        return s;
+      });
+
+      try {
+        localStorage.setItem('gsfc_logged_students_list', JSON.stringify(updatedList));
+      } catch(e) {}
+
+      return updatedList;
+    });
+  };
+
+  const handleUnblockAllStudents = () => {
+    const count = filteredLoggedStudents.length;
+    if (!window.confirm(`✅ Are you sure you want to UNBLOCK portal access for all ${count} displayed student(s)? Their portal access will be fully restored.`)) {
+      return;
+    }
+
+    const targetRolls = new Set(filteredLoggedStudents.map(s => (s.roll_number || s.id || '').trim().toLowerCase()));
+    const targetEmails = new Set(filteredLoggedStudents.map(s => (s.email || s.user_email || '').trim().toLowerCase()).filter(Boolean));
+
+    setLoggedStudentsList(prev => {
+      const updatedList = prev.map(s => {
+        const sRoll = (s.roll_number || s.id || '').trim().toLowerCase();
+        const sEmail = (s.email || s.user_email || '').trim().toLowerCase();
+        if (targetRolls.has(sRoll) || (sEmail && targetEmails.has(sEmail))) {
+          return { ...s, access_status: 'active' };
+        }
+        return s;
+      });
+
+      try {
+        localStorage.setItem('gsfc_logged_students_list', JSON.stringify(updatedList));
+      } catch(e) {}
+
+      return updatedList;
+    });
   };
 
   const handleDeleteStudentAuth = async (student) => {
@@ -2024,6 +2103,22 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
                 className="px-3.5 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-900 rounded-xl text-xs font-black border border-indigo-200 flex items-center gap-1.5 transition-all cursor-pointer"
               >
                 <FileText className="w-4 h-4" /> 📥 Bulk Enrol Roster
+              </button>
+              <button 
+                onClick={handleBlockAllStudents}
+                className="px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-800 rounded-xl text-xs font-black border border-rose-300 flex items-center gap-1.5 shadow-xs transition-all cursor-pointer"
+                title="Block portal access for all currently filtered students"
+              >
+                <span className="w-2 h-2 rounded-full bg-rose-600 animate-pulse"></span>
+                <span>🔴 Block All ({filteredLoggedStudents.length})</span>
+              </button>
+              <button 
+                onClick={handleUnblockAllStudents}
+                className="px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 rounded-xl text-xs font-black border border-emerald-300 flex items-center gap-1.5 shadow-xs transition-all cursor-pointer"
+                title="Restore and unblock portal access for all currently filtered students"
+              >
+                <span className="w-2 h-2 rounded-full bg-emerald-600"></span>
+                <span>🟢 Unblock All ({filteredLoggedStudents.length})</span>
               </button>
               <button 
                 onClick={fetchLoggedUsers}
