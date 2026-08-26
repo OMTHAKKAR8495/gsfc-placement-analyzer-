@@ -320,6 +320,19 @@ export default function FacultyDashboard({ currentUser, onOpenAuth }) {
   const [emailSubject, setEmailSubject] = useState('');
   const [emailBody, setEmailBody] = useState('');
 
+  // Editing Registered Student State (Faculty & Department Governance)
+  const [editingStudentModal, setEditingStudentModal] = useState(null);
+  const [editStudentForm, setEditStudentForm] = useState({
+    name: '',
+    roll_number: '',
+    email: '',
+    phone: '',
+    cgpa: '',
+    program: '',
+    branch: '',
+    placement_status: 'Eligible'
+  });
+
   // Doc Verification Modal
   const [docsModal, setDocsModal] = useState(null); // { student }
   const [docStatuses, setDocStatuses] = useState({});
@@ -682,6 +695,89 @@ export default function FacultyDashboard({ currentUser, onOpenAuth }) {
   const clearFilters = () => { setDepartment('ALL'); setMinCgpa('0'); setMinAts('0'); setSelectedSkill(''); setPlacementStatus('ALL'); setSearchQuery(''); };
 
   const toggleStudentExpand = (studentId) => setExpandedStudents(prev => ({ ...prev, [studentId]: !prev[studentId] }));
+
+  const handleOpenEditStudent = (student) => {
+    setEditingStudentModal(student);
+    setEditStudentForm({
+      name: student.name || '',
+      roll_number: student.roll_number || student.id || '',
+      email: student.email || student.user_email || '',
+      phone: student.phone || student.contact_number || '+91 95584 13347',
+      cgpa: student.cgpa || 8.5,
+      program: student.program || 'BTech CSE',
+      branch: student.branch || 'Computer Science & Engineering',
+      placement_status: student.placement_status || 'Eligible'
+    });
+  };
+
+  const handleSaveStudentEdit = async (e) => {
+    e?.preventDefault?.();
+    if (!editingStudentModal) return;
+
+    const roll = editingStudentModal.roll_number || editingStudentModal.id;
+    const email = (editingStudentModal.email || editingStudentModal.user_email || `${roll.toLowerCase()}@gsfcuniversity.ac.in`).toLowerCase();
+
+    const updated = {
+      ...editingStudentModal,
+      name: editStudentForm.name,
+      phone: editStudentForm.phone,
+      cgpa: Number(editStudentForm.cgpa) || editingStudentModal.cgpa,
+      program: editStudentForm.program,
+      branch: editStudentForm.branch,
+      placement_status: editStudentForm.placement_status
+    };
+
+    // Update in faculty data state
+    setData(prev => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        students: (prev.students || []).map(s => {
+          if (s.roll_number === roll || s.id === editingStudentModal.id || s.email === email) {
+            return updated;
+          }
+          return s;
+        })
+      };
+    });
+
+    try {
+      const profileData = {
+        displayName: updated.name,
+        name: updated.name,
+        phone: updated.phone,
+        program: updated.program,
+        branch: updated.branch,
+        cgpa: updated.cgpa,
+        roll_number: roll,
+        placement_status: updated.placement_status
+      };
+      localStorage.setItem('gsfc_user_profile_' + email, JSON.stringify(profileData));
+      localStorage.setItem('gsfc_user_profile_' + roll.toLowerCase(), JSON.stringify(profileData));
+      localStorage.setItem('gsfc_candidate_name', updated.name);
+
+      window.dispatchEvent(new CustomEvent('gsfc-student-profile-updated', {
+        detail: {
+          roll_number: roll,
+          email: email,
+          name: updated.name,
+          phone: updated.phone,
+          cgpa: updated.cgpa,
+          program: updated.program
+        }
+      }));
+    } catch(err) {}
+
+    try {
+      await fetch(`/api/faculty/students/${encodeURIComponent(roll)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updated)
+      });
+    } catch (err) {}
+
+    setEditingStudentModal(null);
+  };
 
   // ── Open WhatsApp modal with pre-filled interview message ──────────────────
   const openWaModal = (student) => {
@@ -1346,6 +1442,18 @@ GSFC University, Vadodara`);
                           {s.placement_status}
                         </span>
 
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenEditStudent(s);
+                          }}
+                          className="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/60 dark:hover:bg-indigo-900 text-indigo-900 dark:text-indigo-200 border border-indigo-200 dark:border-indigo-800 rounded-xl text-xs font-black shrink-0 flex items-center gap-1 cursor-pointer transition-colors shadow-xs"
+                        >
+                          <Edit3 className="w-3 h-3 text-indigo-600 dark:text-indigo-400" />
+                          <span>Edit</span>
+                        </button>
+
                         <div className="shrink-0 text-slate-400">
                           {expandedStudents[s.id || idx] ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                         </div>
@@ -1878,6 +1986,145 @@ GSFC University, Vadodara`);
                 {docsSaved ? '✅ Verification Saved!' : 'Save Verification Status'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ✏️ FACULTY: EDIT REGISTERED STUDENT MODAL */}
+      {editingStudentModal && (
+        <div className="fixed inset-0 z-[999999] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fadeIn overflow-y-auto">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 max-w-lg w-full shadow-2xl overflow-hidden my-8 text-slate-900 dark:text-white animate-scaleUp">
+            <div className="bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 p-6 text-white flex items-center justify-between">
+              <div>
+                <span className="px-2.5 py-0.5 bg-blue-400/20 text-blue-300 text-[10px] font-black uppercase rounded-lg border border-blue-400/30">
+                  Faculty Student Governance
+                </span>
+                <h2 className="text-lg font-black mt-1 flex items-center gap-2">
+                  <Edit3 className="w-5 h-5 text-amber-400" /> Edit Registered Student Details
+                </h2>
+                <p className="text-xs text-slate-300 font-bold">
+                  Editing this record automatically reflects across the student's dashboard & TPC records.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditingStudentModal(null)}
+                className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white cursor-pointer transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveStudentEdit} className="p-6 space-y-4 max-h-[75vh] overflow-y-auto">
+              <div className="space-y-3 text-xs">
+                {/* Full Student Name */}
+                <div>
+                  <label className="block text-xs font-black text-slate-700 dark:text-slate-300 mb-1">Student Full Name *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Om Thakkar"
+                    value={editStudentForm.name}
+                    onChange={(e) => setEditStudentForm({ ...editStudentForm, name: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:border-blue-900"
+                  />
+                </div>
+
+                {/* Roll Number & Phone */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-black text-slate-700 dark:text-slate-300 mb-1">Roll Number</label>
+                    <input
+                      type="text"
+                      disabled
+                      value={editStudentForm.roll_number}
+                      className="w-full px-3 py-2 bg-slate-100 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-500 cursor-not-allowed"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-black text-slate-700 dark:text-slate-300 mb-1">Contact Phone / WhatsApp</label>
+                    <input
+                      type="tel"
+                      value={editStudentForm.phone}
+                      onChange={(e) => setEditStudentForm({ ...editStudentForm, phone: e.target.value })}
+                      placeholder="+91 95584 13347"
+                      className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:border-blue-900"
+                    />
+                  </div>
+                </div>
+
+                {/* Academic Program & Branch */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-black text-slate-700 dark:text-slate-300 mb-1">Program</label>
+                    <input
+                      type="text"
+                      value={editStudentForm.program}
+                      onChange={(e) => setEditStudentForm({ ...editStudentForm, program: e.target.value })}
+                      placeholder="BTech CSE"
+                      className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:border-blue-900"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-black text-slate-700 dark:text-slate-300 mb-1">Branch</label>
+                    <input
+                      type="text"
+                      value={editStudentForm.branch}
+                      onChange={(e) => setEditStudentForm({ ...editStudentForm, branch: e.target.value })}
+                      placeholder="Computer Science & Engineering"
+                      className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:border-blue-900"
+                    />
+                  </div>
+                </div>
+
+                {/* CGPA & Placement Status */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-black text-slate-700 dark:text-slate-300 mb-1">Cumulative CGPA</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      max="10"
+                      value={editStudentForm.cgpa}
+                      onChange={(e) => setEditStudentForm({ ...editStudentForm, cgpa: e.target.value })}
+                      className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:border-blue-900"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-black text-slate-700 dark:text-slate-300 mb-1">Placement Status</label>
+                    <select
+                      value={editStudentForm.placement_status}
+                      onChange={(e) => setEditStudentForm({ ...editStudentForm, placement_status: e.target.value })}
+                      className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:border-blue-900"
+                    >
+                      <option value="Eligible">🟢 Eligible / Job Seeking</option>
+                      <option value="Placed">🎉 Placed (Selected)</option>
+                      <option value="In Process">⏳ In Process (Interviewing)</option>
+                      <option value="Higher Studies">🎓 Higher Studies</option>
+                      <option value="Opted Out">⚪ Opted Out</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <div className="pt-4 border-t border-slate-200 dark:border-slate-800 flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setEditingStudentModal(null)}
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-bold cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 bg-gradient-to-r from-blue-900 to-indigo-700 hover:from-blue-800 hover:to-indigo-600 text-white rounded-xl text-xs font-black shadow-md flex items-center gap-1.5 cursor-pointer"
+                >
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                  <span>Save & Sync to Student Profile</span>
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

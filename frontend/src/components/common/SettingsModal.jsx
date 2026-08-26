@@ -833,14 +833,34 @@ export default function SettingsModal({ isOpen, onClose, currentUser, theme, onT
                 <div className="p-5 bg-slate-50 dark:bg-slate-800/80 rounded-3xl border border-slate-200 dark:border-slate-700 space-y-4">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Display Candidate Name</label>
-                      <input
-                        type="text"
-                        value={displayName}
-                        onChange={(e) => setDisplayName(e.target.value)}
-                        placeholder="e.g. Thakkar Om"
-                        className="w-full px-3.5 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-slate-100 focus:outline-none focus:border-blue-900"
-                      />
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">Display Candidate Name</label>
+                        {(currentUser?.role === 'admin' || currentUser?.role === 'superadmin' || currentUser?.role === 'faculty') ? (
+                          <span className="px-1.5 py-0.5 bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 border border-emerald-300 rounded text-[9px] font-black uppercase">
+                            ✏️ Edit Access
+                          </span>
+                        ) : (
+                          <span className="px-1.5 py-0.5 bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 border border-amber-300 rounded text-[9px] font-black uppercase flex items-center gap-1">
+                            <Lock className="w-2.5 h-2.5" /> Locked for Students
+                          </span>
+                        )}
+                      </div>
+                      <div className="relative">
+                        <input
+                          type="text"
+                          value={displayName}
+                          onChange={(e) => setDisplayName(e.target.value)}
+                          disabled={!currentUser?.role || currentUser?.role === 'student'}
+                          readOnly={!currentUser?.role || currentUser?.role === 'student'}
+                          placeholder="e.g. Om Thakkar"
+                          className={`w-full px-3.5 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-slate-100 focus:outline-none focus:border-blue-900 ${
+                            (!currentUser?.role || currentUser?.role === 'student') ? 'bg-slate-100 dark:bg-slate-900/60 text-slate-500 cursor-not-allowed pr-8' : ''
+                          }`}
+                        />
+                        {(!currentUser?.role || currentUser?.role === 'student') && (
+                          <Lock className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2" />
+                        )}
+                      </div>
                     </div>
 
                     <div>
