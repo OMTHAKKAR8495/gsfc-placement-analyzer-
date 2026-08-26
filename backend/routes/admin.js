@@ -1513,14 +1513,28 @@ router.get('/student-applications', (req, res) => {
   }
 });
 
-// Master Visibility: Get All Registered Companies (Approved + Pending)
+// Master Visibility: Get All Registered Companies (Approved + Pending + Subscriptions + Invoices)
 router.get('/all-companies', (req, res) => {
   try {
     const companies = db.prepare(`
-      SELECT c.*, u.email,
-             (SELECT COUNT(*) FROM requirements WHERE company_id = c.id) as posted_drives_count
+      SELECT c.*, u.email, u.created_at as registered_at,
+             (SELECT COUNT(*) FROM requirements WHERE company_id = c.id) as posted_drives_count,
+             (SELECT COUNT(*) FROM applications a JOIN requirements r ON a.requirement_id = r.id WHERE r.company_id = c.id) as total_applicants_count,
+             cs.plan_name as active_plan_name,
+             cs.plan_id as active_plan_id,
+             cs.status as subscription_status,
+             cs.expires_at as subscription_expires_at,
+             cs.max_postings as subscription_max_postings,
+             cs.postings_used as subscription_postings_used,
+             pt.amount_inr as last_paid_amount,
+             pt.receipt_number as last_receipt_number,
+             pt.gateway_payment_id as last_payment_id,
+             pt.payment_method as last_payment_method,
+             pt.paid_at as last_payment_date
       FROM company_profiles c
       JOIN users u ON c.user_id = u.id
+      LEFT JOIN company_subscriptions cs ON (cs.company_id = c.id OR cs.company_id = c.user_id) AND cs.status = 'active'
+      LEFT JOIN payment_transactions pt ON (pt.company_id = c.id OR pt.company_id = c.user_id) AND pt.status = 'paid'
       ORDER BY c.created_at DESC
     `).all();
     res.json(companies);
