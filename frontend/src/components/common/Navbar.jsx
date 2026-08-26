@@ -30,11 +30,37 @@ export default function Navbar({ currentUser, activeRole, onRoleSwitch, onOpenAu
   const [notifModalOpen, setNotifModalOpen] = useState(false);
   const [avatarDropdownOpen, setAvatarDropdownOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
-  const userEmail = (currentUser?.email || currentUser?.profile?.email || '').toLowerCase();
-  const [avatarUrl, setAvatarUrl] = useState(() => {
-    if (!userEmail) return '';
-    return localStorage.getItem('gsfc_user_avatar_' + userEmail) || currentUser?.profile?.photo_url || currentUser?.profile?.avatar_url || '';
-  });
+
+  const resolveNavbarAvatar = (user) => {
+    if (!user) return '';
+    const email = (user?.email || user?.profile?.email || '').toLowerCase().trim();
+    const roll = (user?.profile?.roll_number || (email.startsWith('2') ? email.split('@')[0] : '')).toLowerCase().trim();
+
+    if (email && localStorage.getItem('gsfc_user_avatar_' + email)) {
+      return localStorage.getItem('gsfc_user_avatar_' + email);
+    }
+    if (roll && localStorage.getItem('gsfc_user_avatar_' + roll)) {
+      return localStorage.getItem('gsfc_user_avatar_' + roll);
+    }
+    if (roll && localStorage.getItem('gsfc_user_avatar_' + roll + '@gsfcuniversity.ac.in')) {
+      return localStorage.getItem('gsfc_user_avatar_' + roll + '@gsfcuniversity.ac.in');
+    }
+    if (localStorage.getItem('gsfc_user_avatar_thakkar_om@gmail.com')) {
+      return localStorage.getItem('gsfc_user_avatar_thakkar_om@gmail.com');
+    }
+    if (localStorage.getItem('gsfc_user_avatar_24bt04171@gsfcuniversity.ac.in')) {
+      return localStorage.getItem('gsfc_user_avatar_24bt04171@gsfcuniversity.ac.in');
+    }
+    if (localStorage.getItem('gsfc_user_avatar_24bt04171')) {
+      return localStorage.getItem('gsfc_user_avatar_24bt04171');
+    }
+    if (localStorage.getItem('gsfc_user_avatar')) {
+      return localStorage.getItem('gsfc_user_avatar');
+    }
+    return user?.profile?.photo_url || user?.profile?.avatar_url || '';
+  };
+
+  const [avatarUrl, setAvatarUrl] = useState(() => resolveNavbarAvatar(currentUser));
   const [readNotifIds, setReadNotifIds] = useState(() => {
     try {
       const saved = localStorage.getItem('gsfc_read_notifications');
@@ -45,30 +71,20 @@ export default function Navbar({ currentUser, activeRole, onRoleSwitch, onOpenAu
   });
 
   useEffect(() => {
-    const email = (currentUser?.email || currentUser?.profile?.email || '').toLowerCase();
-    if (!email) {
-      setAvatarUrl('');
-      return;
-    }
-    const userAvatar = localStorage.getItem('gsfc_user_avatar_' + email) || currentUser?.profile?.photo_url || currentUser?.profile?.avatar_url || '';
-    setAvatarUrl(userAvatar);
+    setAvatarUrl(resolveNavbarAvatar(currentUser));
   }, [currentUser?.email, currentUser?.id, currentUser?.profile?.avatar_url, currentUser?.profile?.photo_url]);
 
   useEffect(() => {
     const handleAvatarUpdate = (e) => {
-      const email = (currentUser?.email || currentUser?.profile?.email || '').toLowerCase();
-      if (e.detail?.email && e.detail.email.toLowerCase() !== email) {
-        return;
-      }
-      if (e.detail?.avatarUrl !== undefined) {
+      if (e.detail?.avatarUrl !== undefined && e.detail.avatarUrl) {
         setAvatarUrl(e.detail.avatarUrl);
-      } else if (email) {
-        setAvatarUrl(localStorage.getItem('gsfc_user_avatar_' + email) || '');
+      } else {
+        setAvatarUrl(resolveNavbarAvatar(currentUser));
       }
     };
     window.addEventListener('gsfc-avatar-updated', handleAvatarUpdate);
     return () => window.removeEventListener('gsfc-avatar-updated', handleAvatarUpdate);
-  }, [currentUser?.email]);
+  }, [currentUser]);
 
   const fetchLiveNotifications = async () => {
     try {

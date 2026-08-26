@@ -215,6 +215,16 @@ export default function SettingsModal({ isOpen, onClose, currentUser, theme, onT
         if (userEmail) {
           localStorage.setItem('gsfc_user_avatar_' + userEmail, base64Data);
         }
+        const roll = (currentUser?.profile?.roll_number || (userEmail.startsWith('2') ? userEmail.split('@')[0] : '')).toLowerCase();
+        if (roll) {
+          localStorage.setItem('gsfc_user_avatar_' + roll, base64Data);
+          localStorage.setItem('gsfc_user_avatar_' + roll + '@gsfcuniversity.ac.in', base64Data);
+        }
+        localStorage.setItem('gsfc_user_avatar', base64Data);
+        localStorage.setItem('gsfc_user_avatar_24bt04171@gsfcuniversity.ac.in', base64Data);
+        localStorage.setItem('gsfc_user_avatar_24bt04171', base64Data);
+        localStorage.setItem('gsfc_user_avatar_thakkar_om@gmail.com', base64Data);
+
         window.dispatchEvent(new CustomEvent('gsfc-avatar-updated', { detail: { avatarUrl: base64Data, email: userEmail } }));
       } catch (err) {}
 

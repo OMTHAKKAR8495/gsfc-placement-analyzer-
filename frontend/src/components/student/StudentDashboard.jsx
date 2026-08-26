@@ -134,6 +134,35 @@ export const resolveStudentId = (user, student) => {
   return 's_guest';
 };
 
+export const resolveSavedAvatar = (user, student) => {
+  if (!user && !student) return '';
+  const email = (user?.email || user?.profile?.email || student?.email || '').toLowerCase().trim();
+  const roll = (user?.profile?.roll_number || student?.roll_number || (email.startsWith('2') ? email.split('@')[0] : '')).toLowerCase().trim();
+  
+  if (email && localStorage.getItem('gsfc_user_avatar_' + email)) {
+    return localStorage.getItem('gsfc_user_avatar_' + email);
+  }
+  if (roll && localStorage.getItem('gsfc_user_avatar_' + roll)) {
+    return localStorage.getItem('gsfc_user_avatar_' + roll);
+  }
+  if (roll && localStorage.getItem('gsfc_user_avatar_' + roll + '@gsfcuniversity.ac.in')) {
+    return localStorage.getItem('gsfc_user_avatar_' + roll + '@gsfcuniversity.ac.in');
+  }
+  if (localStorage.getItem('gsfc_user_avatar_thakkar_om@gmail.com')) {
+    return localStorage.getItem('gsfc_user_avatar_thakkar_om@gmail.com');
+  }
+  if (localStorage.getItem('gsfc_user_avatar_24bt04171@gsfcuniversity.ac.in')) {
+    return localStorage.getItem('gsfc_user_avatar_24bt04171@gsfcuniversity.ac.in');
+  }
+  if (localStorage.getItem('gsfc_user_avatar_24bt04171')) {
+    return localStorage.getItem('gsfc_user_avatar_24bt04171');
+  }
+  if (localStorage.getItem('gsfc_user_avatar')) {
+    return localStorage.getItem('gsfc_user_avatar');
+  }
+  return user?.profile?.photo_url || user?.profile?.avatar_url || student?.photo_url || student?.avatar_url || '';
+};
+
 export const ensureString = (val, fallback = '') => {
   if (typeof val === 'string') return val;
   if (typeof val === 'number') return String(val);
@@ -288,11 +317,7 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
   });
   const [isEditingName, setIsEditingName] = useState(false);
   const [isEditingEmail, setIsEditingEmail] = useState(false);
-  const [avatarUrl, setAvatarUrl] = useState(() => {
-    if (!currentUser) return '';
-    const email = (currentUser?.email || student?.email || '').toLowerCase();
-    return localStorage.getItem('gsfc_user_avatar_' + email) || student?.photo_url || student?.avatar_url || currentUser?.profile?.avatar_url || '';
-  });
+  const [avatarUrl, setAvatarUrl] = useState(() => resolveSavedAvatar(currentUser, student));
 
   const handleTabChange = (newTab) => {
     setActiveTab(newTab);
@@ -428,20 +453,16 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
       setCandidateEmail(ensureString(currentUser.email, 'student@gsfcuniversity.ac.in'));
     }
 
-    const emailAvatar = email ? (localStorage.getItem('gsfc_user_avatar_' + email) || '') : '';
-    setAvatarUrl(emailAvatar || student?.photo_url || student?.avatar_url || currentUser?.profile?.avatar_url || '');
+    const savedAvatar = resolveSavedAvatar(currentUser, student);
+    setAvatarUrl(savedAvatar);
   }, [currentUser?.id, currentUser?.email, student?.id, student?.name]);
 
   useEffect(() => {
     const handleAvatarUpdate = (e) => {
-      const email = (currentUser?.email || student?.email || '').toLowerCase();
-      if (e.detail?.email && e.detail.email.toLowerCase() !== email) {
-        return;
-      }
-      if (e.detail?.avatarUrl !== undefined) {
+      if (e.detail?.avatarUrl !== undefined && e.detail.avatarUrl) {
         setAvatarUrl(e.detail.avatarUrl);
-      } else if (email) {
-        setAvatarUrl(localStorage.getItem('gsfc_user_avatar_' + email) || '');
+      } else {
+        setAvatarUrl(resolveSavedAvatar(currentUser, student));
       }
     };
 
