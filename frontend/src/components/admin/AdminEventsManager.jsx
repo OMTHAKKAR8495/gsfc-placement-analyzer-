@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import QRCode from 'qrcode';
 
-export default function AdminEventsManager() {
+export default function AdminEventsManager({ onNavigateToRegistrations = null }) {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [createModalOpen, setCreateModalOpen] = useState(false);
@@ -398,33 +398,61 @@ export default function AdminEventsManager() {
                     </div>
                   </div>
 
-                  {/* Stat Counter Badges */}
+                  {/* Stat Counter Badges (Clickable Shortcuts to Candidate Numbers & Attendance) */}
                   <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
-                    <div className="p-2 bg-slate-50 dark:bg-slate-950 rounded-xl text-center">
-                      <div className="text-[9px] font-black text-slate-400 uppercase">External</div>
-                      <div className="text-xs font-black text-indigo-600 dark:text-indigo-400">{evt.total_external_registered || 0}</div>
-                    </div>
-                    <div className="p-2 bg-slate-50 dark:bg-slate-950 rounded-xl text-center">
-                      <div className="text-[9px] font-black text-slate-400 uppercase">Passes</div>
-                      <div className="text-xs font-black text-blue-600 dark:text-blue-400">{evt.total_passes_issued || 0}</div>
-                    </div>
-                    <div className="p-2 bg-slate-50 dark:bg-slate-950 rounded-xl text-center">
-                      <div className="text-[9px] font-black text-slate-400 uppercase">Checked-In</div>
-                      <div className="text-xs font-black text-emerald-600 dark:text-emerald-400">{evt.total_checked_in || 0}</div>
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => onNavigateToRegistrations ? onNavigateToRegistrations() : (window.location.hash = '#admin')}
+                      className="p-2 bg-indigo-50/80 hover:bg-indigo-100 dark:bg-indigo-950/60 dark:hover:bg-indigo-900/80 border border-indigo-200/60 dark:border-indigo-800/60 rounded-xl text-center cursor-pointer transition-all hover:scale-105"
+                      title="Click to view candidate list, phone numbers, and attendance"
+                    >
+                      <div className="text-[9px] font-black text-indigo-700 dark:text-indigo-300 uppercase">External</div>
+                      <div className="text-xs font-black text-indigo-700 dark:text-indigo-300">{evt.total_external_registered || 0} ↗</div>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => onNavigateToRegistrations ? onNavigateToRegistrations() : (window.location.hash = '#admin')}
+                      className="p-2 bg-blue-50/80 hover:bg-blue-100 dark:bg-blue-950/60 dark:hover:bg-blue-900/80 border border-blue-200/60 dark:border-blue-800/60 rounded-xl text-center cursor-pointer transition-all hover:scale-105"
+                      title="Click to view issued passes and candidate details"
+                    >
+                      <div className="text-[9px] font-black text-blue-700 dark:text-blue-300 uppercase">Passes</div>
+                      <div className="text-xs font-black text-blue-700 dark:text-blue-300">{evt.total_passes_issued || 0} ↗</div>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => onNavigateToRegistrations ? onNavigateToRegistrations() : (window.location.hash = '#admin')}
+                      className="p-2 bg-emerald-50/80 hover:bg-emerald-100 dark:bg-emerald-950/60 dark:hover:bg-emerald-900/80 border border-emerald-200/60 dark:border-emerald-800/60 rounded-xl text-center cursor-pointer transition-all hover:scale-105"
+                      title="Click to view gate-scanned attendees"
+                    >
+                      <div className="text-[9px] font-black text-emerald-700 dark:text-emerald-300 uppercase">Checked-In</div>
+                      <div className="text-xs font-black text-emerald-700 dark:text-emerald-300">{evt.total_checked_in || 0} ↗</div>
+                    </button>
                   </div>
                 </div>
               </div>
 
               {/* Action Buttons */}
               <div className="p-4 bg-slate-50 dark:bg-slate-950/60 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2">
-                <button
-                  onClick={() => handleOpenPosterModal(evt)}
-                  className="px-3 py-1.5 bg-blue-50 dark:bg-blue-950/60 hover:bg-blue-100 dark:hover:bg-blue-900/80 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 rounded-xl text-[11px] font-black flex items-center gap-1.5 transition-all cursor-pointer"
-                >
-                  <QrCode className="w-3.5 h-3.5" />
-                  <span>Poster QR</span>
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handleOpenPosterModal(evt)}
+                    className="px-3 py-1.5 bg-blue-50 dark:bg-blue-950/60 hover:bg-blue-100 dark:hover:bg-blue-900/80 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 rounded-xl text-[11px] font-black flex items-center gap-1.5 transition-all cursor-pointer"
+                  >
+                    <QrCode className="w-3.5 h-3.5" />
+                    <span>Poster QR</span>
+                  </button>
+
+                  <button
+                    onClick={() => onNavigateToRegistrations ? onNavigateToRegistrations() : (window.location.hash = '#admin')}
+                    className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-[11px] font-black flex items-center gap-1.5 transition-all cursor-pointer shadow-sm hover:scale-105"
+                    title="View candidate phone numbers, attendance, and details"
+                  >
+                    <Users className="w-3.5 h-3.5" />
+                    <span>Attendees</span>
+                  </button>
+                </div>
 
                 <div className="flex items-center gap-1.5">
                   <button
