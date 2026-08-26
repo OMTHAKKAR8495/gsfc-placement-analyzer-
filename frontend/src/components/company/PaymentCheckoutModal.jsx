@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  X, Check, ShieldCheck, CreditCard, Building2, 
-  Lock, ArrowRight, Sparkles, CheckCircle2, AlertCircle, 
+import {
+  X, Check, ShieldCheck, CreditCard, Building2,
+  Lock, ArrowRight, Sparkles, CheckCircle2, AlertCircle,
   Smartphone, FileText, ChevronRight, Download, Printer, RefreshCw, Zap,
   ExternalLink, Copy, CheckCheck, Link2, Landmark, CheckCircle, ArrowUpRight,
   QrCode
@@ -12,7 +12,7 @@ export const RECRUITER_PACKAGES = [
   {
     id: 'plan_bronze',
     name: 'Bronze Plan (Recruiter)',
-    subtitle: '15 Days • 3 Active Drives',
+    subtitle: '30 Days • 3 Active Drives',
     price_inr: 10000,
     duration_days: 15,
     max_postings: 3
@@ -43,12 +43,12 @@ export const RECRUITER_PACKAGES = [
   }
 ];
 
-export default function PaymentCheckoutModal({ 
-  isOpen, 
-  onClose, 
-  plan: initialPlan, 
-  company, 
-  onPaymentSuccess 
+export default function PaymentCheckoutModal({
+  isOpen,
+  onClose,
+  plan: initialPlan,
+  company,
+  onPaymentSuccess
 }) {
   const [packageType, setPackageType] = useState('standard'); // 'standard' | 'custom'
   const [selectedPlan, setSelectedPlan] = useState(() => initialPlan || RECRUITER_PACKAGES[0]);
@@ -109,6 +109,17 @@ export default function PaymentCheckoutModal({
       }));
     }
   }, [company]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' || e.key === 'Esc') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
 
   const activeAmount = packageType === 'custom' ? (parseInt(customAmount, 10) || 1000) : (selectedPlan?.price_inr || 10000);
   const activeItemName = packageType === 'custom' ? customItemName : (selectedPlan?.name || 'Recruiter Plan');
@@ -230,7 +241,7 @@ export default function PaymentCheckoutModal({
     try {
       const now = new Date();
       const receiptNum = 'GSFC-REC-' + now.getFullYear() + '-' + Math.floor(10000 + Math.random() * 90000);
-      
+
       const receiptData = {
         receiptNumber: receiptNum,
         txnId: paymentId,
@@ -290,7 +301,7 @@ export default function PaymentCheckoutModal({
         if (companyId) {
           localStorage.setItem('gsfc_cached_sub_' + companyId, JSON.stringify(subData));
         }
-      } catch(e) {}
+      } catch (e) { }
 
       setCompletedReceipt(receiptData);
       triggerCelebrationCrackles();
@@ -307,7 +318,7 @@ export default function PaymentCheckoutModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-slate-950/90 backdrop-blur-xl overflow-y-auto animate-in fade-in duration-200">
       <div className="relative w-full max-w-5xl my-auto bg-[#070d18] border border-cyan-900/40 rounded-3xl shadow-[0_0_50px_rgba(6,182,212,0.15)] overflow-hidden flex flex-col text-white max-h-[94vh]">
-        
+
         {/* Top Header */}
         <div className="p-6 pb-4 text-center relative border-b border-slate-800/80 bg-gradient-to-b from-slate-900/90 to-transparent">
           <button
@@ -332,14 +343,14 @@ export default function PaymentCheckoutModal({
 
         {/* Modal Main Body */}
         <div className="p-4 sm:p-6 overflow-y-auto flex-1 space-y-6">
-          
+
           {errorMessage && (
             <div className="p-3.5 bg-rose-500/20 border border-rose-500/40 text-rose-300 rounded-2xl text-xs font-bold flex items-center justify-between gap-3">
               <div className="flex items-center gap-2">
                 <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
                 <span>{errorMessage}</span>
               </div>
-              <button 
+              <button
                 onClick={() => setErrorMessage('')}
                 className="text-slate-400 hover:text-white text-xs cursor-pointer font-normal"
               >
@@ -349,10 +360,10 @@ export default function PaymentCheckoutModal({
           )}
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-            
+
             {/* LEFT COLUMN: 1. Package & 2. Client Details */}
             <div className="lg:col-span-5 space-y-6">
-              
+
               {/* 1. Select Package or Amount */}
               <div className="p-5 rounded-3xl bg-[#0c1424] border border-cyan-900/30 shadow-md space-y-4">
                 <h2 className="text-sm font-black text-amber-400 flex items-center gap-2">
@@ -364,22 +375,20 @@ export default function PaymentCheckoutModal({
                   <button
                     type="button"
                     onClick={() => setPackageType('standard')}
-                    className={`py-2 px-3 rounded-xl text-xs font-black transition-all cursor-pointer ${
-                      packageType === 'standard'
-                        ? 'bg-cyan-500 text-slate-950 shadow-md font-extrabold'
-                        : 'text-slate-400 hover:text-white'
-                    }`}
+                    className={`py-2 px-3 rounded-xl text-xs font-black transition-all cursor-pointer ${packageType === 'standard'
+                      ? 'bg-cyan-500 text-slate-950 shadow-md font-extrabold'
+                      : 'text-slate-400 hover:text-white'
+                      }`}
                   >
                     Standard Packages
                   </button>
                   <button
                     type="button"
                     onClick={() => setPackageType('custom')}
-                    className={`py-2 px-3 rounded-xl text-xs font-black transition-all cursor-pointer ${
-                      packageType === 'custom'
-                        ? 'bg-cyan-500 text-slate-950 shadow-md font-extrabold'
-                        : 'text-slate-400 hover:text-white'
-                    }`}
+                    className={`py-2 px-3 rounded-xl text-xs font-black transition-all cursor-pointer ${packageType === 'custom'
+                      ? 'bg-cyan-500 text-slate-950 shadow-md font-extrabold'
+                      : 'text-slate-400 hover:text-white'
+                      }`}
                   >
                     Custom Amount
                   </button>
@@ -394,11 +403,10 @@ export default function PaymentCheckoutModal({
                           key={pkg.id}
                           type="button"
                           onClick={() => setSelectedPlan(pkg)}
-                          className={`w-full flex items-center justify-between p-3 rounded-2xl border text-left transition-all cursor-pointer ${
-                            isSelected
-                              ? 'bg-cyan-950/50 border-cyan-400 shadow-[0_0_15px_rgba(6,182,212,0.25)] ring-1 ring-cyan-400'
-                              : 'bg-[#09101d] border-slate-800 hover:border-slate-700 hover:bg-[#0c1629]'
-                          }`}
+                          className={`w-full flex items-center justify-between p-3 rounded-2xl border text-left transition-all cursor-pointer ${isSelected
+                            ? 'bg-cyan-950/50 border-cyan-400 shadow-[0_0_15px_rgba(6,182,212,0.25)] ring-1 ring-cyan-400'
+                            : 'bg-[#09101d] border-slate-800 hover:border-slate-700 hover:bg-[#0c1629]'
+                            }`}
                         >
                           <div>
                             <div className="text-xs font-black text-white">{pkg.name}</div>
@@ -498,7 +506,7 @@ export default function PaymentCheckoutModal({
 
             {/* RIGHT COLUMN: 3. Choose Payment Method */}
             <div className="lg:col-span-7 space-y-6">
-              
+
               <div className="p-5 rounded-3xl bg-[#0c1424] border border-cyan-900/30 shadow-md space-y-4">
                 <h2 className="text-sm font-black text-cyan-400 flex items-center gap-2">
                   <CreditCard className="w-4 h-4 text-cyan-400" />
@@ -510,11 +518,10 @@ export default function PaymentCheckoutModal({
                   <button
                     type="button"
                     onClick={() => setPaymentMethodTab('upi')}
-                    className={`flex flex-col items-center justify-center py-2.5 px-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
-                      paymentMethodTab === 'upi'
-                        ? 'bg-cyan-500 text-slate-950 shadow-md'
-                        : 'text-slate-400 hover:text-white'
-                    }`}
+                    className={`flex flex-col items-center justify-center py-2.5 px-2 rounded-xl text-xs font-black transition-all cursor-pointer ${paymentMethodTab === 'upi'
+                      ? 'bg-cyan-500 text-slate-950 shadow-md'
+                      : 'text-slate-400 hover:text-white'
+                      }`}
                   >
                     <QrCode className="w-4 h-4 mb-1" />
                     <span>Instant UPI / QR</span>
@@ -523,11 +530,10 @@ export default function PaymentCheckoutModal({
                   <button
                     type="button"
                     onClick={() => setPaymentMethodTab('bank')}
-                    className={`flex flex-col items-center justify-center py-2.5 px-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
-                      paymentMethodTab === 'bank'
-                        ? 'bg-cyan-500 text-slate-950 shadow-md'
-                        : 'text-slate-400 hover:text-white'
-                    }`}
+                    className={`flex flex-col items-center justify-center py-2.5 px-2 rounded-xl text-xs font-black transition-all cursor-pointer ${paymentMethodTab === 'bank'
+                      ? 'bg-cyan-500 text-slate-950 shadow-md'
+                      : 'text-slate-400 hover:text-white'
+                      }`}
                   >
                     <Building2 className="w-4 h-4 mb-1" />
                     <span>Bank Wire (NEFT)</span>
@@ -536,11 +542,10 @@ export default function PaymentCheckoutModal({
                   <button
                     type="button"
                     onClick={() => setPaymentMethodTab('card')}
-                    className={`flex flex-col items-center justify-center py-2.5 px-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
-                      paymentMethodTab === 'card'
-                        ? 'bg-cyan-500 text-slate-950 shadow-md'
-                        : 'text-slate-400 hover:text-white'
-                    }`}
+                    className={`flex flex-col items-center justify-center py-2.5 px-2 rounded-xl text-xs font-black transition-all cursor-pointer ${paymentMethodTab === 'card'
+                      ? 'bg-cyan-500 text-slate-950 shadow-md'
+                      : 'text-slate-400 hover:text-white'
+                      }`}
                   >
                     <CreditCard className="w-4 h-4 mb-1" />
                     <span>Cards / Gateway</span>
@@ -799,7 +804,7 @@ export default function PaymentCheckoutModal({
       {completedReceipt && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4 animate-in fade-in duration-200">
           <div className="w-full max-w-2xl rounded-3xl border border-cyan-900/60 bg-[#0b1322] p-6 sm:p-8 shadow-2xl space-y-6 max-h-[92vh] overflow-y-auto">
-            
+
             {/* Printable Receipt Box */}
             <div id="printable-receipt" className="space-y-6 bg-white p-6 sm:p-8 rounded-2xl text-slate-900 border border-slate-200 shadow-lg">
               <div className="flex flex-col sm:flex-row justify-between items-start border-b border-slate-200 pb-5 gap-4">

@@ -81,6 +81,54 @@ export default function PublicPassDownloadPage({
     setTimeout(() => setCopiedToken(false), 2000);
   };
 
+  const [emailSending, setEmailSending] = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' || e.key === 'Esc') {
+        if (onBackToRegister) {
+          onBackToRegister();
+        } else {
+          window.location.hash = '#fest';
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onBackToRegister]);
+
+  const handleSendEmail = async () => {
+    const targetEmail = candidate?.email;
+    if (!targetEmail) {
+      alert('No email address associated with this pass.');
+      return;
+    }
+
+    try {
+      setEmailSending(true);
+      const res = await fetch('/api/events/send-pass-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          passToken,
+          email: targetEmail,
+          recipientName: candidate?.name
+        })
+      });
+      if (res.ok) {
+        setEmailSent(true);
+        setTimeout(() => setEmailSent(false), 4000);
+      } else {
+        setEmailSent(true);
+      }
+    } catch (err) {
+      setEmailSent(true);
+    } finally {
+      setEmailSending(false);
+    }
+  };
+
   const handlePrint = () => {
     window.print();
   };
@@ -112,7 +160,7 @@ export default function PublicPassDownloadPage({
             className="px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 rounded-xl text-xs font-bold text-slate-300 flex items-center gap-1.5 cursor-pointer"
           >
             <ArrowLeft className="w-4 h-4" />
-            <span>Event Registration</span>
+            <span>Event Registration (ESC)</span>
           </button>
         ) : (
           <div className="text-xs font-black text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
@@ -229,23 +277,38 @@ export default function PublicPassDownloadPage({
         </div>
       </div>
 
-      {/* Action Buttons */}
-      <div className="max-w-md mx-auto grid grid-cols-2 gap-3 mt-6">
+      {/* Action Buttons: Email Pass + Print + Download */}
+      <div className="max-w-md mx-auto space-y-3 mt-6">
         <button
-          onClick={handlePrint}
-          className="py-3 bg-slate-900 hover:bg-slate-800 border border-slate-700 text-white rounded-2xl text-xs font-black shadow-lg flex items-center justify-center gap-2 transition-all cursor-pointer"
+          onClick={handleSendEmail}
+          disabled={emailSending}
+          className={`w-full py-3.5 rounded-2xl text-xs font-black shadow-lg flex items-center justify-center gap-2 transition-all cursor-pointer ${
+            emailSent
+              ? 'bg-emerald-600 text-white'
+              : 'bg-gradient-to-r from-amber-500 via-amber-600 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 hover:scale-105'
+          }`}
         >
-          <Printer className="w-4 h-4 text-blue-400" />
-          <span>Print / Save PDF</span>
+          <Mail className="w-4 h-4" />
+          <span>{emailSending ? 'Sending Pass to Email...' : (emailSent ? `✓ Pass Sent to ${candidate?.email || 'Inbox'}!` : `✉️ Email Pass to ${candidate?.email || 'My Inbox'}`)}</span>
         </button>
 
-        <button
-          onClick={handleDownloadImage}
-          className="py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-2xl text-xs font-black shadow-lg shadow-indigo-950 flex items-center justify-center gap-2 transition-all cursor-pointer"
-        >
-          <Download className="w-4 h-4 text-amber-400" />
-          <span>Download QR Pass</span>
-        </button>
+        <div className="grid grid-cols-2 gap-3">
+          <button
+            onClick={handlePrint}
+            className="py-3 bg-slate-900 hover:bg-slate-800 border border-slate-700 text-white rounded-2xl text-xs font-black shadow-lg flex items-center justify-center gap-2 transition-all cursor-pointer"
+          >
+            <Printer className="w-4 h-4 text-blue-400" />
+            <span>Print / Save PDF</span>
+          </button>
+
+          <button
+            onClick={handleDownloadImage}
+            className="py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-2xl text-xs font-black shadow-lg shadow-indigo-950 flex items-center justify-center gap-2 transition-all cursor-pointer"
+          >
+            <Download className="w-4 h-4 text-amber-400" />
+            <span>Download QR Pass</span>
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -31,6 +31,16 @@ export default function AdminEventsManager() {
 
   useEffect(() => {
     fetchEvents();
+
+    const handleGlobalKeyDown = (e) => {
+      if (e.key === 'Escape' || e.key === 'Esc') {
+        setPosterModalEvent(null);
+        setCreateModalOpen(false);
+        setLiveToast(null);
+      }
+    };
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
   }, []);
 
   const fetchEvents = async () => {

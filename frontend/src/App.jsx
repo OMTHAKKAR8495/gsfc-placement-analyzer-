@@ -185,11 +185,22 @@ function App() {
   const [publicRoute, setPublicRoute] = useState(() => {
     if (typeof window === 'undefined') return null;
     const path = window.location.pathname;
+    const hash = window.location.hash.replace(/^#/, '');
     if (path.startsWith('/event/')) {
       return { type: 'event', param: path.replace('/event/', '') };
     }
     if (path.startsWith('/pass/')) {
       return { type: 'pass', param: path.replace('/pass/', '') };
+    }
+    if (hash.startsWith('pass/')) {
+      return { type: 'pass', param: hash.replace('pass/', '') };
+    }
+    if (hash.startsWith('event-pass/')) {
+      return { type: 'pass', param: hash.replace('event-pass/', '') };
+    }
+    if (hash.startsWith('fest/') && hash.includes('pass=')) {
+      const match = hash.match(/pass=([^&]+)/);
+      if (match) return { type: 'pass', param: match[1] };
     }
     return null;
   });

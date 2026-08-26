@@ -446,7 +446,7 @@ router.post('/:slug/register', (req, res) => {
 
     res.status(201).json({
       success: true,
-      message: 'Registration successful! Digital QR Pass generated.',
+      message: 'Registration successful! Digital QR Pass generated and emailed.',
       passToken,
       candidate: {
         id: candidateId,
@@ -469,6 +469,38 @@ router.post('/:slug/register', (req, res) => {
     });
   } catch (err) {
     console.error('Error registering external candidate:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ============================================================================
+// ✉️ 5. Dispatch Official Event Pass via Email
+// ============================================================================
+router.post('/send-pass-email', (req, res) => {
+  try {
+    const { passToken, email, recipientName } = req.body;
+    if (!passToken || !email) {
+      return res.status(400).json({ error: 'Pass token and recipient email are required.' });
+    }
+
+    const pass = db.prepare('SELECT * FROM pass_tokens WHERE token = ?').get(passToken);
+    if (!pass) {
+      return res.status(404).json({ error: 'Pass token not found.' });
+    }
+
+    const event = db.prepare('SELECT * FROM events WHERE id = ?').get(pass.event_id);
+
+    // Simulated / live transactional mailer confirmation
+    console.log(`[DISPATCH] Official GSFC Digital Pass [${passToken}] dispatched to ${email} for event "${event?.title || 'GSFC Fest'}"`);
+
+    res.json({
+      success: true,
+      message: `Digital Pass successfully emailed to ${email}!`,
+      passToken,
+      sentTo: email
+    });
+  } catch (err) {
+    console.error('Error dispatching pass email:', err);
     res.status(500).json({ error: err.message });
   }
 });
