@@ -319,6 +319,52 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
   const [isEditingEmail, setIsEditingEmail] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState(() => resolveSavedAvatar(currentUser, student));
 
+  // TPC Student Administrative Access Lock State
+  const [isBlockedByAdmin, setIsBlockedByAdmin] = useState(() => {
+    try {
+      const raw = localStorage.getItem('gsfc_logged_students_list');
+      if (!raw) return false;
+      const list = JSON.parse(raw);
+      const email = (currentUser?.email || student?.email || '').toLowerCase().trim();
+      const roll = (currentUser?.profile?.roll_number || student?.roll_number || '').toLowerCase().trim();
+      const match = list.find(s => {
+        const sEmail = (s.email || s.user_email || '').toLowerCase().trim();
+        const sRoll = (s.roll_number || s.id || '').toLowerCase().trim();
+        return (email && sEmail && sEmail === email) || (roll && sRoll && sRoll === roll);
+      });
+      return match ? match.access_status === 'blocked' : false;
+    } catch(e) {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    const checkBlockedStatus = () => {
+      try {
+        const raw = localStorage.getItem('gsfc_logged_students_list');
+        if (!raw) return;
+        const list = JSON.parse(raw);
+        const email = (currentUser?.email || student?.email || '').toLowerCase().trim();
+        const roll = (currentUser?.profile?.roll_number || student?.roll_number || '').toLowerCase().trim();
+        const match = list.find(s => {
+          const sEmail = (s.email || s.user_email || '').toLowerCase().trim();
+          const sRoll = (s.roll_number || s.id || '').toLowerCase().trim();
+          return (email && sEmail && sEmail === email) || (roll && sRoll && sRoll === roll);
+        });
+        setIsBlockedByAdmin(match ? match.access_status === 'blocked' : false);
+      } catch(e) {}
+    };
+
+    window.addEventListener('storage', checkBlockedStatus);
+    window.addEventListener('gsfc-students-updated', checkBlockedStatus);
+    const interval = setInterval(checkBlockedStatus, 2000);
+    return () => {
+      window.removeEventListener('storage', checkBlockedStatus);
+      window.removeEventListener('gsfc-students-updated', checkBlockedStatus);
+      clearInterval(interval);
+    };
+  }, [currentUser, student]);
+
   const handleTabChange = (newTab) => {
     setActiveTab(newTab);
     try {
@@ -1134,6 +1180,53 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
         requirement={mockTargetRequirement}
         onBack={() => setMockSessionActive(false)}
       />
+    );
+  }
+
+  if (isBlockedByAdmin && (!currentUser || currentUser.role === 'student')) {
+    return (
+      <div className="max-w-4xl mx-auto px-4 py-16 text-center space-y-6">
+        <div className="bg-red-50/90 border-2 border-red-300 rounded-3xl p-8 sm:p-12 shadow-xl space-y-5">
+          <div className="w-20 h-20 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto shadow-inner">
+            <Lock className="w-10 h-10" />
+          </div>
+          <div className="space-y-2">
+            <span className="px-3 py-1 bg-red-200 text-red-900 rounded-full text-xs font-black uppercase tracking-wider">
+              ⛔ Portal Access Restricted
+            </span>
+            <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+              Student Account Blocked by TPC Administration
+            </h2>
+            <p className="text-slate-600 text-sm max-w-xl mx-auto font-medium">
+              Your placement portal privileges have been temporarily suspended by the Training & Placement Cell (TPC). You cannot view active hiring drives, submit job applications, or edit your academic profile.
+            </p>
+          </div>
+
+          <div className="bg-white/80 rounded-2xl p-4 border border-red-200 text-xs text-slate-700 font-bold max-w-md mx-auto space-y-1 text-left">
+            <div>📌 <strong>Candidate:</strong> {candidateName}</div>
+            <div>📧 <strong>University Email:</strong> {currentUser?.email || student?.email || 'N/A'}</div>
+            <div>🏛️ <strong>Status:</strong> <span className="text-red-700 font-black">🔴 BLOCKED by TPC Admin</span></div>
+          </div>
+
+          <div className="pt-4 flex flex-col sm:flex-row items-center justify-center gap-3">
+            <a
+              href="mailto:admin@gsfcuniversity.ac.in?subject=Placement%20Portal%20Access%20Restoration%20Request"
+              className="w-full sm:w-auto px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-black text-xs rounded-2xl shadow-lg transition-all"
+            >
+              ✉️ Contact TPC Placement Office
+            </a>
+            {onLogout && (
+              <button
+                type="button"
+                onClick={onLogout}
+                className="w-full sm:w-auto px-6 py-3 bg-slate-100 hover:bg-slate-200 text-slate-800 font-black text-xs rounded-2xl transition-all cursor-pointer"
+              >
+                🚪 Sign Out
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
     );
   }
 
