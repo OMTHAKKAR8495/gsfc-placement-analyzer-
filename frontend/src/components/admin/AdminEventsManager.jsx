@@ -211,7 +211,7 @@ export default function AdminEventsManager() {
 
   const handleOpenPosterModal = async (event) => {
     setPosterModalEvent(event);
-    const regUrl = `${window.location.origin}/event/${event.slug}`;
+    const regUrl = `${window.location.origin}/#fest/${event.slug}`;
     try {
       const qr = await QRCode.toDataURL(regUrl, {
         width: 360,
@@ -225,7 +225,7 @@ export default function AdminEventsManager() {
   };
 
   const handleCopyPublicLink = (slug) => {
-    const url = `${window.location.origin}/event/${slug}`;
+    const url = `${window.location.origin}/#fest/${slug}`;
     navigator.clipboard.writeText(url);
     setCopiedSlug(slug);
     setTimeout(() => setCopiedSlug(''), 2000);

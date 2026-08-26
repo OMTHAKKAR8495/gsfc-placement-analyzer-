@@ -39,6 +39,7 @@ export const resolveBaseWorkspace = (rawHash) => {
   }
   if (
     clean.startsWith('fest') ||
+    clean.startsWith('event') ||
     clean.startsWith('guest') ||
     clean.startsWith('event-pass') ||
     clean === 'events' ||
