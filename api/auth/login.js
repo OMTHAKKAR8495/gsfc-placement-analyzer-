@@ -23,59 +23,39 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Email and password are required.' });
     }
 
-    const isCompanyEmail = cleanEmail.includes('hr') || cleanEmail.includes('company') || cleanEmail.includes('recruiter') || cleanEmail.includes('gsfclimited');
-    const isAdminEmail = cleanEmail.includes('admin') || cleanEmail.includes('tpc');
-    const isFacultyEmail = cleanEmail.includes('faculty') || cleanEmail.includes('neeshuchaudhary') || cleanEmail.includes('prof') || cleanEmail.includes('dr');
-    const isAlumniEmail = cleanEmail.includes('alumni') || cleanEmail.includes('alum');
-
-    const detectedRole = isAdminEmail ? 'admin' : (isFacultyEmail ? 'faculty' : (isCompanyEmail ? 'company' : (isAlumniEmail ? 'alumni' : 'student')));
-
-    // Role cross validation
-    if (selectedRole && selectedRole !== detectedRole && !(selectedRole === 'admin' && detectedRole === 'superadmin')) {
-      const actualLabel = detectedRole === 'company' ? 'company recruiter' : detectedRole;
-      const article = ['a', 'e', 'i', 'o', 'u'].includes(actualLabel[0]) ? 'an' : 'a';
-      return res.status(403).json({
-        error: `Access Denied: This account is registered as ${article} ${actualLabel}. Please use the ${actualLabel} portal.`
-      });
-    }
-
-    // TPC Admin Student Authorization Gatekeeping
-    if (selectedRole === 'student' || detectedRole === 'student') {
-      const authorizedDefaultPrefixes = [
-        '24bt04171',
-        'thakkar_om',
-        'student',
-        'tanvi.j',
-        'arav.sharma',
-        'rahul.verma',
-        '21bce045',
-        '21bce042',
-        '22bce108',
-        '22bch012',
-        '21bme034',
-        'omthakkar'
-      ];
-
-      const prefix = cleanEmail.split('@')[0];
-      const isPreAuthorized = authorizedDefaultPrefixes.some(p => cleanEmail.includes(p) || prefix === p);
-
-      if (!isPreAuthorized && !cleanEmail.endsWith('@gsfcuniversity.ac.in') && !cleanEmail.endsWith('@student.gsfc.ac.in')) {
-        return res.status(403).json({
-          error: 'Access Denied: Your enrollment/email has not been registered by TPC Admin. Only students added by TPC can access the portal. Please contact GSFC University Training & Placement Cell (TPC) to get enrolled.'
-        });
-      }
-    }
+    const finalRole = selectedRole || 'company';
 
     const token = 'jwt_token_' + Date.now();
     const emailPrefix = cleanEmail.split('@')[0].toUpperCase();
+    const formattedCompanyName = cleanEmail.split('@')[0].replace(/[._-]/g, ' ').split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
 
     let userPayload = {
       id: 'u_' + cleanEmail.replace(/[^a-zA-Z0-9]/g, '_'),
       email: cleanEmail,
-      role: selectedRole || detectedRole,
-      name: selectedRole === 'admin' ? 'TPC Director' : (selectedRole === 'faculty' ? 'Dr. Neeshu Chaudhary' : (selectedRole === 'company' ? 'Corporate Recruiter' : (selectedRole === 'alumni' ? 'GSFC Alumni Mentor' : 'Om Thakkar'))),
-      owner_id: 's_' + cleanEmail.replace(/[^a-zA-Z0-9]/g, '_'),
-      profile: {
+      role: finalRole,
+      name: finalRole === 'admin' ? 'TPC Director' : (finalRole === 'faculty' ? 'Dr. Neeshu Chaudhary' : (finalRole === 'company' ? `${formattedCompanyName} Recruiter` : (finalRole === 'alumni' ? 'GSFC Alumni Mentor' : 'Om Thakkar'))),
+      owner_id: (finalRole === 'company' ? 'c_' : 's_') + cleanEmail.replace(/[^a-zA-Z0-9]/g, '_'),
+      profile: finalRole === 'company' ? {
+        id: 'c_' + cleanEmail.replace(/[^a-zA-Z0-9]/g, '_'),
+        company_name: `${formattedCompanyName} Technologies`,
+        industry: 'Information Technology & Engineering Services',
+        location: 'Vadodara / Pan-India Hybrid',
+        contact_email: cleanEmail,
+        phone: '+91 95584 13347',
+        verified: 1,
+        tier: 'Platinum Recruiter',
+        logo_url: 'https://images.unsplash.com/photo-1542744094-3a31b272c490?w=100&auto=format&fit=crop&q=60'
+      } : (finalRole === 'admin' ? {
+        id: 'a_' + cleanEmail.replace(/[^a-zA-Z0-9]/g, '_'),
+        name: 'GSFC TPC Director',
+        department: 'Training & Placement Cell',
+        phone: '+91 95584 13347'
+      } : (finalRole === 'faculty' ? {
+        id: 'f_' + cleanEmail.replace(/[^a-zA-Z0-9]/g, '_'),
+        name: 'Dr. Neeshu Chaudhary',
+        department: 'Computer Science & Engineering',
+        phone: '+91 95584 13347'
+      } : {
         id: 's_' + cleanEmail.replace(/[^a-zA-Z0-9]/g, '_'),
         name: 'Om Thakkar',
         program: 'BTech CSE',
@@ -83,7 +63,7 @@ export default async function handler(req, res) {
         cgpa: 8.9,
         roll_number: emailPrefix.startsWith('24') || emailPrefix.startsWith('23') || emailPrefix.startsWith('22') ? emailPrefix : '24BT04171',
         phone: '+91 95584 13347'
-      }
+      }))
     };
 
     return res.status(200).json({

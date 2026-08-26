@@ -468,23 +468,13 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialRole 
         localStorage.setItem('campushire_token', data.token);
         onAuthSuccess(data.user);
         onClose();
-      }
-    } catch (err) {
-      // Check offline cross-validation safety
-      const isFacultyEmail = account.email.includes('faculty');
-      const isAdminEmail = account.email.includes('admin') || account.email.includes('director');
-      const isCompanyEmail = account.email.includes('company') || account.email.includes('recruiter') || account.email.includes('hr');
-      const isAlumniEmail = account.email.includes('alumni');
-      const isStudentEmail = !isFacultyEmail && !isAdminEmail && !isCompanyEmail && !isAlumniEmail;
-
-      const detectedRole = isFacultyEmail ? 'faculty' : (isAdminEmail ? 'admin' : (isCompanyEmail ? 'company' : (isAlumniEmail ? 'alumni' : 'student')));
-      if (detectedRole !== role && isLogin) {
-        const displayActual = detectedRole === 'company' ? 'company recruiter' : (detectedRole === 'faculty' ? 'faculty' : (detectedRole === 'admin' ? 'admin' : 'student'));
-        const article = (displayActual.startsWith('a') || displayActual.startsWith('e') || displayActual.startsWith('i') || displayActual.startsWith('o') || displayActual.startsWith('u')) ? 'an' : 'a';
-        setError(`Access Denied: This account is registered as ${article} ${displayActual}. Please use the ${displayActual} portal.`);
         return;
       }
-
+      const fallbackUser = createFallbackUser(role, account.email, account.name);
+      localStorage.setItem('campushire_token', 'demo_token_' + Date.now());
+      onAuthSuccess(fallbackUser);
+      onClose();
+    } catch (err) {
       const fallbackUser = createFallbackUser(role, account.email, account.name);
       localStorage.setItem('campushire_token', 'demo_token_' + Date.now());
       onAuthSuccess(fallbackUser);
@@ -560,22 +550,6 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialRole 
         return;
       }
     } catch (err) {
-
-      // Offline fallback cross-validation check
-      const email = formData.email.toLowerCase();
-      const isFacultyEmail = email.includes('faculty');
-      const isAdminEmail = email.includes('admin') || email.includes('tpc');
-      const isCompanyEmail = email.includes('company') || email.includes('recruiter') || email.includes('hr') || email.includes('gsfclimited');
-      const isAlumniEmail = email.includes('alumni');
-      const detectedRole = isFacultyEmail ? 'faculty' : (isAdminEmail ? 'admin' : (isCompanyEmail ? 'company' : (isAlumniEmail ? 'alumni' : 'student')));
-
-      if (detectedRole !== role && isLogin && email.length > 0) {
-        const displayActual = detectedRole === 'company' ? 'company recruiter' : (detectedRole === 'faculty' ? 'faculty' : (detectedRole === 'admin' ? 'admin' : 'student'));
-        const article = (displayActual.startsWith('a') || displayActual.startsWith('e') || displayActual.startsWith('i') || displayActual.startsWith('o') || displayActual.startsWith('u')) ? 'an' : 'a';
-        setError(`Access Denied: This account is registered as ${article} ${displayActual}. Please use the ${displayActual} portal.`);
-        return;
-      }
-
       // Safe fallback for demo environment
       const fallbackUser = createFallbackUser(role, formData.email, formData.name);
       localStorage.setItem('campushire_token', 'demo_token_' + Date.now());
