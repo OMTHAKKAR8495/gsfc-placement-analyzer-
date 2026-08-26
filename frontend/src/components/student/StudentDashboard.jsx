@@ -1467,6 +1467,7 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
 
         {/* Tab Navigation Segment */}
         <div className="flex items-center gap-2.5 sm:gap-3.5 mt-6 sm:mt-8 border-t border-slate-200/90 dark:border-slate-800 pt-5 overflow-x-auto max-w-full pb-2 scrollbar-thin">
+          {/* 1. LIVE DRIVES */}
           <button
             onClick={() => handleTabChange('feed')}
             className={`flex items-center gap-2 px-4 sm:px-5 py-2.5 rounded-2xl text-xs sm:text-sm font-black transition-all shrink-0 whitespace-nowrap cursor-pointer ${
@@ -1479,19 +1480,34 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
             <span>💼 Live Drives</span>
           </button>
 
-          {/* 🏆 LEADERBOARD TAB BUTTON */}
+          {/* 2. SMART RESUME ATS (MOVED AHEAD) */}
           <button
-            onClick={() => handleTabChange('leaderboard')}
+            onClick={() => handleTabChange('profile')}
             className={`flex items-center gap-2 px-4 sm:px-5 py-2.5 rounded-2xl text-xs sm:text-sm font-black transition-all shrink-0 whitespace-nowrap cursor-pointer ${
-              activeTab === 'leaderboard'
-                ? 'bg-gradient-to-r from-amber-500 to-indigo-700 text-white shadow-lg scale-105 border border-amber-300/40 ring-2 ring-amber-400/30'
+              activeTab === 'profile'
+                ? 'bg-theme-gradient text-white shadow-lg scale-105 ring-2 ring-blue-500/30'
                 : 'text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
             }`}
           >
-            <Trophy className="w-4 h-4 text-amber-400" />
-            <span>🏆 Leaderboard & Badges</span>
+            <FileText className="w-4 h-4 text-blue-400" />
+            <span>📄 Smart Resume ATS</span>
           </button>
 
+          {/* 3. LIVE MEETINGS & VIDEO INTERVIEWS */}
+          <button
+            onClick={() => handleTabChange('video_interviews')}
+            className={`flex items-center gap-2 px-4 sm:px-5 py-2.5 rounded-2xl text-xs sm:text-sm font-black transition-all shrink-0 whitespace-nowrap cursor-pointer ${
+              activeTab === 'video_interviews'
+                ? 'bg-gradient-to-r from-emerald-600 to-teal-700 text-white shadow-lg ring-2 ring-emerald-400/40 scale-105'
+                : 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-900 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700 hover:bg-emerald-100'
+            }`}
+            title="Join live recruiter interviews and faculty mock panels"
+          >
+            <Video className="w-4 h-4 text-emerald-600 dark:text-emerald-400 animate-pulse" />
+            <span>📹 Live Meetings ({studentMeetings.length})</span>
+          </button>
+
+          {/* 4. AI PLACEMENT INTELLIGENCE HUB */}
           <button
             onClick={() => handleTabChange('intelligence')}
             className={`flex items-center gap-2 px-4 sm:px-5 py-2.5 rounded-2xl text-xs sm:text-sm font-black transition-all shrink-0 whitespace-nowrap cursor-pointer ${
@@ -1504,6 +1520,20 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
             <span>🚀 AI Placement Intelligence Hub</span>
           </button>
 
+          {/* 5. LEADERBOARD & BADGES */}
+          <button
+            onClick={() => handleTabChange('leaderboard')}
+            className={`flex items-center gap-2 px-4 sm:px-5 py-2.5 rounded-2xl text-xs sm:text-sm font-black transition-all shrink-0 whitespace-nowrap cursor-pointer ${
+              activeTab === 'leaderboard'
+                ? 'bg-gradient-to-r from-amber-500 to-indigo-700 text-white shadow-lg scale-105 border border-amber-300/40 ring-2 ring-amber-400/30'
+                : 'text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
+            }`}
+          >
+            <Trophy className="w-4 h-4 text-amber-400" />
+            <span>🏆 Leaderboard & Badges</span>
+          </button>
+
+          {/* 6. JOB FAIRS & CONCLAVES */}
           <button
             onClick={() => handleTabChange('job_fairs')}
             className={`flex items-center gap-2 px-4 sm:px-5 py-2.5 rounded-2xl text-xs sm:text-sm font-black transition-all shrink-0 whitespace-nowrap cursor-pointer ${
@@ -1516,47 +1546,7 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
             <span>Job Fairs & Conclaves</span>
           </button>
 
-          <button
-            onClick={() => setEcosystemModalOpen(true)}
-            className="flex items-center gap-2 px-4 sm:px-5 py-2.5 rounded-2xl text-xs sm:text-sm font-black transition-all shrink-0 whitespace-nowrap bg-gradient-to-r from-blue-900 via-indigo-900 to-amber-600 text-white shadow-md border border-amber-400/40 hover:scale-105 cursor-pointer"
-          >
-            <Globe className="w-4 h-4 text-amber-300 animate-pulse" />
-            <span>🌐 Pool Campus & Assessment Studio</span>
-          </button>
-
-          <button
-            onClick={() => handleTabChange('alumni')}
-            className={`flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl text-xs font-black transition-all shrink-0 whitespace-nowrap cursor-pointer ${
-              activeTab === 'alumni'
-                ? 'bg-theme-gradient text-white shadow-lg'
-                : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100/80'
-            }`}
-          >
-            <Award className="w-4 h-4 text-blue-400" /> Alumni Mentorship
-          </button>
-
-          <button
-            onClick={() => handleTabChange('qa')}
-            className={`flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl text-xs font-black transition-all shrink-0 whitespace-nowrap cursor-pointer ${
-              activeTab === 'qa'
-                ? 'bg-theme-gradient text-white shadow-lg'
-                : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100/80'
-            }`}
-          >
-            <HelpCircle className="w-4 h-4 text-cyan-400" /> Community Q&A
-          </button>
-
-          <button
-            onClick={() => handleTabChange('profile')}
-            className={`flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl text-xs font-black transition-all shrink-0 whitespace-nowrap cursor-pointer ${
-              activeTab === 'profile'
-                ? 'bg-theme-gradient text-white shadow-lg'
-                : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100/80'
-            }`}
-          >
-            <FileText className="w-4 h-4" /> Smart Resume ATS
-          </button>
-
+          {/* 7. MY APPLICATIONS */}
           <button
             onClick={() => handleTabChange('applications')}
             className={`flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl text-xs font-black transition-all shrink-0 whitespace-nowrap cursor-pointer ${
@@ -1568,6 +1558,7 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
             <Award className="w-4 h-4" /> My Applications ({applications.length})
           </button>
 
+          {/* 8. MY ASSESSMENTS & TESTS */}
           <button
             onClick={() => handleTabChange('assessments')}
             className={`flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl text-xs font-black transition-all shrink-0 whitespace-nowrap cursor-pointer ${
@@ -1579,19 +1570,40 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
             <CheckCircle2 className="w-4 h-4 text-emerald-400" /> My Assessments & Tests ({assessmentsList.length + interviewsList.length})
           </button>
 
+          {/* 9. ALUMNI MENTORSHIP */}
           <button
-            onClick={() => handleTabChange('video_interviews')}
+            onClick={() => handleTabChange('alumni')}
             className={`flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl text-xs font-black transition-all shrink-0 whitespace-nowrap cursor-pointer ${
-              activeTab === 'video_interviews'
-                ? 'bg-gradient-to-r from-emerald-600 to-teal-700 text-white shadow-lg ring-2 ring-emerald-400/40'
-                : 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-900 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700 hover:bg-emerald-100'
+              activeTab === 'alumni'
+                ? 'bg-theme-gradient text-white shadow-lg'
+                : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100/80'
             }`}
-            title="Join live recruiter interviews and faculty mock panels"
           >
-            <Video className="w-4 h-4 text-emerald-600 dark:text-emerald-400 animate-pulse" />
-            <span>📹 Live Meetings ({studentMeetings.length})</span>
+            <Award className="w-4 h-4 text-blue-400" /> Alumni Mentorship
           </button>
 
+          {/* 10. COMMUNITY Q&A */}
+          <button
+            onClick={() => handleTabChange('qa')}
+            className={`flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl text-xs font-black transition-all shrink-0 whitespace-nowrap cursor-pointer ${
+              activeTab === 'qa'
+                ? 'bg-theme-gradient text-white shadow-lg'
+                : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100/80'
+            }`}
+          >
+            <HelpCircle className="w-4 h-4 text-cyan-400" /> Community Q&A
+          </button>
+
+          {/* 11. POOL CAMPUS */}
+          <button
+            onClick={() => setEcosystemModalOpen(true)}
+            className="flex items-center gap-2 px-4 sm:px-5 py-2.5 rounded-2xl text-xs sm:text-sm font-black transition-all shrink-0 whitespace-nowrap bg-gradient-to-r from-blue-900 via-indigo-900 to-amber-600 text-white shadow-md border border-amber-400/40 hover:scale-105 cursor-pointer"
+          >
+            <Globe className="w-4 h-4 text-amber-300 animate-pulse" />
+            <span>🌐 Pool Campus & Assessment Studio</span>
+          </button>
+
+          {/* 12. AI CAREER COPILOT */}
           <button
             onClick={() => setCopilotOpen(true)}
             className="flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl text-xs font-black transition-all shrink-0 whitespace-nowrap bg-purple-900 hover:bg-purple-800 text-white shadow-md border border-purple-400/40 hover:scale-105 cursor-pointer"
