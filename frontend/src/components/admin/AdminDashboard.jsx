@@ -5,7 +5,7 @@ import {
   Printer, CheckCircle, Trash2, Calendar, Filter, SlidersHorizontal, Layers, 
   CheckSquare, Square, RefreshCw, Eye, EyeOff, GraduationCap, Award, Check, FileText, X, HelpCircle, Globe, Sliders, MapPin,
   Clock, Activity, History, AlertCircle, ExternalLink, Lock, KeyRound, ChevronLeft, ChevronRight, UserCheck, RotateCcw, Smartphone, Laptop,
-  PlusCircle, QrCode, Crown, DollarSign, Video, Plus, UserPlus, AlertTriangle, Upload, Edit3
+  PlusCircle, QrCode, Crown, DollarSign, Video, Plus, UserPlus, AlertTriangle, Upload, Edit3, Mail, Phone
 } from 'lucide-react';
 
 
