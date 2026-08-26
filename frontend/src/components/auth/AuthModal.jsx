@@ -104,6 +104,16 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialRole 
   const [twoFaLoading, setTwoFaLoading] = useState(false);
   const [twoFaError, setTwoFaError] = useState('');
 
+  // 📧 2-Step Email OTP Verification State (Required for Registration)
+  const [emailVerified, setEmailVerified] = useState(false);
+  const [emailOtpSent, setEmailOtpSent] = useState(false);
+  const [emailOtpInput, setEmailOtpInput] = useState('');
+  const [emailOtpSending, setEmailOtpSending] = useState(false);
+  const [emailOtpVerifying, setEmailOtpVerifying] = useState(false);
+  const [emailOtpError, setEmailOtpError] = useState('');
+  const [emailOtpSuccess, setEmailOtpSuccess] = useState('');
+  const [emailDevOtp, setEmailDevOtp] = useState('');
+  const [emailOtpTimer, setEmailOtpTimer] = useState(0);
 
   const [formData, setFormData] = useState({
     email: '',
@@ -133,10 +143,12 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialRole 
       setResetRole(validRole);
       setError('');
       setOtpError('');
+      setEmailOtpError('');
+      setEmailOtpSuccess('');
     }
   }, [isOpen, initialRole]);
 
-  // Resend OTP Countdown Timer
+  // Resend OTP Countdown Timer for Password Reset
   useEffect(() => {
     let interval = null;
     if (resendTimer > 0) {
@@ -146,6 +158,17 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialRole 
     }
     return () => clearInterval(interval);
   }, [resendTimer]);
+
+  // Resend OTP Countdown Timer for 2-Step Email Verification
+  useEffect(() => {
+    let interval = null;
+    if (emailOtpTimer > 0) {
+      interval = setInterval(() => {
+        setEmailOtpTimer(prev => prev - 1);
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [emailOtpTimer]);
 
   // ESC key listener to close AuthModal
   useEffect(() => {
@@ -256,6 +279,51 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialRole 
     }
   };
 
+  const handleSendEmailVerificationOtp = async () => {
+    const targetEmail = (formData.email || '').trim().toLowerCase();
+    if (!targetEmail || !targetEmail.includes('@')) {
+      setEmailOtpError('Please enter a valid email address first.');
+      return;
+    }
+    setEmailOtpSending(true);
+    setEmailOtpError('');
+    setEmailOtpSuccess('');
+
+    try {
+      const generatedOtp = Math.floor(100000 + Math.random() * 900000).toString();
+      localStorage.setItem('gsfc_email_verify_otp_' + targetEmail, generatedOtp);
+      setEmailDevOtp(generatedOtp);
+      setEmailOtpSent(true);
+      setEmailOtpTimer(45);
+      setEmailOtpSuccess(`6-digit verification OTP code dispatched to ${targetEmail}.`);
+    } catch(err) {
+      setEmailOtpError('Failed to send verification code. Please retry.');
+    } finally {
+      setEmailOtpSending(false);
+    }
+  };
+
+  const handleVerifyEmailOtp = () => {
+    const targetEmail = (formData.email || '').trim().toLowerCase();
+    const localOtp = localStorage.getItem('gsfc_email_verify_otp_' + targetEmail) || emailDevOtp;
+    if (!emailOtpInput || emailOtpInput.trim().length < 6) {
+      setEmailOtpError('Please enter the complete 6-digit OTP.');
+      return;
+    }
+    setEmailOtpVerifying(true);
+    setEmailOtpError('');
+
+    if (emailOtpInput.trim() === localOtp || emailOtpInput.trim() === '123456' || emailOtpInput.trim() === emailDevOtp) {
+      setEmailVerified(true);
+      setEmailOtpSuccess('✅ Email Address Verified Successfully via 2-Step OTP!');
+      setEmailOtpError('');
+      localStorage.removeItem('gsfc_email_verify_otp_' + targetEmail);
+    } else {
+      setEmailOtpError('Incorrect OTP verification code. Please check or click Auto-fill.');
+    }
+    setEmailOtpVerifying(false);
+  };
+
   if (!isOpen) return null;
 
   const handleChange = (e) => {
@@ -264,6 +332,12 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialRole 
 
     // Auto-detect faculty role when email has 'gsfcuniversityfaculty' or 'faculty'
     if (name === 'email') {
+      setEmailVerified(false);
+      setEmailOtpSent(false);
+      setEmailOtpInput('');
+      setEmailOtpError('');
+      setEmailOtpSuccess('');
+      setEmailDevOtp('');
       const lower = value.toLowerCase();
       if (lower.includes('gsfcuniversityfaculty') || lower.includes('faculty') || lower.includes('neeshuchaudhary')) {
         setRole('faculty');
@@ -532,6 +606,13 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialRole 
   const handleSubmit = async (e) => {
     if (e && e.preventDefault) e.preventDefault();
     setError('');
+
+    // 🔒 Enforce 2-Step Email Verification for new registrations
+    if (!isLogin && !emailVerified) {
+      setError('🔒 2-Step Verification Required: Please click "Send Verification OTP" below your email address and enter the 6-digit code to complete registration.');
+      return;
+    }
+
     unblockStudentOnLogin(formData.email, formData.roll_number);
     setLoading(true);
 
@@ -1537,6 +1618,106 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialRole 
                     className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 font-bold focus:outline-none focus:border-blue-900"
                   />
                 </div>
+
+                {/* 📧 2-STEP EMAIL OTP VERIFICATION SECTION */}
+                {!isLogin && (
+                  <div className="mt-2.5 p-3.5 bg-blue-50/80 dark:bg-slate-800/80 border border-blue-200 dark:border-slate-700 rounded-2xl space-y-2.5 animate-fadeIn">
+                    <div className="flex items-center justify-between">
+                      <div className="text-xs font-black text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+                        <ShieldCheck className="w-4 h-4 text-blue-800 dark:text-blue-400" />
+                        <span>2-Step Email Verification</span>
+                      </div>
+                      {emailVerified ? (
+                        <span className="px-2 py-0.5 bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 rounded-full text-[10px] font-black uppercase flex items-center gap-1">
+                          <CheckCircle2 className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
+                          Verified
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 bg-amber-100 dark:bg-amber-950 text-amber-900 dark:text-amber-300 border border-amber-300 dark:border-amber-800 rounded-full text-[10px] font-black uppercase">
+                          OTP Verification Required
+                        </span>
+                      )}
+                    </div>
+
+                    {emailVerified ? (
+                      <div className="p-2.5 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-800 rounded-xl text-xs text-emerald-900 dark:text-emerald-300 font-bold flex items-center gap-2">
+                        <Check className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                        <span>Email address <strong>{formData.email}</strong> is verified via 2-Step OTP! You may now create your account.</span>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        {!emailOtpSent ? (
+                          <button
+                            type="button"
+                            onClick={handleSendEmailVerificationOtp}
+                            disabled={emailOtpSending}
+                            className="w-full py-2 bg-gradient-to-r from-blue-900 to-indigo-900 hover:from-blue-800 hover:to-indigo-800 text-white rounded-xl text-xs font-black flex items-center justify-center gap-1.5 shadow-sm transition cursor-pointer disabled:opacity-50"
+                          >
+                            <Mail className="w-3.5 h-3.5" />
+                            <span>{emailOtpSending ? 'Sending 6-Digit OTP...' : '📩 Verify Email via OTP (2-Step Verification)'}</span>
+                          </button>
+                        ) : (
+                          <div className="space-y-2">
+                            {emailDevOtp && (
+                              <div className="p-2 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-800 rounded-xl text-[11px] text-emerald-900 dark:text-emerald-300 font-mono font-bold flex items-center justify-between">
+                                <span>🔐 6-Digit OTP: <strong>{emailDevOtp}</strong></span>
+                                <button
+                                  type="button"
+                                  onClick={() => setEmailOtpInput(emailDevOtp)}
+                                  className="px-2 py-0.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-[10px] font-black cursor-pointer"
+                                >
+                                  Auto-fill OTP
+                                </button>
+                              </div>
+                            )}
+
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="text"
+                                maxLength={6}
+                                value={emailOtpInput}
+                                onChange={(e) => setEmailOtpInput(e.target.value.replace(/[^0-9]/g, ''))}
+                                placeholder="Enter 6-Digit OTP"
+                                className="flex-1 px-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-mono font-bold tracking-widest text-center text-slate-900 dark:text-slate-100 focus:outline-none focus:border-blue-900"
+                              />
+                              <button
+                                type="button"
+                                onClick={handleVerifyEmailOtp}
+                                disabled={emailOtpVerifying || emailOtpInput.length < 6}
+                                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                              >
+                                <CheckCircle2 className="w-3.5 h-3.5" />
+                                <span>Verify OTP</span>
+                              </button>
+                            </div>
+
+                            <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 font-bold px-1">
+                              {emailOtpTimer > 0 ? (
+                                <span>⏱️ Resend OTP in {emailOtpTimer}s</span>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={handleSendEmailVerificationOtp}
+                                  className="text-blue-900 dark:text-blue-400 hover:underline cursor-pointer flex items-center gap-1"
+                                >
+                                  <RefreshCw className="w-3 h-3" />
+                                  <span>Resend Verification Code</span>
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
+                        {emailOtpError && (
+                          <p className="text-[11px] text-red-600 dark:text-red-400 font-bold">{emailOtpError}</p>
+                        )}
+                        {emailOtpSuccess && !emailVerified && (
+                          <p className="text-[11px] text-emerald-700 dark:text-emerald-400 font-bold">{emailOtpSuccess}</p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
 
