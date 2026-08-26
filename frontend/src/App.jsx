@@ -453,7 +453,7 @@ function App() {
       });
 
       if (res.status === 204) {
-        // Server acknowledged active session; keep localStorage user
+        // Server acknowledged active session; keep localStorage user intact
         return;
       }
 
@@ -461,23 +461,29 @@ function App() {
         const data = await res.json();
         if (data && data.user) {
           const freshUser = data.user;
-          try {
-            const userEmail = (freshUser.email || '').toLowerCase();
-            const savedAvatar = userEmail ? (localStorage.getItem('gsfc_user_avatar_' + userEmail) || freshUser.profile?.photo_url || '') : '';
-            if (savedAvatar) {
-              if (!freshUser.profile) freshUser.profile = {};
-              freshUser.profile.avatar_url = savedAvatar;
-            }
-          } catch(e) {}
+          const localEmail = (localUser?.email || '').toLowerCase().trim();
+          const freshEmail = (freshUser?.email || '').toLowerCase().trim();
 
-          setCurrentUser(freshUser);
-          localStorage.setItem('campushire_user', JSON.stringify(freshUser));
-          
-          const currentHash = window.location.hash.replace('#', '');
-          const baseHash = resolveBaseWorkspace(currentHash);
-          if (currentHash && isRoleAllowedInWorkspace(freshUser, baseHash)) {
-            setActiveRole(baseHash);
-            localStorage.setItem('gsfc_active_workspace', baseHash);
+          // Only merge if the session email and role match, preventing account switching
+          if (!localUser || (localEmail && freshEmail && localEmail === freshEmail) || localUser.role === freshUser.role) {
+            const mergedUser = {
+              ...localUser,
+              ...freshUser,
+              role: localUser?.role || freshUser.role,
+              profile: { ...(localUser?.profile || {}), ...(freshUser.profile || {}) }
+            };
+
+            try {
+              const userEmail = (mergedUser.email || '').toLowerCase();
+              const savedAvatar = userEmail ? (localStorage.getItem('gsfc_user_avatar_' + userEmail) || mergedUser.profile?.photo_url || '') : '';
+              if (savedAvatar) {
+                if (!mergedUser.profile) mergedUser.profile = {};
+                mergedUser.profile.avatar_url = savedAvatar;
+              }
+            } catch(e) {}
+
+            setCurrentUser(mergedUser);
+            localStorage.setItem('campushire_user', JSON.stringify(mergedUser));
           }
         }
       }
