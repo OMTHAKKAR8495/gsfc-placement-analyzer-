@@ -139,12 +139,21 @@ export default function LiveVideoMeetingRoom({ roomId, currentUser, onLeaveRoom 
       setChatMessages(data.chatMessages || []);
       setViolationsList(data.violations || []);
 
-      // Check if student was previously ejected from this meeting
+      // Check if student was previously ejected from this meeting (Server DB or Local Storage)
       if (isStudent) {
+        const localEjected = localStorage.getItem(`gsfc_meeting_ejected_${roomId}`) === 'true';
+        let disqualifiedRooms = [];
+        try { disqualifiedRooms = JSON.parse(localStorage.getItem('gsfc_disqualified_meeting_rooms') || '[]'); } catch(e) {}
+        const isDisqualifiedLocally = localEjected || (Array.isArray(disqualifiedRooms) && disqualifiedRooms.includes(roomId));
+
         const myPart = (data.participants || []).find(p => p.user_id === currentUser?.id || p.student_id === currentUser?.profile?.id);
-        if (myPart && myPart.join_status === 'ejected') {
+        const isServerEjected = myPart && (myPart.join_status === 'ejected' || myPart.join_status === 'disqualified');
+
+        if (isDisqualifiedLocally || isServerEjected) {
           setIsEjected(true);
-          setEjectionReason('You were previously disqualified from this interview session due to an anti-cheating flag.');
+          setEjectionReason('Anti-Cheating Policy Violation: You have been permanently disqualified from this interview session due to tab-switch or window blur. Re-entry is strictly prohibited by TPC placement regulations.');
+          setLoading(false);
+          return;
         }
       }
 
@@ -496,6 +505,36 @@ export default function LiveVideoMeetingRoom({ roomId, currentUser, onLeaveRoom 
   const triggerStudentEjection = (violationType, details) => {
     setIsEjected(true);
     setEjectionReason(`Anti-Cheating Policy Violation: ${details}`);
+
+    // Persist ejection state permanently
+    try {
+      localStorage.setItem(`gsfc_meeting_ejected_${roomId}`, 'true');
+      localStorage.setItem(`gsfc_meeting_ejection_reason_${roomId}`, details);
+      localStorage.setItem(`gsfc_ejected_timestamp_${roomId}`, new Date().toISOString());
+
+      let disqualifiedRooms = [];
+      try { disqualifiedRooms = JSON.parse(localStorage.getItem('gsfc_disqualified_meeting_rooms') || '[]'); } catch(e) {}
+      if (!disqualifiedRooms.includes(roomId)) {
+        disqualifiedRooms.push(roomId);
+        localStorage.setItem('gsfc_disqualified_meeting_rooms', JSON.stringify(disqualifiedRooms));
+      }
+
+      // Update student meetings roster
+      const rawMeetings = localStorage.getItem('gsfc_student_meetings');
+      if (rawMeetings) {
+        let meetings = JSON.parse(rawMeetings);
+        meetings = meetings.map(m => {
+          if (m.room_code === roomId || m.room_id === roomId || m.id === roomId) {
+            return { ...m, is_disqualified: true, outcome_status: 'disqualified', join_status: 'disqualified' };
+          }
+          return m;
+        });
+        localStorage.setItem('gsfc_student_meetings', JSON.stringify(meetings));
+      }
+
+      window.dispatchEvent(new CustomEvent('gsfc-meeting-disqualified', { detail: { roomId, details, violationType } }));
+    } catch(e) {}
+
     cleanupMeeting();
   };
 

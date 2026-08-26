@@ -2484,7 +2484,15 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
                     e.preventDefault();
                     const clean = (customRoomInput || '').trim().replace(/^.*#meeting\//, '').replace(/^.*meeting\//, '');
                     if (!clean) {
-                      alert('Please enter a valid Meeting Room ID (e.g. gsfc-google-ai-101)');
+                      showToast({ type: 'warning', title: 'Input Required', message: 'Please enter a valid Meeting Room ID (e.g. gsfc-google-ai-101)' });
+                      return;
+                    }
+                    if (localStorage.getItem(`gsfc_meeting_ejected_${clean}`) === 'true') {
+                      showToast({
+                        type: 'error',
+                        title: '⛔ Access Denied: Disqualified',
+                        message: 'You have been permanently disqualified from this interview room due to an anti-cheating policy violation. Re-entry is strictly prohibited by TPC placement regulations.'
+                      });
                       return;
                     }
                     window.location.hash = `#meeting/${clean}`;
@@ -2546,8 +2554,8 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
                   {studentMeetings.map(m => {
                     const isLive = m.status === 'live';
                     const isCompleted = m.status === 'completed';
-                    const isEjected = m.join_status === 'ejected';
-                    const roomCode = m.room_id || m.id;
+                    const roomCode = m.room_id || m.id || m.room_code;
+                    const isEjected = m.join_status === 'ejected' || m.join_status === 'disqualified' || m.is_disqualified || localStorage.getItem(`gsfc_meeting_ejected_${roomCode}`) === 'true';
                     const fullLink = `${window.location.origin}/#meeting/${roomCode}`;
 
                     return (
