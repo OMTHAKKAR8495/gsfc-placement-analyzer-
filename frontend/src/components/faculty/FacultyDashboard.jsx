@@ -3,7 +3,7 @@ import {
   Users, Award, Filter, Search, Eye, X, Briefcase, FileText, Clock,
   MessageSquare, Database, ChevronDown, ChevronUp, Building2, Download,
   Phone, Mail, ShieldCheck, CheckCircle, XCircle, AlertCircle, Send, ExternalLink,
-  RefreshCw, Check, Sparkles, QrCode
+  RefreshCw, Check, Sparkles, QrCode, Edit3, CheckCircle2
 } from 'lucide-react';
 
 import QABoard from '../common/QABoard';
