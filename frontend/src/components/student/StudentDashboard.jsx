@@ -173,9 +173,60 @@ export const ensureString = (val, fallback = '') => {
   return fallback;
 };
 
+const DEFAULT_STUDENT_MEETINGS = [
+  {
+    id: 'meet_google_sde_101',
+    room_id: 'gsfc-google-ai-101',
+    title: 'Google Cloud India — SDE Technical Interview & Live Coding',
+    company_name: 'Google Cloud India',
+    drive_title: 'Software Development Engineer - Cloud & AI (₹28.00 LPA)',
+    scheduled_at: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
+    duration_minutes: 45,
+    status: 'live',
+    join_status: 'ready',
+    meeting_link: '#meeting/gsfc-google-ai-101'
+  },
+  {
+    id: 'meet_tcs_digital_102',
+    room_id: 'gsfc-tcs-digital-202',
+    title: 'TCS Digital — Technical Assessment & System Design Review',
+    company_name: 'Tata Consultancy Services (TCS)',
+    drive_title: 'TCS Digital Prime (₹9.00 LPA)',
+    scheduled_at: new Date(Date.now() + 2 * 3600 * 1000).toISOString(),
+    duration_minutes: 30,
+    status: 'scheduled',
+    join_status: 'ready',
+    meeting_link: '#meeting/gsfc-tcs-digital-202'
+  },
+  {
+    id: 'meet_tpc_mock_103',
+    room_id: 'gsfc-tpc-mock-303',
+    title: 'GSFC TPC Placement Cell — 1-on-1 Faculty Mock Technical Panel',
+    company_name: 'GSFC University Training & Placement Cell',
+    drive_title: 'Campus Placement Readiness Coaching',
+    scheduled_at: new Date(Date.now() + 24 * 3600 * 1000).toISOString(),
+    duration_minutes: 30,
+    status: 'scheduled',
+    join_status: 'ready',
+    meeting_link: '#meeting/gsfc-tpc-mock-303'
+  }
+];
+
+const getInitialStudentMeetings = () => {
+  try {
+    const raw = localStorage.getItem('gsfc_student_meetings');
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
+  } catch(e) {}
+  return DEFAULT_STUDENT_MEETINGS;
+};
+
 export const getInitialTab = () => {
   try {
     const hash = (window.location.hash || '').toLowerCase();
+    if (hash.includes('meet') || hash.includes('video') || hash.includes('room')) return 'video_interviews';
     if (hash.includes('leaderboard') || hash.includes('badge') || hash.includes('points') || hash.includes('rank')) return 'leaderboard';
     if (hash.includes('intelligence') || hash.includes('copilot') || hash.includes('readiness') || hash.includes('sandbox')) return 'intelligence';
     if (hash.includes('qa') || hash.includes('community') || hash.includes('doubt')) return 'qa';
@@ -185,7 +236,7 @@ export const getInitialTab = () => {
     if (hash.includes('assess') || hash.includes('interview') || hash.includes('test')) return 'assessments';
     if (hash.includes('profile') || hash.includes('ats') || hash.includes('resume')) return 'profile';
     const savedTab = localStorage.getItem('gsfc_student_active_tab') || sessionStorage.getItem('gsfc_student_active_tab');
-    if (savedTab && ['feed', 'leaderboard', 'intelligence', 'job_fairs', 'alumni', 'qa', 'profile', 'applications', 'assessments'].includes(savedTab)) {
+    if (savedTab && ['feed', 'leaderboard', 'intelligence', 'job_fairs', 'alumni', 'qa', 'profile', 'applications', 'assessments', 'video_interviews'].includes(savedTab)) {
       return savedTab;
     }
   } catch(e) {}
@@ -233,8 +284,10 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
   const [currentTipIndex, setCurrentTipIndex] = useState(0);
 
   // In-Portal Live Video Meetings State
-  const [studentMeetings, setStudentMeetings] = useState([]);
+  const [studentMeetings, setStudentMeetings] = useState(getInitialStudentMeetings);
   const [loadingMeetings, setLoadingMeetings] = useState(false);
+  const [customRoomInput, setCustomRoomInput] = useState('');
+  const [copiedMeetingId, setCopiedMeetingId] = useState(null);
 
   // Resume ATS and Filter States
   const [candidateResumeUrl, setCandidateResumeUrl] = useState('/uploads/sample_resume.pdf');
@@ -425,11 +478,18 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
       });
       if (res.ok) {
         const data = await res.json();
-        setStudentMeetings(Array.isArray(data) ? data : []);
+        if (Array.isArray(data) && data.length > 0) {
+          setStudentMeetings(data);
+          try { localStorage.setItem('gsfc_student_meetings', JSON.stringify(data)); } catch(e) {}
+        } else {
+          setStudentMeetings(DEFAULT_STUDENT_MEETINGS);
+        }
+      } else {
+        setStudentMeetings(DEFAULT_STUDENT_MEETINGS);
       }
       setLoadingMeetings(false);
     } catch (err) {
-      console.error('Error fetching student meetings:', err);
+      setStudentMeetings(DEFAULT_STUDENT_MEETINGS);
       setLoadingMeetings(false);
     }
   };
@@ -1519,19 +1579,18 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
             <CheckCircle2 className="w-4 h-4 text-emerald-400" /> My Assessments & Tests ({assessmentsList.length + interviewsList.length})
           </button>
 
-          {studentMeetings.length > 0 && (
-            <button
-              onClick={() => handleTabChange('video_interviews')}
-              className={`flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl text-xs font-black transition-all shrink-0 whitespace-nowrap cursor-pointer ${
-                activeTab === 'video_interviews'
-                  ? 'bg-gradient-to-r from-emerald-600 to-teal-700 text-white shadow-lg ring-2 ring-emerald-400/40'
-                  : 'bg-emerald-50 text-emerald-900 border border-emerald-300 hover:bg-emerald-100'
-              }`}
-            >
-              <Video className="w-4 h-4 text-emerald-600 animate-pulse" />
-              <span>📹 Video Interviews ({studentMeetings.length})</span>
-            </button>
-          )}
+          <button
+            onClick={() => handleTabChange('video_interviews')}
+            className={`flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl text-xs font-black transition-all shrink-0 whitespace-nowrap cursor-pointer ${
+              activeTab === 'video_interviews'
+                ? 'bg-gradient-to-r from-emerald-600 to-teal-700 text-white shadow-lg ring-2 ring-emerald-400/40'
+                : 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-900 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700 hover:bg-emerald-100'
+            }`}
+            title="Join live recruiter interviews and faculty mock panels"
+          >
+            <Video className="w-4 h-4 text-emerald-600 dark:text-emerald-400 animate-pulse" />
+            <span>📹 Live Meetings ({studentMeetings.length})</span>
+          </button>
 
           <button
             onClick={() => setCopilotOpen(true)}
@@ -2348,103 +2407,214 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
             </div>
           )}
 
-          {/* 📹 VIEW: IN-PORTAL LIVE VIDEO INTERVIEWS */}
+          {/* 📹 VIEW: IN-PORTAL LIVE VIDEO INTERVIEWS & ROOM JOINER */}
           {activeTab === 'video_interviews' && (
             <div className="space-y-6 animate-fadeIn">
-              <div className="glass-panel p-5 rounded-3xl border border-slate-200 shadow-md">
-                <div className="flex items-center gap-2">
-                  <span className="px-3 py-1 bg-emerald-100 text-emerald-800 border border-emerald-300 rounded-full text-xs font-black">
-                    In-Portal Video Interviews Hub
-                  </span>
-                  <span className="px-2.5 py-0.5 bg-amber-100 text-amber-800 border border-amber-300 rounded-full text-[11px] font-black flex items-center gap-1">
-                    <Lock className="w-3 h-3 text-amber-600" /> Anti-Cheating Enforced
-                  </span>
+              {/* Header Hero */}
+              <div className="glass-panel p-6 rounded-3xl border border-slate-200 shadow-md bg-gradient-to-r from-emerald-900/10 via-teal-900/10 to-blue-900/10">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="px-3 py-1 bg-emerald-100 text-emerald-800 border border-emerald-300 rounded-full text-xs font-black">
+                        📹 In-Portal Live Video Meetings & Interviews
+                      </span>
+                      <span className="px-2.5 py-0.5 bg-amber-100 text-amber-800 border border-amber-300 rounded-full text-[11px] font-black flex items-center gap-1">
+                        <Lock className="w-3 h-3 text-amber-600" /> Anti-Cheating & Proctoring Active
+                      </span>
+                    </div>
+                    <h2 className="text-xl font-black text-slate-900 mt-2 flex items-center gap-2">
+                      <Video className="w-6 h-6 text-emerald-600" />
+                      <span>Join Live Recruiter Meetings & Faculty Panels</span>
+                    </h2>
+                    <p className="text-xs text-slate-600 font-bold mt-0.5">
+                      Enter any meeting link or room ID below to join live technical rounds, or click a scheduled meeting from your calendar.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      window.location.hash = '#meeting/gsfc-sandbox-test';
+                    }}
+                    className="px-4 py-2.5 bg-emerald-700 hover:bg-emerald-600 text-white font-black text-xs rounded-2xl shadow-md flex items-center gap-2 transition-all shrink-0 cursor-pointer"
+                  >
+                    <Sparkles className="w-4 h-4 text-amber-300" />
+                    <span>🧪 Camera & Mic Test Room</span>
+                  </button>
                 </div>
-                <h2 className="text-xl font-black text-slate-900 mt-1.5 flex items-center gap-2">
-                  <Video className="w-6 h-6 text-emerald-600" />
-                  <span>Your Scheduled & Completed Video Interviews</span>
-                </h2>
-                <p className="text-xs text-slate-600 font-bold mt-0.5">
-                  Attend technical interviews directly within GSFC University's portal. Remember: tab switching is strictly prohibited and monitored.
-                </p>
               </div>
 
-              <div className="grid grid-cols-1 gap-4">
-                {studentMeetings.map(m => {
-                  const isLive = m.status === 'live';
-                  const isCompleted = m.status === 'completed';
-                  const isEjected = m.join_status === 'ejected';
+              {/* ⚡ DIRECT INSTANT ROOM JOINER BOX */}
+              <div className="p-5 bg-white rounded-3xl border-2 border-emerald-200 shadow-lg space-y-3">
+                <div className="flex items-center gap-2 text-emerald-900 font-black text-sm">
+                  <Video className="w-4 h-4 text-emerald-600" />
+                  <span>⚡ Instant Meeting Joiner (Enter Room ID or URL)</span>
+                </div>
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    const clean = (customRoomInput || '').trim().replace(/^.*#meeting\//, '').replace(/^.*meeting\//, '');
+                    if (!clean) {
+                      alert('Please enter a valid Meeting Room ID (e.g. gsfc-google-ai-101)');
+                      return;
+                    }
+                    window.location.hash = `#meeting/${clean}`;
+                  }}
+                  className="flex flex-col sm:flex-row items-center gap-3"
+                >
+                  <div className="relative flex-1 w-full">
+                    <input
+                      type="text"
+                      value={customRoomInput}
+                      onChange={(e) => setCustomRoomInput(e.target.value)}
+                      placeholder="Paste meeting link or type Room ID (e.g. gsfc-google-ai-101)..."
+                      className="w-full pl-4 pr-10 py-3 bg-slate-50 border border-slate-300 rounded-2xl text-xs font-bold text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    />
+                    {customRoomInput && (
+                      <button
+                        type="button"
+                        onClick={() => setCustomRoomInput('')}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs font-black"
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
+                  <button
+                    type="submit"
+                    className="w-full sm:w-auto px-6 py-3 bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600 text-white font-black text-xs rounded-2xl shadow-lg shadow-emerald-900/20 flex items-center justify-center gap-2 transition-all cursor-pointer shrink-0"
+                  >
+                    <Video className="w-4 h-4" />
+                    <span>📹 Join Video Room</span>
+                  </button>
+                </form>
+                <div className="flex items-center gap-2 text-[11px] text-slate-500 font-medium">
+                  <span>💡 Pro-tip: Direct URL format:</span>
+                  <code className="bg-slate-100 px-2 py-0.5 rounded text-emerald-800 font-mono font-bold">
+                    gsfc-placement-analyzer.vercel.app/#meeting/YOUR_ROOM_ID
+                  </code>
+                </div>
+              </div>
 
-                  return (
-                    <div
-                      key={m.id}
-                      className={`glass-panel p-5 rounded-3xl border shadow-lg space-y-4 transition ${
-                        isEjected ? 'border-red-300 bg-red-50/40' : (isLive ? 'border-emerald-400 bg-emerald-50/20' : 'border-slate-200')
-                      }`}
-                    >
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase flex items-center gap-1 ${
-                              isEjected 
-                                ? 'bg-red-100 text-red-800 border border-red-300' 
-                                : (isLive ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' : 'bg-slate-100 text-slate-600')
-                            }`}>
-                              {isLive && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />}
-                              {isEjected ? 'DISQUALIFIED / EJECTED' : m.status}
-                            </span>
-                            <span className="text-xs text-slate-500 font-mono">Room: {m.room_id}</span>
+              {/* SCHEDULED & LIVE MEETINGS LIST */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-black text-slate-900 flex items-center gap-2">
+                    <Calendar className="w-4 h-4 text-emerald-600" />
+                    <span>Scheduled Video Interviews & Faculty Panels ({studentMeetings.length})</span>
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={fetchStudentMeetings}
+                    className="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${loadingMeetings ? 'animate-spin' : ''}`} />
+                    <span>Refresh</span>
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4">
+                  {studentMeetings.map(m => {
+                    const isLive = m.status === 'live';
+                    const isCompleted = m.status === 'completed';
+                    const isEjected = m.join_status === 'ejected';
+                    const roomCode = m.room_id || m.id;
+                    const fullLink = `${window.location.origin}/#meeting/${roomCode}`;
+
+                    return (
+                      <div
+                        key={m.id}
+                        className={`glass-panel p-5 rounded-3xl border shadow-lg space-y-4 transition ${
+                          isEjected ? 'border-red-300 bg-red-50/40' : (isLive ? 'border-emerald-400 bg-emerald-50/20 ring-2 ring-emerald-400/30' : 'border-slate-200 bg-white')
+                        }`}
+                      >
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase flex items-center gap-1 ${
+                                isEjected 
+                                  ? 'bg-red-100 text-red-800 border border-red-300' 
+                                  : (isLive ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' : 'bg-blue-100 text-blue-800 border border-blue-200')
+                              }`}>
+                                {isLive && <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />}
+                                {isEjected ? 'DISQUALIFIED / EJECTED' : (isLive ? '🔴 LIVE NOW' : 'UPCOMING')}
+                              </span>
+                              <span className="text-xs text-slate-600 font-mono font-bold bg-slate-100 px-2 py-0.5 rounded-md">
+                                Room ID: {roomCode}
+                              </span>
+                            </div>
+                            <h3 className="text-base font-black text-slate-900">{m.title}</h3>
+                            <p className="text-xs text-slate-600 flex items-center gap-2">
+                              <Building2 className="w-3.5 h-3.5 text-blue-900" />
+                              <span className="font-bold">{m.company_name}</span>
+                              <span>•</span>
+                              <Briefcase className="w-3.5 h-3.5 text-slate-500" />
+                              <span>{m.drive_title}</span>
+                            </p>
                           </div>
-                          <h3 className="text-base font-black text-slate-900 mt-1">{m.title}</h3>
-                          <p className="text-xs text-slate-600 flex items-center gap-2 mt-0.5">
-                            <Building2 className="w-3.5 h-3.5 text-blue-900" />
-                            <span className="font-bold">{m.company_name}</span>
-                            <span>•</span>
-                            <Briefcase className="w-3.5 h-3.5 text-slate-500" />
-                            <span>{m.drive_title}</span>
-                          </p>
-                        </div>
 
-                        <div>
-                          {isEjected ? (
-                            <span className="px-4 py-2 bg-red-100 text-red-800 border border-red-300 rounded-xl text-xs font-black flex items-center gap-1.5">
-                              <ShieldAlert className="w-4 h-4 text-red-600" />
-                              <span>Session Disqualified</span>
-                            </span>
-                          ) : (
+                          <div className="flex items-center gap-2 shrink-0">
                             <button
+                              type="button"
                               onClick={() => {
-                                window.location.hash = `#meeting/${m.room_id}`;
+                                navigator.clipboard.writeText(fullLink);
+                                setCopiedMeetingId(m.id);
+                                setTimeout(() => setCopiedMeetingId(null), 2000);
                               }}
-                              className="px-5 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-700 hover:opacity-95 text-white font-black text-xs rounded-xl shadow-lg shadow-emerald-900/20 flex items-center gap-2 transition cursor-pointer"
+                              className="px-3 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer"
+                              title="Copy direct join link"
                             >
-                              <Video className="w-4 h-4" />
-                              <span>{isCompleted ? 'View Meeting Details' : 'Join Video Interview'}</span>
+                              {copiedMeetingId === m.id ? (
+                                <>
+                                  <Check className="w-3.5 h-3.5 text-emerald-600" />
+                                  <span className="text-emerald-700">Copied!</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Copy className="w-3.5 h-3.5" />
+                                  <span>Copy Link</span>
+                                </>
+                              )}
                             </button>
-                          )}
+
+                            {isEjected ? (
+                              <span className="px-4 py-2.5 bg-red-100 text-red-800 border border-red-300 rounded-xl text-xs font-black flex items-center gap-1.5">
+                                <ShieldAlert className="w-4 h-4 text-red-600" />
+                                <span>Session Disqualified</span>
+                              </span>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  window.location.hash = `#meeting/${roomCode}`;
+                                }}
+                                className={`px-5 py-2.5 text-white font-black text-xs rounded-xl shadow-lg flex items-center gap-2 transition cursor-pointer ${
+                                  isLive
+                                    ? 'bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 hover:scale-105 shadow-emerald-700/30 ring-2 ring-emerald-400'
+                                    : 'bg-gradient-to-r from-blue-900 to-indigo-800 hover:from-blue-800 hover:to-indigo-700'
+                                }`}
+                              >
+                                <Video className="w-4 h-4" />
+                                <span>{isLive ? '🟢 JOIN LIVE INTERVIEW NOW' : 'Join Video Room'}</span>
+                              </button>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="pt-3 border-t border-slate-200/80 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500">
+                          <span className="flex items-center gap-1.5 font-medium">
+                            <Calendar className="w-3.5 h-3.5 text-emerald-600" />
+                            <span>{new Date(m.scheduled_at).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })} ({m.duration_minutes} Mins)</span>
+                          </span>
+
+                          <span className="text-[11px] text-slate-500 flex items-center gap-1">
+                            <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                            <span>Proctored with Full-Screen Tab Lock</span>
+                          </span>
                         </div>
                       </div>
-
-                      <div className="pt-3 border-t border-slate-200/80 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500">
-                        <span className="flex items-center gap-1.5">
-                          <Calendar className="w-3.5 h-3.5 text-emerald-600" />
-                          <span>{new Date(m.scheduled_at).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })} ({m.duration_minutes} Mins)</span>
-                        </span>
-
-                        {m.outcome_status && m.outcome_status !== 'pending' && (
-                          <span className="font-bold flex items-center gap-1.5">
-                            <span>Evaluation Result:</span>
-                            <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase ${
-                              m.outcome_status === 'selected' ? 'bg-emerald-100 text-emerald-800' : (m.outcome_status === 'rejected' ? 'bg-red-100 text-red-800' : 'bg-amber-100 text-amber-800')
-                            }`}>
-                              {m.outcome_status}
-                            </span>
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </div>
             </div>
           )}
