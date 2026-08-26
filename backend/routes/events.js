@@ -89,14 +89,42 @@ router.get('/my-scans', (req, res) => {
 router.get('/pass/:token', (req, res) => {
   try {
     const { token } = req.params;
-    const cleanToken = token.trim();
+    let cleanToken = (token || '').trim();
 
-    const pass = db.prepare('SELECT * FROM pass_tokens WHERE token = ?').get(cleanToken);
+    if (cleanToken.includes('#pass/')) {
+      cleanToken = cleanToken.split('#pass/')[1].split('?')[0].split('&')[0];
+    } else if (cleanToken.includes('/pass/')) {
+      cleanToken = cleanToken.split('/pass/')[1].split('?')[0].split('&')[0];
+    }
+
+    let pass = db.prepare('SELECT * FROM pass_tokens WHERE token = ? OR lower(token) = lower(?)').get(cleanToken, cleanToken);
+    
+    if (!pass) {
+      const extCand = db.prepare('SELECT * FROM external_candidates WHERE id = ? OR token = ? OR lower(email) = lower(?)').get(cleanToken, cleanToken, cleanToken);
+      if (extCand) {
+        pass = {
+          token: extCand.token || cleanToken,
+          event_id: extCand.event_id || 'evt_anveshan_2026',
+          candidate_id: extCand.id,
+          candidate_type: 'external'
+        };
+      }
+    }
+
     if (!pass) {
       return res.status(404).json({ error: 'Digital QR Pass token is invalid or does not exist.' });
     }
 
-    const event = db.prepare('SELECT * FROM events WHERE id = ?').get(pass.event_id);
+    let event = db.prepare('SELECT * FROM events WHERE id = ?').get(pass.event_id);
+    if (!event) {
+      event = db.prepare('SELECT * FROM events ORDER BY created_at DESC LIMIT 1').get() || {
+        id: 'evt_anveshan_2026',
+        title: 'GSFC Anveshan 2026 Tech & Career Fest',
+        start_date: '2026-09-18',
+        end_date: '2026-09-20',
+        venue: 'GSFC University Auditorium, Dome & Tech Hub'
+      };
+    }
 
     let candidateData = null;
     if (pass.candidate_type === 'external') {
@@ -150,6 +178,13 @@ router.post('/scan/lookup', (req, res) => {
     }
 
     let cleanToken = token.trim();
+    // Handle URL encoded or path tokens
+    if (cleanToken.includes('#pass/')) {
+      cleanToken = cleanToken.split('#pass/')[1].split('?')[0].split('&')[0];
+    } else if (cleanToken.includes('/pass/')) {
+      cleanToken = cleanToken.split('/pass/')[1].split('?')[0].split('&')[0];
+    }
+
     // In case QR contains JSON payload
     if (cleanToken.startsWith('{') && cleanToken.includes('"token"')) {
       try {
@@ -158,7 +193,21 @@ router.post('/scan/lookup', (req, res) => {
       } catch(e) {}
     }
 
-    const pass = db.prepare('SELECT * FROM pass_tokens WHERE token = ?').get(cleanToken);
+    let pass = db.prepare('SELECT * FROM pass_tokens WHERE token = ? OR lower(token) = lower(?)').get(cleanToken, cleanToken);
+    
+    // Fallback: check if external candidate registered directly
+    if (!pass) {
+      const extCand = db.prepare('SELECT * FROM external_candidates WHERE id = ? OR token = ? OR lower(email) = lower(?)').get(cleanToken, cleanToken, cleanToken);
+      if (extCand) {
+        pass = {
+          token: extCand.token || cleanToken,
+          event_id: extCand.event_id || 'evt_anveshan_2026',
+          candidate_id: extCand.id,
+          candidate_type: 'external'
+        };
+      }
+    }
+
     if (!pass) {
       return res.status(404).json({
         found: false,
@@ -166,7 +215,16 @@ router.post('/scan/lookup', (req, res) => {
       });
     }
 
-    const event = db.prepare('SELECT * FROM events WHERE id = ?').get(pass.event_id);
+    let event = db.prepare('SELECT * FROM events WHERE id = ?').get(pass.event_id);
+    if (!event) {
+      event = db.prepare('SELECT * FROM events ORDER BY created_at DESC LIMIT 1').get() || {
+        id: 'evt_anveshan_2026',
+        title: 'GSFC Anveshan 2026 Tech & Career Fest',
+        start_date: '2026-09-18',
+        end_date: '2026-09-20',
+        venue: 'GSFC University Auditorium, Dome & Tech Hub'
+      };
+    }
 
     let candidate = null;
     if (pass.candidate_type === 'external') {

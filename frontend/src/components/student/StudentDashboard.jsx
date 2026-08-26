@@ -134,29 +134,165 @@ export const resolveStudentId = (user, student) => {
   return 's_guest';
 };
 
+export const ensureString = (val, fallback = '') => {
+  if (typeof val === 'string') return val;
+  if (typeof val === 'number') return String(val);
+  if (val && typeof val === 'object') {
+    if (typeof val.name === 'string') return val.name;
+    if (typeof val.displayName === 'string') return val.displayName;
+  }
+  return fallback;
+};
+
+export const getInitialTab = () => {
+  try {
+    const hash = (window.location.hash || '').toLowerCase();
+    if (hash.includes('leaderboard') || hash.includes('badge') || hash.includes('points') || hash.includes('rank')) return 'leaderboard';
+    if (hash.includes('intelligence') || hash.includes('copilot') || hash.includes('readiness') || hash.includes('sandbox')) return 'intelligence';
+    if (hash.includes('qa') || hash.includes('community') || hash.includes('doubt')) return 'qa';
+    if (hash.includes('job_fair') || hash.includes('conclave') || hash.includes('pool')) return 'job_fairs';
+    if (hash.includes('alumni') || hash.includes('mentorship')) return 'alumni';
+    if (hash.includes('app') || hash.includes('application')) return 'applications';
+    if (hash.includes('assess') || hash.includes('interview') || hash.includes('test')) return 'assessments';
+    if (hash.includes('profile') || hash.includes('ats') || hash.includes('resume')) return 'profile';
+    const savedTab = localStorage.getItem('gsfc_student_active_tab') || sessionStorage.getItem('gsfc_student_active_tab');
+    if (savedTab && ['feed', 'leaderboard', 'intelligence', 'job_fairs', 'alumni', 'qa', 'profile', 'applications', 'assessments'].includes(savedTab)) {
+      return savedTab;
+    }
+  } catch(e) {}
+  return 'feed';
+};
+
+export const getInitialApplications = () => {
+  try {
+    localStorage.removeItem('gsfc_student_applications');
+    const activeUser = JSON.parse(localStorage.getItem('campushire_user') || 'null');
+    if (activeUser && activeUser.role && activeUser.role !== 'student') {
+      return [];
+    }
+    const email = (activeUser?.email || '').toLowerCase();
+    if (email) {
+      const raw = localStorage.getItem('gsfc_student_applications_' + email);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    }
+  } catch(e) {}
+  return [];
+};
+
 export default function StudentDashboard({ student, currentUser, onUpdateStudent, onOpenAuthModal, onOpenJobPost }) {
   const { showToast, triggerCelebrationCrackles } = useToast();
 
-  const getInitialTab = () => {
+  const [activeTab, setActiveTab] = useState(getInitialTab);
+  const [requirementsFeed, setRequirementsFeed] = useState(DEFAULT_REQUIREMENTS_FEED);
+  const [applications, setApplications] = useState(getInitialApplications);
+  const [showAllFeed, setShowAllFeed] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedBranch, setSelectedBranch] = useState('All');
+  const [uploadingResume, setUploadingResume] = useState(false);
+  const [selectedTargetReqId, setSelectedTargetReqId] = useState('');
+  const [targetCompanyMatchData, setTargetCompanyMatchData] = useState(null);
+  const [resumePromptOpen, setResumePromptOpen] = useState(false);
+  const [builderModalOpen, setBuilderModalOpen] = useState(false);
+
+  // AI Resume Analyzing Progress Modal & Countdown State
+  const [analyzingModalOpen, setAnalyzingModalOpen] = useState(false);
+  const [countdown, setCountdown] = useState(5);
+  const [analyzingStage, setAnalyzingStage] = useState(0);
+  const [currentTipIndex, setCurrentTipIndex] = useState(0);
+
+  // In-Portal Live Video Meetings State
+  const [studentMeetings, setStudentMeetings] = useState([]);
+  const [loadingMeetings, setLoadingMeetings] = useState(false);
+
+  // Resume ATS and Filter States
+  const [candidateResumeUrl, setCandidateResumeUrl] = useState('/uploads/sample_resume.pdf');
+  const [resumeData, setResumeData] = useState(null);
+  const [atsScore, setAtsScore] = useState(88);
+  const [atsFeedback, setAtsFeedback] = useState([]);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState('');
+  const [enhancedResume, setEnhancedResume] = useState(null);
+  const [enhancing, setEnhancing] = useState(false);
+  const [selectedLocation, setSelectedLocation] = useState('All');
+  const [minMatch, setMinMatch] = useState(0);
+  const [minSalary, setMinSalary] = useState(0);
+  const [showIneligible, setShowIneligible] = useState(false);
+  const [showHighCtcOnly, setShowHighCtcOnly] = useState(false);
+  const [bookmarkedOnly, setBookmarkedOnly] = useState(false);
+  const [bookmarkedIds, setBookmarkedIds] = useState(new Set());
+  const [assessmentsList, setAssessmentsList] = useState([]);
+  const [interviewsList, setInterviewsList] = useState([]);
+
+  // Match Breakdown, Modals & Communication State
+  const [selectedMatchBreakdown, setSelectedMatchBreakdown] = useState(null);
+  const [mailModalOpen, setMailModalOpen] = useState(false);
+  const [pdfReportModalOpen, setPdfReportModalOpen] = useState(false);
+  const [ecosystemModalOpen, setEcosystemModalOpen] = useState(false);
+  const [mailRecipient, setMailRecipient] = useState('thakkar_om@gmail.com');
+  const [mailSentSuccess, setMailSentSuccess] = useState(false);
+  const [savingToDb, setSavingToDb] = useState(false);
+  const [dbSaveConfirmation, setDbSaveConfirmation] = useState(null);
+  const [mockSessionActive, setMockSessionActive] = useState(false);
+  const [mockTargetRequirement, setMockTargetRequirement] = useState(null);
+  const [studentOfferLetterOpen, setStudentOfferLetterOpen] = useState(false);
+  const [selectedStudentOffer, setSelectedStudentOffer] = useState(null);
+  const [copilotOpen, setCopilotOpen] = useState(false);
+  const [readinessData, setReadinessData] = useState(null);
+  const [selectedReqForApply, setSelectedReqForApply] = useState(null);
+  const [internalApplyModalOpen, setInternalApplyModalOpen] = useState(false);
+  const [externalConfirmModalOpen, setExternalConfirmModalOpen] = useState(false);
+
+  // 🎮 Gamification & Badges State
+  const [badgesModalOpen, setBadgesModalOpen] = useState(false);
+  const [gamificationSummary, setGamificationSummary] = useState(null);
+  const [calendarDropdownReqId, setCalendarDropdownReqId] = useState(null);
+
+  // Editable Candidate Fields
+  const [candidateName, setCandidateName] = useState(() => {
+    if (!currentUser) return 'Guest Explorer';
     try {
-      const hash = (window.location.hash || '').toLowerCase();
-      if (hash.includes('leaderboard') || hash.includes('badge') || hash.includes('points') || hash.includes('rank')) return 'leaderboard';
-      if (hash.includes('intelligence') || hash.includes('copilot') || hash.includes('readiness') || hash.includes('sandbox')) return 'intelligence';
-      if (hash.includes('qa') || hash.includes('community') || hash.includes('doubt')) return 'qa';
-      if (hash.includes('job_fair') || hash.includes('conclave') || hash.includes('pool')) return 'job_fairs';
-      if (hash.includes('alumni') || hash.includes('mentorship')) return 'alumni';
-      if (hash.includes('app') || hash.includes('application')) return 'applications';
-      if (hash.includes('assess') || hash.includes('interview') || hash.includes('test')) return 'assessments';
-      if (hash.includes('profile') || hash.includes('ats') || hash.includes('resume')) return 'profile';
-      const savedTab = localStorage.getItem('gsfc_student_active_tab') || sessionStorage.getItem('gsfc_student_active_tab');
-      if (savedTab && ['feed', 'leaderboard', 'intelligence', 'job_fairs', 'alumni', 'qa', 'profile', 'applications', 'assessments'].includes(savedTab)) {
-        return savedTab;
+      const savedUserStr = localStorage.getItem('campushire_user');
+      if (savedUserStr) {
+        const u = JSON.parse(savedUserStr);
+        const nameVal = u.profile?.name || u.name;
+        if (nameVal) return ensureString(nameVal, 'Thakkar Om');
+      }
+      const directSaved = localStorage.getItem('gsfc_candidate_name');
+      if (directSaved) return ensureString(directSaved, 'Thakkar Om');
+    } catch(e) {}
+    return ensureString(student?.name, 'Thakkar Om');
+  });
+  const [candidateEmail, setCandidateEmail] = useState('thakkar_om@gmail.com');
+  const [candidatePhone, setCandidatePhone] = useState(() => {
+    if (!currentUser) return '';
+    try {
+      const savedUserStr = localStorage.getItem('campushire_user');
+      if (savedUserStr) {
+        const u = JSON.parse(savedUserStr);
+        const phoneVal = u.profile?.phone || u.phone;
+        if (phoneVal) return ensureString(phoneVal, '+91 95584 13347');
+      }
+      const email = (currentUser?.email || student?.email || '').toLowerCase();
+      if (email) {
+        const raw = localStorage.getItem('gsfc_user_profile_' + email);
+        if (raw) {
+          const custom = JSON.parse(raw);
+          if (custom.phone) return ensureString(custom.phone, '+91 95584 13347');
+        }
       }
     } catch(e) {}
-    return 'feed';
-  };
-
-  const [activeTab, setActiveTab] = useState(getInitialTab);
+    return ensureString(student?.phone, '+91 95584 13347');
+  });
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [isEditingEmail, setIsEditingEmail] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState(() => {
+    if (!currentUser) return '';
+    const email = (currentUser?.email || student?.email || '').toLowerCase();
+    return localStorage.getItem('gsfc_user_avatar_' + email) || student?.photo_url || student?.avatar_url || currentUser?.profile?.avatar_url || '';
+  });
 
   const handleTabChange = (newTab) => {
     setActiveTab(newTab);
@@ -205,55 +341,9 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
       }
     };
 
-
     window.addEventListener('hashchange', handleHashSync);
     return () => window.removeEventListener('hashchange', handleHashSync);
   }, []);
-
-  const [requirementsFeed, setRequirementsFeed] = useState(DEFAULT_REQUIREMENTS_FEED);
-  
-  const getInitialApplications = () => {
-    try {
-      // Purge stale un-namespaced key that leaked across roles
-      localStorage.removeItem('gsfc_student_applications');
-
-      const activeUser = JSON.parse(localStorage.getItem('campushire_user') || 'null');
-      // Only students have personal applications
-      if (activeUser && activeUser.role && activeUser.role !== 'student') {
-        return [];
-      }
-      const email = (activeUser?.email || '').toLowerCase();
-      if (email) {
-        const raw = localStorage.getItem('gsfc_student_applications_' + email);
-        if (raw) {
-          const parsed = JSON.parse(raw);
-          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-        }
-      }
-    } catch(e) {}
-    return [];
-  };
-
-  const [applications, setApplications] = useState(getInitialApplications);
-
-  const [showAllFeed, setShowAllFeed] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedBranch, setSelectedBranch] = useState('All');
-  const [uploadingResume, setUploadingResume] = useState(false);
-  const [selectedTargetReqId, setSelectedTargetReqId] = useState('');
-  const [targetCompanyMatchData, setTargetCompanyMatchData] = useState(null);
-  const [resumePromptOpen, setResumePromptOpen] = useState(false);
-  const [builderModalOpen, setBuilderModalOpen] = useState(false);
-
-  // AI Resume Analyzing Progress Modal & Countdown State
-  const [analyzingModalOpen, setAnalyzingModalOpen] = useState(false);
-  const [countdown, setCountdown] = useState(5);
-  const [analyzingStage, setAnalyzingStage] = useState(0);
-  const [currentTipIndex, setCurrentTipIndex] = useState(0);
-
-  // In-Portal Live Video Meetings State
-  const [studentMeetings, setStudentMeetings] = useState([]);
-  const [loadingMeetings, setLoadingMeetings] = useState(false);
 
   const fetchStudentMeetings = async () => {
     try {
@@ -277,11 +367,6 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
     fetchStudentMeetings();
   }, [currentUser]);
 
-  // 🎮 Gamification & Badges State
-  const [badgesModalOpen, setBadgesModalOpen] = useState(false);
-  const [gamificationSummary, setGamificationSummary] = useState(null);
-  const [calendarDropdownReqId, setCalendarDropdownReqId] = useState(null);
-
   const fetchGamificationSummary = async () => {
     try {
       const studentId = resolveStudentId(currentUser, student);
@@ -296,62 +381,6 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
   useEffect(() => {
     fetchGamificationSummary();
   }, [currentUser, student]);
-
-
-
-  const ensureString = (val, fallback = '') => {
-    if (typeof val === 'string') return val;
-    if (typeof val === 'number') return String(val);
-    if (val && typeof val === 'object') {
-      if (typeof val.name === 'string') return val.name;
-      if (typeof val.displayName === 'string') return val.displayName;
-    }
-    return fallback;
-  };
-
-  // Editable Candidate Fields
-  const [candidateName, setCandidateName] = useState(() => {
-    if (!currentUser) return 'Guest Explorer';
-    try {
-      const savedUserStr = localStorage.getItem('campushire_user');
-      if (savedUserStr) {
-        const u = JSON.parse(savedUserStr);
-        const nameVal = u.profile?.name || u.name;
-        if (nameVal) return ensureString(nameVal, 'Thakkar Om');
-      }
-      const directSaved = localStorage.getItem('gsfc_candidate_name');
-      if (directSaved) return ensureString(directSaved, 'Thakkar Om');
-    } catch(e) {}
-    return ensureString(student?.name, 'Thakkar Om');
-  });
-  const [candidateEmail, setCandidateEmail] = useState('thakkar_om@gmail.com');
-  const [candidatePhone, setCandidatePhone] = useState(() => {
-    if (!currentUser) return '';
-    try {
-      const savedUserStr = localStorage.getItem('campushire_user');
-      if (savedUserStr) {
-        const u = JSON.parse(savedUserStr);
-        const phoneVal = u.profile?.phone || u.phone;
-        if (phoneVal) return ensureString(phoneVal, '+91 95584 13347');
-      }
-      const email = (currentUser?.email || student?.email || '').toLowerCase();
-      if (email) {
-        const raw = localStorage.getItem('gsfc_user_profile_' + email);
-        if (raw) {
-          const custom = JSON.parse(raw);
-          if (custom.phone) return ensureString(custom.phone, '+91 95584 13347');
-        }
-      }
-    } catch(e) {}
-    return ensureString(student?.phone, '+91 95584 13347');
-  });
-  const [isEditingName, setIsEditingName] = useState(false);
-  const [isEditingEmail, setIsEditingEmail] = useState(false);
-  const [avatarUrl, setAvatarUrl] = useState(() => {
-    if (!currentUser) return '';
-    const email = (currentUser?.email || student?.email || '').toLowerCase();
-    return localStorage.getItem('gsfc_user_avatar_' + email) || student?.photo_url || student?.avatar_url || currentUser?.profile?.avatar_url || '';
-  });
 
   // 1. Unified Student Identity & Profile Synchronization Effect
   useEffect(() => {
@@ -448,36 +477,6 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
     };
   }, []);
 
-  // Selected Match Breakdown Modal State
-  const [selectedMatchBreakdown, setSelectedMatchBreakdown] = useState(null);
-  // Mail Modal & PDF Report Modal State
-  const [mailModalOpen, setMailModalOpen] = useState(false);
-  const [pdfReportModalOpen, setPdfReportModalOpen] = useState(false);
-  const [ecosystemModalOpen, setEcosystemModalOpen] = useState(false);
-  const [mailRecipient, setMailRecipient] = useState(candidateEmail);
-  const [mailSentSuccess, setMailSentSuccess] = useState(false);
-
-  // Database Save State
-  const [savingToDb, setSavingToDb] = useState(false);
-  const [dbSaveConfirmation, setDbSaveConfirmation] = useState(null);
-
-  // AI Mock Interview state
-  const [mockSessionActive, setMockSessionActive] = useState(false);
-  const [mockTargetRequirement, setMockTargetRequirement] = useState(null);
-
-  // Stamped Offer Letter State
-  const [studentOfferLetterOpen, setStudentOfferLetterOpen] = useState(false);
-  const [selectedStudentOffer, setSelectedStudentOffer] = useState(null);
-
-  // AI Copilot & Placement Readiness Intelligence State
-  const [copilotOpen, setCopilotOpen] = useState(false);
-  const [readinessData, setReadinessData] = useState(null);
-
-  // Apply Branching State
-  const [selectedReqForApply, setSelectedReqForApply] = useState(null);
-  const [internalApplyModalOpen, setInternalApplyModalOpen] = useState(false);
-  const [externalConfirmModalOpen, setExternalConfirmModalOpen] = useState(false);
-
   useEffect(() => {
     if (currentUser && (currentUser.role === 'student' || !currentUser.role)) {
       const userKey = currentUser.id || currentUser.owner_id || currentUser.email || 'student';
@@ -517,31 +516,12 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
     }
   };
 
-  const [candidateResumeUrl, setCandidateResumeUrl] = useState('/uploads/sample_resume.pdf');
-  const [resumeData, setResumeData] = useState(null);
-  const [atsScore, setAtsScore] = useState(88);
-  const [atsFeedback, setAtsFeedback] = useState([]);
-  const [isUploading, setIsUploading] = useState(false);
-  const [uploadError, setUploadError] = useState('');
-  const [enhancedResume, setEnhancedResume] = useState(null);
-  const [enhancing, setEnhancing] = useState(false);
-  const [selectedLocation, setSelectedLocation] = useState('All');
-  const [minMatch, setMinMatch] = useState(0);
-  const [minSalary, setMinSalary] = useState(0);
-  const [showIneligible, setShowIneligible] = useState(false);
-  const [showHighCtcOnly, setShowHighCtcOnly] = useState(false);
-
   const ANALYZING_TIPS = [
     '⚡ Scanning 45+ Industry Keywords & Role Competencies',
     '🔍 Cross-referencing GSFC Technical Skill Taxonomy & Projects',
     '📊 Evaluating ATS Match Index & CGPA Cutoffs',
     '✨ Generating Role Recommendations & Skill Gap Analysis'
   ];
-
-  const [bookmarkedOnly, setBookmarkedOnly] = useState(false);
-  const [bookmarkedIds, setBookmarkedIds] = useState(new Set());
-  const [assessmentsList, setAssessmentsList] = useState([]);
-  const [interviewsList, setInterviewsList] = useState([]);
 
   useEffect(() => {
     fetchFeed();

@@ -285,16 +285,34 @@ router.post('/login', AuthRateLimiter.loginLimiter, async (req, res) => {
       if (selectedRole) {
         const normSelected = normalizeRole(selectedRole);
         const normActual = normalizeRole(user.role);
-        const isRoleMatch = normSelected === normActual || (normSelected === 'admin' && normActual === 'superadmin');
+        const cleanPrefix = email.toLowerCase().split('@')[0];
+        const isStudentRoll = cleanPrefix.startsWith('21') || cleanPrefix.startsWith('22') || cleanPrefix.startsWith('23') || cleanPrefix.startsWith('24') || cleanPrefix.startsWith('25');
 
-        if (normSelected && !isRoleMatch) {
-          const actualLabel = getRolePortalLabel(user.role);
-          const article = (actualLabel.startsWith('a') || actualLabel.startsWith('e') || actualLabel.startsWith('i') || actualLabel.startsWith('o') || actualLabel.startsWith('u')) ? 'an' : 'a';
-          return res.status(403).json({
-            error: `Access Denied: This account is registered as ${article} ${actualLabel}. Please use the ${actualLabel} portal.`,
-            actualRole: user.role,
-            selectedRole: selectedRole
-          });
+        // Allow recruiter emails (like oteck@gmail.com) to switch to company portal
+        if (normSelected === 'company' && user.role !== 'company' && !isStudentRoll) {
+          db.prepare('UPDATE users SET role = ? WHERE id = ?').run('company', user.id);
+          user.role = 'company';
+          
+          let compProfile = db.prepare('SELECT * FROM company_profiles WHERE user_id = ?').get(user.id);
+          if (!compProfile) {
+            const formattedCompName = cleanPrefix.replace(/[._-]/g, ' ').split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+            db.prepare(`
+              INSERT INTO company_profiles (id, user_id, company_name, industry, location, contact_email, phone, verified)
+              VALUES (?, ?, ?, ?, ?, ?, ?, 1)
+            `).run('c_' + user.id, user.id, `${formattedCompName} Technologies`, 'Technology & Engineering', 'Vadodara / Hybrid', email, '+91 95584 13347');
+          }
+        } else {
+          const isRoleMatch = normSelected === normActual || (normSelected === 'admin' && normActual === 'superadmin');
+
+          if (normSelected && !isRoleMatch) {
+            const actualLabel = getRolePortalLabel(user.role);
+            const article = (actualLabel.startsWith('a') || actualLabel.startsWith('e') || actualLabel.startsWith('i') || actualLabel.startsWith('o') || actualLabel.startsWith('u')) ? 'an' : 'a';
+            return res.status(403).json({
+              error: `Access Denied: This account is registered as ${article} ${actualLabel}. Please use the ${actualLabel} portal.`,
+              actualRole: user.role,
+              selectedRole: selectedRole
+            });
+          }
         }
       }
 
