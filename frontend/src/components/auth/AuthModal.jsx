@@ -404,27 +404,30 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialRole 
         name: effectiveName || 'Corporate Recruiter',
         email: userEmail || 'recruiter@company.com',
         role: 'company',
+        phone: formData.phone || '',
         owner_id: 'c_' + emailPrefix,
         profile: {
           id: 'c_' + emailPrefix,
           company_name: effectiveName || 'Corporate Partner',
           industry: 'Technology & Engineering',
+          phone: formData.phone || '',
           approved: 1
         }
       };
     }
 
     // Default: Dynamic Student Profile
-    const isOmThakkar = rawEmail.includes('om') || rawEmail.includes('24bt04171') || rawEmail.includes('thakkar') || effectiveName.includes('Om') || effectiveName.toLowerCase().startsWith('24bt');
-    const studentName = isOmThakkar ? 'Om Thakkar' : (effectiveName.startsWith('24') || effectiveName.startsWith('23') || effectiveName.startsWith('22') ? 'Om Thakkar' : effectiveName);
+    const isOmThakkar = rawEmail.includes('24bt04171') || rawEmail.includes('thakkar_om');
+    const studentName = isOmThakkar ? 'Om Thakkar' : (effectiveName || 'Student Candidate');
     const studentRoll = rawEmail.startsWith('24') || rawEmail.startsWith('23') || rawEmail.startsWith('22') ? rawEmail.split('@')[0].toUpperCase() : '24BT04171';
-    const studentPhone = '+91 95584 13347';
+    const studentPhone = isOmThakkar ? '+91 95584 13347' : (formData.phone || '');
 
     return {
       id: 'u_' + emailPrefix,
       name: studentName,
       email: userEmail || '24bt04171@gsfcuniversity.ac.in',
       role: 'student',
+      phone: studentPhone,
       owner_id: 's_' + emailPrefix,
       profile: {
         id: 's_' + emailPrefix,
@@ -433,7 +436,10 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialRole 
         branch: 'Computer Science & Engineering',
         cgpa: 8.9,
         roll_number: studentRoll,
-        phone: studentPhone
+        phone: studentPhone,
+        passing_year: 2026,
+        placement_status: 'Eligible',
+        ats_score: 92
       }
     };
   };

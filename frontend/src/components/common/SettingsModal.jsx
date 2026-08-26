@@ -142,38 +142,29 @@ export default function SettingsModal({ isOpen, onClose, currentUser, theme, onT
 
     try {
       const raw = (cleanEmail ? localStorage.getItem('gsfc_user_profile_' + cleanEmail) : null) ||
-                  (roll ? localStorage.getItem('gsfc_user_profile_' + roll) : null) ||
-                  localStorage.getItem('gsfc_user_profile_24bt04171@gsfcuniversity.ac.in') ||
-                  localStorage.getItem('gsfc_user_profile_thakkar_om@gmail.com');
+                  (roll ? localStorage.getItem('gsfc_user_profile_' + roll) : null);
       if (raw) accountProfile = JSON.parse(raw);
 
       accountAvatar = (cleanEmail ? localStorage.getItem('gsfc_user_avatar_' + cleanEmail) : '') ||
                       (roll ? localStorage.getItem('gsfc_user_avatar_' + roll) : '') ||
-                      localStorage.getItem('gsfc_user_avatar_24bt04171@gsfcuniversity.ac.in') ||
-                      localStorage.getItem('gsfc_user_avatar_24bt04171') ||
-                      localStorage.getItem('gsfc_user_avatar_thakkar_om@gmail.com') ||
-                      localStorage.getItem('gsfc_user_avatar') ||
                       currentUser?.profile?.photo_url || currentUser?.profile?.avatar_url || '';
     } catch(e) {}
 
     setAvatarUrl(accountAvatar);
 
-    const isStudent = !currentUser?.role || currentUser?.role === 'student';
+    const isStudent = currentUser?.role === 'student' || (!currentUser?.role && cleanEmail.startsWith('24bt'));
     if (accountProfile) {
       const rawDisplay = accountProfile.displayName || '';
-      const sanitizedName = (isStudent && (!rawDisplay || rawDisplay.toLowerCase().startsWith('24bt'))) ? 'Om Thakkar' : (rawDisplay || 'Om Thakkar');
+      const sanitizedName = rawDisplay || (isStudent && cleanEmail.includes('24bt04171') ? 'Om Thakkar' : (currentUser?.name || 'Registered User'));
       setDisplayName(sanitizedName);
-      setPhone(accountProfile.phone || '+91 95584 13347');
+      setPhone(accountProfile.phone || currentUser?.profile?.phone || currentUser?.phone || '');
       if (accountProfile.targetStream) setTargetStream(accountProfile.targetStream);
     } else if (currentUser) {
       let defaultName = currentUser.role === 'admin' || currentUser.role === 'superadmin'
         ? (currentUser.name || 'Admin')
-        : (currentUser.role === 'faculty' ? (currentUser.name || 'Faculty Coordinator') : (currentUser.profile?.name || currentUser.name || 'Om Thakkar'));
-      if (isStudent && (defaultName.toLowerCase().startsWith('24bt') || !defaultName)) {
-        defaultName = 'Om Thakkar';
-      }
+        : (currentUser.role === 'faculty' ? (currentUser.name || 'Faculty Coordinator') : (currentUser.name || currentUser.profile?.name || (isStudent && cleanEmail.includes('24bt04171') ? 'Om Thakkar' : 'Student Candidate')));
       setDisplayName(defaultName);
-      setPhone(currentUser.profile?.phone || currentUser.phone || (isStudent ? '+91 95584 13347' : ''));
+      setPhone(currentUser.profile?.phone || currentUser.phone || '');
     } else {
       setDisplayName('Guest Explorer');
       setPhone('');
@@ -901,20 +892,20 @@ export default function SettingsModal({ isOpen, onClose, currentUser, theme, onT
                         type="tel"
                         value={phone}
                         onChange={(e) => {
-                          if (currentUser?.role === 'admin' || currentUser?.role === 'superadmin' || currentUser?.role === 'faculty') {
+                          if (currentUser?.role !== 'student') {
                             setPhone(e.target.value);
                           }
                         }}
-                        readOnly={currentUser?.role === 'student' || (!currentUser?.role && currentUser?.role !== 'admin' && currentUser?.role !== 'faculty')}
-                        disabled={currentUser?.role === 'student' || (!currentUser?.role && currentUser?.role !== 'admin' && currentUser?.role !== 'faculty')}
-                        placeholder="+91 9558413347"
+                        readOnly={currentUser?.role === 'student' || (!currentUser?.role && cleanEmail.startsWith('24bt'))}
+                        disabled={currentUser?.role === 'student' || (!currentUser?.role && cleanEmail.startsWith('24bt'))}
+                        placeholder="e.g. +91 98765 43210"
                         className={`w-full px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all ${
-                          (currentUser?.role === 'admin' || currentUser?.role === 'superadmin' || currentUser?.role === 'faculty')
+                          (currentUser?.role !== 'student' && (!currentUser?.role || !cleanEmail.startsWith('24bt')))
                             ? 'bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none focus:border-blue-900'
                             : 'bg-slate-100 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 text-slate-500 cursor-not-allowed select-none'
                         }`}
                       />
-                      {(currentUser?.role === 'student' || (!currentUser?.role && currentUser?.role !== 'admin' && currentUser?.role !== 'faculty')) && (
+                      {(currentUser?.role === 'student' || (!currentUser?.role && cleanEmail.startsWith('24bt'))) && (
                         <div className="absolute right-3 top-2.5 text-slate-400">
                           <Lock className="w-4 h-4" />
                         </div>
@@ -922,11 +913,11 @@ export default function SettingsModal({ isOpen, onClose, currentUser, theme, onT
                     </div>
 
                     {/* Authority Warning / Lock Explanation for Students */}
-                    {(currentUser?.role === 'student' || (!currentUser?.role && currentUser?.role !== 'admin' && currentUser?.role !== 'faculty')) && (
+                    {(currentUser?.role === 'student' || (!currentUser?.role && cleanEmail.startsWith('24bt'))) && (
                       <div className="mt-2 p-2.5 bg-amber-50/80 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/50 rounded-xl flex items-start gap-2 text-[11px] text-amber-900 dark:text-amber-300 font-medium">
                         <Lock className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
                         <span>
-                          <strong>Security Authority Policy:</strong> Phone number and University email changes are restricted to <strong>TPC Admin & Faculty Coordinators</strong> to preserve verified institutional communications integrity.
+                          <strong>Security Authority Policy:</strong> Student mobile numbers are verified with university records. Contact <strong>TPC Admin & Faculty Coordinators</strong> to update your contact phone.
                         </span>
                       </div>
                     )}

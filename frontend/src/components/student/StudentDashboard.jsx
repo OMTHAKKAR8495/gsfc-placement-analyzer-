@@ -352,21 +352,25 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
     if (!currentUser) return '';
     try {
       const savedUserStr = localStorage.getItem('campushire_user');
+      const email = (currentUser?.email || student?.email || '').toLowerCase();
+      const isOm = email.includes('24bt04171') || email.includes('thakkar_om');
+
       if (savedUserStr) {
         const u = JSON.parse(savedUserStr);
         const phoneVal = u.profile?.phone || u.phone;
-        if (phoneVal) return ensureString(phoneVal, '+91 95584 13347');
+        if (phoneVal) return ensureString(phoneVal, '');
       }
-      const email = (currentUser?.email || student?.email || '').toLowerCase();
       if (email) {
         const raw = localStorage.getItem('gsfc_user_profile_' + email);
         if (raw) {
           const custom = JSON.parse(raw);
-          if (custom.phone) return ensureString(custom.phone, '+91 95584 13347');
+          if (custom.phone) return ensureString(custom.phone, '');
         }
       }
+      if (student?.phone) return ensureString(student.phone, '');
+      return isOm ? '+91 95584 13347' : '';
     } catch(e) {}
-    return ensureString(student?.phone, '+91 95584 13347');
+    return '';
   });
   const [isEditingName, setIsEditingName] = useState(false);
   const [isEditingEmail, setIsEditingEmail] = useState(false);
@@ -547,12 +551,15 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
       setCandidateName(ensureString(emailName, 'Student Candidate'));
     }
 
+    const isOm = (currentUser?.email || '').toLowerCase().includes('24bt04171');
     if (customProfile?.phone) {
-      setCandidatePhone(ensureString(customProfile.phone, '+91 95584 13347'));
+      setCandidatePhone(ensureString(customProfile.phone, ''));
     } else if (currentUser?.profile?.phone || currentUser?.phone) {
-      setCandidatePhone(ensureString(currentUser.profile?.phone || currentUser.phone, '+91 95584 13347'));
+      setCandidatePhone(ensureString(currentUser.profile?.phone || currentUser.phone, ''));
     } else if (student?.phone) {
-      setCandidatePhone(ensureString(student.phone, '+91 95584 13347'));
+      setCandidatePhone(ensureString(student.phone, ''));
+    } else {
+      setCandidatePhone(isOm ? '+91 95584 13347' : '');
     }
 
     if (currentUser?.email) {
