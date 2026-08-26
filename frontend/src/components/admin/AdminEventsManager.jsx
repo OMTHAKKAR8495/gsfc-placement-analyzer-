@@ -666,7 +666,7 @@ export default function AdminEventsManager({ onNavigateToRegistrations = null })
             <div className="space-y-1">
               <div className="text-[10px] uppercase font-black text-slate-400">Public Registration URL</div>
               <div className="text-xs font-mono font-bold text-indigo-600 dark:text-indigo-400 truncate bg-slate-50 dark:bg-slate-950 p-2 rounded-xl border border-slate-200 dark:border-slate-800">
-                {`${window.location.origin}/event/${posterModalEvent.slug}`}
+                {`${window.location.origin}/#fest/${posterModalEvent.slug}`}
               </div>
             </div>
 

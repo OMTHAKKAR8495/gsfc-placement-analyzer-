@@ -182,15 +182,23 @@ function App() {
     }
   });
 
-  const [publicRoute, setPublicRoute] = useState(() => {
+  const resolvePublicRoute = () => {
     if (typeof window === 'undefined') return null;
     const path = window.location.pathname;
-    const hash = window.location.hash.replace(/^#/, '');
+    const hash = window.location.hash.replace(/^#\/?/, '');
+    
     if (path.startsWith('/event/')) {
       return { type: 'event', param: path.replace('/event/', '') };
     }
     if (path.startsWith('/pass/')) {
       return { type: 'pass', param: path.replace('/pass/', '') };
+    }
+    if (hash.startsWith('event/')) {
+      return { type: 'event', param: hash.replace('event/', '') };
+    }
+    if (hash.startsWith('fest/') && !hash.includes('pass=')) {
+      const slug = hash.replace('fest/', '');
+      if (slug && slug !== 'feed') return { type: 'event', param: slug };
     }
     if (hash.startsWith('pass/')) {
       return { type: 'pass', param: hash.replace('pass/', '') };
@@ -198,12 +206,14 @@ function App() {
     if (hash.startsWith('event-pass/')) {
       return { type: 'pass', param: hash.replace('event-pass/', '') };
     }
-    if (hash.startsWith('fest/') && hash.includes('pass=')) {
+    if (hash.includes('pass=')) {
       const match = hash.match(/pass=([^&]+)/);
       if (match) return { type: 'pass', param: match[1] };
     }
     return null;
-  });
+  };
+
+  const [publicRoute, setPublicRoute] = useState(resolvePublicRoute);
 
   const [isOffline, setIsOffline] = useState(false);
   const [activeRole, setActiveRole] = useState(() => getInitialActiveRole());
@@ -303,16 +313,12 @@ function App() {
   // 3. Browser Navigation, Global Shortcuts, and Event Listeners
   useEffect(() => {
     const handleHashOrPopState = () => {
-      const path = window.location.pathname;
-      if (path.startsWith('/event/')) {
-        setPublicRoute({ type: 'event', param: path.replace('/event/', '') });
+      const route = resolvePublicRoute();
+      if (route) {
+        setPublicRoute(route);
         return;
-      } else if (path.startsWith('/pass/')) {
-        setPublicRoute({ type: 'pass', param: path.replace('/pass/', '') });
-        return;
-      } else {
-        setPublicRoute(null);
       }
+      setPublicRoute(null);
 
       const rawHash = window.location.hash.replace(/^#/, '');
       const base = resolveBaseWorkspace(rawHash);
