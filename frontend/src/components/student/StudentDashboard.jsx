@@ -1283,58 +1283,62 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
         </div>
 
         {/* Tab Navigation Segment */}
-        <div className="flex items-center gap-2 sm:gap-3 mt-6 sm:mt-8 border-t border-slate-200/90 pt-4 overflow-x-auto max-w-full pb-1">
+        <div className="flex items-center gap-2.5 sm:gap-3.5 mt-6 sm:mt-8 border-t border-slate-200/90 dark:border-slate-800 pt-5 overflow-x-auto max-w-full pb-2 scrollbar-thin">
           <button
             onClick={() => handleTabChange('feed')}
-            className={`flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl text-xs font-black transition-all shrink-0 whitespace-nowrap cursor-pointer ${
+            className={`flex items-center gap-2 px-4 sm:px-5 py-2.5 rounded-2xl text-xs sm:text-sm font-black transition-all shrink-0 whitespace-nowrap cursor-pointer ${
               activeTab === 'feed'
-                ? 'bg-theme-gradient text-white shadow-lg'
-                : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100/80'
+                ? 'bg-theme-gradient text-white shadow-lg scale-105 ring-2 ring-blue-500/30'
+                : 'text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
             }`}
           >
-            <Briefcase className="w-4 h-4" /> Live Drives
+            <Briefcase className="w-4 h-4 text-amber-400" />
+            <span>💼 Live Drives</span>
           </button>
 
           {/* 🏆 LEADERBOARD TAB BUTTON */}
           <button
             onClick={() => handleTabChange('leaderboard')}
-            className={`flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl text-xs font-black transition-all shrink-0 whitespace-nowrap cursor-pointer ${
+            className={`flex items-center gap-2 px-4 sm:px-5 py-2.5 rounded-2xl text-xs sm:text-sm font-black transition-all shrink-0 whitespace-nowrap cursor-pointer ${
               activeTab === 'leaderboard'
-                ? 'bg-gradient-to-r from-amber-500 to-indigo-700 text-white shadow-lg scale-105 border border-amber-300/40'
-                : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100/80'
+                ? 'bg-gradient-to-r from-amber-500 to-indigo-700 text-white shadow-lg scale-105 border border-amber-300/40 ring-2 ring-amber-400/30'
+                : 'text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
             }`}
           >
-            <Trophy className="w-4 h-4 text-amber-400" /> 🏆 Leaderboard & Badges
+            <Trophy className="w-4 h-4 text-amber-400" />
+            <span>🏆 Leaderboard & Badges</span>
           </button>
 
           <button
             onClick={() => handleTabChange('intelligence')}
-            className={`flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl text-xs font-black transition-all shrink-0 whitespace-nowrap cursor-pointer ${
+            className={`flex items-center gap-2 px-4 sm:px-5 py-2.5 rounded-2xl text-xs sm:text-sm font-black transition-all shrink-0 whitespace-nowrap cursor-pointer ${
               activeTab === 'intelligence'
-                ? 'bg-gradient-to-r from-blue-900 via-indigo-900 to-purple-900 text-white shadow-lg scale-105 border border-purple-400/40'
-                : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100/80'
+                ? 'bg-gradient-to-r from-blue-900 via-indigo-900 to-purple-900 text-white shadow-lg scale-105 border border-purple-400/40 ring-2 ring-purple-500/30'
+                : 'text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
             }`}
           >
-            <Sparkles className="w-4 h-4 text-purple-400 animate-pulse" /> 🚀 AI Placement Intelligence Hub
+            <Sparkles className="w-4 h-4 text-purple-400 animate-pulse" />
+            <span>🚀 AI Placement Intelligence Hub</span>
           </button>
-
 
           <button
             onClick={() => handleTabChange('job_fairs')}
-            className={`flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl text-xs font-black transition-all shrink-0 whitespace-nowrap cursor-pointer ${
+            className={`flex items-center gap-2 px-4 sm:px-5 py-2.5 rounded-2xl text-xs sm:text-sm font-black transition-all shrink-0 whitespace-nowrap cursor-pointer ${
               activeTab === 'job_fairs'
-                ? 'bg-theme-gradient text-white shadow-lg'
-                : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100/80'
+                ? 'bg-theme-gradient text-white shadow-lg scale-105 ring-2 ring-blue-500/30'
+                : 'text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
             }`}
           >
-            <Calendar className="w-4 h-4 text-purple-400" /> Job Fairs & Conclaves
+            <Calendar className="w-4 h-4 text-indigo-400" />
+            <span>Job Fairs & Conclaves</span>
           </button>
 
           <button
             onClick={() => setEcosystemModalOpen(true)}
-            className="flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl text-xs font-black transition-all shrink-0 whitespace-nowrap bg-gradient-to-r from-blue-900 via-indigo-900 to-amber-600 text-white shadow-md border border-amber-400/40 hover:scale-105 cursor-pointer"
+            className="flex items-center gap-2 px-4 sm:px-5 py-2.5 rounded-2xl text-xs sm:text-sm font-black transition-all shrink-0 whitespace-nowrap bg-gradient-to-r from-blue-900 via-indigo-900 to-amber-600 text-white shadow-md border border-amber-400/40 hover:scale-105 cursor-pointer"
           >
-            <Globe className="w-4 h-4 text-amber-300 animate-pulse" /> 🌐 Pool Campus & Assessment Studio
+            <Globe className="w-4 h-4 text-amber-300 animate-pulse" />
+            <span>🌐 Pool Campus & Assessment Studio</span>
           </button>
 
           <button

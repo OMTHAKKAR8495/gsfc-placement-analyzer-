@@ -176,17 +176,17 @@ export default function Navbar({ currentUser, activeRole, onRoleSwitch, onOpenAu
         </div>
 
         {/* Desktop Segmented Role Navigation Bar (Hidden on Mobile < md) */}
-        <div className="hidden md:flex items-center bg-slate-100/90 dark:bg-slate-800/90 p-1 sm:p-1.5 rounded-2xl border border-slate-200/80 dark:border-slate-700 shadow-inner">
+        <div className="hidden md:flex items-center bg-slate-100/90 dark:bg-slate-800/90 p-1.5 rounded-2xl border border-slate-200/80 dark:border-slate-700 shadow-inner overflow-x-auto max-w-[65vw] gap-1">
           {(currentUser?.role === 'student' || currentUser?.role === 'admin' || !currentUser) && (
             <button
               onClick={() => onRoleSwitch('student')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black transition-all shrink-0 whitespace-nowrap ${
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-black transition-all shrink-0 whitespace-nowrap cursor-pointer ${
                 activeRole === 'student'
-                  ? 'bg-theme-gradient text-white shadow-md'
+                  ? 'bg-theme-gradient text-white shadow-md scale-105'
                   : 'text-slate-700 dark:text-slate-200 hover:text-slate-900 hover:bg-slate-200/60 dark:hover:bg-slate-700'
               }`}
             >
-              <User className="w-3.5 h-3.5" />
+              <User className="w-4 h-4 text-blue-400" />
               <span>Student Workspace</span>
             </button>
           )}
@@ -194,13 +194,13 @@ export default function Navbar({ currentUser, activeRole, onRoleSwitch, onOpenAu
           {/* Alumni Network Tab */}
           <button
             onClick={() => onRoleSwitch('alumni')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black transition-all shrink-0 whitespace-nowrap ${
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-black transition-all shrink-0 whitespace-nowrap cursor-pointer ${
               activeRole === 'alumni'
-                ? 'bg-theme-gradient text-white shadow-md'
+                ? 'bg-theme-gradient text-white shadow-md scale-105'
                 : 'text-slate-700 dark:text-slate-200 hover:text-slate-900 hover:bg-slate-200/60 dark:hover:bg-slate-700'
             }`}
           >
-            <Award className="w-3.5 h-3.5 text-blue-400" />
+            <Award className="w-4 h-4 text-amber-400" />
             <span>Alumni Network</span>
           </button>
 
@@ -208,14 +208,14 @@ export default function Navbar({ currentUser, activeRole, onRoleSwitch, onOpenAu
           {(currentUser?.role === 'fest' || currentUser?.role === 'admin' || !currentUser) && (
             <button
               onClick={() => onRoleSwitch('fest')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black transition-all shrink-0 whitespace-nowrap cursor-pointer ${
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-black transition-all shrink-0 whitespace-nowrap cursor-pointer ${
                 activeRole === 'fest'
-                  ? 'bg-gradient-to-r from-amber-500 via-orange-500 to-yellow-500 text-slate-950 shadow-md font-black ring-2 ring-amber-400/40'
+                  ? 'bg-gradient-to-r from-amber-500 via-orange-500 to-yellow-500 text-slate-950 shadow-md font-black ring-2 ring-amber-400/40 scale-105'
                   : 'text-slate-700 dark:text-slate-200 hover:text-slate-900 hover:bg-slate-200/60 dark:hover:bg-slate-700'
               }`}
               title="Open GSFC Fest & Event Registration Hub & Digital Passes"
             >
-              <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+              <Sparkles className="w-4 h-4 text-amber-500" />
               <span>🎪 Fest Portal</span>
             </button>
           )}
@@ -224,13 +224,13 @@ export default function Navbar({ currentUser, activeRole, onRoleSwitch, onOpenAu
           {(currentUser?.role === 'student' || currentUser?.role === 'admin') && (
             <button
               onClick={() => onRoleSwitch('interview')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black transition-all shrink-0 whitespace-nowrap ${
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-black transition-all shrink-0 whitespace-nowrap cursor-pointer ${
                 activeRole === 'interview'
-                  ? 'bg-theme-gradient text-white shadow-md'
+                  ? 'bg-theme-gradient text-white shadow-md scale-105'
                   : 'text-slate-700 dark:text-slate-200 hover:text-slate-900 hover:bg-slate-200/60 dark:hover:bg-slate-700'
               }`}
             >
-              <HelpCircle className="w-3.5 h-3.5 text-amber-400" />
+              <HelpCircle className="w-4 h-4 text-amber-400" />
               <span>Interview Studio</span>
             </button>
           )}
@@ -238,13 +238,13 @@ export default function Navbar({ currentUser, activeRole, onRoleSwitch, onOpenAu
           {(currentUser?.role === 'company' || currentUser?.role === 'admin') && (
             <button
               onClick={() => onRoleSwitch('company')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black transition-all shrink-0 whitespace-nowrap ${
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-black transition-all shrink-0 whitespace-nowrap cursor-pointer ${
                 activeRole === 'company'
-                  ? 'bg-theme-gradient text-white shadow-md'
+                  ? 'bg-theme-gradient text-white shadow-md scale-105'
                   : 'text-slate-700 dark:text-slate-200 hover:text-slate-900 hover:bg-slate-200/60 dark:hover:bg-slate-700'
               }`}
             >
-              <Building2 className="w-3.5 h-3.5" />
+              <Building2 className="w-4 h-4 text-indigo-400" />
               <span>Recruiter Portal</span>
             </button>
           )}
