@@ -3140,68 +3140,135 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="p-6 bg-white dark:bg-slate-800 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col justify-between">
               <div>
-                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                <span className="text-xs font-black text-slate-500 uppercase tracking-wider block mb-1">
                   Active Requirement Quota
                 </span>
-                <h3 className="text-2xl font-black text-slate-900 dark:text-white">
-                  {currentSubscription?.postings_used || 0} / {currentSubscription?.is_unlimited ? '∞' : (currentSubscription?.max_postings || 0)}
+                <h3 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white mt-1">
+                  {currentSubscription?.has_subscription ? (
+                    <span className="text-indigo-600 dark:text-indigo-400">
+                      {currentSubscription?.postings_used || 0} / {currentSubscription?.is_unlimited ? '∞' : (currentSubscription?.max_postings || 3)}
+                    </span>
+                  ) : (
+                    <span className="text-slate-400">0 / 0</span>
+                  )}
                 </h3>
-                <p className="text-xs text-slate-500 mt-1">
-                  {currentSubscription?.is_unlimited 
-                    ? 'Unlimited campus job postings allowed'
-                    : `${Math.max(0, (currentSubscription?.max_postings || 0) - (currentSubscription?.postings_used || 0))} postings available in current plan`}
+                <p className="text-xs text-slate-500 mt-2 font-medium">
+                  {currentSubscription?.has_subscription
+                    ? (currentSubscription?.is_unlimited 
+                        ? 'Unlimited campus job postings allowed'
+                        : `${Math.max(0, (currentSubscription?.max_postings || 3) - (currentSubscription?.postings_used || 0))} postings available in current plan`)
+                    : 'Subscribe to a recruiter plan to unlock job posting drives.'}
                 </p>
               </div>
 
-              {!currentSubscription?.is_unlimited && currentSubscription?.max_postings > 0 && (
+              {currentSubscription?.has_subscription && !currentSubscription?.is_unlimited && (
                 <div className="mt-4">
-                  <div className="w-full h-2 rounded-full bg-slate-100 dark:bg-slate-700 overflow-hidden">
+                  <div className="w-full h-2.5 rounded-full bg-slate-100 dark:bg-slate-700 overflow-hidden">
                     <div 
-                      className="h-full bg-blue-600 rounded-full transition-all"
-                      style={{ width: `${Math.min(100, Math.round(((currentSubscription.postings_used || 0) / currentSubscription.max_postings) * 100))}%` }}
+                      className="h-full bg-gradient-to-r from-blue-600 to-indigo-600 rounded-full transition-all duration-500"
+                      style={{ width: `${Math.min(100, Math.round(((currentSubscription.postings_used || 0) / (currentSubscription.max_postings || 3)) * 100))}%` }}
                     />
                   </div>
                 </div>
               )}
             </div>
 
-            <div className="p-6 bg-white dark:bg-slate-800 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col justify-between">
+            {/* LIVE DAYS LEFT COUNTDOWN CARD */}
+            <div className="p-6 bg-white dark:bg-slate-800 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col justify-between relative overflow-hidden">
               <div>
-                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                  Plan Validity & Renewal
-                </span>
-                <h3 className="text-2xl font-black text-emerald-600">
-                  {currentSubscription?.days_remaining || 0} Days
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-black text-slate-500 uppercase tracking-wider block mb-1">
+                    Live Subscription Days Left
+                  </span>
+                  {currentSubscription?.has_subscription && currentSubscription?.days_remaining > 0 && (
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping" />
+                  )}
+                </div>
+                
+                <h3 className="text-2xl sm:text-3xl font-black mt-1 flex items-baseline gap-2">
+                  {currentSubscription?.has_subscription && currentSubscription?.days_remaining > 0 ? (
+                    <>
+                      <span className="text-emerald-600 dark:text-emerald-400 font-black">
+                        {currentSubscription.days_remaining}
+                      </span>
+                      <span className="text-sm font-bold text-slate-600 dark:text-slate-300">Days Left Active</span>
+                    </>
+                  ) : (
+                    <span className="text-rose-500 font-black text-2xl">
+                      0 Days (Unpaid)
+                    </span>
+                  )}
                 </h3>
-                <p className="text-xs text-slate-500 mt-1">
-                  {currentSubscription?.expires_at ? `Valid through ${new Date(currentSubscription.expires_at).toLocaleDateString('en-IN')}` : 'No active expiration'}
+
+                <p className="text-xs text-slate-500 mt-2 font-medium">
+                  {currentSubscription?.has_subscription && currentSubscription?.expires_at 
+                    ? `Active through ${new Date(currentSubscription.expires_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}` 
+                    : 'Complete subscription payment to start live days counter.'}
                 </p>
               </div>
 
               <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 flex items-center justify-between">
-                <span>Account Status:</span>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300">
-                  {currentSubscription?.status || 'Active'}
-                </span>
+                <span>Access Status:</span>
+                {currentSubscription?.has_subscription && currentSubscription?.days_remaining > 0 ? (
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 flex items-center gap-1">
+                    <CheckCircle className="w-3 h-3 text-emerald-600" /> ACTIVE PASS
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setShowPlanModal(true)}
+                    className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-amber-500 hover:bg-amber-400 text-slate-950 cursor-pointer shadow-sm"
+                  >
+                    Subscribe Now ⚡
+                  </button>
+                )}
               </div>
             </div>
 
+            {/* PAID FEES & CORPORATE INVOICES CARD */}
             <div className="p-6 bg-white dark:bg-slate-800 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col justify-between">
               <div>
-                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                  Corporate Invoices Generated
+                <span className="text-xs font-black text-slate-500 uppercase tracking-wider block mb-1">
+                  Corporate Invoices & Paid Fees
                 </span>
-                <h3 className="text-2xl font-black text-blue-600">
-                  {companyInvoices.length} Invoices
+                
+                <h3 className="text-2xl sm:text-3xl font-black text-blue-600 dark:text-blue-400 mt-1 flex items-baseline gap-2">
+                  <span>{companyInvoices.length} Invoices</span>
+                  {companyInvoices.length > 0 && (
+                    <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                      (₹{companyInvoices.reduce((sum, inv) => sum + (inv.amount_inr || 0), 0).toLocaleString('en-IN')} Total)
+                    </span>
+                  )}
                 </h3>
-                <p className="text-xs text-slate-500 mt-1">
-                  Official GST-compliant tax receipts
+                
+                <p className="text-xs text-slate-500 mt-2 font-medium">
+                  {companyInvoices.length > 0
+                    ? `Last receipt: ${companyInvoices[0]?.receipt_number} (${companyInvoices[0]?.plan_name})`
+                    : 'Official GST tax receipts and paid fees statements.'}
                 </p>
               </div>
 
-              <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-700 text-xs font-bold text-blue-600 flex items-center gap-1">
-                <FileText className="w-3.5 h-3.5" />
-                <span>Instant PDF print available below</span>
+              <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-700 text-xs font-bold text-blue-600 flex items-center justify-between">
+                <span className="flex items-center gap-1 text-blue-700 dark:text-blue-400">
+                  <FileText className="w-3.5 h-3.5" />
+                  <span>GST Tax Breakdown</span>
+                </span>
+                {companyInvoices.length > 0 ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (companyInvoices[0]) {
+                        setSelectedInvoice(companyInvoices[0]);
+                        setShowInvoiceModal(true);
+                      }
+                    }}
+                    className="text-[11px] font-black text-amber-600 hover:underline cursor-pointer"
+                  >
+                    View Latest Receipt ↗
+                  </button>
+                ) : (
+                  <span className="text-[10px] text-slate-400 font-normal">Generated on Payment</span>
+                )}
               </div>
             </div>
           </div>
