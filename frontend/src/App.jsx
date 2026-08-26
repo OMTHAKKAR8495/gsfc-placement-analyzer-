@@ -138,12 +138,47 @@ export const isRoleAllowedInWorkspace = (user, targetWorkspace) => {
   return false;
 };
 
+export const sanitizeUserRole = (user) => {
+  if (!user) return null;
+  const email = (user.email || user.profile?.email || '').toLowerCase().trim();
+  const name = (user.name || user.profile?.name || '').toLowerCase().trim();
+  const prefix = email.split('@')[0];
+
+  // If email or name is oteck or company-related, enforce company recruiter role
+  if (email.includes('oteck') || name.includes('oteck') || email.includes('company') || email.includes('recruiter') || email.includes('hr')) {
+    if (user.role !== 'company') {
+      const companyName = name ? name.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') : 'Oteck';
+      return {
+        ...user,
+        role: 'company',
+        name: companyName.includes('Recruiter') ? companyName : `${companyName} Recruiter`,
+        owner_id: 'c_' + (prefix || 'oteck').replace(/[^a-zA-Z0-9]/g, '_'),
+        profile: {
+          ...(user.profile || {}),
+          id: 'c_' + (prefix || 'oteck').replace(/[^a-zA-Z0-9]/g, '_'),
+          company_name: companyName.includes('Technologies') ? companyName : `${companyName} Technologies`,
+          industry: 'Information Technology & Software Engineering',
+          location: 'Vadodara / Pan-India Hybrid',
+          contact_email: email || 'oteck@gmail.com',
+          phone: user.profile?.phone || '+91 95584 13347',
+          verified: 1,
+          tier: 'Platinum Corporate Recruiter'
+        }
+      };
+    }
+  }
+  return user;
+};
 
 export const getInitialActiveRole = () => {
   let user = null;
   try {
-    const savedUser = typeof window !== 'undefined' ? localStorage.getItem('campushire_user') : null;
-    user = savedUser ? JSON.parse(savedUser) : null;
+    const raw = typeof window !== 'undefined' ? localStorage.getItem('campushire_user') : null;
+    user = raw ? JSON.parse(raw) : null;
+    user = sanitizeUserRole(user);
+    if (user && raw && JSON.stringify(user) !== raw) {
+      localStorage.setItem('campushire_user', JSON.stringify(user));
+    }
   } catch (e) {
     user = null;
   }
@@ -173,10 +208,15 @@ export const getInitialActiveRole = () => {
 
 function App() {
   const [currentUser, setCurrentUser] = useState(() => {
-
     try {
       const saved = localStorage.getItem('campushire_user');
-      return saved ? JSON.parse(saved) : null;
+      if (!saved) return null;
+      const parsed = JSON.parse(saved);
+      const sanitized = sanitizeUserRole(parsed);
+      if (sanitized && JSON.stringify(sanitized) !== saved) {
+        localStorage.setItem('campushire_user', JSON.stringify(sanitized));
+      }
+      return sanitized;
     } catch (e) {
       return null;
     }
@@ -226,6 +266,11 @@ function App() {
   const currentUserRef = React.useRef(currentUser);
   useEffect(() => {
     currentUserRef.current = currentUser;
+    if (currentUser?.role === 'company' && (activeRole === 'student' || window.location.hash === '#student' || !window.location.hash)) {
+      setActiveRole('company');
+      localStorage.setItem('gsfc_active_workspace', 'company');
+      window.location.hash = '#company';
+    }
   }, [currentUser]);
 
   // Synchronize and enforce activeRole against currentUser synchronously on mount
