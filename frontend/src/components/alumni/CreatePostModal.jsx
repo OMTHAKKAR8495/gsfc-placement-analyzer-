@@ -12,18 +12,6 @@ export default function CreatePostModal({ isOpen, onClose, alumniProfile, onPost
   const [isSuccess, setIsSuccess] = useState(false);
   const [error, setError] = useState('');
 
-  if (!isOpen) return null;
-
-  const toggleTag = (tag) => {
-    if (selectedTags.includes(tag)) {
-      setSelectedTags(prev => prev.filter(t => t !== tag));
-    } else {
-      if (selectedTags.length < 5) {
-        setSelectedTags(prev => [...prev, tag]);
-      }
-    }
-  };
-
   React.useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === 'Escape' || e.keyCode === 27) {
@@ -35,6 +23,18 @@ export default function CreatePostModal({ isOpen, onClose, alumniProfile, onPost
       return () => window.removeEventListener('keydown', handleKeyDown);
     }
   }, [isOpen, onClose]);
+
+  if (!isOpen) return null;
+
+  const toggleTag = (tag) => {
+    if (selectedTags.includes(tag)) {
+      setSelectedTags(prev => prev.filter(t => t !== tag));
+    } else {
+      if (selectedTags.length < 5) {
+        setSelectedTags(prev => [...prev, tag]);
+      }
+    }
+  };
 
   const handleAddCustomTag = (e) => {
     e.preventDefault();
