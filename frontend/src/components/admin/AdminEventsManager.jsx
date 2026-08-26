@@ -105,10 +105,24 @@ export default function AdminEventsManager() {
     }
   };
 
+  const [liveToast, setLiveToast] = useState(null);
+
+  // Auto-dismiss live toast after 6 seconds
+  useEffect(() => {
+    if (!liveToast) return;
+    const timer = setTimeout(() => {
+      setLiveToast(null);
+    }, 6000);
+    return () => clearTimeout(timer);
+  }, [liveToast]);
+
   const handleCreateEvent = async (e) => {
     e.preventDefault();
     if (!newEvent.title || !newEvent.event_date) {
-      alert('Event title and date are required.');
+      setLiveToast({
+        type: 'error',
+        message: 'Event title and event date are required.'
+      });
       return;
     }
 
@@ -162,6 +176,8 @@ export default function AdminEventsManager() {
 
       setEvents(prev => [createdEventObj, ...prev.filter(ev => ev.id !== createdId && ev.slug !== finalSlug)]);
       setCreateModalOpen(false);
+      
+      const createdEventTitle = newEvent.title.trim();
       setNewEvent({
         title: '',
         slug: '',
@@ -174,9 +190,20 @@ export default function AdminEventsManager() {
         is_registration_open: 1,
         max_registrations: 1500
       });
-      alert(`🎉 Event "${newEvent.title}" published successfully!\nPublic Registration Link: #fest/${finalSlug}`);
+
+      // Trigger rolling live animated UI toast
+      setLiveToast({
+        type: 'success',
+        title: createdEventTitle,
+        slug: finalSlug,
+        url: `${window.location.origin}/#fest/${finalSlug}`,
+        message: `🎉 Event "${createdEventTitle}" is now LIVE! Public registration opened.`
+      });
     } catch (err) {
-      alert(err.message || 'Could not create event.');
+      setLiveToast({
+        type: 'error',
+        message: err.message || 'Could not create event.'
+      });
     } finally {
       setSubmitting(false);
     }
@@ -205,7 +232,64 @@ export default function AdminEventsManager() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 relative">
+      {/* ROLLING LIVE EVENT NOTIFICATION TOAST */}
+      {liveToast && (
+        <div className="fixed top-6 right-6 z-[9999] max-w-md w-full animate-bounce-in shadow-2xl transition-all duration-300">
+          <div className="bg-slate-900/95 text-white p-5 rounded-3xl border-2 border-emerald-500/80 backdrop-blur-xl shadow-emerald-500/20 relative overflow-hidden">
+            <div className="absolute -right-6 -bottom-6 w-24 h-24 bg-emerald-500/20 rounded-full blur-xl pointer-events-none" />
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center gap-2.5">
+                <span className="w-3 h-3 rounded-full bg-emerald-400 animate-ping shrink-0" />
+                <span className="text-[10px] font-black uppercase tracking-wider text-emerald-400 bg-emerald-950/80 px-2 py-0.5 rounded-full border border-emerald-800">
+                  LIVE PORTAL ACTIVATED
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setLiveToast(null)}
+                className="text-slate-400 hover:text-white p-1 rounded-lg transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="mt-2.5">
+              <h4 className="text-sm font-black text-white flex items-center gap-1.5">
+                <Sparkles className="w-4 h-4 text-amber-400" />
+                <span>{liveToast.title || 'Event Published'}</span>
+              </h4>
+              <p className="text-xs text-slate-300 mt-1 font-medium">
+                {liveToast.message}
+              </p>
+            </div>
+
+            {liveToast.slug && (
+              <div className="mt-3.5 pt-3 border-t border-slate-800 flex items-center justify-between gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleCopyPublicLink(liveToast.slug)}
+                  className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition-all flex items-center gap-1.5 border border-slate-700 cursor-pointer hover:scale-105"
+                >
+                  <Copy className="w-3.5 h-3.5 text-blue-400" />
+                  <span>{copiedSlug === liveToast.slug ? 'Copied! ✅' : 'Copy Link'}</span>
+                </button>
+
+                <a
+                  href={`#fest/${liveToast.slug}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 text-xs font-black transition-all flex items-center gap-1.5 shadow-md hover:scale-105"
+                >
+                  <span>Open Portal</span>
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </a>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Header Deck */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 glass-panel p-5 rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-md">
         <div>
