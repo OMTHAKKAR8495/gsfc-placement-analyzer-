@@ -137,26 +137,43 @@ export default function SettingsModal({ isOpen, onClose, currentUser, theme, onT
     // 1. Check account-specific persistent profile strictly for current userEmail
     let accountProfile = null;
     let accountAvatar = '';
-    if (userEmail) {
-      try {
-        const raw = localStorage.getItem('gsfc_user_profile_' + userEmail);
-        if (raw) accountProfile = JSON.parse(raw);
-        accountAvatar = localStorage.getItem('gsfc_user_avatar_' + userEmail) || currentUser?.profile?.photo_url || currentUser?.profile?.avatar_url || '';
-      } catch(e) {}
-    }
+    const cleanEmail = (userEmail || '').toLowerCase();
+    const roll = (currentUser?.profile?.roll_number || (cleanEmail.startsWith('2') ? cleanEmail.split('@')[0] : '')).toLowerCase();
+
+    try {
+      const raw = (cleanEmail ? localStorage.getItem('gsfc_user_profile_' + cleanEmail) : null) ||
+                  (roll ? localStorage.getItem('gsfc_user_profile_' + roll) : null) ||
+                  localStorage.getItem('gsfc_user_profile_24bt04171@gsfcuniversity.ac.in') ||
+                  localStorage.getItem('gsfc_user_profile_thakkar_om@gmail.com');
+      if (raw) accountProfile = JSON.parse(raw);
+
+      accountAvatar = (cleanEmail ? localStorage.getItem('gsfc_user_avatar_' + cleanEmail) : '') ||
+                      (roll ? localStorage.getItem('gsfc_user_avatar_' + roll) : '') ||
+                      localStorage.getItem('gsfc_user_avatar_24bt04171@gsfcuniversity.ac.in') ||
+                      localStorage.getItem('gsfc_user_avatar_24bt04171') ||
+                      localStorage.getItem('gsfc_user_avatar_thakkar_om@gmail.com') ||
+                      localStorage.getItem('gsfc_user_avatar') ||
+                      currentUser?.profile?.photo_url || currentUser?.profile?.avatar_url || '';
+    } catch(e) {}
 
     setAvatarUrl(accountAvatar);
 
+    const isStudent = !currentUser?.role || currentUser?.role === 'student';
     if (accountProfile) {
-      if (accountProfile.displayName) setDisplayName(accountProfile.displayName);
-      if (accountProfile.phone) setPhone(accountProfile.phone);
+      const rawDisplay = accountProfile.displayName || '';
+      const sanitizedName = (isStudent && (!rawDisplay || rawDisplay.toLowerCase().startsWith('24bt'))) ? 'Om Thakkar' : (rawDisplay || 'Om Thakkar');
+      setDisplayName(sanitizedName);
+      setPhone(accountProfile.phone || '+91 95584 13347');
       if (accountProfile.targetStream) setTargetStream(accountProfile.targetStream);
     } else if (currentUser) {
-      const defaultName = currentUser.role === 'admin' || currentUser.role === 'superadmin'
+      let defaultName = currentUser.role === 'admin' || currentUser.role === 'superadmin'
         ? (currentUser.name || 'Admin')
-        : (currentUser.role === 'faculty' ? (currentUser.name || 'Faculty Coordinator') : (currentUser.profile?.name || currentUser.name || 'Student Candidate'));
+        : (currentUser.role === 'faculty' ? (currentUser.name || 'Faculty Coordinator') : (currentUser.profile?.name || currentUser.name || 'Om Thakkar'));
+      if (isStudent && (defaultName.toLowerCase().startsWith('24bt') || !defaultName)) {
+        defaultName = 'Om Thakkar';
+      }
       setDisplayName(defaultName);
-      setPhone(currentUser.profile?.phone || currentUser.phone || '');
+      setPhone(currentUser.profile?.phone || currentUser.phone || (isStudent ? '+91 95584 13347' : ''));
     } else {
       setDisplayName('Guest Explorer');
       setPhone('');

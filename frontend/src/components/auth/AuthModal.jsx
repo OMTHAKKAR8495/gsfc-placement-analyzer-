@@ -415,21 +415,25 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialRole 
     }
 
     // Default: Dynamic Student Profile
-    const derivedRoll = '22BCE' + Math.floor(100 + Math.random() * 900);
+    const isOmThakkar = rawEmail.includes('om') || rawEmail.includes('24bt04171') || rawEmail.includes('thakkar') || effectiveName.includes('Om') || effectiveName.toLowerCase().startsWith('24bt');
+    const studentName = isOmThakkar ? 'Om Thakkar' : (effectiveName.startsWith('24') || effectiveName.startsWith('23') || effectiveName.startsWith('22') ? 'Om Thakkar' : effectiveName);
+    const studentRoll = rawEmail.startsWith('24') || rawEmail.startsWith('23') || rawEmail.startsWith('22') ? rawEmail.split('@')[0].toUpperCase() : '24BT04171';
+    const studentPhone = '+91 95584 13347';
+
     return {
       id: 'u_' + emailPrefix,
-      name: effectiveName,
-      email: userEmail || 'student@gsfcuniversity.ac.in',
+      name: studentName,
+      email: userEmail || '24bt04171@gsfcuniversity.ac.in',
       role: 'student',
       owner_id: 's_' + emailPrefix,
       profile: {
         id: 's_' + emailPrefix,
-        name: effectiveName,
+        name: studentName,
         program: 'BTech CSE',
         branch: 'Computer Science & Engineering',
-        cgpa: 8.5,
-        roll_number: derivedRoll,
-        phone: '+91 98765 43210'
+        cgpa: 8.9,
+        roll_number: studentRoll,
+        phone: studentPhone
       }
     };
   };
