@@ -978,7 +978,6 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
         if (email) {
           localStorage.setItem('gsfc_student_applications_' + email, JSON.stringify(updated));
         }
-        localStorage.setItem('gsfc_student_applications', JSON.stringify(updated));
         return updated;
       });
     }
@@ -1061,7 +1060,6 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
         if (email) {
           localStorage.setItem('gsfc_student_applications_' + email, JSON.stringify(updated));
         }
-        localStorage.setItem('gsfc_student_applications', JSON.stringify(updated));
         return updated;
       });
     }

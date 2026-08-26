@@ -140,12 +140,17 @@ export const isRoleAllowedInWorkspace = (user, targetWorkspace) => {
 
 export const sanitizeUserRole = (user) => {
   if (!user) return null;
+  // Never mutate admin, faculty, superadmin, or security accounts
+  if (user.role === 'admin' || user.role === 'superadmin' || user.role === 'faculty' || user.role === 'security' || user.role === 'fest' || user.role === 'alumni') {
+    return user;
+  }
+
   const email = (user.email || user.profile?.email || '').toLowerCase().trim();
   const name = (user.name || user.profile?.name || '').toLowerCase().trim();
   const prefix = email.split('@')[0];
 
-  // If email or name is oteck or company-related, enforce company recruiter role
-  if (email.includes('oteck') || name.includes('oteck') || email.includes('company') || email.includes('recruiter') || email.includes('hr')) {
+  // Only if email specifically belongs to Oteck or corporate recruiter partner
+  if (email.includes('oteck') || (email.includes('recruiter') && !email.includes('gsfcuniversity')) || email.includes('company_hr')) {
     if (user.role !== 'company') {
       const companyName = name ? name.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') : 'Oteck';
       return {
