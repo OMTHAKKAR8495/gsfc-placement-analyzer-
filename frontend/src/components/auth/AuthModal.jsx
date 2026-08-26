@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Lock, Mail, Building, User, AlertCircle, Sparkles, Shield, ShieldCheck, GraduationCap, CheckCircle2, Phone, ArrowRight, ArrowLeft, PlusCircle, Check, Eye, EyeOff, Key, RefreshCw, Crown, Zap, Award } from 'lucide-react';
+import { X, Lock, Mail, Building, Building2, User, AlertCircle, Sparkles, Shield, ShieldCheck, GraduationCap, CheckCircle2, Phone, ArrowRight, ArrowLeft, PlusCircle, Check, Eye, EyeOff, Key, RefreshCw, Crown, Zap, Award } from 'lucide-react';
 
 
 
@@ -472,19 +472,22 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialRole 
       };
     }
 
-    if (resolvedRole === 'company') {
+    if (resolvedRole === 'company' || resolvedRole === 'gsfc_company' || userRole === 'gsfc_company') {
+      const isGsfcPlaced = userRole === 'gsfc_company' || rawEmail.includes('gsfc') || rawEmail.includes('placed');
       return {
         id: 'u_' + emailPrefix,
-        name: effectiveName || 'Corporate Recruiter',
-        email: userEmail || 'recruiter@company.com',
+        name: effectiveName || (isGsfcPlaced ? 'GSFC Placed Partner Recruiter' : 'Corporate Recruiter'),
+        email: userEmail || (isGsfcPlaced ? 'recruiter@gsfclimited.com' : 'recruiter@company.com'),
         role: 'company',
+        company_type: isGsfcPlaced ? 'gsfc_placed_company' : 'outside_recruiter',
         phone: formData.phone || '',
         owner_id: 'c_' + emailPrefix,
         profile: {
           id: 'c_' + emailPrefix,
-          company_name: effectiveName || 'Corporate Partner',
-          industry: 'Technology & Engineering',
+          company_name: effectiveName || (isGsfcPlaced ? 'GSFC Limited' : 'Corporate Partner'),
+          industry: isGsfcPlaced ? 'Chemicals, Fertilizers & Industrial Engineering' : 'Technology & Engineering',
           phone: formData.phone || '',
+          tier: isGsfcPlaced ? 'GSFC Official Placed Partner' : 'Registered Partner',
           approved: 1
         }
       };
@@ -1304,99 +1307,84 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialRole 
 
 
 
-            {/* Active Role Selector: 4 Main Portals (Student, Company Recruiter, Faculty, Admin) */}
-            <div className="mt-4 p-3 bg-slate-50 border border-slate-200 rounded-2xl">
-              <div className="flex items-center justify-between mb-2">
-                <label className="block text-[11px] font-black text-slate-700 uppercase tracking-wider">
+            {/* Active Role Selector: Modern Dropdown & Quick Access Pills */}
+            <div className="mt-4 p-3.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-2xl space-y-2.5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
+                <label className="block text-[11px] font-black text-slate-800 dark:text-slate-200 uppercase tracking-wider">
                   {isLogin ? '1. Select Portal Role to Sign In' : '1. Select Account Role to Register'}
                 </label>
-                <span className="text-[10px] font-black px-2 py-0.5 rounded-md bg-blue-100 text-blue-900 border border-blue-200">
-                  Target: {role === 'student' ? 'GSFC Student' : role === 'company' ? '🏢 Outside Corporate Recruiter' : role === 'fest' ? '🎪 Fest Guest' : role === 'faculty' ? 'Faculty Coordinator' : role === 'security' ? 'Campus Security' : role === 'admin' ? 'TPC Admin' : 'Alumni'}
+                <span className="text-[10px] font-black px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-900 dark:bg-blue-950 dark:text-blue-300 border border-blue-300 dark:border-blue-800 self-start sm:self-auto">
+                  {role === 'student' && '🎓 GSFC Student'}
+                  {role === 'gsfc_company' && '🏢 GSFC Placed Company'}
+                  {role === 'company' && '🌐 Outside Recruiter'}
+                  {role === 'faculty' && '🏛️ Faculty Coordinator'}
+                  {role === 'admin' && '🛡️ TPC Admin'}
+                  {role === 'alumni' && '🎓 GSFC Alumni Mentor'}
+                  {role === 'fest' && '🎪 Fest Guest'}
+                  {role === 'security' && '🛡️ Campus Security'}
+                  {role === 'superadmin' && '👑 Super Admin'}
                 </span>
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2">
-                <button
-                  type="button"
-                  onClick={() => handleRoleChange('student')}
-                  className={`py-2.5 px-2 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 border transition-all cursor-pointer ${
-                    role === 'student'
-                      ? 'bg-blue-900 text-white border-blue-900 shadow-md ring-2 ring-blue-400/50 scale-[1.02]'
-                      : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100'
-                  }`}
+              {/* 📋 Modern Responsive Role Dropdown Selector */}
+              <div className="relative">
+                <select
+                  value={role}
+                  onChange={(e) => handleRoleChange(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-900 border-2 border-slate-300 dark:border-slate-600 rounded-xl text-xs font-black text-slate-900 dark:text-slate-100 focus:outline-none focus:border-blue-900 dark:focus:border-blue-500 shadow-xs cursor-pointer"
                 >
-                  <User className="w-3.5 h-3.5" />
-                  <span>Student</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleRoleChange('company')}
-                  className={`py-2.5 px-2 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 border transition-all cursor-pointer ${
-                    role === 'company'
-                      ? 'bg-indigo-900 text-white border-indigo-900 shadow-md ring-2 ring-indigo-400/50 scale-[1.02]'
-                      : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100'
-                  }`}
-                  title="Outside Corporate Recruiter / Company Hiring"
-                >
-                  <Building className="w-3.5 h-3.5 text-indigo-400" />
-                  <span className="truncate">Outside Recruiter</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleRoleChange('fest')}
-                  className={`py-2.5 px-2 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 border transition-all cursor-pointer ${
-                    role === 'fest'
-                      ? 'bg-amber-600 text-white border-amber-600 shadow-md ring-2 ring-amber-400/50 scale-[1.02]'
-                      : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100'
-                  }`}
-                >
-                  <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-                  <span>Fest Guest</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleRoleChange('security')}
-                  className={`py-2.5 px-2 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 border transition-all cursor-pointer ${
-                    role === 'security'
-                      ? 'bg-purple-900 text-white border-purple-900 shadow-md ring-2 ring-purple-400/50 scale-[1.02]'
-                      : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100'
-                  }`}
-                >
-                  <ShieldCheck className="w-3.5 h-3.5" />
-                  <span>Security</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleRoleChange('faculty')}
-                  className={`py-2.5 px-2 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 border transition-all cursor-pointer ${
-                    role === 'faculty'
-                      ? 'bg-emerald-700 text-white border-emerald-700 shadow-md ring-2 ring-emerald-400/50 scale-[1.02]'
-                      : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100'
-                  }`}
-                >
-                  <GraduationCap className="w-3.5 h-3.5" />
-                  <span>Faculty</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleRoleChange('admin')}
-                  className={`py-2.5 px-2 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 border transition-all cursor-pointer ${
-                    role === 'admin'
-                      ? 'bg-slate-900 text-white border-slate-900 shadow-md ring-2 ring-slate-400/50 scale-[1.02]'
-                      : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100'
-                  }`}
-                >
-                  <Shield className="w-3.5 h-3.5" />
-                  <span>Admin</span>
-                </button>
+                  <option value="student">🎓 GSFC Student (Placement Candidate)</option>
+                  <option value="gsfc_company">🏢 GSFC Placed Company (Official Partner / Recruiter)</option>
+                  <option value="company">🌐 Outside Corporate Recruiter (New Hiring Partner)</option>
+                  <option value="faculty">🏛️ Faculty Placement Coordinator (CSE / IT / Engg)</option>
+                  <option value="admin">🛡️ TPC Placement Cell Admin (Director & Team)</option>
+                  <option value="alumni">🎓 GSFC Alumni Mentor (Placement Insights)</option>
+                  <option value="fest">🎪 Fest Guest & External Attendee (TechFest Entry Pass)</option>
+                  <option value="security">🛡️ Campus Security Officer (Gate Pass Scanner)</option>
+                  <option value="superadmin">👑 TPC Super Administrator (Full Authority)</option>
+                </select>
               </div>
 
-              {/* Outside Recruiter Info Banner */}
+              {/* Quick-Access Role Pills */}
+              <div className="grid grid-cols-3 sm:grid-cols-3 gap-1.5 pt-0.5">
+                {[
+                  { id: 'student', label: 'Student', icon: <User className="w-3.5 h-3.5" />, activeBg: 'bg-blue-900 text-white border-blue-900' },
+                  { id: 'gsfc_company', label: 'GSFC Placed Co.', icon: <Building2 className="w-3.5 h-3.5 text-amber-300" />, activeBg: 'bg-gradient-to-r from-blue-950 to-indigo-900 text-white border-indigo-900' },
+                  { id: 'company', label: 'Outside Recruiter', icon: <Building className="w-3.5 h-3.5 text-indigo-400" />, activeBg: 'bg-indigo-900 text-white border-indigo-900' },
+                  { id: 'faculty', label: 'Faculty', icon: <GraduationCap className="w-3.5 h-3.5" />, activeBg: 'bg-emerald-800 text-white border-emerald-800' },
+                  { id: 'admin', label: 'TPC Admin', icon: <Shield className="w-3.5 h-3.5" />, activeBg: 'bg-slate-900 text-white border-slate-900' },
+                  { id: 'fest', label: 'Fest Guest', icon: <Sparkles className="w-3.5 h-3.5 text-amber-300" />, activeBg: 'bg-amber-600 text-white border-amber-600' },
+                ].map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => handleRoleChange(item.id)}
+                    className={`py-2 px-1.5 rounded-xl text-[11px] font-black flex items-center justify-center gap-1 border transition-all cursor-pointer truncate ${
+                      role === item.id
+                        ? `${item.activeBg} shadow-md ring-2 ring-blue-400/40 scale-[1.02]`
+                        : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                    }`}
+                  >
+                    {item.icon}
+                    <span className="truncate">{item.label}</span>
+                  </button>
+                ))}
+              </div>
+
+              {/* Role Explanatory Banner */}
+              {role === 'gsfc_company' && (
+                <div className="p-2.5 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-indigo-950/40 dark:to-blue-950/40 border border-indigo-200 dark:border-indigo-800 rounded-xl text-[11px] font-bold text-indigo-950 dark:text-indigo-200 flex items-center gap-2 animate-fadeIn">
+                  <Building2 className="w-4 h-4 text-indigo-700 shrink-0" />
+                  <span>
+                    <strong>GSFC Placed Company:</strong> Official partnered enterprise (GSFC Limited, Reliance, L&T, Tata, etc.) with verified placement authority.
+                  </span>
+                </div>
+              )}
               {role === 'company' && (
-                <div className="mt-2.5 p-2.5 bg-indigo-50 border border-indigo-200 rounded-xl text-[11px] font-bold text-indigo-900 flex items-center gap-2 animate-fadeIn">
+                <div className="p-2.5 bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 rounded-xl text-[11px] font-bold text-indigo-900 dark:text-indigo-200 flex items-center gap-2 animate-fadeIn">
                   <Building className="w-4 h-4 text-indigo-600 shrink-0" />
                   <span>
-                    <strong>Outside Corporate Recruiter:</strong> Sign in with your company email or register to publish campus placement drives & hire GSFC students.
+                    <strong>Outside Corporate Recruiter:</strong> Sign in with your corporate domain or register to post placement drives & hire GSFC students.
                   </span>
                 </div>
               )}
