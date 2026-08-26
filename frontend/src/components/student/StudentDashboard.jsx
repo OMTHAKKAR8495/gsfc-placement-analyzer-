@@ -299,6 +299,16 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
 
 
 
+  const ensureString = (val, fallback = '') => {
+    if (typeof val === 'string') return val;
+    if (typeof val === 'number') return String(val);
+    if (val && typeof val === 'object') {
+      if (typeof val.name === 'string') return val.name;
+      if (typeof val.displayName === 'string') return val.displayName;
+    }
+    return fallback;
+  };
+
   // Editable Candidate Fields
   const [candidateName, setCandidateName] = useState(() => {
     if (!currentUser) return 'Guest Explorer';
@@ -306,12 +316,13 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
       const savedUserStr = localStorage.getItem('campushire_user');
       if (savedUserStr) {
         const u = JSON.parse(savedUserStr);
-        if (u.profile?.name || u.name) return u.profile?.name || u.name;
+        const nameVal = u.profile?.name || u.name;
+        if (nameVal) return ensureString(nameVal, 'Thakkar Om');
       }
       const directSaved = localStorage.getItem('gsfc_candidate_name');
-      if (directSaved) return directSaved;
+      if (directSaved) return ensureString(directSaved, 'Thakkar Om');
     } catch(e) {}
-    return student?.name || 'Thakkar Om';
+    return ensureString(student?.name, 'Thakkar Om');
   });
   const [candidateEmail, setCandidateEmail] = useState('thakkar_om@gmail.com');
   const [candidatePhone, setCandidatePhone] = useState(() => {
@@ -320,18 +331,19 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
       const savedUserStr = localStorage.getItem('campushire_user');
       if (savedUserStr) {
         const u = JSON.parse(savedUserStr);
-        if (u.profile?.phone || u.phone) return u.profile?.phone || u.phone;
+        const phoneVal = u.profile?.phone || u.phone;
+        if (phoneVal) return ensureString(phoneVal, '+91 95584 13347');
       }
       const email = (currentUser?.email || student?.email || '').toLowerCase();
       if (email) {
         const raw = localStorage.getItem('gsfc_user_profile_' + email);
         if (raw) {
           const custom = JSON.parse(raw);
-          if (custom.phone) return custom.phone;
+          if (custom.phone) return ensureString(custom.phone, '+91 95584 13347');
         }
       }
     } catch(e) {}
-    return student?.phone || '+91 95584 13347';
+    return ensureString(student?.phone, '+91 95584 13347');
   });
   const [isEditingName, setIsEditingName] = useState(false);
   const [isEditingEmail, setIsEditingEmail] = useState(false);
@@ -359,32 +371,32 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
     }
 
     if (customProfile?.displayName) {
-      setCandidateName(customProfile.displayName);
+      setCandidateName(ensureString(customProfile.displayName, 'Thakkar Om'));
     } else if (currentUser?.profile?.name || currentUser?.name) {
-      setCandidateName(currentUser.profile?.name || currentUser.name);
+      setCandidateName(ensureString(currentUser.profile?.name || currentUser.name, 'Thakkar Om'));
     } else if (student?.name) {
-      setCandidateName(student.name);
+      setCandidateName(ensureString(student.name, 'Thakkar Om'));
     } else if (currentUser?.email) {
-      const emailName = currentUser.email
+      const emailName = String(currentUser.email)
         .split('@')[0]
         .replace(/[._-]/g, ' ')
         .split(' ')
         .filter(Boolean)
         .map(p => p.charAt(0).toUpperCase() + p.slice(1).toLowerCase())
         .join(' ');
-      setCandidateName(emailName || 'Student Candidate');
+      setCandidateName(ensureString(emailName, 'Student Candidate'));
     }
 
     if (customProfile?.phone) {
-      setCandidatePhone(customProfile.phone);
+      setCandidatePhone(ensureString(customProfile.phone, '+91 95584 13347'));
     } else if (currentUser?.profile?.phone || currentUser?.phone) {
-      setCandidatePhone(currentUser.profile?.phone || currentUser.phone);
+      setCandidatePhone(ensureString(currentUser.profile?.phone || currentUser.phone, '+91 95584 13347'));
     } else if (student?.phone) {
-      setCandidatePhone(student.phone);
+      setCandidatePhone(ensureString(student.phone, '+91 95584 13347'));
     }
 
     if (currentUser?.email) {
-      setCandidateEmail(currentUser.email);
+      setCandidateEmail(ensureString(currentUser.email, 'student@gsfcuniversity.ac.in'));
     }
 
     const emailAvatar = email ? (localStorage.getItem('gsfc_user_avatar_' + email) || '') : '';
@@ -1924,11 +1936,11 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
               <div className="p-4 bg-white/90 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-2xl bg-blue-900 text-white font-black text-base flex items-center justify-center shadow-md">
-                    {candidateName.slice(0, 1).toUpperCase()}
+                    {String(candidateName || 'T').slice(0, 1).toUpperCase()}
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="font-black text-sm text-slate-900">{candidateName}</span>
+                      <span className="font-black text-sm text-slate-900">{String(candidateName || 'Candidate')}</span>
                       <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 text-[10px] font-black rounded-md border border-emerald-300">
                         Active Candidate
                       </span>
@@ -1999,7 +2011,7 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
                 <div className="p-4 bg-slate-900 text-white rounded-2xl border border-slate-800 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-lg">
                   <div className="space-y-1">
                     <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
-                      FINAL SELECTION DECISION FOR {candidateName.toUpperCase()}:
+                      FINAL SELECTION DECISION FOR {String(candidateName || 'CANDIDATE').toUpperCase()}:
                     </span>
                     <div className="flex items-center gap-2">
                       <span className="px-3 py-1 bg-emerald-500/20 border border-emerald-400 text-emerald-300 font-black text-sm rounded-xl flex items-center gap-1.5">
