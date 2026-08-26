@@ -1478,150 +1478,155 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
           </div>
         </div>
 
-        {/* Tab Navigation Segment */}
-        <div className="flex items-center gap-2.5 sm:gap-3.5 mt-6 sm:mt-8 border-t border-slate-200/90 dark:border-slate-800 pt-5 overflow-x-auto max-w-full pb-2 scrollbar-thin">
+        {/* Tab Navigation Segment (Uniform Color & Clean Design) */}
+        <div className="flex items-center gap-2.5 sm:gap-3 mt-6 sm:mt-8 border-t border-slate-200/90 dark:border-slate-800 pt-5 overflow-x-auto max-w-full pb-2 scrollbar-thin">
           {/* 1. LIVE DRIVES */}
           <button
             onClick={() => handleTabChange('feed')}
-            className={`flex items-center gap-2 px-4 sm:px-5 py-2.5 rounded-2xl text-xs sm:text-sm font-black transition-all shrink-0 whitespace-nowrap cursor-pointer ${
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs sm:text-sm font-black transition-all shrink-0 whitespace-nowrap cursor-pointer ${
               activeTab === 'feed'
-                ? 'bg-theme-gradient text-white shadow-lg scale-105 ring-2 ring-blue-500/30'
-                : 'text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
+                ? 'bg-theme-gradient text-white shadow-md scale-105 ring-2 ring-blue-500/30'
+                : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200/80 dark:border-slate-700 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
-            <Briefcase className="w-4 h-4 text-amber-400" />
-            <span>💼 Live Drives</span>
+            <Briefcase className={`w-4 h-4 ${activeTab === 'feed' ? 'text-white' : 'text-blue-600'}`} />
+            <span>Live Drives</span>
           </button>
 
-          {/* 2. SMART RESUME ATS (MOVED AHEAD) */}
+          {/* 2. SMART RESUME ATS */}
           <button
             onClick={() => handleTabChange('profile')}
-            className={`flex items-center gap-2 px-4 sm:px-5 py-2.5 rounded-2xl text-xs sm:text-sm font-black transition-all shrink-0 whitespace-nowrap cursor-pointer ${
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs sm:text-sm font-black transition-all shrink-0 whitespace-nowrap cursor-pointer ${
               activeTab === 'profile'
-                ? 'bg-theme-gradient text-white shadow-lg scale-105 ring-2 ring-blue-500/30'
-                : 'text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
+                ? 'bg-theme-gradient text-white shadow-md scale-105 ring-2 ring-blue-500/30'
+                : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200/80 dark:border-slate-700 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
-            <FileText className="w-4 h-4 text-blue-400" />
-            <span>📄 Smart Resume ATS</span>
+            <FileText className={`w-4 h-4 ${activeTab === 'profile' ? 'text-white' : 'text-blue-600'}`} />
+            <span>Smart Resume ATS</span>
           </button>
 
           {/* 3. LIVE MEETINGS & VIDEO INTERVIEWS */}
           <button
             onClick={() => handleTabChange('video_interviews')}
-            className={`flex items-center gap-2 px-4 sm:px-5 py-2.5 rounded-2xl text-xs sm:text-sm font-black transition-all shrink-0 whitespace-nowrap cursor-pointer ${
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs sm:text-sm font-black transition-all shrink-0 whitespace-nowrap cursor-pointer ${
               activeTab === 'video_interviews'
-                ? 'bg-gradient-to-r from-emerald-600 to-teal-700 text-white shadow-lg ring-2 ring-emerald-400/40 scale-105'
-                : 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-900 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700 hover:bg-emerald-100'
+                ? 'bg-theme-gradient text-white shadow-md scale-105 ring-2 ring-blue-500/30'
+                : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200/80 dark:border-slate-700 hover:text-slate-900 dark:hover:text-white'
             }`}
             title="Join live recruiter interviews and faculty mock panels"
           >
-            <Video className="w-4 h-4 text-emerald-600 dark:text-emerald-400 animate-pulse" />
-            <span>📹 Live Meetings ({studentMeetings.length})</span>
+            <Video className={`w-4 h-4 ${activeTab === 'video_interviews' ? 'text-white' : 'text-blue-600'}`} />
+            <span>Live Meetings ({studentMeetings.length})</span>
           </button>
 
           {/* 4. AI PLACEMENT INTELLIGENCE HUB */}
           <button
             onClick={() => handleTabChange('intelligence')}
-            className={`flex items-center gap-2 px-4 sm:px-5 py-2.5 rounded-2xl text-xs sm:text-sm font-black transition-all shrink-0 whitespace-nowrap cursor-pointer ${
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs sm:text-sm font-black transition-all shrink-0 whitespace-nowrap cursor-pointer ${
               activeTab === 'intelligence'
-                ? 'bg-gradient-to-r from-blue-900 via-indigo-900 to-purple-900 text-white shadow-lg scale-105 border border-purple-400/40 ring-2 ring-purple-500/30'
-                : 'text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
+                ? 'bg-theme-gradient text-white shadow-md scale-105 ring-2 ring-blue-500/30'
+                : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200/80 dark:border-slate-700 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
-            <Sparkles className="w-4 h-4 text-purple-400 animate-pulse" />
-            <span>🚀 AI Placement Intelligence Hub</span>
+            <Sparkles className={`w-4 h-4 ${activeTab === 'intelligence' ? 'text-white' : 'text-blue-600'}`} />
+            <span>AI Intelligence Hub</span>
           </button>
 
           {/* 5. LEADERBOARD & BADGES */}
           <button
             onClick={() => handleTabChange('leaderboard')}
-            className={`flex items-center gap-2 px-4 sm:px-5 py-2.5 rounded-2xl text-xs sm:text-sm font-black transition-all shrink-0 whitespace-nowrap cursor-pointer ${
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs sm:text-sm font-black transition-all shrink-0 whitespace-nowrap cursor-pointer ${
               activeTab === 'leaderboard'
-                ? 'bg-gradient-to-r from-amber-500 to-indigo-700 text-white shadow-lg scale-105 border border-amber-300/40 ring-2 ring-amber-400/30'
-                : 'text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
+                ? 'bg-theme-gradient text-white shadow-md scale-105 ring-2 ring-blue-500/30'
+                : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200/80 dark:border-slate-700 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
-            <Trophy className="w-4 h-4 text-amber-400" />
-            <span>🏆 Leaderboard & Badges</span>
+            <Trophy className={`w-4 h-4 ${activeTab === 'leaderboard' ? 'text-white' : 'text-blue-600'}`} />
+            <span>Leaderboard & Badges</span>
           </button>
 
           {/* 6. JOB FAIRS & CONCLAVES */}
           <button
             onClick={() => handleTabChange('job_fairs')}
-            className={`flex items-center gap-2 px-4 sm:px-5 py-2.5 rounded-2xl text-xs sm:text-sm font-black transition-all shrink-0 whitespace-nowrap cursor-pointer ${
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs sm:text-sm font-black transition-all shrink-0 whitespace-nowrap cursor-pointer ${
               activeTab === 'job_fairs'
-                ? 'bg-theme-gradient text-white shadow-lg scale-105 ring-2 ring-blue-500/30'
-                : 'text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
+                ? 'bg-theme-gradient text-white shadow-md scale-105 ring-2 ring-blue-500/30'
+                : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200/80 dark:border-slate-700 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
-            <Calendar className="w-4 h-4 text-indigo-400" />
-            <span>Job Fairs & Conclaves</span>
+            <Calendar className={`w-4 h-4 ${activeTab === 'job_fairs' ? 'text-white' : 'text-blue-600'}`} />
+            <span>Job Fairs</span>
           </button>
 
           {/* 7. MY APPLICATIONS */}
           <button
             onClick={() => handleTabChange('applications')}
-            className={`flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl text-xs font-black transition-all shrink-0 whitespace-nowrap cursor-pointer ${
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs sm:text-sm font-black transition-all shrink-0 whitespace-nowrap cursor-pointer ${
               activeTab === 'applications'
-                ? 'bg-theme-gradient text-white shadow-lg'
-                : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100/80'
+                ? 'bg-theme-gradient text-white shadow-md scale-105 ring-2 ring-blue-500/30'
+                : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200/80 dark:border-slate-700 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
-            <Award className="w-4 h-4" /> My Applications ({applications.length})
+            <Award className={`w-4 h-4 ${activeTab === 'applications' ? 'text-white' : 'text-blue-600'}`} />
+            <span>My Applications ({applications.length})</span>
           </button>
 
           {/* 8. MY ASSESSMENTS & TESTS */}
           <button
             onClick={() => handleTabChange('assessments')}
-            className={`flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl text-xs font-black transition-all shrink-0 whitespace-nowrap cursor-pointer ${
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs sm:text-sm font-black transition-all shrink-0 whitespace-nowrap cursor-pointer ${
               activeTab === 'assessments'
-                ? 'bg-theme-gradient text-white shadow-lg'
-                : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100/80'
+                ? 'bg-theme-gradient text-white shadow-md scale-105 ring-2 ring-blue-500/30'
+                : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200/80 dark:border-slate-700 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
-            <CheckCircle2 className="w-4 h-4 text-emerald-400" /> My Assessments & Tests ({assessmentsList.length + interviewsList.length})
+            <CheckCircle2 className={`w-4 h-4 ${activeTab === 'assessments' ? 'text-white' : 'text-blue-600'}`} />
+            <span>Assessments & Tests</span>
           </button>
 
           {/* 9. ALUMNI MENTORSHIP */}
           <button
             onClick={() => handleTabChange('alumni')}
-            className={`flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl text-xs font-black transition-all shrink-0 whitespace-nowrap cursor-pointer ${
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs sm:text-sm font-black transition-all shrink-0 whitespace-nowrap cursor-pointer ${
               activeTab === 'alumni'
-                ? 'bg-theme-gradient text-white shadow-lg'
-                : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100/80'
+                ? 'bg-theme-gradient text-white shadow-md scale-105 ring-2 ring-blue-500/30'
+                : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200/80 dark:border-slate-700 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
-            <Award className="w-4 h-4 text-blue-400" /> Alumni Mentorship
+            <GraduationCap className={`w-4 h-4 ${activeTab === 'alumni' ? 'text-white' : 'text-blue-600'}`} />
+            <span>Alumni Mentorship</span>
           </button>
 
           {/* 10. COMMUNITY Q&A */}
           <button
             onClick={() => handleTabChange('qa')}
-            className={`flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl text-xs font-black transition-all shrink-0 whitespace-nowrap cursor-pointer ${
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs sm:text-sm font-black transition-all shrink-0 whitespace-nowrap cursor-pointer ${
               activeTab === 'qa'
-                ? 'bg-theme-gradient text-white shadow-lg'
-                : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100/80'
+                ? 'bg-theme-gradient text-white shadow-md scale-105 ring-2 ring-blue-500/30'
+                : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200/80 dark:border-slate-700 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
-            <HelpCircle className="w-4 h-4 text-cyan-400" /> Community Q&A
+            <HelpCircle className={`w-4 h-4 ${activeTab === 'qa' ? 'text-white' : 'text-blue-600'}`} />
+            <span>Community Q&A</span>
           </button>
 
           {/* 11. POOL CAMPUS */}
           <button
             onClick={() => setEcosystemModalOpen(true)}
-            className="flex items-center gap-2 px-4 sm:px-5 py-2.5 rounded-2xl text-xs sm:text-sm font-black transition-all shrink-0 whitespace-nowrap bg-gradient-to-r from-blue-900 via-indigo-900 to-amber-600 text-white shadow-md border border-amber-400/40 hover:scale-105 cursor-pointer"
+            className="flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs sm:text-sm font-black transition-all shrink-0 whitespace-nowrap bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200/80 dark:border-slate-700 hover:text-slate-900 dark:hover:text-white cursor-pointer"
           >
-            <Globe className="w-4 h-4 text-amber-300 animate-pulse" />
-            <span>🌐 Pool Campus & Assessment Studio</span>
+            <Globe className="w-4 h-4 text-blue-600" />
+            <span>Pool Campus</span>
           </button>
 
           {/* 12. AI CAREER COPILOT */}
           <button
             onClick={() => setCopilotOpen(true)}
-            className="flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl text-xs font-black transition-all shrink-0 whitespace-nowrap bg-purple-900 hover:bg-purple-800 text-white shadow-md border border-purple-400/40 hover:scale-105 cursor-pointer"
+            className="flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs sm:text-sm font-black transition-all shrink-0 whitespace-nowrap bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200/80 dark:border-slate-700 hover:text-slate-900 dark:hover:text-white cursor-pointer"
           >
-            <Sparkles className="w-4 h-4 text-amber-300 animate-pulse" /> 🤖 AI Career Copilot
+            <Sparkles className="w-4 h-4 text-blue-600" />
+            <span>AI Copilot</span>
           </button>
         </div>
       </div>
