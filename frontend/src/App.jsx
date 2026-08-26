@@ -140,38 +140,6 @@ export const isRoleAllowedInWorkspace = (user, targetWorkspace) => {
 
 export const sanitizeUserRole = (user) => {
   if (!user) return null;
-  // Never mutate admin, faculty, superadmin, or security accounts
-  if (user.role === 'admin' || user.role === 'superadmin' || user.role === 'faculty' || user.role === 'security' || user.role === 'fest' || user.role === 'alumni') {
-    return user;
-  }
-
-  const email = (user.email || user.profile?.email || '').toLowerCase().trim();
-  const name = (user.name || user.profile?.name || '').toLowerCase().trim();
-  const prefix = email.split('@')[0];
-
-  // Only if email specifically belongs to Oteck or corporate recruiter partner
-  if (email.includes('oteck') || (email.includes('recruiter') && !email.includes('gsfcuniversity')) || email.includes('company_hr')) {
-    if (user.role !== 'company') {
-      const companyName = name ? name.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') : 'Oteck';
-      return {
-        ...user,
-        role: 'company',
-        name: companyName.includes('Recruiter') ? companyName : `${companyName} Recruiter`,
-        owner_id: 'c_' + (prefix || 'oteck').replace(/[^a-zA-Z0-9]/g, '_'),
-        profile: {
-          ...(user.profile || {}),
-          id: 'c_' + (prefix || 'oteck').replace(/[^a-zA-Z0-9]/g, '_'),
-          company_name: companyName.includes('Technologies') ? companyName : `${companyName} Technologies`,
-          industry: 'Information Technology & Software Engineering',
-          location: 'Vadodara / Pan-India Hybrid',
-          contact_email: email || 'oteck@gmail.com',
-          phone: user.profile?.phone || '+91 95584 13347',
-          verified: 1,
-          tier: 'Platinum Corporate Recruiter'
-        }
-      };
-    }
-  }
   return user;
 };
 
@@ -420,22 +388,23 @@ function App() {
 
     const token = localStorage.getItem('campushire_token');
 
-    // If local user exists, keep them immediately so UI never flashes or switches accounts
-    if (localUser) {
+    // 1. If an authenticated user session is in localStorage, preserve them 100% and NEVER overwrite their role on refresh!
+    if (localUser && localUser.role) {
       setCurrentUser(localUser);
       const currentHash = window.location.hash.replace(/^#/, '');
       const baseHash = resolveBaseWorkspace(currentHash);
       if (currentHash && isRoleAllowedInWorkspace(localUser, baseHash)) {
         setActiveRole(baseHash);
         localStorage.setItem('gsfc_active_workspace', baseHash);
-      } else if (isRoleAllowedInWorkspace(localUser, activeRole)) {
-        localStorage.setItem('gsfc_active_workspace', activeRole);
       } else {
         const defaultRoleWorkspace = getDefaultWorkspaceForRole(localUser.role);
         setActiveRole(defaultRoleWorkspace);
         localStorage.setItem('gsfc_active_workspace', defaultRoleWorkspace);
       }
-    } else if (!token) {
+      return;
+    }
+
+    if (!token) {
       setCurrentUser(null);
       const safeGuestRole = isRoleAllowedInWorkspace(null, activeRole) ? activeRole : 'student';
       if (activeRole !== safeGuestRole) {
@@ -445,51 +414,23 @@ function App() {
       return;
     }
 
-    if (!token) return;
-
     try {
       const res = await fetch('/api/auth/me', {
         headers: { Authorization: `Bearer ${token}` }
       });
 
-      if (res.status === 204) {
-        // Server acknowledged active session; keep localStorage user intact
-        return;
-      }
-
-      if (res.ok) {
+      if (res.ok && res.status === 200) {
         const data = await res.json();
         if (data && data.user) {
           const freshUser = data.user;
-          const localEmail = (localUser?.email || '').toLowerCase().trim();
-          const freshEmail = (freshUser?.email || '').toLowerCase().trim();
-
-          // Only merge if the session email and role match, preventing account switching
-          if (!localUser || (localEmail && freshEmail && localEmail === freshEmail) || localUser.role === freshUser.role) {
-            const mergedUser = {
-              ...localUser,
-              ...freshUser,
-              role: localUser?.role || freshUser.role,
-              profile: { ...(localUser?.profile || {}), ...(freshUser.profile || {}) }
-            };
-
-            try {
-              const userEmail = (mergedUser.email || '').toLowerCase();
-              const savedAvatar = userEmail ? (localStorage.getItem('gsfc_user_avatar_' + userEmail) || mergedUser.profile?.photo_url || '') : '';
-              if (savedAvatar) {
-                if (!mergedUser.profile) mergedUser.profile = {};
-                mergedUser.profile.avatar_url = savedAvatar;
-              }
-            } catch(e) {}
-
-            setCurrentUser(mergedUser);
-            localStorage.setItem('campushire_user', JSON.stringify(mergedUser));
-          }
+          setCurrentUser(freshUser);
+          localStorage.setItem('campushire_user', JSON.stringify(freshUser));
+          const defaultRoleWorkspace = getDefaultWorkspaceForRole(freshUser.role);
+          setActiveRole(defaultRoleWorkspace);
+          localStorage.setItem('gsfc_active_workspace', defaultRoleWorkspace);
         }
       }
-    } catch (err) {
-      console.warn('Network notice: Preserving active client session.');
-    }
+    } catch (err) {}
   };
 
   const handleRoleSwitch = (newRole) => {
