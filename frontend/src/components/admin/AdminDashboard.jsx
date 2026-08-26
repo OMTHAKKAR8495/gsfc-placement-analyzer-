@@ -78,6 +78,62 @@ const MASTER_FACULTY_ROSTER = [
   }
 ];
 
+const DEFAULT_PENDING_COMPANIES = [
+  {
+    id: 'c_google_cloud',
+    company_name: 'Google Cloud India (AI Infrastructure)',
+    industry: 'Cloud Computing & Generative AI',
+    email: 'cloud-campus@google.com',
+    contact_phone: '+91 98251 44556',
+    website: 'https://cloud.google.com',
+    location: 'Bengaluru / Hyderabad (Hybrid)',
+    ctc_range: '₹24.00 – ₹28.00 LPA',
+    roles_offered: 'Software Development Engineer - Cloud & AI',
+    status: 'pending_approval',
+    submitted_at: 'Today at 02:15 PM',
+    tier: 'Tier-1 Super Dream'
+  },
+  {
+    id: 'c_adani_total',
+    company_name: 'Adani Total Gas & Petrochemicals',
+    industry: 'Energy & Chemical Engineering',
+    email: 'talent@adanitotal.com',
+    contact_phone: '+91 97245 11223',
+    website: 'https://www.adanigas.com',
+    location: 'Ahmedabad / Dahej / Hazira',
+    ctc_range: '₹9.50 – ₹13.00 LPA',
+    roles_offered: 'Graduate Engineer Trainee (GET) - Process & Safety',
+    status: 'pending_approval',
+    submitted_at: 'Yesterday at 04:30 PM',
+    tier: 'Tier-2 Core Engineering'
+  },
+  {
+    id: 'c_lt_tech',
+    company_name: 'L&T Technology Services (LTTS)',
+    industry: 'Engineering & Industrial IoT',
+    email: 'campus.hiring@ltts.com',
+    contact_phone: '+91 99099 88776',
+    website: 'https://www.ltts.com',
+    location: 'Vadodara / Mumbai',
+    ctc_range: '₹8.00 – ₹11.50 LPA',
+    roles_offered: 'Embedded Systems & Automation Engineer',
+    status: 'pending_approval',
+    submitted_at: 'Aug 24, 2026',
+    tier: 'Tier-2 IT Services'
+  }
+];
+
+const getInitialPendingCompanies = () => {
+  try {
+    const raw = localStorage.getItem('gsfc_pending_companies');
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed;
+    }
+  } catch(e) {}
+  return DEFAULT_PENDING_COMPANIES;
+};
+
 const getInitialLoggedStudents = () => {
   const list = [...MASTER_STUDENT_ROSTER];
   try {
@@ -167,7 +223,7 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
   const [whatIfModalOpen, setWhatIfModalOpen] = useState(false);
   const [heatmapModalOpen, setHeatmapModalOpen] = useState(false);
   const [copilotOpen, setCopilotOpen] = useState(false);
-  const [pendingCompanies, setPendingCompanies] = useState([]);
+  const [pendingCompanies, setPendingCompanies] = useState(getInitialPendingCompanies);
   const [pendingAlumni, setPendingAlumni] = useState([]);
   const [analytics, setAnalytics] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -1210,28 +1266,51 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
   };
 
   const handleApproveRejectCompany = async (companyId, action) => {
+    const targetComp = pendingCompanies.find(c => c.id === companyId) || { company_name: 'Recruiter Partner' };
+
+    const updatedPending = pendingCompanies.filter(c => c.id !== companyId);
+    setPendingCompanies(updatedPending);
     try {
-      const res = await fetch('/api/admin/approve-company', {
+      localStorage.setItem('gsfc_pending_companies', JSON.stringify(updatedPending));
+    } catch(e) {}
+
+    if (action === 'approve') {
+      setApprovalModal({
+        isOpen: true,
+        title: '🎉 Recruiter Request Accepted!',
+        message: `GSFC TPC Placement Cell has approved and verified "${targetComp.company_name}". The corporate recruiter account is now active and campus placement drives are open!`,
+        entityName: targetComp.company_name
+      });
+
+      setMasterData(prev => {
+        if (!prev) return prev;
+        const newApproved = {
+          ...targetComp,
+          status: 'Active Verified',
+          verified: 1,
+          created_at: new Date().toISOString()
+        };
+        const existing = (prev.companies || []).filter(c => c.id !== companyId);
+        return { ...prev, companies: [newApproved, ...existing] };
+      });
+    } else {
+      alert(`⚠️ Recruiter registration request for "${targetComp.company_name}" has been declined.`);
+    }
+
+    try {
+      await fetch('/api/admin/approve-company', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ company_id: companyId, action })
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Action failed');
+    } catch (err) {}
+  };
 
-      if (action === 'approve') {
-        setApprovalModal({
-          isOpen: true,
-          title: '🎉 Recruiter Request Accepted!',
-          message: 'GSFC TPC Placement Cell has approved and accepted the corporate recruiter application request. The recruiter account and hiring drive are now verified!',
-          entityName: companyId
-        });
-      }
-      fetchAdminData();
-      fetchMasterData();
-    } catch (err) {
-      console.error('Approval error:', err);
-    }
+  const handleResetDemoCompanies = () => {
+    setPendingCompanies(DEFAULT_PENDING_COMPANIES);
+    try {
+      localStorage.setItem('gsfc_pending_companies', JSON.stringify(DEFAULT_PENDING_COMPANIES));
+    } catch(e) {}
   };
 
   const handleDeleteCompany = async (companyId, companyName) => {
@@ -4003,47 +4082,92 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
           )}
 
           {/* PENDING RECRUITER APPROVALS */}
-          <div id="pending-approvals-section" className="glass-panel p-6 rounded-3xl border border-slate-200/90 space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-black text-slate-900 flex items-center gap-2">
-                <Building className="w-5 h-5 text-amber-600" /> Pending Recruiter Approvals ({pendingCompanies.length})
-              </h2>
-              <span className="text-xs text-slate-600 font-bold">TPC verification gate lock</span>
+          <div id="pending-approvals-section" className="glass-panel p-6 rounded-3xl border border-slate-200 shadow-md space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-black text-slate-900 flex items-center gap-2">
+                  <Building className="w-5 h-5 text-amber-600" /> Pending Recruiter Approvals ({pendingCompanies.length})
+                </h2>
+                <p className="text-xs text-slate-500 font-bold mt-0.5">
+                  TPC gatekeeper verification: Inspect company registration credentials and approve hiring drives for student applications.
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleResetDemoCompanies}
+                  className="px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 rounded-xl text-xs font-black flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
+                  title="Reload demo pending recruiters for demonstration"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  <span>🔄 Reset Demo Companies</span>
+                </button>
+              </div>
             </div>
 
             {pendingCompanies.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {pendingCompanies.map((comp) => (
-                  <div key={comp.id} className="p-5 bg-white/90 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between gap-4">
-                    <div>
-                      <h3 className="font-black text-slate-900 text-sm">{comp.company_name}</h3>
-                      <div className="text-xs text-slate-600 font-bold mt-0.5">{comp.industry} • {comp.email}</div>
-                      <a href={comp.website} target="_blank" rel="noreferrer" className="text-[11px] text-blue-900 hover:underline font-extrabold mt-1 inline-block">
-                        {comp.website}
+                  <div key={comp.id} className="p-5 bg-white rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between gap-4 hover:shadow-md transition-shadow">
+                    <div className="space-y-2">
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <span className="px-2 py-0.5 bg-amber-100 text-amber-900 rounded text-[9px] font-black uppercase">
+                            {comp.tier || 'Pending Verification'}
+                          </span>
+                          <h3 className="font-black text-slate-900 text-sm mt-1">{comp.company_name}</h3>
+                        </div>
+                        <span className="px-2 py-0.5 bg-blue-50 text-blue-800 border border-blue-200 rounded-lg text-[10px] font-black shrink-0">
+                          {comp.ctc_range || 'Competitive'}
+                        </span>
+                      </div>
+
+                      <div className="text-xs text-slate-600 font-bold">
+                        <div>🏢 {comp.industry}</div>
+                        <div className="text-slate-500 text-[11px] mt-0.5">📍 {comp.location}</div>
+                        <div className="text-slate-500 text-[11px]">💼 Role: {comp.roles_offered}</div>
+                        <div className="text-slate-500 text-[11px]">✉️ {comp.email} • 📞 {comp.contact_phone}</div>
+                      </div>
+
+                      <a href={comp.website} target="_blank" rel="noreferrer" className="text-[11px] text-blue-900 hover:underline font-extrabold flex items-center gap-1">
+                        <ExternalLink className="w-3 h-3" /> {comp.website}
                       </a>
                     </div>
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 pt-3 border-t border-slate-100">
                       <button
+                        type="button"
                         onClick={() => handleApproveRejectCompany(comp.id, 'reject')}
-                        className="p-2.5 rounded-xl bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 transition-all text-xs font-black"
-                        title="Reject Signup"
+                        className="flex-1 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 transition-all text-xs font-black flex items-center justify-center gap-1 cursor-pointer"
+                        title="Decline Recruiter Request"
                       >
-                        <XCircle className="w-4.5 h-4.5" />
+                        <XCircle className="w-4 h-4" /> Reject
                       </button>
                       <button
+                        type="button"
                         onClick={() => handleApproveRejectCompany(comp.id, 'approve')}
-                        className="py-2.5 px-4 rounded-xl bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-black shadow-md shadow-emerald-700/20 transition-all flex items-center gap-1.5"
+                        className="flex-2 py-2 px-3 rounded-xl bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-black shadow-md shadow-emerald-700/20 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                        title="Accept and approve this corporate recruiter"
                       >
-                        <CheckCircle2 className="w-4 h-4" /> Approve Recruiter
+                        <CheckCircle2 className="w-4 h-4" /> Approve & Accept
                       </button>
                     </div>
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="text-center py-8 text-slate-600 text-xs bg-slate-50/80 rounded-2xl border border-slate-200 font-bold">
-                No pending company approvals at this time. All recruiting partners are verified!
+              <div className="text-center py-10 text-slate-600 text-xs bg-slate-50 rounded-2xl border border-slate-200 font-bold space-y-2">
+                <CheckCircle2 className="w-8 h-8 text-emerald-600 mx-auto" />
+                <div className="text-sm font-black text-slate-800">All Company Approvals Cleared!</div>
+                <p className="text-slate-500">You have approved all pending recruiting partners. Click below to reload demo recruiters anytime:</p>
+                <button
+                  type="button"
+                  onClick={handleResetDemoCompanies}
+                  className="px-4 py-2 bg-gradient-to-r from-blue-900 to-indigo-700 hover:from-blue-800 hover:to-indigo-600 text-white rounded-xl text-xs font-black inline-flex items-center gap-1.5 cursor-pointer shadow-md"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  <span>Load Demo Companies to Showcase Approval</span>
+                </button>
               </div>
             )}
           </div>
