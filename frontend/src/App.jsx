@@ -231,6 +231,8 @@ function App() {
   const [isOffline, setIsOffline] = useState(false);
   const [activeRole, setActiveRole] = useState(() => getInitialActiveRole());
   const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [openPostModalSignal, setOpenPostModalSignal] = useState(0);
+  const [openApplicantsFeedSignal, setOpenApplicantsFeedSignal] = useState(0);
   const [hideCardsForBGView, setHideCardsForBGView] = useState(false);
   const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'light');
   const [themeHue, setThemeHue] = useState(() => localStorage.getItem('gsfc_theme_hue') || '215');
@@ -490,9 +492,6 @@ function App() {
     window.location.hash = `#${defaultWorkspace}`;
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
-
-  const [openPostModalSignal, setOpenPostModalSignal] = useState(0);
-  const [openApplicantsFeedSignal, setOpenApplicantsFeedSignal] = useState(0);
 
   const handleOpenJobPost = () => {
     if (isRoleAllowedInWorkspace(currentUser, 'company')) {

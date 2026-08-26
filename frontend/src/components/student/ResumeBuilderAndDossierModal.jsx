@@ -112,18 +112,6 @@ export default function ResumeBuilderAndDossierModal({
   const idDocInputRef = useRef(null);
   const resumePrintRef = useRef(null);
 
-  if (!isOpen) return null;
-
-  const targetReq = requirements.find(r => r.id === selectedReqId) || requirements[0];
-
-  const handlePhotoSelect = (e) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      setPhotoFile(file);
-      setPhotoPreview(URL.createObjectURL(file));
-    }
-  };
-
   React.useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === 'Escape' || e.keyCode === 27) {
@@ -135,6 +123,18 @@ export default function ResumeBuilderAndDossierModal({
       return () => window.removeEventListener('keydown', handleKeyDown);
     }
   }, [isOpen, onClose]);
+
+  if (!isOpen) return null;
+
+  const targetReq = requirements.find(r => r.id === selectedReqId) || requirements[0];
+
+  const handlePhotoSelect = (e) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setPhotoFile(file);
+      setPhotoPreview(URL.createObjectURL(file));
+    }
+  };
 
   const handleAddSkill = (skillToAdd) => {
     const s = (skillToAdd || skillInput).trim();
