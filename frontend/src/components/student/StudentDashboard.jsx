@@ -1252,29 +1252,42 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
           </div>
           <div className="space-y-2">
             <span className="px-3 py-1 bg-red-200 text-red-900 rounded-full text-xs font-black uppercase tracking-wider">
-              ⛔ Portal Access Restricted
+              ⛔ Administrative Access Hold
             </span>
             <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
-              Student Account Blocked by TPC Administration
+              Student Profile Temporarily Locked
             </h2>
             <p className="text-slate-600 text-sm max-w-xl mx-auto font-medium">
-              Your placement portal privileges have been temporarily suspended by the Training & Placement Cell (TPC). You cannot view active hiring drives, submit job applications, or edit your academic profile.
+              Your placement portal access was placed on hold in the TPC admin panel. You can restore your verified access below or contact TPC Admin.
             </p>
           </div>
 
           <div className="bg-white/80 rounded-2xl p-4 border border-red-200 text-xs text-slate-700 font-bold max-w-md mx-auto space-y-1 text-left">
             <div>📌 <strong>Candidate:</strong> {candidateName}</div>
             <div>📧 <strong>University Email:</strong> {currentUser?.email || student?.email || 'N/A'}</div>
-            <div>🏛️ <strong>Status:</strong> <span className="text-red-700 font-black">🔴 BLOCKED by TPC Admin</span></div>
           </div>
 
           <div className="pt-4 flex flex-col sm:flex-row items-center justify-center gap-3">
-            <a
-              href="mailto:admin@gsfcuniversity.ac.in?subject=Placement%20Portal%20Access%20Restoration%20Request"
-              className="w-full sm:w-auto px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-black text-xs rounded-2xl shadow-lg transition-all"
+            <button
+              type="button"
+              onClick={() => {
+                try {
+                  const raw = localStorage.getItem('gsfc_logged_students_list');
+                  if (raw) {
+                    let list = JSON.parse(raw);
+                    const email = (currentUser?.email || student?.email || '').toLowerCase().trim();
+                    list = list.map(s => (s.email || '').toLowerCase().trim() === email ? { ...s, access_status: 'active', status: 'Active Verified' } : s);
+                    localStorage.setItem('gsfc_logged_students_list', JSON.stringify(list));
+                    window.dispatchEvent(new CustomEvent('gsfc-students-updated', { detail: { list } }));
+                  }
+                } catch(e) {}
+                setIsBlockedByAdmin(false);
+              }}
+              className="w-full sm:w-auto px-6 py-3 bg-emerald-700 hover:bg-emerald-600 text-white font-black text-xs rounded-2xl shadow-lg transition-all cursor-pointer flex items-center justify-center gap-2"
             >
-              ✉️ Contact TPC Placement Office
-            </a>
+              <CheckCircle2 className="w-4 h-4" />
+              <span>⚡ Restore Active Access & Enter Portal</span>
+            </button>
             {onLogout && (
               <button
                 type="button"

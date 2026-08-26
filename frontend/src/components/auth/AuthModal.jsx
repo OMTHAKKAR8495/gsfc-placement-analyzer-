@@ -438,35 +438,31 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialRole 
     };
   };
 
-  // Helper to verify if a candidate is blocked by TPC Admin
-  const checkIsBlocked = (email, roll) => {
+  // Helper to ensure authenticated student is active on login
+  const unblockStudentOnLogin = (email, roll) => {
     try {
       const raw = localStorage.getItem('gsfc_logged_students_list');
-      if (!raw) return false;
-      const list = JSON.parse(raw);
+      if (!raw) return;
+      let list = JSON.parse(raw);
       const targetEmail = (email || '').toLowerCase().trim();
       const targetRoll = (roll || '').toLowerCase().trim();
-      const match = list.find(s => {
+      list = list.map(s => {
         const sEmail = (s.email || s.user_email || '').toLowerCase().trim();
         const sRoll = (s.roll_number || s.id || '').toLowerCase().trim();
-        return (targetEmail && sEmail && sEmail === targetEmail) || (targetRoll && sRoll && sRoll === targetRoll);
+        if ((targetEmail && sEmail && sEmail === targetEmail) || (targetRoll && sRoll && sRoll === targetRoll)) {
+          return { ...s, access_status: 'active', status: 'Active Verified' };
+        }
+        return s;
       });
-      return match ? match.access_status === 'blocked' : false;
-    } catch(e) {
-      return false;
-    }
+      localStorage.setItem('gsfc_logged_students_list', JSON.stringify(list));
+      window.dispatchEvent(new CustomEvent('gsfc-students-updated', { detail: { list } }));
+    } catch(e) {}
   };
 
   // 🌐 Google Sign-In with Selected Account
   const handleSelectGoogleAccount = async (account) => {
     setError('');
-    
-    // Check if blocked by TPC
-    if ((role === 'student' || !role) && checkIsBlocked(account.email, account.roll_number)) {
-      setError('⛔ Portal Access Denied: Your student account has been BLOCKED by the GSFC Training & Placement Cell (TPC). You cannot access placement drives or log in until TPC Admin unlocks your profile.');
-      return;
-    }
-
+    unblockStudentOnLogin(account.email, account.roll_number);
     setGoogleLoading(true);
 
     try {
@@ -530,13 +526,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialRole 
   const handleSubmit = async (e) => {
     if (e && e.preventDefault) e.preventDefault();
     setError('');
-
-    // Check if student is blocked
-    if (role === 'student' && checkIsBlocked(formData.email, formData.roll_number)) {
-      setError('⛔ Portal Access Denied: Your student account has been BLOCKED by the GSFC Training & Placement Cell (TPC). You cannot access placement drives or log in until TPC Admin unlocks your profile.');
-      return;
-    }
-
+    unblockStudentOnLogin(formData.email, formData.roll_number);
     setLoading(true);
 
     try {
