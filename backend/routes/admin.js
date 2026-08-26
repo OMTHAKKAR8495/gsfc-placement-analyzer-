@@ -488,13 +488,14 @@ router.delete('/events/:id', (req, res) => {
   }
 });
 
-// 🎟️ --- EXTERNAL CANDIDATES DATABASE ---
+// 🎟️ --- EXTERNAL CANDIDATES DATABASE WITH AUTOMATED ATTENDANCE LIFECYCLE ---
 router.get('/external-candidates', (req, res) => {
   try {
-    const { event_id = '', search = '' } = req.query;
+    const { event_id = '', search = '', status = 'All' } = req.query;
+    const todayStr = new Date().toISOString().split('T')[0];
 
     let query = `
-      SELECT c.*, e.title as event_title, e.event_date, e.venue as event_venue,
+      SELECT c.*, e.title as event_title, e.event_date, e.end_date, e.venue as event_venue,
              (SELECT status FROM pass_tokens WHERE token = c.pass_token) as pass_status,
              (SELECT scanned_at FROM entry_logs WHERE token = c.pass_token ORDER BY scanned_at DESC LIMIT 1) as checked_in_at,
              (SELECT scanned_by_name FROM entry_logs WHERE token = c.pass_token ORDER BY scanned_at DESC LIMIT 1) as checked_in_by
@@ -518,7 +519,74 @@ router.get('/external-candidates', (req, res) => {
     query += ` ORDER BY c.created_at DESC`;
 
     const candidates = db.prepare(query).all(...params);
-    res.json(candidates);
+
+    // Compute dynamic live attendance lifecycle for every candidate
+    const enriched = candidates.map(c => {
+      let attendance_status = 'pending';
+      const eventFinalDate = c.end_date || c.event_date || todayStr;
+
+      if (c.checked_in_at) {
+        attendance_status = 'present';
+      } else if (eventFinalDate < todayStr) {
+        // Event has concluded and attendee was never scanned -> automatically marked ABSENT
+        attendance_status = 'absent';
+      } else {
+        // Event is upcoming or currently active -> marked PENDING check-in
+        attendance_status = 'pending';
+      }
+
+      return {
+        ...c,
+        attendance_status,
+        event_final_date: eventFinalDate
+      };
+    });
+
+    const filtered = enriched.filter(c => {
+      if (!status || status === 'All') return true;
+      return c.attendance_status?.toLowerCase() === status.toLowerCase();
+    });
+
+    res.json(filtered);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Manual Attendance Override / Toggle Route (Mark Present / Mark Absent / Reset to Pending)
+router.post('/external-candidates/:id/attendance', (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status, officerName = 'TPC Admin' } = req.body; // 'present', 'absent', 'pending'
+
+    const candidate = db.prepare('SELECT * FROM external_candidates WHERE id = ?').get(id);
+    if (!candidate) {
+      return res.status(404).json({ error: 'Candidate not found.' });
+    }
+
+    if (status === 'present') {
+      // Ensure an entry log exists
+      const existingLog = db.prepare('SELECT * FROM entry_logs WHERE token = ?').get(candidate.pass_token);
+      if (!existingLog) {
+        const logId = 'log_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
+        db.prepare(`
+          INSERT INTO entry_logs (id, token, event_id, candidate_type, candidate_id, candidate_name, candidate_email, candidate_org, scanned_by_user_id, scanned_by_name, scanned_by_role, gate_name, scanned_at)
+          VALUES (?, ?, ?, 'external', ?, ?, ?, ?, 'u_admin_01', ?, 'admin', 'Main Academic Gate', datetime('now'))
+        `).run(logId, candidate.pass_token, candidate.event_id, candidate.id, candidate.name, candidate.email, candidate.organization, officerName);
+      }
+      db.prepare('UPDATE pass_tokens SET status = ? WHERE token = ?').run('checked_in', candidate.pass_token);
+    } else if (status === 'absent' || status === 'pending') {
+      // Remove any check-in logs
+      db.prepare('DELETE FROM entry_logs WHERE token = ?').run(candidate.pass_token);
+      db.prepare('UPDATE pass_tokens SET status = ? WHERE token = ?').run('issued', candidate.pass_token);
+    }
+
+    res.json({
+      success: true,
+      message: `Attendance updated to ${status.toUpperCase()} for candidate ${candidate.name}.`,
+      candidateId: id,
+      newStatus: status
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
