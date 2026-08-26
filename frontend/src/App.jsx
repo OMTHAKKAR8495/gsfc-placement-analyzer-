@@ -266,11 +266,6 @@ function App() {
   const currentUserRef = React.useRef(currentUser);
   useEffect(() => {
     currentUserRef.current = currentUser;
-    if (currentUser?.role === 'company' && (activeRole === 'student' || window.location.hash === '#student' || !window.location.hash)) {
-      setActiveRole('company');
-      localStorage.setItem('gsfc_active_workspace', 'company');
-      window.location.hash = '#company';
-    }
   }, [currentUser]);
 
   // Synchronize and enforce activeRole against currentUser synchronously on mount
