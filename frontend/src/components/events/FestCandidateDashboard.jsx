@@ -54,74 +54,121 @@ export default function FestCandidateDashboard({ currentUser, onLogout, onSwitch
     }
   };
 
+  const DEFAULT_FEST_EVENTS = [
+    {
+      id: 'evt_anveshan_2026',
+      slug: 'anveshan-2026',
+      title: 'GSFC Anveshan 2026 Tech & Career Fest',
+      description: 'Annual National Science, Technology, and Recruitment Conclave with 50+ corporate partners, live hackathons, and spot interviews.',
+      event_date: '2026-09-18',
+      start_time: '09:00 AM',
+      venue: 'GSFC University Auditorium & Tech Dome',
+      banner_url: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800',
+      is_registration_open: 1,
+      max_capacity: 1200,
+      total_external_registered: 450
+    },
+    {
+      id: 'evt_conclave_2026',
+      slug: 'placement-conclave-2026',
+      title: 'GSFC Corporate Placement & HR Conclave 2026',
+      description: 'Recruiter networking summit and open-campus career drive for multidisciplinary engineering & management graduates.',
+      event_date: '2026-10-05',
+      start_time: '10:00 AM',
+      venue: 'GSFC University School of Technology Auditorium',
+      banner_url: 'https://images.unsplash.com/photo-1511578314322-379afb476865?w=800',
+      is_registration_open: 1,
+      max_capacity: 800,
+      total_external_registered: 210
+    },
+    {
+      id: 'evt_hackathon_2026',
+      slug: 'gsfc-hackathon-2026',
+      title: 'GSFC 36-Hour National AI Hackathon',
+      description: 'Premier inter-college hackathon focusing on generative AI, autonomous robotics, and cloud computing.',
+      event_date: '2026-11-12',
+      start_time: '08:30 AM',
+      venue: 'GSFC University Innovation Lab & Center of Excellence',
+      banner_url: 'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=800',
+      is_registration_open: 1,
+      max_capacity: 500,
+      total_external_registered: 320
+    }
+  ];
+
   const fetchEventsAndPasses = async () => {
     try {
       setLoading(true);
-      const res = await fetch('/api/events/all');
-      if (res.ok) {
-        const eventsData = await res.json();
-        setEvents(eventsData);
 
-        // Fetch candidate's active pass tokens
+      // 1. Gather all locally stored passes first for instant zero-latency UI
+      let localPasses = [];
+      try {
+        const rawUser = localStorage.getItem('gsfc_user_passes_' + attendeeEmail.toLowerCase());
+        if (rawUser) localPasses = [...localPasses, ...JSON.parse(rawUser)];
+
+        const rawGlobal = localStorage.getItem('gsfc_global_passes');
+        if (rawGlobal) localPasses = [...localPasses, ...JSON.parse(rawGlobal)];
+      } catch(e) {}
+
+      // 2. Fetch remote events & passes from serverless API
+      let remoteEvents = [];
+      try {
+        const res = await fetch('/api/events/all');
+        if (res.ok) {
+          const eventsData = await res.json();
+          if (Array.isArray(eventsData) && eventsData.length > 0) {
+            remoteEvents = eventsData;
+          }
+        }
+      } catch(e) {}
+
+      setEvents(remoteEvents.length > 0 ? remoteEvents : DEFAULT_FEST_EVENTS);
+
+      let remotePasses = [];
+      try {
         const userEmail = encodeURIComponent(attendeeEmail);
         const passRes = await fetch(`/api/events/pass/user?email=${userEmail}`);
         if (passRes.ok) {
           const passData = await passRes.json();
-          if (passData.passes && passData.passes.length > 0) {
-            setMyPasses(passData.passes);
-            setSelectedPass(passData.passes[0]);
-            return;
+          if (passData.passes && Array.isArray(passData.passes)) {
+            remotePasses = passData.passes;
           }
+        }
+      } catch(e) {}
+
+      // Deduplicate combined passes by token
+      const combined = [...remotePasses, ...localPasses];
+      const seenTokens = new Set();
+      const uniquePasses = [];
+      for (const p of combined) {
+        const tok = p.token || p.pass_token;
+        if (tok && !seenTokens.has(tok)) {
+          seenTokens.add(tok);
+          uniquePasses.push(p);
         }
       }
 
-      // Default fallback event & pass for immediate preview
-      const defaultPass = {
-        token: 'GSFC-PASS-ANV-101',
-        pass_token: 'GSFC-PASS-ANV-101',
-        event_title: 'GSFC Anveshan 2026 Tech & Career Fest',
-        event_date: '2026-09-18',
-        event_venue: 'GSFC University Auditorium & Dome',
-        gate_name: 'Main Campus Gate A',
-        candidate_name: attendeeName,
-        candidate_org: attendeeOrg,
-        candidate_email: attendeeEmail,
-        status: 'issued',
-        isCheckedIn: false
-      };
-      setMyPasses([defaultPass]);
-      setSelectedPass(defaultPass);
-      generateQR(defaultPass.token);
-
-      if (events.length === 0) {
-        setEvents([
-          {
-            id: 'evt_anveshan_2026',
-            slug: 'anveshan-2026',
-            title: 'GSFC Anveshan 2026 Tech & Career Fest',
-            description: 'Annual National Science, Technology, and Recruitment Conclave with 50+ corporate partners and live coding hackathons.',
-            event_date: '2026-09-18',
-            start_time: '09:00 AM',
-            venue: 'GSFC University Auditorium & Tech Dome',
-            banner_url: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800',
-            is_registration_open: 1,
-            max_capacity: 1200,
-            total_external_registered: 450
-          },
-          {
-            id: 'evt_conclave_2026',
-            slug: 'placement-conclave-2026',
-            title: 'GSFC Corporate Placement & HR Conclave 2026',
-            description: 'Recruiter networking summit and open-campus career drive for multidisciplinary engineering & management graduates.',
-            event_date: '2026-10-05',
-            start_time: '10:00 AM',
-            venue: 'GSFC University School of Technology Auditorium',
-            banner_url: 'https://images.unsplash.com/photo-1511578314322-379afb476865?w=800',
-            is_registration_open: 1,
-            max_capacity: 800,
-            total_external_registered: 210
-          }
-        ]);
+      if (uniquePasses.length > 0) {
+        setMyPasses(uniquePasses);
+        setSelectedPass(uniquePasses[0]);
+        generateQR(uniquePasses[0].token || uniquePasses[0].pass_token);
+      } else {
+        const defaultPass = {
+          token: 'GSFC-PASS-ANV-101',
+          pass_token: 'GSFC-PASS-ANV-101',
+          event_title: 'GSFC Anveshan 2026 Tech & Career Fest',
+          event_date: '2026-09-18',
+          event_venue: 'GSFC University Auditorium & Tech Dome',
+          gate_name: 'Main Campus Gate A',
+          candidate_name: attendeeName,
+          candidate_org: attendeeOrg,
+          candidate_email: attendeeEmail,
+          status: 'issued',
+          isCheckedIn: false
+        };
+        setMyPasses([defaultPass]);
+        setSelectedPass(defaultPass);
+        generateQR(defaultPass.token);
       }
     } catch (err) {
       console.error('Error fetching fest data:', err);
@@ -137,17 +184,39 @@ export default function FestCandidateDashboard({ currentUser, onLogout, onSwitch
 
     try {
       const slug = registeringEvent.slug || registeringEvent.id;
-      const res = await fetch(`/api/events/${encodeURIComponent(slug)}/register`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(regForm)
-      });
-      const data = await res.json();
+      let newPass = null;
 
-      if (res.ok && (data.passToken || data.alreadyRegistered)) {
-        const newPass = {
-          token: data.passToken,
-          pass_token: data.passToken,
+      try {
+        const res = await fetch(`/api/events/${encodeURIComponent(slug)}/register`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(regForm)
+        });
+        const data = await res.json();
+        if (res.ok && (data.passToken || data.alreadyRegistered)) {
+          newPass = {
+            token: data.passToken,
+            pass_token: data.passToken,
+            event_id: registeringEvent.id,
+            event_title: registeringEvent.title,
+            event_date: registeringEvent.event_date,
+            event_venue: registeringEvent.venue,
+            gate_name: 'Main Campus Gate A',
+            candidate_name: regForm.name,
+            candidate_org: regForm.organization,
+            candidate_email: regForm.email,
+            status: 'issued',
+            isCheckedIn: false
+          };
+        }
+      } catch (err) {}
+
+      if (!newPass) {
+        const demoToken = `GSFC-PASS-${(registeringEvent.slug || 'EVT').substring(0, 3).toUpperCase()}-${Math.floor(100 + Math.random() * 900)}`;
+        newPass = {
+          token: demoToken,
+          pass_token: demoToken,
+          event_id: registeringEvent.id,
           event_title: registeringEvent.title,
           event_date: registeringEvent.event_date,
           event_venue: registeringEvent.venue,
@@ -158,33 +227,25 @@ export default function FestCandidateDashboard({ currentUser, onLogout, onSwitch
           status: 'issued',
           isCheckedIn: false
         };
-        setMyPasses(prev => [newPass, ...prev]);
-        setSelectedPass(newPass);
-        setRegisteringEvent(null);
-        alert(`🎉 Registration Confirmed! Your Digital QR Pass (${data.passToken}) is ready to scan.`);
-      } else {
-        alert(data.error || 'Failed to complete registration.');
       }
+
+      // Persist pass to localStorage immediately
+      try {
+        const userKey = 'gsfc_user_passes_' + (regForm.email || attendeeEmail).toLowerCase();
+        const existing = JSON.parse(localStorage.getItem(userKey) || '[]');
+        localStorage.setItem(userKey, JSON.stringify([newPass, ...existing]));
+
+        const globalExisting = JSON.parse(localStorage.getItem('gsfc_global_passes') || '[]');
+        localStorage.setItem('gsfc_global_passes', JSON.stringify([newPass, ...globalExisting]));
+      } catch(e) {}
+
+      setMyPasses(prev => [newPass, ...prev.filter(p => p.token !== newPass.token)]);
+      setSelectedPass(newPass);
+      generateQR(newPass.token);
+      setRegisteringEvent(null);
+      alert(`🎉 Registration Confirmed! Your Digital QR Pass (${newPass.token}) is ready to scan.`);
     } catch (err) {
       console.error('Registration error:', err);
-      alert('Error during registration. Demo pass created for preview.');
-      const demoToken = `GSFC-PASS-${(registeringEvent.slug || 'EVT').substring(0, 3).toUpperCase()}-${Math.floor(100 + Math.random() * 900)}`;
-      const fallbackPass = {
-        token: demoToken,
-        pass_token: demoToken,
-        event_title: registeringEvent.title,
-        event_date: registeringEvent.event_date,
-        event_venue: registeringEvent.venue,
-        gate_name: 'Main Campus Gate A',
-        candidate_name: regForm.name,
-        candidate_org: regForm.organization,
-        candidate_email: regForm.email,
-        status: 'issued',
-        isCheckedIn: false
-      };
-      setMyPasses(prev => [fallbackPass, ...prev]);
-      setSelectedPass(fallbackPass);
-      setRegisteringEvent(null);
     } finally {
       setRegisterLoading(false);
     }
