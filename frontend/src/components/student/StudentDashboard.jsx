@@ -2546,110 +2546,120 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
                     return (
                       <div
                         key={m.id}
-                        className={`glass-panel p-5 rounded-3xl border shadow-lg space-y-4 transition ${
+                        className={`glass-panel p-5 sm:p-6 rounded-3xl border shadow-md space-y-4 transition ${
                           isEjected ? 'border-red-300 bg-red-50/40' : (isLive ? 'border-emerald-400 bg-emerald-50/20 ring-2 ring-emerald-400/30' : 'border-slate-200 bg-white')
                         }`}
                       >
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                          <div className="space-y-1">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase flex items-center gap-1 ${
-                                isEjected 
-                                  ? 'bg-red-100 text-red-800 border border-red-300' 
-                                  : (isLive ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' : 'bg-blue-100 text-blue-800 border border-blue-200')
-                              }`}>
-                                {isLive && <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />}
-                                {isEjected ? 'DISQUALIFIED / EJECTED' : (isLive ? '🔴 LIVE NOW' : 'UPCOMING')}
-                              </span>
-                              <span className="text-xs text-slate-600 font-mono font-bold bg-slate-100 px-2 py-0.5 rounded-md">
-                                Room ID: {roomCode}
-                              </span>
-                            </div>
-                            <h3 className="text-base font-black text-slate-900">{m.title}</h3>
-                            <p className="text-xs text-slate-600 flex items-center gap-2">
-                              <Building2 className="w-3.5 h-3.5 text-blue-900" />
-                              <span className="font-bold">{m.company_name}</span>
-                              <span>•</span>
-                              <Briefcase className="w-3.5 h-3.5 text-slate-500" />
-                              <span>{m.drive_title}</span>
-                            </p>
+                        {/* Top Header Row: Badges & Copy Link Button */}
+                        <div className="flex items-center justify-between gap-3 flex-wrap">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase flex items-center gap-1.5 shadow-xs ${
+                              isEjected 
+                                ? 'bg-red-100 text-red-800 border border-red-300' 
+                                : (isLive ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' : 'bg-blue-100 text-blue-800 border border-blue-200')
+                            }`}>
+                              {isLive && <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />}
+                              {isEjected ? '⛔ DISQUALIFIED / EJECTED' : (isLive ? '🔴 LIVE NOW' : 'UPCOMING')}
+                            </span>
+                            <span className="text-xs text-slate-700 font-mono font-bold bg-slate-100 border border-slate-200 px-2.5 py-1 rounded-lg">
+                              Room ID: <span className="text-emerald-700 font-extrabold">{roomCode}</span>
+                            </span>
                           </div>
 
-                          <div className="flex items-center gap-2 shrink-0">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                navigator.clipboard.writeText(fullLink);
-                                setCopiedMeetingId(m.id);
-                                setTimeout(() => setCopiedMeetingId(null), 2000);
-                              }}
-                              className="px-3 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer"
-                              title="Copy direct join link"
-                            >
-                              {copiedMeetingId === m.id ? (
-                                <>
-                                  <Check className="w-3.5 h-3.5 text-emerald-600" />
-                                  <span className="text-emerald-700">Copied!</span>
-                                </>
-                              ) : (
-                                <>
-                                  <Copy className="w-3.5 h-3.5" />
-                                  <span>Copy Link</span>
-                                </>
-                              )}
-                            </button>
-
-                            {isEjected ? (
-                              <div className="flex items-center gap-2 flex-wrap justify-end">
-                                <span className="px-3 py-2 bg-red-100 text-red-800 border border-red-300 rounded-xl text-xs font-black flex items-center gap-1.5">
-                                  <ShieldAlert className="w-3.5 h-3.5 text-red-600" />
-                                  <span>Session Disqualified</span>
-                                </span>
-                                <button
-                                  type="button"
-                                  onClick={() => { setLeaveMeetingMailModal({ meeting: m, type: 'other_reason' }); setLeaveMeetingMailSent(false); setLeaveMeetingMailNote(''); }}
-                                  className="px-3 py-2 bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 rounded-xl text-xs font-black flex items-center gap-1.5 cursor-pointer transition-all"
-                                  title="Mail the company explaining your reason for leaving the meeting"
-                                >
-                                  <Mail className="w-3.5 h-3.5 text-amber-700" />
-                                  <span>Mail: Meeting Absence</span>
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => { setLeaveMeetingMailModal({ meeting: m, type: 'leave_company' }); setLeaveMeetingMailSent(false); setLeaveMeetingMailNote(''); }}
-                                  className="px-3 py-2 bg-rose-100 hover:bg-rose-200 text-rose-900 border border-rose-300 rounded-xl text-xs font-black flex items-center gap-1.5 cursor-pointer transition-all"
-                                  title="Mail the company expressing your wish to leave / withdraw from the hiring process"
-                                >
-                                  <Mail className="w-3.5 h-3.5 text-rose-700" />
-                                  <span>Mail: Leave Process</span>
-                                </button>
-                              </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              navigator.clipboard.writeText(fullLink);
+                              setCopiedMeetingId(m.id);
+                              setTimeout(() => setCopiedMeetingId(null), 2000);
+                            }}
+                            className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all shadow-xs"
+                            title="Copy direct join link"
+                          >
+                            {copiedMeetingId === m.id ? (
+                              <>
+                                <Check className="w-3.5 h-3.5 text-emerald-600" />
+                                <span className="text-emerald-700 font-black">Copied Link!</span>
+                              </>
                             ) : (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  window.location.hash = `#meeting/${roomCode}`;
-                                }}
-                                className={`px-5 py-2.5 text-white font-black text-xs rounded-xl shadow-lg flex items-center gap-2 transition cursor-pointer ${
-                                  isLive
-                                    ? 'bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 hover:scale-105 shadow-emerald-700/30 ring-2 ring-emerald-400'
-                                    : 'bg-gradient-to-r from-blue-900 to-indigo-800 hover:from-blue-800 hover:to-indigo-700'
-                                }`}
-                              >
-                                <Video className="w-4 h-4" />
-                                <span>{isLive ? '🟢 JOIN LIVE INTERVIEW NOW' : 'Join Video Room'}</span>
-                              </button>
+                              <>
+                                <Copy className="w-3.5 h-3.5 text-slate-600" />
+                                <span>Copy Link</span>
+                              </>
                             )}
+                          </button>
+                        </div>
+
+                        {/* Title & Drive Info */}
+                        <div className="space-y-2">
+                          <h3 className="text-base sm:text-lg font-black text-slate-900 leading-snug">{m.title}</h3>
+                          <div className="flex flex-wrap items-center gap-2 text-xs">
+                            <span className="inline-flex items-center gap-1.5 font-bold text-blue-900 bg-blue-50 px-2.5 py-1 rounded-lg border border-blue-200/80">
+                              <Building2 className="w-3.5 h-3.5 text-blue-900" />
+                              <span>{m.company_name}</span>
+                            </span>
+                            <span className="inline-flex items-center gap-1.5 font-semibold text-slate-700 bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-200/80">
+                              <Briefcase className="w-3.5 h-3.5 text-slate-500" />
+                              <span>{m.drive_title}</span>
+                            </span>
                           </div>
                         </div>
 
+                        {/* Action Bar */}
+                        {isEjected ? (
+                          <div className="p-3.5 bg-red-100/70 border border-red-300/80 rounded-2xl flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+                            <div className="flex items-center gap-2 text-xs font-black text-red-900">
+                              <ShieldAlert className="w-4 h-4 text-red-600 shrink-0" />
+                              <span>Session Disqualified & Ejected due to Proctoring / Security Violation</span>
+                            </div>
+                            <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap justify-end shrink-0">
+                              <button
+                                type="button"
+                                onClick={() => { setLeaveMeetingMailModal({ meeting: m, type: 'other_reason' }); setLeaveMeetingMailSent(false); setLeaveMeetingMailNote(''); }}
+                                className="w-full sm:w-auto px-3.5 py-2 bg-amber-100 hover:bg-amber-200 text-amber-950 border border-amber-300 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 cursor-pointer transition-all shadow-xs"
+                                title="Mail the company explaining your reason for leaving the meeting"
+                              >
+                                <Mail className="w-3.5 h-3.5 text-amber-700" />
+                                <span>Mail: Meeting Absence</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => { setLeaveMeetingMailModal({ meeting: m, type: 'leave_company' }); setLeaveMeetingMailSent(false); setLeaveMeetingMailNote(''); }}
+                                className="w-full sm:w-auto px-3.5 py-2 bg-rose-100 hover:bg-rose-200 text-rose-950 border border-rose-300 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 cursor-pointer transition-all shadow-xs"
+                                title="Mail the company expressing your wish to leave / withdraw from the hiring process"
+                              >
+                                <Mail className="w-3.5 h-3.5 text-rose-700" />
+                                <span>Mail: Leave Process</span>
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex items-center justify-end pt-1">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                window.location.hash = `#meeting/${roomCode}`;
+                              }}
+                              className={`w-full sm:w-auto px-6 py-2.5 text-white font-black text-xs rounded-xl shadow-lg flex items-center justify-center gap-2 transition cursor-pointer ${
+                                isLive
+                                  ? 'bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 hover:scale-105 shadow-emerald-700/30 ring-2 ring-emerald-400'
+                                  : 'bg-gradient-to-r from-blue-900 to-indigo-800 hover:from-blue-800 hover:to-indigo-700'
+                              }`}
+                            >
+                              <Video className="w-4 h-4" />
+                              <span>{isLive ? '🟢 JOIN LIVE INTERVIEW NOW' : 'Join Video Room'}</span>
+                            </button>
+                          </div>
+                        )}
+
+                        {/* Footer Bar */}
                         <div className="pt-3 border-t border-slate-200/80 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500">
-                          <span className="flex items-center gap-1.5 font-medium">
+                          <span className="flex items-center gap-1.5 font-medium text-slate-600">
                             <Calendar className="w-3.5 h-3.5 text-emerald-600" />
                             <span>{new Date(m.scheduled_at).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })} ({m.duration_minutes} Mins)</span>
                           </span>
 
-                          <span className="text-[11px] text-slate-500 flex items-center gap-1">
+                          <span className="text-[11px] text-slate-500 flex items-center gap-1 font-medium">
                             <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
                             <span>Proctored with Full-Screen Tab Lock</span>
                           </span>
