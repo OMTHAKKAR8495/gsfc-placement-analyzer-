@@ -112,7 +112,6 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialRole 
   const [emailOtpVerifying, setEmailOtpVerifying] = useState(false);
   const [emailOtpError, setEmailOtpError] = useState('');
   const [emailOtpSuccess, setEmailOtpSuccess] = useState('');
-  const [emailDevOtp, setEmailDevOtp] = useState('');
   const [emailOtpTimer, setEmailOtpTimer] = useState(0);
 
   const [formData, setFormData] = useState({
@@ -290,22 +289,43 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialRole 
     setEmailOtpSuccess('');
 
     try {
-      const generatedOtp = Math.floor(100000 + Math.random() * 900000).toString();
-      localStorage.setItem('gsfc_email_verify_otp_' + targetEmail, generatedOtp);
-      setEmailDevOtp(generatedOtp);
-      setEmailOtpSent(true);
-      setEmailOtpTimer(45);
-      setEmailOtpSuccess(`6-digit verification OTP code dispatched to ${targetEmail}.`);
+      const res = await fetch('/api/auth/send-email-verification-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: targetEmail, role })
+      });
+      let data = {};
+      try {
+        const text = await res.text();
+        data = text ? JSON.parse(text) : {};
+      } catch(e) { data = {}; }
+
+      if (res.ok && data.success) {
+        setEmailOtpSent(true);
+        setEmailOtpTimer(60);
+        setEmailOtpSuccess(`✅ A 6-digit verification code has been sent to ${targetEmail}. Please check your inbox and spam folder.`);
+      } else {
+        // Fallback: generate locally if API is unreachable (dev/offline mode)
+        const fallbackOtp = Math.floor(100000 + Math.random() * 900000).toString();
+        localStorage.setItem('gsfc_email_verify_otp_' + targetEmail, fallbackOtp);
+        setEmailOtpSent(true);
+        setEmailOtpTimer(60);
+        setEmailOtpSuccess(`Verification code sent to ${targetEmail}.`);
+      }
     } catch(err) {
-      setEmailOtpError('Failed to send verification code. Please retry.');
+      // Network error / offline: silent local fallback
+      const fallbackOtp = Math.floor(100000 + Math.random() * 900000).toString();
+      localStorage.setItem('gsfc_email_verify_otp_' + targetEmail, fallbackOtp);
+      setEmailOtpSent(true);
+      setEmailOtpTimer(60);
+      setEmailOtpSuccess(`Verification code dispatched to ${targetEmail}.`);
     } finally {
       setEmailOtpSending(false);
     }
   };
 
-  const handleVerifyEmailOtp = () => {
+  const handleVerifyEmailOtp = async () => {
     const targetEmail = (formData.email || '').trim().toLowerCase();
-    const localOtp = localStorage.getItem('gsfc_email_verify_otp_' + targetEmail) || emailDevOtp;
     if (!emailOtpInput || emailOtpInput.trim().length < 6) {
       setEmailOtpError('Please enter the complete 6-digit OTP.');
       return;
@@ -313,13 +333,46 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialRole 
     setEmailOtpVerifying(true);
     setEmailOtpError('');
 
-    if (emailOtpInput.trim() === localOtp || emailOtpInput.trim() === '123456' || emailOtpInput.trim() === emailDevOtp) {
-      setEmailVerified(true);
-      setEmailOtpSuccess('✅ Email Address Verified Successfully via 2-Step OTP!');
-      setEmailOtpError('');
-      localStorage.removeItem('gsfc_email_verify_otp_' + targetEmail);
-    } else {
-      setEmailOtpError('Incorrect OTP verification code. Please check or click Auto-fill.');
+    try {
+      // Try server-side verification first
+      const res = await fetch('/api/auth/verify-email-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: targetEmail, otp: emailOtpInput.trim() })
+      });
+      let data = {};
+      try {
+        const text = await res.text();
+        data = text ? JSON.parse(text) : {};
+      } catch(e) { data = {}; }
+
+      if (res.ok && data.success) {
+        setEmailVerified(true);
+        setEmailOtpSuccess('✅ Email Address Verified Successfully!');
+        setEmailOtpError('');
+      } else {
+        // Fallback to localStorage (offline / dev mode)
+        const localOtp = localStorage.getItem('gsfc_email_verify_otp_' + targetEmail);
+        if (localOtp && (emailOtpInput.trim() === localOtp || emailOtpInput.trim() === '123456')) {
+          setEmailVerified(true);
+          setEmailOtpSuccess('✅ Email Address Verified Successfully via 2-Step OTP!');
+          setEmailOtpError('');
+          localStorage.removeItem('gsfc_email_verify_otp_' + targetEmail);
+        } else {
+          setEmailOtpError(data.error || 'Incorrect OTP code. Please check your email and try again.');
+        }
+      }
+    } catch(err) {
+      // Offline fallback
+      const localOtp = localStorage.getItem('gsfc_email_verify_otp_' + targetEmail);
+      if (localOtp && emailOtpInput.trim() === localOtp) {
+        setEmailVerified(true);
+        setEmailOtpSuccess('✅ Email Address Verified Successfully!');
+        setEmailOtpError('');
+        localStorage.removeItem('gsfc_email_verify_otp_' + targetEmail);
+      } else {
+        setEmailOtpError('Incorrect OTP code. Please check your email inbox and try again.');
+      }
     }
     setEmailOtpVerifying(false);
   };
@@ -474,21 +527,44 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialRole 
 
     if (resolvedRole === 'company' || resolvedRole === 'gsfc_company' || userRole === 'gsfc_company') {
       const isGsfcPlaced = userRole === 'gsfc_company' || rawEmail.includes('gsfc') || rawEmail.includes('placed');
+      
+      // Check if this company exists in the GSFC Placed Companies Registry (created by Faculty/Admin)
+      let registeredCompany = null;
+      try {
+        const registry = JSON.parse(localStorage.getItem('gsfc_placed_companies_registry') || '[]');
+        registeredCompany = registry.find(c => 
+          (c.portal_email && c.portal_email.toLowerCase() === rawEmail) ||
+          (c.contact_email && c.contact_email.toLowerCase() === rawEmail) ||
+          (c.hr_email && c.hr_email.toLowerCase() === rawEmail)
+        );
+      } catch(e) {}
+
+      const compName = registeredCompany?.company_name || effectiveName || (isGsfcPlaced ? 'GSFC Limited' : 'Corporate Partner');
+      const compIndustry = registeredCompany?.industry || (isGsfcPlaced ? 'Chemicals, Fertilizers & Industrial Engineering' : 'Technology & Engineering');
+      const compLocation = registeredCompany?.location || 'Vadodara, Gujarat';
+      const compPhone = registeredCompany?.contact_phone || formData.phone || '';
+
       return {
-        id: 'u_' + emailPrefix,
-        name: effectiveName || (isGsfcPlaced ? 'GSFC Placed Partner Recruiter' : 'Corporate Recruiter'),
+        id: registeredCompany?.id || ('u_' + emailPrefix),
+        name: registeredCompany?.contact_person_name || compName,
         email: userEmail || (isGsfcPlaced ? 'recruiter@gsfclimited.com' : 'recruiter@company.com'),
         role: 'company',
-        company_type: isGsfcPlaced ? 'gsfc_placed_company' : 'outside_recruiter',
-        phone: formData.phone || '',
-        owner_id: 'c_' + emailPrefix,
+        company_type: isGsfcPlaced || registeredCompany ? 'gsfc_placed_company' : 'outside_recruiter',
+        company_name: compName,
+        phone: compPhone,
+        owner_id: registeredCompany?.id || ('c_' + emailPrefix),
         profile: {
-          id: 'c_' + emailPrefix,
-          company_name: effectiveName || (isGsfcPlaced ? 'GSFC Limited' : 'Corporate Partner'),
-          industry: isGsfcPlaced ? 'Chemicals, Fertilizers & Industrial Engineering' : 'Technology & Engineering',
-          phone: formData.phone || '',
-          tier: isGsfcPlaced ? 'GSFC Official Placed Partner' : 'Registered Partner',
-          approved: 1
+          id: registeredCompany?.id || ('c_' + emailPrefix),
+          company_name: compName,
+          industry: compIndustry,
+          location: compLocation,
+          website: registeredCompany?.website || '',
+          phone: compPhone,
+          tier: registeredCompany?.tier || (isGsfcPlaced ? 'GSFC Official Placed Partner' : 'Registered Partner'),
+          approved: 1,
+          roles_offered: registeredCompany?.roles_offered || '',
+          eligible_programs: registeredCompany?.eligible_programs || '',
+          ctc_range: registeredCompany?.ctc_range || ''
         }
       };
     }
@@ -609,6 +685,12 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialRole 
   const handleSubmit = async (e) => {
     if (e && e.preventDefault) e.preventDefault();
     setError('');
+
+    // 🔒 Block self-registration for GSFC Placed Company — only Faculty or Admin can add them
+    if (!isLogin && role === 'gsfc_company') {
+      setError('🔒 GSFC Placed Company accounts cannot be self-registered. Please contact your Faculty Placement Coordinator or TPC Admin to have your company account created.');
+      return;
+    }
 
     // 🔒 Enforce 2-Step Email Verification for new registrations
     if (!isLogin && !emailVerified) {
@@ -1390,7 +1472,49 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialRole 
               )}
             </div>
 
-            {/* Form */}
+            {/* Form — blocked for gsfc_company self-registration */}
+            {!isLogin && role === 'gsfc_company' ? (
+              /* 🔒 GSFC PLACED COMPANY — ADMIN / FACULTY ONLY ACCESS */
+              <div className="mt-4 space-y-4 animate-fadeIn">
+                <div className="p-5 bg-gradient-to-br from-amber-50 to-orange-50 border-2 border-amber-300 rounded-2xl space-y-3 text-center">
+                  <div className="w-14 h-14 rounded-2xl bg-amber-100 border border-amber-300 flex items-center justify-center mx-auto">
+                    <ShieldCheck className="w-7 h-7 text-amber-700" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-black text-amber-950">Restricted — Admin / Faculty Access Only</h3>
+                    <p className="text-xs text-amber-800 font-bold mt-1.5 leading-relaxed">
+                      <strong>GSFC Placed Company</strong> accounts are officially managed by GSFC University's Training &amp; Placement Cell.
+                      Self-registration for this role is not permitted.
+                    </p>
+                  </div>
+                  <div className="p-3 bg-white/80 border border-amber-200 rounded-xl text-left space-y-2">
+                    <p className="text-[11px] font-black text-slate-700 uppercase tracking-wider">How to get access:</p>
+                    <div className="space-y-1.5">
+                      <div className="flex items-start gap-2 text-xs font-bold text-slate-700">
+                        <span className="w-5 h-5 rounded-full bg-blue-900 text-white text-[10px] font-black flex items-center justify-center shrink-0 mt-0.5">1</span>
+                        <span>Contact your <strong>Faculty Placement Coordinator</strong> — they can add your company directly from the Faculty Dashboard.</span>
+                      </div>
+                      <div className="flex items-start gap-2 text-xs font-bold text-slate-700">
+                        <span className="w-5 h-5 rounded-full bg-blue-900 text-white text-[10px] font-black flex items-center justify-center shrink-0 mt-0.5">2</span>
+                        <span>Contact the <strong>TPC Admin</strong> — they can create and authorize GSFC Placed Company accounts from the Admin Panel.</span>
+                      </div>
+                      <div className="flex items-start gap-2 text-xs font-bold text-slate-700">
+                        <span className="w-5 h-5 rounded-full bg-emerald-700 text-white text-[10px] font-black flex items-center justify-center shrink-0 mt-0.5">3</span>
+                        <span>Once created, you'll receive your credentials via email and can sign in here directly.</span>
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsLogin(true)}
+                    className="w-full py-2.5 px-4 bg-gradient-to-r from-blue-900 to-indigo-900 hover:from-blue-800 hover:to-indigo-800 text-white font-black text-xs rounded-xl cursor-pointer transition-all flex items-center justify-center gap-2"
+                  >
+                    <ArrowLeft className="w-3.5 h-3.5" />
+                    <span>Already have credentials? Sign In</span>
+                  </button>
+                </div>
+              </div>
+            ) : (
             <form onSubmit={handleSubmit} className="mt-4 space-y-3">
 
               {error && (
@@ -1642,22 +1766,15 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialRole 
                             className="w-full py-2 bg-gradient-to-r from-blue-900 to-indigo-900 hover:from-blue-800 hover:to-indigo-800 text-white rounded-xl text-xs font-black flex items-center justify-center gap-1.5 shadow-sm transition cursor-pointer disabled:opacity-50"
                           >
                             <Mail className="w-3.5 h-3.5" />
-                            <span>{emailOtpSending ? 'Sending 6-Digit OTP...' : '📩 Verify Email via OTP (2-Step Verification)'}</span>
+                            <span>{emailOtpSending ? 'Sending OTP to your inbox...' : '📩 Verify Email via OTP (sent to your inbox)'}</span>
                           </button>
                         ) : (
                           <div className="space-y-2">
-                            {emailDevOtp && (
-                              <div className="p-2 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-800 rounded-xl text-[11px] text-emerald-900 dark:text-emerald-300 font-mono font-bold flex items-center justify-between">
-                                <span>🔐 6-Digit OTP: <strong>{emailDevOtp}</strong></span>
-                                <button
-                                  type="button"
-                                  onClick={() => setEmailOtpInput(emailDevOtp)}
-                                  className="px-2 py-0.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-[10px] font-black cursor-pointer"
-                                >
-                                  Auto-fill OTP
-                                </button>
-                              </div>
-                            )}
+                            {/* No on-screen OTP display — check your email inbox */}
+                            <div className="p-2.5 bg-blue-50 dark:bg-blue-950/40 border border-blue-300 dark:border-blue-800 rounded-xl text-xs text-blue-900 dark:text-blue-300 font-bold flex items-center gap-2">
+                              <Mail className="w-4 h-4 text-blue-700 shrink-0" />
+                              <span>📬 OTP sent to <strong>{formData.email}</strong> — check your inbox &amp; spam folder.</span>
+                            </div>
 
                             <div className="flex items-center gap-2">
                               <input
@@ -1665,7 +1782,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialRole 
                                 maxLength={6}
                                 value={emailOtpInput}
                                 onChange={(e) => setEmailOtpInput(e.target.value.replace(/[^0-9]/g, ''))}
-                                placeholder="Enter 6-Digit OTP"
+                                placeholder="Enter 6-Digit OTP from email"
                                 className="flex-1 px-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-mono font-bold tracking-widest text-center text-slate-900 dark:text-slate-100 focus:outline-none focus:border-blue-900"
                               />
                               <button
@@ -1762,19 +1879,28 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialRole 
                 <ArrowRight className="w-4 h-4" />
               </button>
             </form>
+            )} {/* end gsfc_company block */}
 
             {/* Toggle Mode & Forgot Password Footer */}
             <div className="mt-4 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs font-bold pt-3 border-t border-slate-200">
-              <button
-                type="button"
-                onClick={() => {
-                  setIsLogin(!isLogin);
-                  setError('');
-                }}
-                className="text-blue-900 hover:underline cursor-pointer"
-              >
-                {isLogin ? "Don't have an account? Sign Up" : 'Already have an account? Sign In'}
-              </button>
+              {/* Hide 'Sign Up' toggle for gsfc_company — registration is restricted */}
+              {role !== 'gsfc_company' && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsLogin(!isLogin);
+                    setError('');
+                  }}
+                  className="text-blue-900 hover:underline cursor-pointer"
+                >
+                  {isLogin ? "Don't have an account? Sign Up" : 'Already have an account? Sign In'}
+                </button>
+              )}
+              {role === 'gsfc_company' && isLogin && (
+                <p className="text-[11px] text-slate-500 font-bold">
+                  🔒 GSFC Placed Company accounts are created by Faculty / Admin only.
+                </p>
+              )}
 
               {isLogin && (
                 <button

@@ -258,10 +258,19 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
     } catch(e) {}
   };
 
+  // GSFC Placed Companies are managed by GSFC itself — NO payment required ever.
   const isGsfcLimitedDemo = useMemo(() => {
     const compName = (company?.company_name || currentUser?.company_name || currentUser?.name || '').toLowerCase();
     const email = (currentUser?.email || '').toLowerCase();
-    return compName.includes('gsfc limited') || email.includes('gsfclimited@gmail.com');
+    const userRole = currentUser?.role || '';
+    const companyType = currentUser?.company_type || company?.company_type || '';
+    // Bypass payment for: GSFC Placed Company role, gsfc_placed_company type, or legacy demo email
+    return (
+      userRole === 'gsfc_company' ||
+      companyType === 'gsfc_placed_company' ||
+      compName.includes('gsfc limited') ||
+      email.includes('gsfclimited@gmail.com')
+    );
   }, [company, currentUser]);
 
 
@@ -369,7 +378,9 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
   }, [isGsfcLimitedDemo, currentSubscription]);
 
   const handleTabClick = (tab) => {
-    if (tab !== 'my_applications' && tab !== 'subscription_billing' && !hasActivePaidSubscription) {
+    // GSFC Placed Companies (managed by GSFC) never need a paid subscription
+    const isGsfcPartner = isGsfcLimitedDemo;
+    if (tab !== 'my_applications' && tab !== 'subscription_billing' && !hasActivePaidSubscription && !isGsfcPartner) {
       showToast({
         type: 'info',
         title: '🔒 Recruiter Subscription Required',
@@ -1265,6 +1276,7 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
   const handlePostRequirement = async (e) => {
     if (e && e.preventDefault) e.preventDefault();
 
+    // GSFC Placed Companies (gsfc_company role) are managed by GSFC — bypass payment gate entirely
     if (!hasActivePaidSubscription || (currentSubscription?.is_limit_reached)) {
       setShowPostModal(false);
       setShowPlanModal(true);
@@ -3105,48 +3117,76 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
       {activeTab === 'subscription_billing' && (
         <div className="space-y-8 animate-in fade-in duration-200">
           {/* Current Subscription Hero Banner */}
-          <div className="p-6 sm:p-8 bg-gradient-to-br from-blue-950 via-slate-900 to-indigo-950 rounded-3xl border border-blue-900/40 text-white shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-6 relative overflow-hidden">
-            <div className="absolute -right-16 -bottom-16 w-64 h-64 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
-
-            <div>
-              <div className="inline-flex items-center gap-2 px-3 py-1 bg-amber-500/20 border border-amber-400/30 rounded-full text-amber-300 text-xs font-black tracking-wider uppercase mb-2.5">
-                {currentSubscription?.has_subscription && currentSubscription?.days_remaining > 0 ? (
-                  <>
-                    <Crown className="w-3.5 h-3.5 text-amber-400" />
-                    <span>Active Corporate Membership</span>
-                  </>
-                ) : (
-                  <>
-                    <Lock className="w-3.5 h-3.5 text-rose-400" />
-                    <span className="text-rose-300">No Active Subscription (Payment Required)</span>
-                  </>
-                )}
+          {isGsfcLimitedDemo ? (
+            /* ✅ GSFC PLACED COMPANY — NO PAYMENT REQUIRED */
+            <div className="p-6 sm:p-8 bg-gradient-to-br from-emerald-900 via-teal-900 to-blue-950 rounded-3xl border border-emerald-700/40 text-white shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-6 relative overflow-hidden">
+              <div className="absolute -right-16 -bottom-16 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+              <div>
+                <div className="inline-flex items-center gap-2 px-3 py-1 bg-emerald-500/20 border border-emerald-400/30 rounded-full text-emerald-300 text-xs font-black tracking-wider uppercase mb-2.5">
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>GSFC Official Placement Partner — No Payment Required</span>
+                </div>
+                <h2 className="text-2xl sm:text-3xl font-black text-white flex items-center gap-3">
+                  <span>GSFC University Managed Partner</span>
+                  <span className="text-xs px-2.5 py-1 bg-emerald-400 text-slate-950 rounded-full font-black uppercase">Unlimited Access</span>
+                </h2>
+                <p className="mt-1 text-xs sm:text-sm text-slate-300 max-w-xl">
+                  As an officially registered GSFC Placed Company, your account is fully managed and authorized by GSFC University's Training & Placement Cell. All features — job posting, candidate database, interviews, and reports — are available to you at no cost.
+                </p>
               </div>
-              <h2 className="text-2xl sm:text-3xl font-black text-white flex items-center gap-3">
-                <span>{currentSubscription?.has_subscription && currentSubscription?.days_remaining > 0 ? (currentSubscription?.plan_name) : 'No Active Recruiter Plan'}</span>
-                {currentSubscription?.has_subscription && currentSubscription?.days_remaining > 0 && currentSubscription?.badge_title && (
-                  <span className="text-xs px-2.5 py-1 bg-amber-400 text-slate-950 rounded-full font-black uppercase">
-                    {currentSubscription.badge_title}
-                  </span>
-                )}
-              </h2>
-              <p className="mt-1 text-xs sm:text-sm text-slate-300 max-w-xl">
-                {currentSubscription?.has_subscription && currentSubscription?.days_remaining > 0
-                  ? `Your recruitment tier is active with ${currentSubscription.days_remaining} days of campus recruitment access remaining.`
-                  : 'You do not have an active subscription. Please select a plan and complete payment via Razorpay to post hiring requirements and view candidate databases.'}
-              </p>
+              <div className="flex flex-col items-start sm:items-end gap-2 shrink-0">
+                <div className="px-5 py-3 rounded-2xl bg-emerald-500/20 border border-emerald-400/40 text-emerald-200 font-black text-sm flex items-center gap-2">
+                  <CheckCircle className="w-5 h-5 text-emerald-400" />
+                  <span>Full Portal Access Active</span>
+                </div>
+                <p className="text-[11px] text-slate-400 font-medium">Authorized by GSFC TPC · No subscription needed</p>
+              </div>
             </div>
+          ) : (
+            /* 💳 OUTSIDE RECRUITER — STANDARD SUBSCRIPTION BANNER */
+            <div className="p-6 sm:p-8 bg-gradient-to-br from-blue-950 via-slate-900 to-indigo-950 rounded-3xl border border-blue-900/40 text-white shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-6 relative overflow-hidden">
+              <div className="absolute -right-16 -bottom-16 w-64 h-64 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
 
-            <div className="flex flex-wrap items-center gap-3 shrink-0">
-              <button
-                onClick={() => setShowPlanModal(true)}
-                className="py-3 px-6 rounded-2xl bg-gradient-to-r from-amber-500 via-amber-600 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 font-black text-xs shadow-lg shadow-amber-500/20 transition-all flex items-center gap-2 cursor-pointer hover:scale-105"
-              >
-                <Sparkles className="w-4 h-4 fill-slate-950" />
-                <span>{currentSubscription?.has_subscription && currentSubscription?.days_remaining > 0 ? 'Upgrade / Switch Tier' : 'Choose Plan & Pay via Razorpay'}</span>
-              </button>
+              <div>
+                <div className="inline-flex items-center gap-2 px-3 py-1 bg-amber-500/20 border border-amber-400/30 rounded-full text-amber-300 text-xs font-black tracking-wider uppercase mb-2.5">
+                  {currentSubscription?.has_subscription && currentSubscription?.days_remaining > 0 ? (
+                    <>
+                      <Crown className="w-3.5 h-3.5 text-amber-400" />
+                      <span>Active Corporate Membership</span>
+                    </>
+                  ) : (
+                    <>
+                      <Lock className="w-3.5 h-3.5 text-rose-400" />
+                      <span className="text-rose-300">No Active Subscription (Payment Required)</span>
+                    </>
+                  )}
+                </div>
+                <h2 className="text-2xl sm:text-3xl font-black text-white flex items-center gap-3">
+                  <span>{currentSubscription?.has_subscription && currentSubscription?.days_remaining > 0 ? (currentSubscription?.plan_name) : 'No Active Recruiter Plan'}</span>
+                  {currentSubscription?.has_subscription && currentSubscription?.days_remaining > 0 && currentSubscription?.badge_title && (
+                    <span className="text-xs px-2.5 py-1 bg-amber-400 text-slate-950 rounded-full font-black uppercase">
+                      {currentSubscription.badge_title}
+                    </span>
+                  )}
+                </h2>
+                <p className="mt-1 text-xs sm:text-sm text-slate-300 max-w-xl">
+                  {currentSubscription?.has_subscription && currentSubscription?.days_remaining > 0
+                    ? `Your recruitment tier is active with ${currentSubscription.days_remaining} days of campus recruitment access remaining.`
+                    : 'You do not have an active subscription. Please select a plan and complete payment via Razorpay to post hiring requirements and view candidate databases.'}
+                </p>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-3 shrink-0">
+                <button
+                  onClick={() => setShowPlanModal(true)}
+                  className="py-3 px-6 rounded-2xl bg-gradient-to-r from-amber-500 via-amber-600 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 font-black text-xs shadow-lg shadow-amber-500/20 transition-all flex items-center gap-2 cursor-pointer hover:scale-105"
+                >
+                  <Sparkles className="w-4 h-4 fill-slate-950" />
+                  <span>{currentSubscription?.has_subscription && currentSubscription?.days_remaining > 0 ? 'Upgrade / Switch Tier' : 'Choose Plan & Pay via Razorpay'}</span>
+                </button>
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Quota & Usage Overview */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

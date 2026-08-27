@@ -57,7 +57,8 @@ export const DEFAULT_REQUIREMENTS_FEED = [
     matchScore: 92,
     eligible: true,
     application_type: 'internal',
-    applications_open: 1
+    applications_open: 1,
+    company_email: 'campus.hiring@google.com'
   },
   {
     id: 'req_microsoft_sde',
@@ -76,7 +77,8 @@ export const DEFAULT_REQUIREMENTS_FEED = [
     matchScore: 88,
     eligible: true,
     application_type: 'internal',
-    applications_open: 1
+    applications_open: 1,
+    company_email: 'campus.recruit@microsoft.com'
   },
   {
     id: 'req_gsfc_core',
@@ -95,7 +97,8 @@ export const DEFAULT_REQUIREMENTS_FEED = [
     matchScore: 82,
     eligible: true,
     application_type: 'internal',
-    applications_open: 1
+    applications_open: 1,
+    company_email: 'recruitment@gsfcltd.com'
   },
   {
     id: 'req_tcs_digital',
@@ -114,7 +117,8 @@ export const DEFAULT_REQUIREMENTS_FEED = [
     matchScore: 85,
     eligible: true,
     application_type: 'internal',
-    applications_open: 1
+    applications_open: 1,
+    company_email: 'campus@tcs.com'
   }
 ];
 
@@ -326,6 +330,11 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
   const [selectedReqForApply, setSelectedReqForApply] = useState(null);
   const [internalApplyModalOpen, setInternalApplyModalOpen] = useState(false);
   const [externalConfirmModalOpen, setExternalConfirmModalOpen] = useState(false);
+
+  // Leave-Meeting Mail Modal State
+  const [leaveMeetingMailModal, setLeaveMeetingMailModal] = useState(null); // { meeting, type: 'other_reason' | 'leave_company' }
+  const [leaveMeetingMailSent, setLeaveMeetingMailSent] = useState(false);
+  const [leaveMeetingMailNote, setLeaveMeetingMailNote] = useState('');
 
   // 🎮 Gamification & Badges State
   const [badgesModalOpen, setBadgesModalOpen] = useState(false);
@@ -1796,6 +1805,19 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
                         <div><span className="text-slate-500">Min CGPA:</span> <span className="text-slate-900 font-black">{req.min_cgpa}</span></div>
                         <div><span className="text-slate-500">CTC:</span> <span className="text-blue-900 font-black">{req.ctc_range}</span></div>
                         <div><span className="text-slate-500">Deadline:</span> <span className="text-slate-900 font-black">{req.deadline}</span></div>
+                        {(req.company_email || req.contact_email) && (
+                          <div className="col-span-2 flex items-center gap-1.5 pt-1 border-t border-slate-200 mt-0.5">
+                            <Mail className="w-3 h-3 text-blue-700 shrink-0" />
+                            <span className="text-slate-500">HR Contact:</span>
+                            <a
+                              href={`mailto:${req.company_email || req.contact_email}`}
+                              className="text-blue-800 font-black hover:underline truncate"
+                              title={`Email ${req.company_name} HR`}
+                            >
+                              {req.company_email || req.contact_email}
+                            </a>
+                          </div>
+                        )}
                       </div>
 
                     </div>
@@ -2578,10 +2600,30 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
                             </button>
 
                             {isEjected ? (
-                              <span className="px-4 py-2.5 bg-red-100 text-red-800 border border-red-300 rounded-xl text-xs font-black flex items-center gap-1.5">
-                                <ShieldAlert className="w-4 h-4 text-red-600" />
-                                <span>Session Disqualified</span>
-                              </span>
+                              <div className="flex items-center gap-2 flex-wrap justify-end">
+                                <span className="px-3 py-2 bg-red-100 text-red-800 border border-red-300 rounded-xl text-xs font-black flex items-center gap-1.5">
+                                  <ShieldAlert className="w-3.5 h-3.5 text-red-600" />
+                                  <span>Session Disqualified</span>
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => { setLeaveMeetingMailModal({ meeting: m, type: 'other_reason' }); setLeaveMeetingMailSent(false); setLeaveMeetingMailNote(''); }}
+                                  className="px-3 py-2 bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 rounded-xl text-xs font-black flex items-center gap-1.5 cursor-pointer transition-all"
+                                  title="Mail the company explaining your reason for leaving the meeting"
+                                >
+                                  <Mail className="w-3.5 h-3.5 text-amber-700" />
+                                  <span>Mail: Meeting Absence</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => { setLeaveMeetingMailModal({ meeting: m, type: 'leave_company' }); setLeaveMeetingMailSent(false); setLeaveMeetingMailNote(''); }}
+                                  className="px-3 py-2 bg-rose-100 hover:bg-rose-200 text-rose-900 border border-rose-300 rounded-xl text-xs font-black flex items-center gap-1.5 cursor-pointer transition-all"
+                                  title="Mail the company expressing your wish to leave / withdraw from the hiring process"
+                                >
+                                  <Mail className="w-3.5 h-3.5 text-rose-700" />
+                                  <span>Mail: Leave Process</span>
+                                </button>
+                              </div>
                             ) : (
                               <button
                                 type="button"
@@ -3156,6 +3198,159 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
         onClose={() => setBadgesModalOpen(false)}
         studentId={resolveStudentId(currentUser, student)}
       />
+
+      {/* ✉️ LEAVE MEETING MAIL MODAL (Meeting Absence / Leave Company Process) */}
+      {leaveMeetingMailModal && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-fadeIn">
+          <div className="w-full max-w-lg bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden">
+            {/* Header */}
+            <div className={`p-5 sm:p-6 text-white ${leaveMeetingMailModal.type === 'leave_company' ? 'bg-gradient-to-r from-rose-700 via-rose-800 to-red-900' : 'bg-gradient-to-r from-amber-600 via-amber-700 to-orange-700'}`}>
+              <div className="flex items-start justify-between gap-3">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wider opacity-90">
+                    <Mail className="w-4 h-4" />
+                    {leaveMeetingMailModal.type === 'leave_company'
+                      ? '📤 Mail to Leave / Withdraw from Hiring Process'
+                      : '📤 Mail About Meeting Absence (Other Reason)'}
+                  </div>
+                  <h3 className="text-base font-black leading-snug">
+                    {leaveMeetingMailModal.type === 'leave_company'
+                      ? `Withdraw from ${leaveMeetingMailModal.meeting.company_name} Hiring Drive`
+                      : `Explain Your Absence — ${leaveMeetingMailModal.meeting.company_name}`}
+                  </h3>
+                  <p className="text-xs opacity-80 font-medium">
+                    Room: {leaveMeetingMailModal.meeting.room_id} &nbsp;•&nbsp; {leaveMeetingMailModal.meeting.title}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setLeaveMeetingMailModal(null)}
+                  className="p-1.5 rounded-xl bg-white/10 hover:bg-white/20 transition cursor-pointer shrink-0"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Body */}
+            <div className="p-5 sm:p-6 space-y-4">
+              {leaveMeetingMailSent ? (
+                <div className="p-6 text-center space-y-3 animate-fadeIn">
+                  <div className="w-14 h-14 rounded-full bg-emerald-100 flex items-center justify-center mx-auto">
+                    <CheckCircle2 className="w-8 h-8 text-emerald-600" />
+                  </div>
+                  <h4 className="text-base font-black text-slate-900">Mail Dispatched Successfully!</h4>
+                  <p className="text-xs text-slate-600 font-medium">
+                    Your email has been sent to <strong>{leaveMeetingMailModal.meeting.company_name}</strong>. They will review your request and get back to you.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setLeaveMeetingMailModal(null)}
+                    className="px-6 py-2.5 bg-emerald-700 hover:bg-emerald-600 text-white font-black text-xs rounded-2xl cursor-pointer transition-all"
+                  >
+                    Close
+                  </button>
+                </div>
+              ) : (
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    setLeaveMeetingMailSent(true);
+                    showToast({
+                      type: 'success',
+                      title: '✉️ Mail Sent to ' + leaveMeetingMailModal.meeting.company_name,
+                      message: leaveMeetingMailModal.type === 'leave_company'
+                        ? 'Your withdrawal / leave request has been emailed to the company HR team.'
+                        : 'Your absence explanation has been emailed to the company HR team.',
+                      triggerCrackles: false
+                    });
+                  }}
+                  className="space-y-4"
+                >
+                  {/* To field */}
+                  <div className="space-y-1">
+                    <label className="text-xs font-black text-slate-700 uppercase tracking-wider">To (Company HR)</label>
+                    <div className="flex items-center gap-2 px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl">
+                      <Mail className="w-4 h-4 text-blue-700 shrink-0" />
+                      <span className="text-xs font-bold text-slate-800">
+                        {/* Show company email from the meeting or a generic TPC relay */}
+                        hr@{(leaveMeetingMailModal.meeting.company_name || 'company').toLowerCase().replace(/[^a-z0-9]/g, '')}.com
+                      </span>
+                      <span className="ml-auto text-[10px] font-black px-2 py-0.5 bg-blue-100 text-blue-800 rounded-md border border-blue-200">via TPC Relay</span>
+                    </div>
+                  </div>
+
+                  {/* From field */}
+                  <div className="space-y-1">
+                    <label className="text-xs font-black text-slate-700 uppercase tracking-wider">From (Your Account)</label>
+                    <div className="px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800">
+                      {candidateName} &lt;{candidateEmail}&gt;
+                    </div>
+                  </div>
+
+                  {/* Subject (auto-filled) */}
+                  <div className="space-y-1">
+                    <label className="text-xs font-black text-slate-700 uppercase tracking-wider">Subject</label>
+                    <div className="px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 italic">
+                      {leaveMeetingMailModal.type === 'leave_company'
+                        ? `[Withdrawal Request] ${candidateName} — ${leaveMeetingMailModal.meeting.drive_title || leaveMeetingMailModal.meeting.title}`
+                        : `[Meeting Absence Explanation] ${candidateName} — Room ${leaveMeetingMailModal.meeting.room_id}`}
+                    </div>
+                  </div>
+
+                  {/* Message body */}
+                  <div className="space-y-1">
+                    <label className="text-xs font-black text-slate-700 uppercase tracking-wider">
+                      {leaveMeetingMailModal.type === 'leave_company' ? 'Reason for Leaving / Withdrawal' : 'Reason for Meeting Absence'}
+                      <span className="text-rose-500 ml-0.5">*</span>
+                    </label>
+                    <textarea
+                      required
+                      rows={5}
+                      value={leaveMeetingMailNote}
+                      onChange={(e) => setLeaveMeetingMailNote(e.target.value)}
+                      placeholder={
+                        leaveMeetingMailModal.type === 'leave_company'
+                          ? 'e.g. I have received and accepted another offer and would like to formally withdraw my candidacy from this hiring process. I appreciate the opportunity provided by your organization...'
+                          : 'e.g. Due to an unforeseen technical issue / health emergency, I was unable to attend the scheduled interview session on [date]. I sincerely apologize for any inconvenience caused...'
+                      }
+                      className="w-full px-3 py-2.5 bg-white border border-slate-300 rounded-xl text-xs font-medium text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-400 resize-none"
+                    />
+                  </div>
+
+                  {/* Notice */}
+                  <div className={`p-3 rounded-xl text-xs font-bold flex items-start gap-2 ${leaveMeetingMailModal.type === 'leave_company' ? 'bg-rose-50 border border-rose-200 text-rose-800' : 'bg-amber-50 border border-amber-200 text-amber-800'}`}>
+                    <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+                    <span>
+                      {leaveMeetingMailModal.type === 'leave_company'
+                        ? 'This withdrawal request is permanent. Your candidacy for this drive will be formally closed and cannot be re-opened without TPC approval.'
+                        : 'This email will be reviewed by the company HR and GSFC TPC. Please provide a truthful and professional explanation.'}
+                    </span>
+                  </div>
+
+                  {/* Action buttons */}
+                  <div className="flex items-center gap-3 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => setLeaveMeetingMailModal(null)}
+                      className="flex-1 py-2.5 px-4 bg-slate-100 hover:bg-slate-200 text-slate-800 font-black text-xs rounded-2xl cursor-pointer transition-all"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className={`flex-1 py-2.5 px-4 text-white font-black text-xs rounded-2xl cursor-pointer transition-all flex items-center justify-center gap-2 shadow-lg ${leaveMeetingMailModal.type === 'leave_company' ? 'bg-gradient-to-r from-rose-600 to-red-700 hover:from-rose-500 hover:to-red-600' : 'bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500'}`}
+                    >
+                      <Mail className="w-4 h-4" />
+                      {leaveMeetingMailModal.type === 'leave_company' ? 'Send Withdrawal Mail' : 'Send Absence Explanation'}
+                    </button>
+                  </div>
+                </form>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

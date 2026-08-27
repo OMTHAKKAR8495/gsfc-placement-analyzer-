@@ -20,6 +20,7 @@ import EcosystemHubModal from '../common/EcosystemHubModal';
 import WhatIfSimulatorModal from '../common/WhatIfSimulatorModal';
 import SkillHeatmapModal from '../common/SkillHeatmapModal';
 import AICopilotDrawer from '../common/AICopilotDrawer';
+import AddGSFCCompanyModal from '../common/AddGSFCCompanyModal';
 import AdminEventsManager from './AdminEventsManager';
 import AdminExternalCandidates from './AdminExternalCandidates';
 import AdminEntryLogsManager from './AdminEntryLogsManager';
@@ -223,6 +224,7 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
   const [whatIfModalOpen, setWhatIfModalOpen] = useState(false);
   const [heatmapModalOpen, setHeatmapModalOpen] = useState(false);
   const [copilotOpen, setCopilotOpen] = useState(false);
+  const [addGsfcCompanyModalOpen, setAddGsfcCompanyModalOpen] = useState(false);
   const [pendingCompanies, setPendingCompanies] = useState(getInitialPendingCompanies);
   const [pendingAlumni, setPendingAlumni] = useState([]);
   const [analytics, setAnalytics] = useState(null);
@@ -1763,6 +1765,15 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
 
         <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap shrink-0">
           <button
+            onClick={() => setAddGsfcCompanyModalOpen(true)}
+            className="py-2 px-3.5 bg-gradient-to-r from-blue-950 via-indigo-900 to-blue-900 hover:from-blue-900 hover:to-indigo-800 text-white font-black text-xs rounded-xl shadow-md border border-blue-400/30 flex items-center gap-1.5 transition-all cursor-pointer hover:scale-105 shrink-0"
+            title="Register new GSFC Recruited / Placed Partner Company and generate login credentials"
+          >
+            <Building className="w-3.5 h-3.5 text-amber-300" /> 
+            <span>➕ Add GSFC Recruited Co.</span>
+          </button>
+
+          <button
             onClick={() => setActiveTab('entry_logs')}
             className="py-2 px-3 bg-gradient-to-r from-emerald-600 via-teal-700 to-blue-900 hover:from-emerald-500 hover:to-teal-600 text-white font-black text-xs rounded-xl shadow-md flex items-center gap-1.5 transition-all cursor-pointer hover:scale-105 shrink-0"
             title="Open Live Gate QR Scanner Terminal"
@@ -1792,8 +1803,8 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
       </div>
 
       {/* Category Pill Switcher */}
-      <div className="flex items-center justify-between gap-2 p-1.5 bg-slate-100/90 dark:bg-slate-800/90 backdrop-blur-md rounded-2xl border border-slate-200 dark:border-slate-700 shadow-inner">
-        <div className="flex items-center gap-1.5 overflow-x-auto py-0.5 no-scrollbar w-full">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 p-1.5 bg-slate-100/90 dark:bg-slate-800/90 backdrop-blur-md rounded-2xl border border-slate-200 dark:border-slate-700 shadow-inner">
+        <div className="flex items-center gap-1.5 overflow-x-auto py-0.5 no-scrollbar flex-1">
           <button
             onClick={() => setNavFilter('all')}
             className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all shrink-0 cursor-pointer ${
@@ -1802,20 +1813,28 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
                 : 'text-slate-700 dark:text-slate-200 hover:bg-slate-200/60 dark:hover:bg-slate-700'
             }`}
           >
-            🌐 All Modules (25)
+            🌐 All Modules (26)
           </button>
           <button
-            onClick={() => setNavFilter('core')}
+            onClick={() => {
+              setNavFilter('core');
+              if (['events', 'external_candidates', 'entry_logs', 'security_staff', 'online_meetings', 'subscription_plans', 'predictive'].includes(activeTab)) {
+                setActiveTab('overview');
+              }
+            }}
             className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all shrink-0 cursor-pointer ${
               navFilter === 'core'
                 ? 'bg-blue-900 text-white shadow-md'
                 : 'text-slate-700 dark:text-slate-200 hover:bg-slate-200/60 dark:hover:bg-slate-700'
             }`}
           >
-            📊 Core Governance (12)
+            📊 Core Governance (13)
           </button>
           <button
-            onClick={() => setNavFilter('ai')}
+            onClick={() => {
+              setNavFilter('ai');
+              setActiveTab('predictive');
+            }}
             className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all shrink-0 cursor-pointer ${
               navFilter === 'ai'
                 ? 'bg-purple-900 text-white shadow-md'
@@ -1825,7 +1844,12 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
             🤖 AI & Accreditation (7)
           </button>
           <button
-            onClick={() => setNavFilter('fest')}
+            onClick={() => {
+              setNavFilter('fest');
+              if (!['events', 'external_candidates', 'entry_logs', 'security_staff', 'online_meetings', 'subscription_plans'].includes(activeTab)) {
+                setActiveTab('events');
+              }
+            }}
             className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all shrink-0 cursor-pointer ${
               navFilter === 'fest'
                 ? 'bg-amber-600 text-white shadow-md'
@@ -1835,6 +1859,18 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
             🎪 Fest, Passes & Plans (6)
           </button>
         </div>
+
+        {/* Prominent Direct Module Action in Pill Header */}
+        <div className="flex items-center gap-1.5 shrink-0 pl-1 border-t sm:border-t-0 sm:border-l border-slate-200 dark:border-slate-700 pt-1 sm:pt-0">
+          <button
+            onClick={() => setAddGsfcCompanyModalOpen(true)}
+            className="w-full sm:w-auto px-3.5 py-1.5 rounded-xl text-xs font-black bg-gradient-to-r from-blue-950 via-indigo-900 to-blue-900 hover:from-blue-900 text-white shadow-sm border border-amber-400/40 transition-all flex items-center justify-center gap-1.5 cursor-pointer hover:scale-105"
+            title="Register new GSFC Recruited / Placed Partner Company and generate login credentials"
+          >
+            <Building className="w-3.5 h-3.5 text-amber-300" />
+            <span>🏢➕ Add GSFC Recruited Co.</span>
+          </button>
+        </div>
       </div>
 
       {/* Command Center Navigation Hub */}
@@ -1842,10 +1878,23 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
         {/* Tier 1: Core Portal Tabs */}
         {(navFilter === 'all' || navFilter === 'core') && (
           <div className="glass-panel p-2.5 rounded-2xl border border-slate-200 shadow-sm">
-            <div className="flex items-center gap-1.5 text-[10px] font-black text-slate-500 uppercase tracking-wider mb-1.5 px-1">
-              <BarChart3 className="w-3 h-3 text-blue-900" /> TPC Core Data & Governance Views
+            <div className="flex items-center justify-between gap-1.5 text-[10px] font-black text-slate-500 uppercase tracking-wider mb-1.5 px-1">
+              <span className="flex items-center gap-1"><BarChart3 className="w-3 h-3 text-blue-900" /> TPC Core Data & Governance Views</span>
+              <button
+                onClick={() => setAddGsfcCompanyModalOpen(true)}
+                className="text-[10px] font-black text-indigo-700 hover:text-indigo-900 hover:underline flex items-center gap-1 cursor-pointer"
+              >
+                <span>➕ Quick Register Company</span>
+              </button>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-1.5">
+              <button
+                onClick={() => setAddGsfcCompanyModalOpen(true)}
+                className="flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer text-center bg-gradient-to-r from-blue-950 to-indigo-900 text-white hover:from-blue-900 hover:to-indigo-800 shadow-sm border border-indigo-500/30"
+              >
+                <Building className="w-3.5 h-3.5 text-amber-300 shrink-0" /> <span className="truncate">🏢➕ Add GSFC Co.</span>
+              </button>
+
               <button
                 onClick={() => setActiveTab('overview')}
                 className={`flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer text-center ${
@@ -3001,15 +3050,24 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 glass-panel p-4 sm:p-5 rounded-3xl border border-slate-200 shadow-md">
             <div>
               <h2 className="text-base font-black text-slate-900 flex items-center gap-2">
-                <Building className="w-5 h-5 text-amber-600" /> Master Recruiter & Corporate Registry
+                <Building className="w-5 h-5 text-amber-600" /> Master Recruiter &amp; Corporate Registry
               </h2>
               <p className="text-xs text-slate-600 font-bold mt-0.5">
-                Manage all registered corporate hiring partners across GSFC University Schools & Branches.
+                Manage all registered corporate hiring partners across GSFC University Schools &amp; Branches.
               </p>
             </div>
-            <span className="text-xs font-black text-blue-900 bg-blue-50 px-3 py-1.5 rounded-xl border border-blue-200">
-              Showing {filteredCompanies.length} of {allCompaniesList.length} Registered Recruiter Accounts
-            </span>
+            <div className="flex items-center gap-2 flex-wrap">
+              <button
+                onClick={() => setAddGsfcCompanyModalOpen(true)}
+                className="py-2 px-3.5 bg-gradient-to-r from-blue-950 via-indigo-900 to-blue-900 hover:from-blue-900 text-white font-black text-xs rounded-xl shadow-md border border-blue-400/30 flex items-center gap-1.5 transition-all cursor-pointer hover:scale-105"
+              >
+                <Building className="w-3.5 h-3.5 text-amber-300" />
+                <span>➕ Add GSFC Recruited Co.</span>
+              </button>
+              <span className="text-xs font-black text-blue-900 bg-blue-50 px-3 py-1.5 rounded-xl border border-blue-200">
+                Showing {filteredCompanies.length} of {allCompaniesList.length} Accounts
+              </span>
+            </div>
           </div>
 
           {/* GSFC Field & Industry Filter Control Panel */}
@@ -5292,6 +5350,16 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
         onClose={() => setCopilotOpen(false)}
         currentUser={currentUser}
         mode="tpo"
+      />
+
+      {/* 🏢 Add GSFC Recruited / Placed Company Modal */}
+      <AddGSFCCompanyModal
+        isOpen={addGsfcCompanyModalOpen}
+        onClose={() => setAddGsfcCompanyModalOpen(false)}
+        currentUser={currentUser}
+        onCompanyAdded={(newCompany) => {
+          setAllCompaniesList(prev => [newCompany, ...prev]);
+        }}
       />
     </div>
   );

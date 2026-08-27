@@ -9,6 +9,7 @@ import {
 import QABoard from '../common/QABoard';
 import UniversalQRScanner from '../scanner/UniversalQRScanner';
 import AdminMeetingsManager from '../admin/AdminMeetingsManager';
+import AddGSFCCompanyModal from '../common/AddGSFCCompanyModal';
 
 const DEFAULT_STUDENTS = [
   {
@@ -276,11 +277,13 @@ export default function FacultyDashboard({ currentUser, onOpenAuth }) {
   const [activeTab, setActiveTabState] = useState(() => {
     try {
       const saved = localStorage.getItem('gsfc_faculty_active_tab');
-      return saved && ['applications', 'qa', 'analytics', 'tracker'].includes(saved) ? saved : 'applications';
+      return saved && ['applications', 'tracker', 'doubts', 'scanner', 'online_meetings'].includes(saved) ? saved : 'applications';
     } catch(e) {
       return 'applications';
     }
   });
+
+  const [addCompanyModalOpen, setAddCompanyModalOpen] = useState(false);
 
   const setActiveTab = (tab) => {
     setActiveTabState(tab);
@@ -957,9 +960,19 @@ GSFC University, Vadodara`);
           </p>
         </div>
         <div className="flex flex-col items-start md:items-end gap-2 shrink-0">
-          <span className="px-3 py-1.5 bg-white/10 rounded-xl text-xs font-bold text-slate-200 border border-white/20">
-            👩‍🏫 {currentUser?.name || 'Dr. Neeshu Chaudhary'} · Faculty Coordinator
-          </span>
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              onClick={() => setAddCompanyModalOpen(true)}
+              className="px-3.5 py-2 bg-gradient-to-r from-blue-950 via-indigo-900 to-blue-900 hover:from-blue-900 text-white rounded-xl text-xs font-black flex items-center gap-1.5 shadow-md border border-indigo-400/30 cursor-pointer transition-all hover:scale-105"
+              title="Register new GSFC Recruited / Placed Partner Company and generate login credentials"
+            >
+              <Building2 className="w-4 h-4 text-amber-300" />
+              <span>➕ Add GSFC Recruited Co.</span>
+            </button>
+            <span className="px-3 py-1.5 bg-white/10 rounded-xl text-xs font-bold text-slate-200 border border-white/20">
+              👩‍🏫 {currentUser?.name || 'Dr. Neeshu Chaudhary'} · Faculty Coordinator
+            </span>
+          </div>
           <div className="flex items-center gap-2">
             <span className="text-[10px] text-slate-300 font-mono">
               Synced: {lastSyncedAt.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
@@ -2144,6 +2157,16 @@ GSFC University, Vadodara`);
           </div>
         </div>
       )}
+
+      {/* 🏢 Add GSFC Recruited / Placed Company Modal */}
+      <AddGSFCCompanyModal
+        isOpen={addCompanyModalOpen}
+        onClose={() => setAddCompanyModalOpen(false)}
+        currentUser={currentUser}
+        onCompanyAdded={(newCompany) => {
+          setAssignedSuccessMsg(`✅ ${newCompany.company_name} registered as GSFC Placed Partner! Credentials generated and assigned.`);
+        }}
+      />
     </div>
   );
 }
