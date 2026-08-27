@@ -59,6 +59,15 @@ const GOOGLE_ACCOUNTS_PRESETS = [
     status: '🎪 Verified Fest Attendee'
   },
   {
+    name: 'GSFC Limited (Recruiter)',
+    email: 'gsfclimited@gmail.com',
+    program: 'GSFC Placed Company (Official Partner)',
+    roll_number: 'GSFC-CO-2026',
+    avatar: 'GL',
+    color: 'bg-indigo-950',
+    status: '🏢 GSFC Placed Company'
+  },
+  {
     name: 'Officer Vikram Singh',
     email: 'security_gate1@gsfc.ac.in',
     program: 'Security Desk (Main Gate A)',
@@ -771,7 +780,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialRole 
       email = 'thakkar_om@gmail.com';
       name = 'Thakkar Om';
       setFormData(prev => ({ ...prev, email, password: 'password123', phone: '+91 98765 43210' }));
-    } else if (demoRole === 'company') {
+    } else if (demoRole === 'gsfc_company' || demoRole === 'company') {
       email = 'gsfclimited@gmail.com';
       name = 'GSFC Limited';
       setFormData(prev => ({ ...prev, email, password: 'password123', phone: '+91 98989 89898' }));
