@@ -22,21 +22,21 @@ import { useToast, triggerCelebrationCrackles } from '../../context/ToastContext
 
 const DEFAULT_COMPANY_REQUIREMENTS = [
   {
-    id: 'req_gsfc_sde_demo',
+    id: 'req_gsfc_chem_demo',
     company_id: 'c_gsfc_limited',
     company_name: 'GSFC Limited',
-    title: 'Software Development Engineer - AI & Web Systems',
+    title: 'Graduate Engineer Trainee (GET) - Chemical & Process Operations',
     company_logo_url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/18/Gujarat_State_Fertilizers_and_Chemicals_logo.svg/300px-Gujarat_State_Fertilizers_and_Chemicals_logo.svg.png',
     logo_url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/18/Gujarat_State_Fertilizers_and_Chemicals_logo.svg/300px-Gujarat_State_Fertilizers_and_Chemicals_logo.svg.png',
-    eligible_programs_json: JSON.stringify(['BTech CSE', 'BTech IT', 'MSc CS']),
+    eligible_programs_json: JSON.stringify(['BTech Chemical', 'MSc Chemistry', 'BTech Mechanical']),
     min_cgpa: 7.5,
-    required_skills_json: JSON.stringify(['Python', 'React', 'Node.js', 'SQL']),
-    preferred_skills_json: JSON.stringify(['FastAPI', 'Docker', 'Machine Learning']),
+    required_skills_json: JSON.stringify(['Chemical Engineering', 'Process Safety', 'Heat & Mass Transfer', 'Petrochemicals']),
+    preferred_skills_json: JSON.stringify(['Aspen Plus', 'MATLAB', 'Process Simulation']),
     job_type: 'Full-time',
-    ctc_range: '₹18,00,000 - ₹24,00,000 PA',
-    openings: 3,
-    deadline: '2026-10-30',
-    job_description: 'Full-stack engineering role focusing on high-performance web systems and AI model integration for GSFC corporate infrastructure.',
+    ctc_range: '₹14,00,000 - ₹18,00,000 PA',
+    openings: 8,
+    deadline: '2026-11-30',
+    job_description: 'Official core recruitment drive by Gujarat State Fertilizers & Chemicals (GSFC Limited) for Chemical & Process Engineering plant operations, fertilizer production, and quality assurance at Fertilizernagar.',
     application_type: 'internal',
     question_bank_json: '[]',
     question_bank_status: 'complete',
@@ -45,26 +45,49 @@ const DEFAULT_COMPANY_REQUIREMENTS = [
     created_at: new Date().toISOString()
   },
   {
-    id: 'req_gsfc_cloud_demo',
+    id: 'req_gsfc_safety_demo',
     company_id: 'c_gsfc_limited',
     company_name: 'GSFC Limited',
-    title: 'Cloud Systems & Data Analytics Intern',
+    title: 'Executive Trainee - Industrial Safety & Process Engineering',
     company_logo_url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/18/Gujarat_State_Fertilizers_and_Chemicals_logo.svg/300px-Gujarat_State_Fertilizers_and_Chemicals_logo.svg.png',
     logo_url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/18/Gujarat_State_Fertilizers_and_Chemicals_logo.svg/300px-Gujarat_State_Fertilizers_and_Chemicals_logo.svg.png',
-    eligible_programs_json: JSON.stringify(['BTech CSE', 'BTech Mechanical', 'MBA']),
+    eligible_programs_json: JSON.stringify(['BTech Fire & Safety', 'BTech Chemical', 'BTech Mechanical']),
     min_cgpa: 7.0,
-    required_skills_json: JSON.stringify(['SQL', 'Python', 'Excel', 'Data Visualization']),
-    preferred_skills_json: JSON.stringify(['PowerBI', 'Tableau', 'PostgreSQL']),
-    job_type: 'Internship',
-    ctc_range: '₹12,00,000 - ₹15,00,000 PA',
+    required_skills_json: JSON.stringify(['Industrial Safety', 'Hazard Analysis (HAZOP)', 'Process Safety Management', 'EHS Standards']),
+    preferred_skills_json: JSON.stringify(['Fire Protection Systems', 'Risk Assessment', 'ISO 45001']),
+    job_type: 'Full-time',
+    ctc_range: '₹11,00,000 - ₹14,00,000 PA',
     openings: 5,
-    deadline: '2026-11-15',
-    job_description: 'Internship drive analyzing real-time data pipelines, database telemetry, and business intelligence dashboards.',
+    deadline: '2026-12-15',
+    job_description: 'Campus hiring drive for industrial safety compliance, risk hazard mitigation, and environmental management across GSFC manufacturing plants.',
     application_type: 'internal',
     question_bank_json: '[]',
     question_bank_status: 'complete',
     applications_open: 1,
     applicant_count: 6,
+    created_at: new Date().toISOString()
+  },
+  {
+    id: 'req_gsfc_it_demo',
+    company_id: 'c_gsfc_limited',
+    company_name: 'GSFC Limited',
+    title: 'IT & Industrial Automation Systems Officer',
+    company_logo_url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/18/Gujarat_State_Fertilizers_and_Chemicals_logo.svg/300px-Gujarat_State_Fertilizers_and_Chemicals_logo.svg.png',
+    logo_url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/18/Gujarat_State_Fertilizers_and_Chemicals_logo.svg/300px-Gujarat_State_Fertilizers_and_Chemicals_logo.svg.png',
+    eligible_programs_json: JSON.stringify(['BTech CSE', 'BTech IT']),
+    min_cgpa: 7.5,
+    required_skills_json: JSON.stringify(['Python', 'SQL', 'Industrial Automation', 'SCADA & ERP', 'FastAPI']),
+    preferred_skills_json: JSON.stringify(['React', 'Docker', 'PostgreSQL', 'Telemetry']),
+    job_type: 'Full-time',
+    ctc_range: '₹12,00,000 - ₹16,00,000 PA',
+    openings: 4,
+    deadline: '2026-11-20',
+    job_description: 'Full-stack engineering and data telemetry role building industrial IoT pipelines, plant automation dashboards, and corporate enterprise systems for GSFC.',
+    application_type: 'internal',
+    question_bank_json: '[]',
+    question_bank_status: 'complete',
+    applications_open: 1,
+    applicant_count: 4,
     created_at: new Date().toISOString()
   }
 ];
@@ -76,22 +99,22 @@ export const DEFAULT_COMPANY_APPLICANTS = [
     student_id: 's_om',
     candidate_name: 'Thakkar Om',
     candidate_email: 'thakkar_om@gmail.com',
-    candidate_phone: '+91 98765 43210',
-    roll_number: '21BCE045',
+    candidate_phone: '+91 95584 13347',
+    roll_number: '24BT04171',
     program: 'BTech CSE',
     branch: 'Computer Science & Engineering',
     cgpa: 8.9,
     ats_score: 95,
-    matchScore: 92,
-    match_score: 92,
+    matchScore: 94,
+    match_score: 94,
     status: 'applied',
     attendance_status: 'pending',
-    requirement_id: 'req_gsfc_sde_demo',
-    job_title: 'Software Development Engineer - AI & Web Systems',
+    requirement_id: 'req_gsfc_it_demo',
+    job_title: 'IT & Industrial Automation Systems Officer',
     company_name: 'GSFC Limited',
-    ctc_range: '₹18,00,000 - ₹24,00,000 PA',
+    ctc_range: '₹12,00,000 - ₹16,00,000 PA',
     applied_via: 'internal',
-    evaluation_notes: 'Exceptional proficiency in full-stack architecture, React, and Python.',
+    evaluation_notes: 'Exceptional proficiency in full-stack architecture, Python, SCADA automation, and cloud telemetry.',
     applied_at: new Date(Date.now() - 1000 * 60 * 30).toISOString()
   },
   {
@@ -110,12 +133,12 @@ export const DEFAULT_COMPANY_APPLICANTS = [
     match_score: 90,
     status: 'selected',
     attendance_status: 'present',
-    requirement_id: 'req_gsfc_sde_demo',
-    job_title: 'Software Development Engineer - AI & Web Systems',
+    requirement_id: 'req_gsfc_it_demo',
+    job_title: 'IT & Industrial Automation Systems Officer',
     company_name: 'GSFC Limited',
-    ctc_range: '₹18,00,000 - ₹24,00,000 PA',
+    ctc_range: '₹12,00,000 - ₹16,00,000 PA',
     applied_via: 'internal',
-    evaluation_notes: 'Strong machine learning portfolio and problem-solving skills.',
+    evaluation_notes: 'Strong telemetry data engineering and AI predictive modeling portfolio.',
     applied_at: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString()
   },
   {
@@ -129,17 +152,17 @@ export const DEFAULT_COMPANY_APPLICANTS = [
     program: 'BTech Chemical',
     branch: 'Chemical Engineering',
     cgpa: 8.6,
-    ats_score: 90,
-    matchScore: 88,
-    match_score: 88,
+    ats_score: 92,
+    matchScore: 91,
+    match_score: 91,
     status: 'interview',
     attendance_status: 'present',
-    requirement_id: 'req_gsfc_cloud_demo',
-    job_title: 'Cloud Systems & Data Analytics Intern',
+    requirement_id: 'req_gsfc_chem_demo',
+    job_title: 'Graduate Engineer Trainee (GET) - Chemical & Process Operations',
     company_name: 'GSFC Limited',
-    ctc_range: '₹12,00,000 - ₹15,00,000 PA',
+    ctc_range: '₹14,00,000 - ₹18,00,000 PA',
     applied_via: 'internal',
-    evaluation_notes: 'Excellent grasp of process simulation and statistical analytics.',
+    evaluation_notes: 'Excellent understanding of fertilizer synthesis, reactor dynamics, and process kinetics.',
     applied_at: new Date(Date.now() - 1000 * 60 * 60 * 48).toISOString()
   },
   {
@@ -152,42 +175,42 @@ export const DEFAULT_COMPANY_APPLICANTS = [
     roll_number: '21BCH088',
     program: 'BTech Chemical',
     branch: 'Chemical Engineering',
-    cgpa: 8.4,
-    ats_score: 88,
-    matchScore: 86,
-    match_score: 86,
+    cgpa: 8.7,
+    ats_score: 90,
+    matchScore: 89,
+    match_score: 89,
     status: 'selected',
     attendance_status: 'present',
-    requirement_id: 'req_gsfc_cloud_demo',
-    job_title: 'Cloud Systems & Data Analytics Intern',
+    requirement_id: 'req_gsfc_chem_demo',
+    job_title: 'Graduate Engineer Trainee (GET) - Chemical & Process Operations',
     company_name: 'GSFC Limited',
-    ctc_range: '₹12,00,000 - ₹15,00,000 PA',
+    ctc_range: '₹14,00,000 - ₹18,00,000 PA',
     applied_via: 'internal',
-    evaluation_notes: 'Official appointment letter generated.',
+    evaluation_notes: 'Official appointment letter generated for Fertilizernagar operations.',
     applied_at: new Date(Date.now() - 1000 * 60 * 60 * 72).toISOString()
   },
   {
     id: 'app_5',
     application_id: 'app_5',
-    student_id: 's_manish',
-    candidate_name: 'Manish Varma',
-    candidate_email: 'manish.v@gsfcuniversity.ac.in',
-    candidate_phone: '+91 98765 43214',
-    roll_number: '21BCV019',
-    program: 'BTech Civil',
-    branch: 'Civil Engineering',
+    student_id: 's_ananya',
+    candidate_name: 'Ananya Desai',
+    candidate_email: 'ananya.desai@gsfcuniversity.ac.in',
+    candidate_phone: '+91 98765 43216',
+    roll_number: '22BFE008',
+    program: 'BTech Fire & Safety',
+    branch: 'Fire & Environment Health Safety',
     cgpa: 8.7,
-    ats_score: 91,
-    matchScore: 87,
-    match_score: 87,
+    ats_score: 93,
+    matchScore: 92,
+    match_score: 92,
     status: 'interview',
     attendance_status: 'present',
-    requirement_id: 'req_gsfc_cloud_demo',
-    job_title: 'Cloud Systems & Data Analytics Intern',
+    requirement_id: 'req_gsfc_safety_demo',
+    job_title: 'Executive Trainee - Industrial Safety & Process Engineering',
     company_name: 'GSFC Limited',
-    ctc_range: '₹12,00,000 - ₹15,00,000 PA',
+    ctc_range: '₹11,00,000 - ₹14,00,000 PA',
     applied_via: 'internal',
-    evaluation_notes: 'Technical round cleared.',
+    evaluation_notes: 'High compliance in HAZOP procedures, plant emergency response, and safety audits.',
     applied_at: new Date(Date.now() - 1000 * 60 * 60 * 96).toISOString()
   },
   {
@@ -202,41 +225,17 @@ export const DEFAULT_COMPANY_APPLICANTS = [
     branch: 'Information Technology',
     cgpa: 8.8,
     ats_score: 92,
-    matchScore: 89,
-    match_score: 89,
+    matchScore: 90,
+    match_score: 90,
     status: 'selected',
     attendance_status: 'present',
-    requirement_id: 'req_gsfc_sde_demo',
-    job_title: 'Software Development Engineer - AI & Web Systems',
+    requirement_id: 'req_gsfc_it_demo',
+    job_title: 'IT & Industrial Automation Systems Officer',
     company_name: 'GSFC Limited',
-    ctc_range: '₹18,00,000 - ₹24,00,000 PA',
+    ctc_range: '₹12,00,000 - ₹16,00,000 PA',
     applied_via: 'internal',
-    evaluation_notes: 'Offer letter extended.',
+    evaluation_notes: 'Offer letter extended for SCADA telemetry and industrial web systems.',
     applied_at: new Date(Date.now() - 1000 * 60 * 60 * 120).toISOString()
-  },
-  {
-    id: 'app_7',
-    application_id: 'app_7',
-    student_id: 's_kavya',
-    candidate_name: 'Kavya Trivedi',
-    candidate_email: 'kavya.t@gsfcuniversity.ac.in',
-    candidate_phone: '+91 98765 43216',
-    roll_number: '21BBT005',
-    program: 'BSc Biotechnology',
-    branch: 'Biotechnology',
-    cgpa: 9.3,
-    ats_score: 96,
-    matchScore: 94,
-    match_score: 94,
-    status: 'applied',
-    attendance_status: 'pending',
-    requirement_id: 'req_gsfc_cloud_demo',
-    job_title: 'Cloud Systems & Data Analytics Intern',
-    company_name: 'GSFC Limited',
-    ctc_range: '₹12,00,000 - ₹15,00,000 PA',
-    applied_via: 'internal',
-    evaluation_notes: 'Gold medalist candidate with exceptional analytical credentials.',
-    applied_at: new Date(Date.now() - 1000 * 60 * 45).toISOString()
   }
 ];
 
@@ -1510,18 +1509,20 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
       <div className="glass-panel p-4 sm:p-8 rounded-3xl border border-slate-200/90 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 sm:gap-6 relative overflow-hidden">
         <div className="flex items-center gap-3 sm:gap-4 z-10">
           <img
-            src={company?.logo_url || (requirements.find(r => r.company_logo_url)?.company_logo_url) || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=100&auto=format&fit=crop&q=60'}
-            alt={company?.company_name}
+            src={isGsfcLimitedDemo ? 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/18/Gujarat_State_Fertilizers_and_Chemicals_logo.svg/300px-Gujarat_State_Fertilizers_and_Chemicals_logo.svg.png' : (company?.logo_url || (requirements.find(r => r.company_logo_url)?.company_logo_url) || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=100&auto=format&fit=crop&q=60')}
+            alt={company?.company_name || 'GSFC Limited'}
             className="w-12 h-12 sm:w-16 sm:h-16 rounded-2xl object-contain bg-white p-1.5 border border-slate-200 shadow-md shrink-0"
             onError={(e) => {
               e.target.onerror = null;
-              e.target.src = 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=100&auto=format&fit=crop&q=60';
+              e.target.src = 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/18/Gujarat_State_Fertilizers_and_Chemicals_logo.svg/300px-Gujarat_State_Fertilizers_and_Chemicals_logo.svg.png';
             }}
           />
           <div>
             <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-xl sm:text-2xl font-black text-slate-900 leading-tight">{company?.company_name || 'Recruiting Partner'}</h1>
-              {company?.approved ? (
+              <h1 className="text-xl sm:text-2xl font-black text-slate-900 leading-tight">
+                {isGsfcLimitedDemo ? 'GSFC Limited' : (company?.company_name || 'Recruiting Partner')}
+              </h1>
+              {company?.approved || isGsfcLimitedDemo ? (
                 <span className="px-2.5 py-0.5 sm:py-1 bg-emerald-50 text-emerald-800 border border-emerald-200 text-[11px] font-black rounded-lg flex items-center gap-1 shadow-sm">
                   <CheckCircle className="w-3.5 h-3.5" /> Verified TPC Partner
                 </span>
@@ -1532,7 +1533,15 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
               )}
 
               {/* Recruiter Subscription Status Pill */}
-              {currentSubscription?.has_subscription && currentSubscription?.days_remaining > 0 ? (
+              {isGsfcLimitedDemo ? (
+                <div 
+                  className="px-3 py-1 bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-300 dark:border-emerald-700 rounded-xl text-emerald-900 dark:text-emerald-300 text-xs font-black flex items-center gap-1.5 shadow-xs"
+                  title="Official placement partner account managed directly by GSFC University TPC"
+                >
+                  <ShieldCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                  <span>🏛️ GSFC Partner • Managed by GSFC (No Payment Required)</span>
+                </div>
+              ) : currentSubscription?.has_subscription && currentSubscription?.days_remaining > 0 ? (
                 <div 
                   onClick={() => setShowPlanModal(true)}
                   className="px-3 py-1 bg-gradient-to-r from-amber-500/15 via-blue-500/10 to-amber-500/10 hover:from-amber-500/25 border border-amber-400/50 rounded-xl text-slate-800 text-xs font-bold flex items-center gap-2 cursor-pointer shadow-sm hover:scale-105 transition-all"
@@ -1561,7 +1570,9 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
                 </button>
               )}
             </div>
-            <p className="text-xs text-slate-700 mt-1 font-bold">{company?.industry || 'Technology'} • {company?.website}</p>
+            <p className="text-xs text-slate-700 mt-1 font-bold">
+              {isGsfcLimitedDemo ? 'Chemicals, Fertilizers & Process Engineering • Official Partner • Fertilizernagar, Vadodara' : `${company?.industry || 'Technology'} • ${company?.website}`}
+            </p>
           </div>
         </div>
 
