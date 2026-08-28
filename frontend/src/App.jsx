@@ -395,11 +395,11 @@ function App() {
       setCurrentUser(localUser);
       const currentHash = window.location.hash.replace(/^#/, '');
       const baseHash = resolveBaseWorkspace(currentHash);
-      if (currentHash && isRoleAllowedInWorkspace(localUser, baseHash)) {
+      const defaultRoleWorkspace = getDefaultWorkspaceForRole(localUser.role);
+      if (currentHash && currentHash !== 'student' && isRoleAllowedInWorkspace(localUser, baseHash)) {
         setActiveRole(baseHash);
         localStorage.setItem('gsfc_active_workspace', baseHash);
       } else {
-        const defaultRoleWorkspace = getDefaultWorkspaceForRole(localUser.role);
         setActiveRole(defaultRoleWorkspace);
         localStorage.setItem('gsfc_active_workspace', defaultRoleWorkspace);
       }

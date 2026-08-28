@@ -1337,36 +1337,45 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
     <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8 space-y-6 sm:space-y-8">
       {/* Recruiter Fast Action Banner for Logged-In Companies */}
       {currentUser?.role === 'company' && (
-        <div className="bg-gradient-to-r from-blue-900 via-indigo-900 to-amber-600 p-4 sm:p-5 rounded-3xl text-white shadow-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border border-amber-400/30 animate-in fade-in">
+        <div className="bg-gradient-to-r from-blue-950 via-indigo-950 to-slate-900 p-5 sm:p-6 rounded-3xl text-white shadow-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-2 border-amber-400/40 animate-in fade-in">
           <div className="flex items-center gap-3.5">
-            <div className="w-12 h-12 rounded-2xl bg-white/10 flex items-center justify-center font-black shrink-0 border border-white/20 shadow-md">
-              <Building2 className="w-6 h-6 text-amber-300" />
+            <div className="w-14 h-14 rounded-2xl bg-amber-400/20 flex items-center justify-center font-black shrink-0 border border-amber-400/30 shadow-md">
+              <Building2 className="w-7 h-7 text-amber-400" />
             </div>
             <div>
-              <div className="text-[11px] font-black uppercase tracking-wider text-amber-300 flex items-center gap-1.5">
-                <Sparkles className="w-3.5 h-3.5" /> GSFC University Placement Engine
+              <div className="text-[11px] font-black uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5" /> Corporate Recruiter Account Active
               </div>
-              <h2 className="text-base sm:text-lg font-black tracking-tight mt-0.5">
-                Corporate Hiring Portal: {currentCompanyName || 'Your Organization'}
+              <h2 className="text-base sm:text-xl font-black tracking-tight mt-0.5 text-white">
+                {currentCompanyName || 'Recruiter Partner Portal'} • Corporate Workspace
               </h2>
-              <p className="text-xs text-blue-100 max-w-xl font-medium mt-0.5">
-                Manage your campus hiring drives, create new job openings, and review AI-ranked candidate dossiers in the dedicated Recruiter Portal.
+              <p className="text-xs text-slate-300 max-w-xl font-medium mt-0.5">
+                You are currently viewing the candidate view. Open your dedicated Recruiter Command Center to post requirements, review student applicants, inspect ATS scores, and send interview calls.
               </p>
             </div>
           </div>
-          <button
-            onClick={() => {
-              if (onOpenJobPost) {
-                onOpenJobPost();
-              } else {
+          <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+            <button
+              onClick={() => {
                 window.location.hash = '#company';
-              }
-            }}
-            className="px-5 py-2.5 bg-white hover:bg-slate-100 text-blue-950 font-black text-xs rounded-2xl shadow-lg flex items-center gap-2 transition-all hover:scale-105 shrink-0 cursor-pointer"
-          >
-            <Plus className="w-4 h-4 text-blue-900" />
-            <span>+ Post New Job / Drive</span>
-          </button>
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+              className="px-5 py-2.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs rounded-xl shadow-lg flex items-center gap-2 transition-all hover:scale-105 cursor-pointer"
+            >
+              <span>🏢 Go to Recruiter Command Center</span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => {
+                if (onOpenJobPost) onOpenJobPost();
+                else window.location.hash = '#company';
+              }}
+              className="px-4 py-2.5 bg-white/10 hover:bg-white/20 text-white border border-white/20 font-black text-xs rounded-xl shadow-md flex items-center gap-2 transition-all cursor-pointer"
+            >
+              <Plus className="w-4 h-4 text-amber-300" />
+              <span>+ Post Job</span>
+            </button>
+          </div>
         </div>
       )}
 

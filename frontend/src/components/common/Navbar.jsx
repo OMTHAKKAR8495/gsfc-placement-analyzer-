@@ -170,8 +170,17 @@ export default function Navbar({ currentUser, activeRole, onRoleSwitch, onOpenAu
   }, []);
 
   const handleLogoClick = () => {
-    onRoleSwitch('student');
-    window.location.hash = '#student';
+    const role = currentUser?.role || 'student';
+    let target = 'student';
+    if (role === 'company' || role === 'recruiter') target = 'company';
+    else if (role === 'admin' || role === 'superadmin') target = 'admin';
+    else if (role === 'faculty') target = 'faculty';
+    else if (role === 'security') target = 'security';
+    else if (role === 'alumni') target = 'alumni';
+    else if (role === 'fest') target = 'fest';
+
+    onRoleSwitch(target);
+    window.location.hash = `#${target}`;
     window.scrollTo({ top: 0, behavior: 'smooth' });
     setMobileMenuOpen(false);
   };
@@ -204,7 +213,8 @@ export default function Navbar({ currentUser, activeRole, onRoleSwitch, onOpenAu
 
         {/* Desktop Segmented Role Navigation Bar (Hidden on Mobile < md) */}
         <div className="hidden md:flex items-center bg-slate-100/90 dark:bg-slate-800/90 p-1.5 rounded-2xl border border-slate-200/80 dark:border-slate-700 shadow-inner overflow-x-auto max-w-[65vw] gap-1">
-          {(currentUser?.role === 'student' || currentUser?.role === 'admin' || !currentUser) && (
+          {/* 1. Student Workspace (Visible to Students, Admins, and Guests only) */}
+          {(currentUser?.role === 'student' || (!currentUser && activeRole !== 'company') || (currentUser?.role === 'admin' && activeRole === 'student')) && (
             <button
               onClick={() => onRoleSwitch('student')}
               className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-black transition-all shrink-0 whitespace-nowrap cursor-pointer ${
@@ -215,6 +225,21 @@ export default function Navbar({ currentUser, activeRole, onRoleSwitch, onOpenAu
             >
               <User className="w-4 h-4 text-blue-400" />
               <span>Student Workspace</span>
+            </button>
+          )}
+
+          {/* 2. Recruiter Portal (Primary workspace for Company accounts) */}
+          {(currentUser?.role === 'company' || currentUser?.role === 'admin' || (!currentUser && activeRole === 'company')) && (
+            <button
+              onClick={() => onRoleSwitch('company')}
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-black transition-all shrink-0 whitespace-nowrap cursor-pointer ${
+                activeRole === 'company'
+                  ? 'bg-gradient-to-r from-blue-900 via-indigo-900 to-blue-950 text-white shadow-md ring-2 ring-indigo-400/40 scale-105'
+                  : 'text-slate-700 dark:text-slate-200 hover:text-slate-900 hover:bg-slate-200/60 dark:hover:bg-slate-700'
+              }`}
+            >
+              <Building2 className="w-4 h-4 text-amber-400" />
+              <span>🏢 Recruiter Portal</span>
             </button>
           )}
 
@@ -232,7 +257,7 @@ export default function Navbar({ currentUser, activeRole, onRoleSwitch, onOpenAu
           </button>
 
           {/* Fest & Event Guest Portal Tab */}
-          {(currentUser?.role === 'fest' || currentUser?.role === 'admin' || !currentUser) && (
+          {(currentUser?.role === 'fest' || currentUser?.role === 'admin' || (!currentUser && activeRole !== 'company')) && (
             <button
               onClick={() => onRoleSwitch('fest')}
               className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-black transition-all shrink-0 whitespace-nowrap cursor-pointer ${
@@ -247,8 +272,8 @@ export default function Navbar({ currentUser, activeRole, onRoleSwitch, onOpenAu
             </button>
           )}
 
-
-          {(currentUser?.role === 'student' || currentUser?.role === 'admin') && (
+          {/* Interview Studio (Student Practice only) */}
+          {(currentUser?.role === 'student' || (currentUser?.role === 'admin' && activeRole === 'interview')) && (
             <button
               onClick={() => onRoleSwitch('interview')}
               className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-black transition-all shrink-0 whitespace-nowrap cursor-pointer ${
@@ -259,20 +284,6 @@ export default function Navbar({ currentUser, activeRole, onRoleSwitch, onOpenAu
             >
               <HelpCircle className="w-4 h-4 text-amber-400" />
               <span>Interview Studio</span>
-            </button>
-          )}
-
-          {(currentUser?.role === 'company' || currentUser?.role === 'admin') && (
-            <button
-              onClick={() => onRoleSwitch('company')}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-black transition-all shrink-0 whitespace-nowrap cursor-pointer ${
-                activeRole === 'company'
-                  ? 'bg-theme-gradient text-white shadow-md scale-105'
-                  : 'text-slate-700 dark:text-slate-200 hover:text-slate-900 hover:bg-slate-200/60 dark:hover:bg-slate-700'
-              }`}
-            >
-              <Building2 className="w-4 h-4 text-indigo-400" />
-              <span>Recruiter Portal</span>
             </button>
           )}
 
