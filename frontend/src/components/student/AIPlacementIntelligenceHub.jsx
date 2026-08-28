@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '../../context/ToastContext';
 import { getCodingProblem, AVAILABLE_CODING_TOPICS, evaluateCodeLocally } from '../../utils/codingProblemBank';
+import { generate30DayPlan } from '../../utils/prepPlannerGenerator';
 
 const DEFAULT_READINESS_DATA = {
   overall_readiness_score: 85,
@@ -89,7 +90,16 @@ export default function AIPlacementIntelligenceHub({ student, currentUser, onSel
 
   // Prep Planner State
   const [plannerDays, setPlannerDays] = useState(30);
-  const [currentPlan, setCurrentPlan] = useState(null);
+  const [currentPlan, setCurrentPlan] = useState(() => {
+    try {
+      const raw = localStorage.getItem('gsfc_prep_plan_default');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && Array.isArray(parsed.days) && parsed.days.length > 0) return parsed;
+      }
+    } catch(e) {}
+    return generate30DayPlan('Reliance Industries Limited', 'Software Development Engineer - Cloud & AI', 30);
+  });
   const [creatingPlan, setCreatingPlan] = useState(false);
 
   // Communication & GD State
@@ -328,6 +338,25 @@ export default function AIPlacementIntelligenceHub({ student, currentUser, onSel
   // 6. Generate Preparation Plan
   const handleGeneratePlan = async () => {
     setCreatingPlan(true);
+    const instantPlan = generate30DayPlan(targetCompany, targetRole, plannerDays);
+    setCurrentPlan(instantPlan);
+    try {
+      localStorage.setItem('gsfc_prep_plan_' + studentId, JSON.stringify(instantPlan));
+      localStorage.setItem('gsfc_prep_plan_default', JSON.stringify(instantPlan));
+    } catch (e) {}
+
+    showToast({
+      type: 'success',
+      title: '📅 30-Day Roadmap Generated',
+      message: `Personalized daily schedule customized for ${targetCompany}! (+25 XP)`,
+      triggerCrackles: true
+    });
+
+    setGamificationData(prev => ({
+      ...prev,
+      total_xp: (prev.total_xp || 120) + 25
+    }));
+
     try {
       const res = await fetch('/api/intelligence/preparation-planner', {
         method: 'POST',
@@ -339,17 +368,17 @@ export default function AIPlacementIntelligenceHub({ student, currentUser, onSel
           total_days: plannerDays
         })
       });
-      const data = await res.json();
-      setCurrentPlan(data);
-      showToast({
-        type: 'success',
-        title: '📅 30-Day Roadmap Generated',
-        message: 'Personalized daily schedule saved to your database profile!',
-        triggerCrackles: true
-      });
-      fetchInitialIntelligenceData();
+      if (res.ok) {
+        const data = await res.json();
+        if (data && Array.isArray(data.days) && data.days.length > 0) {
+          setCurrentPlan(data);
+          try {
+            localStorage.setItem('gsfc_prep_plan_' + studentId, JSON.stringify(data));
+          } catch (e) {}
+        }
+      }
     } catch (err) {
-      console.error(err);
+      console.warn('Using client-generated 30-day preparation planner:', err);
     } finally {
       setCreatingPlan(false);
     }
@@ -357,27 +386,40 @@ export default function AIPlacementIntelligenceHub({ student, currentUser, onSel
 
   // 7. Toggle Plan Task Checkbox
   const handleToggleTask = async (taskId, currentStatus) => {
-    if (!currentPlan?.id) return;
+    if (!currentPlan) return;
+
+    const updatedDays = (currentPlan.days || []).map(d => ({
+      ...d,
+      tasks: (d.tasks || []).map(t => t.id === taskId ? { ...t, completed: !currentStatus } : t)
+    }));
+
+    const totalTasks = updatedDays.reduce((sum, d) => sum + d.tasks.length, 0);
+    const completedTasks = updatedDays.reduce((sum, d) => sum + d.tasks.filter(t => t.completed).length, 0);
+    const newProgress = Math.round((completedTasks / (totalTasks || 1)) * 100);
+
+    const updatedPlan = { ...currentPlan, days: updatedDays, progress_percentage: newProgress };
+    setCurrentPlan(updatedPlan);
     try {
-      const res = await fetch(`/api/intelligence/preparation-plans/${currentPlan.id}/task`, {
-        method: 'PUT',
-        headers: authHeaders,
-        body: JSON.stringify({ task_id: taskId, completed: !currentStatus })
-      });
-      const data = await res.json();
-      if (data.success) {
-        setCurrentPlan(prev => ({ ...prev, progress_percentage: data.progress_percentage, days: data.days }));
-        showToast({
-          type: 'info',
-          title: 'Task Progress Updated',
-          message: `Progress: ${data.progress_percentage}% (+15 XP)`,
-          triggerCrackles: false
-        });
-        fetchInitialIntelligenceData();
+      localStorage.setItem('gsfc_prep_plan_' + studentId, JSON.stringify(updatedPlan));
+      localStorage.setItem('gsfc_prep_plan_default', JSON.stringify(updatedPlan));
+    } catch (e) {}
+
+    showToast({
+      type: 'info',
+      title: 'Task Progress Updated',
+      message: `Progress: ${newProgress}% (+15 XP)`,
+      triggerCrackles: false
+    });
+
+    try {
+      if (currentPlan.id) {
+        fetch(`/api/intelligence/preparation-plans/${currentPlan.id}/task`, {
+          method: 'PUT',
+          headers: authHeaders,
+          body: JSON.stringify({ task_id: taskId, completed: !currentStatus })
+        }).catch(() => {});
       }
-    } catch (err) {
-      console.error(err);
-    }
+    } catch (err) {}
   };
 
   // 8. Analyze Communication Response
