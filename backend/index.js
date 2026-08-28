@@ -6,9 +6,9 @@ import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import db, { initDatabase } from './db/index.js';
 import { AuthRateLimiter } from './middleware/security.js';
 import { verifyCsrfToken } from './middleware/authMiddleware.js';
+import { wafShieldMiddleware } from './middleware/wafShield.js';
 
 import authRoutes from './routes/auth.js';
 import companyRoutes from './routes/company.js';
@@ -89,9 +89,10 @@ app.use(express.json({ limit: '15mb' }));
 app.use(express.urlencoded({ extended: true, limit: '15mb' }));
 app.use(cookieParser());
 
-// Global General Rate Limiting & CSRF Checks
+// Global General Rate Limiting, CSRF Checks & WAF Layer-7 Threat Shield
 app.use('/api', AuthRateLimiter.generalApiLimiter);
 app.use('/api', verifyCsrfToken);
+app.use('/api', wafShieldMiddleware);
 
 // Static uploads & frontend build directory
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
