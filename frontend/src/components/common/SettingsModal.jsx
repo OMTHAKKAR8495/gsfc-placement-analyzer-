@@ -83,6 +83,7 @@ export default function SettingsModal({ isOpen, onClose, currentUser, theme, onT
 
 
   const userEmail = (currentUser?.email || currentUser?.profile?.email || '').toLowerCase();
+  const cleanEmail = (userEmail || '').toLowerCase().trim();
 
   // 📸 Professional Passport Photo State (Strictly scoped to current logged-in user email)
   const [avatarUrl, setAvatarUrl] = useState(() => {
