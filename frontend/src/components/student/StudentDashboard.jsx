@@ -20,6 +20,7 @@ import AIPlacementIntelligenceHub from './AIPlacementIntelligenceHub';
 import LeaderboardTab from './LeaderboardTab';
 import GamificationBadgesModal from './GamificationBadgesModal';
 import { generateGoogleCalendarUrl, downloadIcsFile } from '../../utils/calendarUtils';
+import { saveStudentMail } from '../../utils/studentMailStorage';
 import { useToast } from '../../context/ToastContext';
 import { useLanguage } from '../../context/LanguageContext';
 
@@ -3265,13 +3266,38 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
                 <form
                   onSubmit={(e) => {
                     e.preventDefault();
+                    const m = leaveMeetingMailModal.meeting;
+                    const mailType = leaveMeetingMailModal.type || 'meeting_absence';
+                    const subject = mailType === 'leave_company'
+                      ? `[Withdrawal Request] ${candidateName} — ${m.drive_title || m.title || 'Campus Drive'}`
+                      : `[Meeting Absence Explanation] ${candidateName} — Room ${m.room_id || 'Interview'}`;
+
+                    saveStudentMail({
+                      company_name: m.company_name || 'Hiring Partner',
+                      company_id: m.company_id || '',
+                      sender_name: candidateName,
+                      sender_email: candidateEmail,
+                      sender_phone: candidatePhone || '+91 95584 13347',
+                      roll_number: student?.roll_number || currentUser?.roll_number || '24BT04171',
+                      program: student?.program || currentUser?.program || 'BTech CSE',
+                      branch: student?.branch || currentUser?.branch || 'Computer Science & Engineering',
+                      cgpa: student?.cgpa || currentUser?.cgpa || 8.9,
+                      type: mailType,
+                      subject: subject,
+                      message: leaveMeetingMailNote,
+                      meeting_id: m.id || m.meeting_id || '',
+                      room_id: m.room_id || '',
+                      meeting_title: m.title || '',
+                      drive_title: m.drive_title || m.title || ''
+                    });
+
                     setLeaveMeetingMailSent(true);
                     showToast({
                       type: 'success',
-                      title: '✉️ Mail Sent to ' + leaveMeetingMailModal.meeting.company_name,
-                      message: leaveMeetingMailModal.type === 'leave_company'
-                        ? 'Your withdrawal / leave request has been emailed to the company HR team.'
-                        : 'Your absence explanation has been emailed to the company HR team.',
+                      title: '✉️ Mail Dispatched to ' + (m.company_name || 'Company Recruiter'),
+                      message: mailType === 'leave_company'
+                        ? 'Your withdrawal request has been delivered to the company recruiter inbox.'
+                        : 'Your absence explanation has been delivered to the company recruiter inbox.',
                       triggerCrackles: false
                     });
                   }}

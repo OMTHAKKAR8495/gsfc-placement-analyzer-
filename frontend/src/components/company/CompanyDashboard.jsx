@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 
-import { Building2, Building, Plus, Users, Sparkles, AlertCircle, ArrowLeft, CheckCircle, ExternalLink, Download, Upload, FileText, Search, Tag, ShieldCheck, Database, Printer, Eye, Briefcase, XCircle, Trash2, Pencil, Clock, Ban, Check, RefreshCw, Save, Calendar, Phone, Bell, Send, Award, MessageSquare, Video, Lock, ShieldAlert, CreditCard, Crown, DollarSign, Zap } from 'lucide-react';
+import { Building2, Building, Plus, Users, Sparkles, AlertCircle, ArrowLeft, CheckCircle, ExternalLink, Download, Upload, FileText, Search, Tag, ShieldCheck, Database, Printer, Eye, Briefcase, XCircle, Trash2, Pencil, Clock, Ban, Check, RefreshCw, Save, Calendar, Phone, Bell, Send, Award, MessageSquare, Video, Lock, ShieldAlert, CreditCard, Crown, DollarSign, Zap, Mail, Inbox, Reply } from 'lucide-react';
 import InterviewQuestionGeneratorModal from './InterviewQuestionGeneratorModal';
 import ReportPDFModal from '../common/ReportPDFModal';
 import CompanyQuestionUploadModal from '../common/CompanyQuestionUploadModal';
@@ -15,7 +15,9 @@ import ScheduleMeetingModal from '../meetings/ScheduleMeetingModal';
 import PlanSelectionModal from './PlanSelectionModal';
 import PaymentCheckoutModal from './PaymentCheckoutModal';
 import RecruiterInvoiceModal from './RecruiterInvoiceModal';
+import CompanyStudentMailReceiver from './CompanyStudentMailReceiver';
 import { getCompanyUploadedQuestions, saveCompanyUploadedQuestion, bulkUploadCompanyQuestions, deleteCompanyUploadedQuestion } from '../../utils/companyQuestionStorage';
+import { getStudentMails } from '../../utils/studentMailStorage';
 import { useToast, triggerCelebrationCrackles } from '../../context/ToastContext';
 
 
@@ -244,7 +246,7 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
   const [activeTab, setActiveTabState] = useState(() => {
     try {
       const saved = localStorage.getItem('gsfc_company_active_tab');
-      return saved && ['my_applications', 'requirements', 'database', 'applicants', 'meetings'].includes(saved) ? saved : 'my_applications';
+      return saved && ['my_applications', 'requirements', 'database', 'applicants', 'meetings', 'student_mails', 'subscription_billing'].includes(saved) ? saved : 'my_applications';
     } catch(e) {
       return 'my_applications';
     }
@@ -256,6 +258,24 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
       localStorage.setItem('gsfc_company_active_tab', tab);
     } catch(e) {}
   };
+
+  // Student Inbound Mails live sync
+  const [studentMailsList, setStudentMailsList] = useState(() => getStudentMails());
+  const reloadStudentMails = () => {
+    try {
+      setStudentMailsList(getStudentMails());
+    } catch(e) {}
+  };
+
+  useEffect(() => {
+    reloadStudentMails();
+    window.addEventListener('gsfc_student_mail_updated', reloadStudentMails);
+    window.addEventListener('storage', reloadStudentMails);
+    return () => {
+      window.removeEventListener('gsfc_student_mail_updated', reloadStudentMails);
+      window.removeEventListener('storage', reloadStudentMails);
+    };
+  }, []);
 
   // GSFC Placed Companies are managed by GSFC itself — NO payment required ever.
   const isGsfcLimitedDemo = useMemo(() => {
@@ -271,6 +291,23 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
       email.includes('gsfclimited@gmail.com')
     );
   }, [company, currentUser]);
+
+  const unreadStudentMailsCount = useMemo(() => {
+    const compName = (isGsfcLimitedDemo ? 'GSFC Limited' : (company?.company_name || currentUser?.company_name || currentUser?.name || '')).toLowerCase();
+    return studentMailsList.filter(m => {
+      const mComp = (m.company_name || '').toLowerCase();
+      const isTarget = isGsfcLimitedDemo ? (mComp.includes('gsfc') || (m.company_id || '').includes('gsfc')) : (mComp.includes(compName) || compName.includes(mComp));
+      return isTarget && m.status === 'unread';
+    }).length;
+  }, [studentMailsList, isGsfcLimitedDemo, company, currentUser]);
+
+  const totalStudentMailsCount = useMemo(() => {
+    const compName = (isGsfcLimitedDemo ? 'GSFC Limited' : (company?.company_name || currentUser?.company_name || currentUser?.name || '')).toLowerCase();
+    return studentMailsList.filter(m => {
+      const mComp = (m.company_name || '').toLowerCase();
+      return isGsfcLimitedDemo ? (mComp.includes('gsfc') || (m.company_id || '').includes('gsfc')) : (mComp.includes(compName) || compName.includes(mComp));
+    }).length;
+  }, [studentMailsList, isGsfcLimitedDemo, company, currentUser]);
 
 
   const [requirements, setRequirements] = useState(() => {
@@ -1705,7 +1742,31 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
             </span>
           </button>
 
-          {/* PAGE 6: SUBSCRIPTION & BILLING */}
+          {/* PAGE 6: STUDENT MAILS / INBOUND RECEIVER */}
+          <button
+            onClick={() => handleTabClick('student_mails')}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-black transition-all shrink-0 cursor-pointer border ${
+              activeTab === 'student_mails'
+                ? 'bg-gradient-to-r from-blue-700 via-indigo-700 to-slate-900 text-white border-blue-500 shadow-lg ring-2 ring-blue-500/30 scale-105'
+                : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-blue-50 dark:hover:bg-slate-800'
+            }`}
+          >
+            <Mail className={`w-4 h-4 shrink-0 ${activeTab === 'student_mails' ? 'text-blue-300' : 'text-blue-600'}`} />
+            <span>📬 Student Mails / Receiver</span>
+            {unreadStudentMailsCount > 0 ? (
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-500 text-slate-950 animate-pulse">
+                {unreadStudentMailsCount} New
+              </span>
+            ) : (
+              <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+                activeTab === 'student_mails' ? 'bg-blue-900 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300'
+              }`}>
+                {totalStudentMailsCount}
+              </span>
+            )}
+          </button>
+
+          {/* PAGE 7: SUBSCRIPTION & BILLING */}
           <button
             onClick={() => handleTabClick('subscription_billing')}
             className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-black transition-all shrink-0 cursor-pointer border ${
@@ -1756,6 +1817,16 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
             {activeTab === 'meetings' && (
               <span className="text-indigo-700 dark:text-indigo-400 font-black">
                 📹 In-Portal Live Video Interviews & Anti-Cheating Monitor ({companyMeetings.length} Scheduled Rooms)
+              </span>
+            )}
+            {activeTab === 'student_mails' && (
+              <span className="text-blue-700 dark:text-blue-400 font-black">
+                📬 Inbound Student Mails & Absence Explanations ({totalStudentMailsCount} Messages Received)
+              </span>
+            )}
+            {activeTab === 'subscription_billing' && (
+              <span className="text-amber-700 dark:text-amber-400 font-black">
+                💳 Recruiter Subscription Tiers & Billing Invoices
               </span>
             )}
           </div>
@@ -3019,6 +3090,36 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
             </div>
           </div>
 
+          {/* Inbound Student Absence Explanations Alert Banner */}
+          <div className="p-4 bg-gradient-to-r from-amber-500/15 via-blue-500/10 to-indigo-500/15 border border-amber-300 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-amber-100 border border-amber-300 flex items-center justify-center text-amber-800 shrink-0">
+                <Mail className="w-5 h-5" />
+              </div>
+              <div>
+                <h4 className="text-xs font-black text-slate-900 flex items-center gap-2">
+                  <span>Inbound Student Absence Explanations & Notes</span>
+                  {unreadStudentMailsCount > 0 && (
+                    <span className="px-2 py-0.5 bg-amber-500 text-slate-950 font-black rounded-md text-[10px]">
+                      {unreadStudentMailsCount} Unread
+                    </span>
+                  )}
+                </h4>
+                <p className="text-[11px] text-slate-600 font-medium">
+                  Students who experienced proctoring locks, network drops, or requested rescheduling send explanations directly to your receiver.
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setActiveTab('student_mails')}
+              className="px-4 py-2 bg-slate-950 hover:bg-slate-900 text-amber-300 border border-amber-400/40 rounded-xl text-xs font-black flex items-center gap-1.5 cursor-pointer transition shrink-0 shadow-sm"
+            >
+              <span>Open Student Mail Receiver</span>
+              <ArrowLeft className="w-3.5 h-3.5 rotate-180" />
+            </button>
+          </div>
+
           {/* Meetings List */}
           {loadingMeetings ? (
             <div className="p-12 bg-white rounded-3xl border border-slate-200 text-center text-slate-500 flex flex-col items-center justify-center">
@@ -3121,6 +3222,18 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
               })}
             </div>
           )}
+        </div>
+      )}
+
+      {/* VIEW: INBOUND STUDENT MAILS & ABSENCE RECEIVER */}
+      {activeTab === 'student_mails' && (
+        <div className="animate-fadeIn">
+          <CompanyStudentMailReceiver
+            currentCompanyName={isGsfcLimitedDemo ? 'GSFC Limited' : (company?.company_name || currentUser?.company_name || currentUser?.name || 'Recruiting Partner')}
+            currentCompanyId={company?.id || currentUser?.owner_id || currentUser?.profile?.id || currentUser?.id}
+            isGsfcPartner={isGsfcLimitedDemo}
+            currentUser={currentUser}
+          />
         </div>
       )}
 

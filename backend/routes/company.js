@@ -596,4 +596,116 @@ router.delete('/applications/:id', (req, res) => {
   }
 });
 
+// 📬 Inbound Student Mails Endpoints
+try {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS company_student_mails (
+      id TEXT PRIMARY KEY,
+      company_name TEXT,
+      company_id TEXT,
+      sender_name TEXT,
+      sender_email TEXT,
+      sender_phone TEXT,
+      roll_number TEXT,
+      program TEXT,
+      branch TEXT,
+      cgpa REAL,
+      type TEXT,
+      subject TEXT,
+      message TEXT,
+      meeting_id TEXT,
+      room_id TEXT,
+      meeting_title TEXT,
+      drive_title TEXT,
+      status TEXT DEFAULT 'unread',
+      recruiter_reply TEXT,
+      replied_at DATETIME,
+      replied_by TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
+} catch (e) {
+  console.warn('Notice setting up company_student_mails table:', e.message);
+}
+
+// 1. Get Student Mails for a Company
+router.get('/student-mails', (req, res) => {
+  try {
+    const { companyName, companyId } = req.query;
+    let query = 'SELECT * FROM company_student_mails';
+    const params = [];
+
+    if (companyName || companyId) {
+      query += ' WHERE LOWER(company_name) LIKE ? OR company_id = ?';
+      params.push(`%${(companyName || '').toLowerCase()}%`, companyId || '');
+    }
+    query += ' ORDER BY created_at DESC';
+
+    const mails = db.prepare(query).all(...params);
+    res.json(mails || []);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 2. Post new Student Mail to Company
+router.post('/student-mails', (req, res) => {
+  try {
+    const mail = req.body;
+    const id = mail.id || 'mail_' + Date.now();
+    
+    db.prepare(`
+      INSERT OR REPLACE INTO company_student_mails 
+      (id, company_name, company_id, sender_name, sender_email, sender_phone, roll_number, program, branch, cgpa, type, subject, message, meeting_id, room_id, meeting_title, drive_title, status, recruiter_reply, replied_at, replied_by, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      id,
+      mail.company_name || 'Hiring Partner',
+      mail.company_id || '',
+      mail.sender_name || 'Candidate',
+      mail.sender_email || '',
+      mail.sender_phone || '',
+      mail.roll_number || '',
+      mail.program || '',
+      mail.branch || '',
+      mail.cgpa ? parseFloat(mail.cgpa) : null,
+      mail.type || 'meeting_absence',
+      mail.subject || 'Student Note',
+      mail.message || '',
+      mail.meeting_id || '',
+      mail.room_id || '',
+      mail.meeting_title || '',
+      mail.drive_title || '',
+      mail.status || 'unread',
+      mail.recruiter_reply || null,
+      mail.replied_at || null,
+      mail.replied_by || null,
+      mail.created_at || new Date().toISOString()
+    );
+
+    res.json({ message: 'Student mail received successfully', id });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 3. Reply to Student Mail
+router.patch('/student-mails/:id/reply', (req, res) => {
+  try {
+    const { id } = req.params;
+    const { reply, recruiterName } = req.body;
+    const now = new Date().toISOString();
+
+    db.prepare(`
+      UPDATE company_student_mails
+      SET recruiter_reply = ?, replied_by = ?, replied_at = ?, status = 'replied'
+      WHERE id = ?
+    `).run(reply || '', recruiterName || 'Corporate Recruiter', now, id);
+
+    res.json({ message: 'Reply sent successfully', id, replied_at: now });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 export default router;
