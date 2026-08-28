@@ -6,6 +6,7 @@ import {
   HelpCircle, Send, Check, X, Layers, Clock, Cpu, UserCheck, MessageSquare
 } from 'lucide-react';
 import { useToast } from '../../context/ToastContext';
+import { getCodingProblem, AVAILABLE_CODING_TOPICS, evaluateCodeLocally } from '../../utils/codingProblemBank';
 
 const DEFAULT_READINESS_DATA = {
   overall_readiness_score: 85,
@@ -78,10 +79,10 @@ export default function AIPlacementIntelligenceHub({ student, currentUser, onSel
   const [resumeOptLoading, setResumeOptLoading] = useState(false);
 
   // Coding Sandbox State
-  const [codingProblem, setCodingProblem] = useState(null);
-  const [selectedTopic, setSelectedTopic] = useState('Arrays & Hashing');
+  const [selectedTopic, setSelectedTopic] = useState('Dynamic Programming');
   const [selectedDifficulty, setSelectedDifficulty] = useState('Medium');
-  const [userCode, setUserCode] = useState('');
+  const [codingProblem, setCodingProblem] = useState(() => getCodingProblem('Dynamic Programming', 'Medium'));
+  const [userCode, setUserCode] = useState(() => getCodingProblem('Dynamic Programming', 'Medium')?.starterCode || '');
   const [codeEvalResult, setCodeEvalResult] = useState(null);
   const [evaluatingCode, setEvaluatingCode] = useState(false);
   const [codingHistory, setCodingHistory] = useState([]);
@@ -235,54 +236,90 @@ export default function AIPlacementIntelligenceHub({ student, currentUser, onSel
     }
   };
 
-  // 4. Fetch Coding Problem
+  // 4. Fetch / Generate Coding Problem with Instant Rotation
   const handleLoadCodingProblem = async (topic = selectedTopic, difficulty = selectedDifficulty) => {
+    const newProb = getCodingProblem(topic, difficulty, codingProblem?.id);
+    setCodingProblem(newProb);
+    setUserCode(newProb?.starterCode || '');
+    setCodeEvalResult(null);
+
+    showToast({
+      type: 'info',
+      title: '⚡ New Problem Generated',
+      message: `${newProb.title} (${newProb.difficulty}) loaded for ${topic}.`
+    });
+
     try {
       const res = await fetch('/api/intelligence/coding-problem', {
         method: 'POST',
         headers: authHeaders,
         body: JSON.stringify({ company: targetCompany, difficulty, topic })
       });
-      const data = await res.json();
-      setCodingProblem(data);
-      setUserCode(data.starterCode || '');
-      setCodeEvalResult(null);
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.title && data.testCases) {
+          setCodingProblem(data);
+          setUserCode(data.starterCode || newProb.starterCode || '');
+        }
+      }
     } catch (err) {
-      console.error(err);
+      console.warn('Using local coding problem bank fallback:', err);
     }
   };
 
   // 5. Submit Code for Sandbox Evaluation
   const handleSubmitCode = async () => {
-    if (!userCode.trim()) return;
+    if (!userCode.trim()) {
+      showToast({ type: 'warning', title: 'Code Required', message: 'Please write your solution in the code editor before running tests.' });
+      return;
+    }
     setEvaluatingCode(true);
+
     try {
-      const res = await fetch('/api/intelligence/evaluate-code', {
-        method: 'POST',
-        headers: authHeaders,
-        body: JSON.stringify({
-          student_id: studentId,
-          problem_id: codingProblem?.id || 'prob_01',
-          problem_title: codingProblem?.title || 'Algorithm Problem',
-          difficulty: codingProblem?.difficulty || 'Medium',
-          company: targetCompany,
-          language: 'javascript',
-          code: userCode
-        })
-      });
-      const data = await res.json();
-      setCodeEvalResult(data);
-      if (data.status === 'ACCEPTED') {
+      let result = null;
+      try {
+        const res = await fetch('/api/intelligence/evaluate-code', {
+          method: 'POST',
+          headers: authHeaders,
+          body: JSON.stringify({
+            student_id: studentId,
+            problem_id: codingProblem?.id || 'prob_01',
+            problem_title: codingProblem?.title || 'Algorithm Problem',
+            difficulty: codingProblem?.difficulty || 'Medium',
+            company: targetCompany,
+            language: 'javascript',
+            code: userCode
+          })
+        });
+        if (res.ok) {
+          result = await res.json();
+        }
+      } catch (networkErr) {
+        console.warn('Network notice: evaluating code locally in sandbox.');
+      }
+
+      if (!result || !result.status) {
+        result = evaluateCodeLocally(codingProblem, userCode);
+      }
+
+      setCodeEvalResult(result);
+
+      if (result.status === 'ACCEPTED') {
         showToast({
           type: 'success',
           title: '🏆 Problem Accepted!',
-          message: `Optimal ${data.time_complexity} runtime achieved. +40 Placement XP awarded!`,
+          message: `Optimal ${result.time_complexity} runtime achieved. +40 Placement XP awarded!`,
           triggerCrackles: true
         });
-        fetchInitialIntelligenceData();
+        setGamificationData(prev => ({
+          ...prev,
+          total_xp: (prev.total_xp || 120) + 40
+        }));
       }
     } catch (err) {
-      console.error(err);
+      console.error('Evaluation error:', err);
+      const fallbackResult = evaluateCodeLocally(codingProblem, userCode);
+      setCodeEvalResult(fallbackResult);
     } finally {
       setEvaluatingCode(false);
     }
@@ -868,17 +905,20 @@ export default function AIPlacementIntelligenceHub({ student, currentUser, onSel
                   setSelectedTopic(e.target.value);
                   handleLoadCodingProblem(e.target.value, selectedDifficulty);
                 }}
-                className="px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-black text-slate-800"
+                className="px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-black text-slate-800 focus:outline-none focus:border-blue-900"
               >
-                <option value="Arrays & Hashing">Arrays & Hashing</option>
-                <option value="Dynamic Programming">Dynamic Programming</option>
+                {AVAILABLE_CODING_TOPICS.map(topic => (
+                  <option key={topic} value={topic}>{topic}</option>
+                ))}
               </select>
 
               <button
-                onClick={() => handleLoadCodingProblem()}
-                className="px-3 py-1.5 bg-slate-100 border border-slate-200 rounded-xl text-xs font-black hover:bg-slate-200 cursor-pointer"
+                onClick={() => handleLoadCodingProblem(selectedTopic, selectedDifficulty)}
+                className="px-3 py-1.5 bg-slate-100 border border-slate-200 rounded-xl text-xs font-black hover:bg-slate-200 cursor-pointer flex items-center gap-1.5 text-slate-800 hover:text-blue-900 transition-colors"
+                title="Generate another coding challenge for this topic"
               >
-                New Problem
+                <RefreshCw className="w-3.5 h-3.5" />
+                <span>New Problem</span>
               </button>
             </div>
           </div>
