@@ -8,6 +8,7 @@ import {
 import { useToast } from '../../context/ToastContext';
 import { getCodingProblem, AVAILABLE_CODING_TOPICS, evaluateCodeLocally } from '../../utils/codingProblemBank';
 import { generate30DayPlan } from '../../utils/prepPlannerGenerator';
+import { generateStudyMaterial } from '../../utils/studyMaterialGenerator';
 
 const DEFAULT_READINESS_DATA = {
   overall_readiness_score: 85,
@@ -111,10 +112,11 @@ export default function AIPlacementIntelligenceHub({ student, currentUser, onSel
 
   // Study Generator State
   const [studyCategory, setStudyCategory] = useState('flashcards');
-  const [studyMaterial, setStudyMaterial] = useState(null);
+  const [studyMaterial, setStudyMaterial] = useState(() => generateStudyMaterial('Reliance Industries Limited', 'flashcards'));
   const [generatingStudy, setGeneratingStudy] = useState(false);
   const [activeFlashcardIndex, setActiveFlashcardIndex] = useState(0);
   const [flashcardFlipped, setFlashcardFlipped] = useState(false);
+  const [quizAnswers, setQuizAnswers] = useState({});
 
   const resolveStudentId = (user, std) => {
     if (user?.profile?.id) return user.profile.id;
@@ -456,6 +458,24 @@ export default function AIPlacementIntelligenceHub({ student, currentUser, onSel
   // 9. Generate AI Study Material
   const handleGenerateStudy = async () => {
     setGeneratingStudy(true);
+    const instantMaterial = generateStudyMaterial(targetCompany, studyCategory);
+    setStudyMaterial(instantMaterial);
+    setActiveFlashcardIndex(0);
+    setFlashcardFlipped(false);
+    setQuizAnswers({});
+
+    showToast({
+      type: 'success',
+      title: '📚 Study Material Ready',
+      message: `${instantMaterial.title} created for ${targetCompany}! (+20 XP)`,
+      triggerCrackles: true
+    });
+
+    setGamificationData(prev => ({
+      ...prev,
+      total_xp: (prev.total_xp || 120) + 20
+    }));
+
     try {
       const res = await fetch('/api/intelligence/generate-study-material', {
         method: 'POST',
@@ -467,19 +487,14 @@ export default function AIPlacementIntelligenceHub({ student, currentUser, onSel
           topic: 'Cloud & Database Architecture'
         })
       });
-      const data = await res.json();
-      setStudyMaterial(data);
-      setActiveFlashcardIndex(0);
-      setFlashcardFlipped(false);
-      showToast({
-        type: 'success',
-        title: '📚 Revision Material Generated',
-        message: 'Saved to your personal study vault!',
-        triggerCrackles: true
-      });
-      fetchInitialIntelligenceData();
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.content) {
+          setStudyMaterial(data);
+        }
+      }
     } catch (err) {
-      console.error(err);
+      console.warn('Using client-generated study materials:', err);
     } finally {
       setGeneratingStudy(false);
     }
@@ -1209,8 +1224,15 @@ export default function AIPlacementIntelligenceHub({ student, currentUser, onSel
             <div className="flex items-center gap-2">
               <select
                 value={studyCategory}
-                onChange={(e) => setStudyCategory(e.target.value)}
-                className="px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-black text-slate-800"
+                onChange={(e) => {
+                  setStudyCategory(e.target.value);
+                  const instantMaterial = generateStudyMaterial(targetCompany, e.target.value);
+                  setStudyMaterial(instantMaterial);
+                  setActiveFlashcardIndex(0);
+                  setFlashcardFlipped(false);
+                  setQuizAnswers({});
+                }}
+                className="px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-black text-slate-800 focus:outline-none focus:border-blue-900"
               >
                 <option value="flashcards">Interactive Flashcards</option>
                 <option value="revision_notes">Revision Cheat Sheet</option>
@@ -1228,21 +1250,22 @@ export default function AIPlacementIntelligenceHub({ student, currentUser, onSel
             </div>
           </div>
 
+          {/* 1. Flashcards View */}
           {studyMaterial?.content?.cards && (
-            <div className="flex flex-col items-center justify-center py-8 space-y-4">
+            <div className="flex flex-col items-center justify-center py-6 space-y-4">
               <div
                 onClick={() => setFlashcardFlipped(prev => !prev)}
-                className="w-full max-w-lg min-h-[200px] p-8 rounded-3xl border border-slate-300 bg-gradient-to-br from-white to-slate-50 shadow-xl flex flex-col items-center justify-center text-center cursor-pointer transition-all duration-300 hover:scale-102"
+                className="w-full max-w-lg min-h-[220px] p-8 rounded-3xl border border-slate-300 bg-gradient-to-br from-white to-slate-50 shadow-xl flex flex-col items-center justify-center text-center cursor-pointer transition-all duration-300 hover:scale-102 select-none"
               >
-                <span className="text-[10px] font-black uppercase tracking-wider text-blue-900">
-                  {flashcardFlipped ? 'Answer / Key Explanation' : 'Question / Concept Prompt'}
+                <span className="text-[10px] font-black uppercase tracking-wider text-blue-900 px-3 py-1 bg-blue-50 border border-blue-200 rounded-full">
+                  {flashcardFlipped ? '💡 Key Explanation / Answer' : '❓ Concept Prompt / Question'}
                 </span>
-                <p className="text-base sm:text-lg font-black text-slate-900 mt-3 leading-relaxed">
+                <p className="text-base sm:text-lg font-black text-slate-900 mt-4 leading-relaxed">
                   {flashcardFlipped
                     ? studyMaterial.content.cards[activeFlashcardIndex]?.back
                     : studyMaterial.content.cards[activeFlashcardIndex]?.front}
                 </p>
-                <span className="text-[10px] text-slate-400 font-bold mt-4">Click to flip card</span>
+                <span className="text-[10px] text-slate-400 font-bold mt-4">Click anywhere to flip</span>
               </div>
 
               <div className="flex items-center gap-3">
@@ -1253,7 +1276,7 @@ export default function AIPlacementIntelligenceHub({ student, currentUser, onSel
                 >
                   &larr; Previous
                 </button>
-                <span className="text-xs font-black text-slate-600">
+                <span className="text-xs font-black text-slate-600 bg-slate-100 px-3 py-1.5 rounded-lg">
                   {activeFlashcardIndex + 1} / {studyMaterial.content.cards.length}
                 </span>
                 <button
@@ -1263,6 +1286,85 @@ export default function AIPlacementIntelligenceHub({ student, currentUser, onSel
                 >
                   Next &rarr;
                 </button>
+              </div>
+            </div>
+          )}
+
+          {/* 2. Revision Cheat Sheet View */}
+          {studyMaterial?.content?.sections && (
+            <div className="space-y-4 py-2">
+              <div className="flex items-center justify-between pb-2 border-b border-slate-200">
+                <h3 className="text-sm font-black text-slate-900">{studyMaterial.content.title || `${targetCompany} Cheat Sheet`}</h3>
+                <span className="text-[10px] font-black uppercase text-blue-900 bg-blue-50 px-2.5 py-1 rounded-lg border border-blue-200">
+                  High-Yield Placement Summary
+                </span>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {studyMaterial.content.sections.map((sec, idx) => (
+                  <div key={idx} className="p-4 bg-white rounded-2xl border border-slate-200 shadow-sm space-y-2">
+                    <h4 className="text-xs font-black text-blue-900">{sec.heading}</h4>
+                    <ul className="space-y-1.5">
+                      {sec.bullets.map((b, bIdx) => (
+                        <li key={bIdx} className="text-xs font-medium text-slate-700 flex items-start gap-1.5 leading-relaxed">
+                          <span className="text-emerald-500 font-black shrink-0">•</span>
+                          <span>{b}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* 3. Practice Quiz View */}
+          {studyMaterial?.content?.questions && (
+            <div className="space-y-4 py-2">
+              <div className="flex items-center justify-between pb-2 border-b border-slate-200">
+                <h3 className="text-sm font-black text-slate-900">{studyMaterial.content.quiz_title || `${targetCompany} Assessment Quiz`}</h3>
+                <span className="text-[10px] font-black text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200">
+                  Score: {Object.keys(quizAnswers).filter(k => quizAnswers[k] === studyMaterial.content.questions[parseInt(k, 10)]?.correct).length} / {studyMaterial.content.questions.length} Correct
+                </span>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {studyMaterial.content.questions.map((q, qIdx) => {
+                  const selectedOpt = quizAnswers[qIdx];
+                  const isAnswered = selectedOpt !== undefined;
+                  return (
+                    <div key={q.id || qIdx} className="p-4 bg-white rounded-2xl border border-slate-200 shadow-sm space-y-3">
+                      <div className="text-xs font-black text-slate-900">
+                        <span className="text-blue-900 mr-1.5">Q{qIdx + 1}.</span> {q.q}
+                      </div>
+                      <div className="space-y-1.5">
+                        {q.options.map((opt, optIdx) => {
+                          let optStyle = 'bg-slate-50 border-slate-200 text-slate-800 hover:bg-slate-100';
+                          if (isAnswered) {
+                            if (optIdx === q.correct) {
+                              optStyle = 'bg-emerald-50 border-emerald-300 text-emerald-950 font-black';
+                            } else if (selectedOpt === optIdx) {
+                              optStyle = 'bg-rose-50 border-rose-300 text-rose-950';
+                            }
+                          }
+                          return (
+                            <button
+                              key={optIdx}
+                              onClick={() => setQuizAnswers(prev => ({ ...prev, [qIdx]: optIdx }))}
+                              className={`w-full text-left px-3 py-2 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${optStyle}`}
+                            >
+                              <span className="font-bold mr-2">{String.fromCharCode(65 + optIdx)}.</span>
+                              {opt}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      {isAnswered && q.explanation && (
+                        <div className="p-2.5 bg-blue-50/70 border border-blue-200 rounded-xl text-[11px] font-medium text-slate-700 leading-relaxed">
+                          <span className="font-black text-blue-950">Explanation:</span> {q.explanation}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}
