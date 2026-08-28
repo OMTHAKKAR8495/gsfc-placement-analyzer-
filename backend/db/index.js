@@ -283,6 +283,85 @@ function applyMigrations() {
       insertAuthStudentStmt.run('auth_' + (st.roll_number || 'stud').toLowerCase(), st.roll_number, st.email.toLowerCase(), st.name, st.program || 'BTech CSE', st.branch || 'Engineering', st.cgpa || 8.0, st.passing_year || 2026, st.admission_year || 2022, st.phone || '');
     }
 
+    // 📬 Inbound Student Mails Table & Pre-Seeding
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS company_student_mails (
+        id TEXT PRIMARY KEY,
+        company_name TEXT NOT NULL,
+        company_id TEXT,
+        sender_name TEXT NOT NULL,
+        sender_email TEXT,
+        sender_phone TEXT,
+        roll_number TEXT,
+        program TEXT,
+        branch TEXT,
+        cgpa REAL,
+        type TEXT DEFAULT 'meeting_absence',
+        subject TEXT NOT NULL,
+        message TEXT NOT NULL,
+        meeting_id TEXT,
+        room_id TEXT,
+        meeting_title TEXT,
+        drive_title TEXT,
+        status TEXT DEFAULT 'unread',
+        recruiter_reply TEXT,
+        replied_at DATETIME,
+        replied_by TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    try {
+      const mailCount = db.prepare('SELECT COUNT(*) as count FROM company_student_mails').get()?.count || 0;
+      if (mailCount === 0) {
+        const seedMailStmt = db.prepare(`
+          INSERT OR IGNORE INTO company_student_mails 
+          (id, company_name, company_id, sender_name, sender_email, sender_phone, roll_number, program, branch, cgpa, type, subject, message, meeting_id, room_id, meeting_title, drive_title, status, recruiter_reply, replied_at, replied_by, created_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `);
+
+        seedMailStmt.run(
+          'mail_seed_1', 'Google Cloud India', 'c_google', 'Thakkar Om', 'thakkar_om@gmail.com', '+91 95584 13347',
+          '24BT04171', 'BTech CSE', 'Computer Science & Engineering', 8.9, 'meeting_absence',
+          '[Meeting Absence Explanation] Thakkar Om — Room gsfc-google-ai-101',
+          'Dear Google Cloud Hiring Team,\n\nDuring the live proctoring check for room gsfc-google-ai-101 (Software Development Engineer - AI & Cloud), I encountered an unexpected network glitch and temporary webcam permission refresh which triggered a security lock. I sincerely apologize for the inconvenience. I have retested my video/mic setup and would appreciate if my technical round can be rescheduled or re-evaluated.\n\nThank you,\nThakkar Om\nRoll No: 24BT04171',
+          'meet_google_ai_101', 'gsfc-google-ai-101', 'Google Cloud India — SDE Technical Interview & Live Coding',
+          'Software Development Engineer - Cloud & AI', 'unread', null, null, null, new Date(Date.now() - 1000 * 60 * 45).toISOString()
+        );
+
+        seedMailStmt.run(
+          'mail_seed_2', 'Tata Consultancy Services (TCS)', 'c_tcs', 'Arav Sharma', 'arav.sharma@student.gsfc.ac.in', '+91 98765 43212',
+          '22BCE115', 'BTech CSE', 'Cybersecurity', 8.6, 'leave_company',
+          '[Withdrawal Request] Arav Sharma — TCS Digital Prime',
+          'Respected TCS Recruitment Panel,\n\nI am writing to formally request withdrawal of my application from the TCS Digital recruitment process. I have accepted an offer from an earlier campus drive that aligns with my specialization in cybersecurity operations. I want to express my sincere gratitude for considering my profile.\n\nBest regards,\nArav Sharma',
+          'meet_tcs_digital_202', 'gsfc-tcs-digital-202', 'TCS Digital — Technical Assessment & System Design Review',
+          'TCS Digital Prime (₹9.00 LPA)', 'replied',
+          'Dear Arav, We acknowledge your formal withdrawal request and have updated your application status accordingly. We wish you the very best in your future career endeavors.',
+          new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(), 'TCS Campus Talent Acquisition Team', new Date(Date.now() - 1000 * 60 * 60 * 4).toISOString()
+        );
+
+        seedMailStmt.run(
+          'mail_seed_3', 'GSFC Limited', 'c_gsfc_limited', 'Tanvi Joshi', 'tanvi.j@gsfcuniversity.ac.in', '+91 98765 43211',
+          '22BCE108', 'BTech CSE', 'AI & Data Science', 8.8, 'meeting_absence',
+          '[Meeting Absence Explanation] Tanvi Joshi — Industrial Systems Interview',
+          'Respected GSFC Limited Placement Committee,\n\nI was unable to join the initial 10-minute briefing today due to mid-semester laboratory examination duties at GSFC University. I am now available and ready to present my technical portfolio for the Industrial Automation Systems Officer role at your earliest convenience.\n\nSincerely,\nTanvi Joshi',
+          'meet_gsfc_auto_01', 'GSFC-MEET-AUTO-771', 'GSFC Limited — Industrial Automation & Telemetry Panel',
+          'IT & Industrial Automation Systems Officer', 'read', null, null, null, new Date(Date.now() - 1000 * 60 * 60 * 8).toISOString()
+        );
+
+        seedMailStmt.run(
+          'mail_seed_4', 'Microsoft Azure Systems', 'c_microsoft', 'Pooja Patel', 'pooja.patel@student.gsfc.ac.in', '+91 98765 43213',
+          '22BCE124', 'BTech IT', 'Information Technology', 9.1, 'meeting_absence',
+          '[Meeting Absence Explanation] Pooja Patel — Azure Cloud Assessment',
+          'Dear Microsoft Recruiting Team,\n\nI encountered a brief power brownout in our campus area right at the scheduled interview start time. The backup power is restored now. Kindly permit me to rejoin the interview queue if possible.\n\nWarm regards,\nPooja Patel',
+          'meet_ms_azure_03', 'GSFC-MEET-AZURE-404', 'Microsoft Azure — Cloud Systems Interview',
+          'Graduate Software Engineer (₹24.00 LPA)', 'unread', null, null, null, new Date(Date.now() - 1000 * 60 * 120).toISOString()
+        );
+      }
+    } catch (e) {
+      console.warn('Notice seeding student mails:', e.message);
+    }
+
     // 🎮 Gamification, ⛓️ Blockchain, and 💬 WhatsApp Tables
     db.exec(`
       CREATE TABLE IF NOT EXISTS gamification_rules (

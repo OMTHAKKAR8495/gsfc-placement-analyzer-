@@ -48,9 +48,24 @@ export default function CompanyStudentMailReceiver({
     return 'Google Cloud India';
   }, [currentCompanyName, isGsfcPartner, currentUser]);
 
-  const loadMails = () => {
-    const all = getStudentMails();
-    setMails(all);
+  const loadMails = async () => {
+    const local = getStudentMails();
+    setMails(local);
+
+    try {
+      const res = await fetch('/api/company/student-mails');
+      if (res.ok) {
+        const serverMails = await res.json();
+        if (Array.isArray(serverMails) && serverMails.length > 0) {
+          const idMap = new Map();
+          serverMails.forEach(m => idMap.set(m.id, m));
+          local.forEach(m => idMap.set(m.id, { ...idMap.get(m.id), ...m }));
+          const merged = Array.from(idMap.values()).sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+          setMails(merged);
+          localStorage.setItem('gsfc_student_company_mails', JSON.stringify(merged));
+        }
+      }
+    } catch (e) {}
   };
 
   useEffect(() => {

@@ -451,7 +451,27 @@ CREATE TABLE IF NOT EXISTS payment_transactions (
     paid_at DATETIME
 );
 
-
-
-
-
+CREATE TABLE IF NOT EXISTS company_student_mails (
+    id TEXT PRIMARY KEY,
+    company_name TEXT NOT NULL,
+    company_id TEXT,
+    sender_name TEXT NOT NULL,
+    sender_email TEXT,
+    sender_phone TEXT,
+    roll_number TEXT,
+    program TEXT,
+    branch TEXT,
+    cgpa REAL,
+    type TEXT DEFAULT 'meeting_absence',
+    subject TEXT NOT NULL,
+    message TEXT NOT NULL,
+    meeting_id TEXT,
+    room_id TEXT,
+    meeting_title TEXT,
+    drive_title TEXT,
+    status TEXT DEFAULT 'unread',
+    recruiter_reply TEXT,
+    replied_at DATETIME,
+    replied_by TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
