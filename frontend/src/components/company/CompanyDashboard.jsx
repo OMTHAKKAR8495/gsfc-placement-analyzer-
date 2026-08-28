@@ -18,11 +18,79 @@ import RecruiterInvoiceModal from './RecruiterInvoiceModal';
 import CompanyStudentMailReceiver from './CompanyStudentMailReceiver';
 import { getCompanyUploadedQuestions, saveCompanyUploadedQuestion, bulkUploadCompanyQuestions, deleteCompanyUploadedQuestion } from '../../utils/companyQuestionStorage';
 import { getStudentMails } from '../../utils/studentMailStorage';
+import { dbVault } from '../../services/dbVault';
 import { useToast, triggerCelebrationCrackles } from '../../context/ToastContext';
 
-
-
 const DEFAULT_COMPANY_REQUIREMENTS = [
+  {
+    id: 'req_google_cloud_demo',
+    company_id: 'c_google',
+    company_name: 'Google Cloud India',
+    title: 'Software Development Engineer - Cloud & AI',
+    company_logo_url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/Google_2015_logo.svg/250px-Google_2015_logo.svg.png',
+    logo_url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/Google_2015_logo.svg/250px-Google_2015_logo.svg.png',
+    eligible_programs_json: JSON.stringify(['BTech CSE', 'BTech IT']),
+    min_cgpa: 8.0,
+    required_skills_json: JSON.stringify(['Distributed Systems', 'Python', 'Go', 'Kubernetes', 'Cloud Infrastructure']),
+    preferred_skills_json: JSON.stringify(['GCP Architecture', 'TensorFlow', 'gRPC']),
+    job_type: 'Full-time',
+    ctc_range: '₹28,00,000 - ₹34,00,000 PA',
+    openings: 5,
+    deadline: '2026-11-15',
+    job_description: 'Software Development Engineer in Google Cloud Core Infrastructure, developing scalable distributed backends and AI model deployment telemetry.',
+    application_type: 'internal',
+    question_bank_json: '[]',
+    question_bank_status: 'complete',
+    applications_open: 1,
+    applicant_count: 9,
+    created_at: new Date().toISOString()
+  },
+  {
+    id: 'req_ms_azure_demo',
+    company_id: 'c_microsoft',
+    company_name: 'Microsoft Azure Systems',
+    title: 'Graduate Software Engineer - Cloud Platforms',
+    company_logo_url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/96/Microsoft_logo_%282012%29.svg/250px-Microsoft_logo_%282012%29.svg.png',
+    logo_url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/96/Microsoft_logo_%282012%29.svg/250px-Microsoft_logo_%282012%29.svg.png',
+    eligible_programs_json: JSON.stringify(['BTech CSE', 'BTech IT', 'BTech ECE']),
+    min_cgpa: 7.8,
+    required_skills_json: JSON.stringify(['C#', 'C++', 'Azure SDK', 'Microservices', 'REST APIs']),
+    preferred_skills_json: JSON.stringify(['Docker', 'CI/CD Pipelines', 'Distributed Caching']),
+    job_type: 'Full-time',
+    ctc_range: '₹24,00,000 - ₹28,00,000 PA',
+    openings: 4,
+    deadline: '2026-11-25',
+    job_description: 'Engineering resilient cloud storage platforms and microservices telemetry for global Azure enterprise tenants.',
+    application_type: 'internal',
+    question_bank_json: '[]',
+    question_bank_status: 'complete',
+    applications_open: 1,
+    applicant_count: 8,
+    created_at: new Date().toISOString()
+  },
+  {
+    id: 'req_tcs_digital_demo',
+    company_id: 'c_tcs',
+    company_name: 'Tata Consultancy Services (TCS)',
+    title: 'TCS Digital — Systems & Data Engineering Associate',
+    company_logo_url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b1/Tata_Consultancy_Services_Logo.svg/300px-Tata_Consultancy_Services_Logo.svg.png',
+    logo_url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b1/Tata_Consultancy_Services_Logo.svg/300px-Tata_Consultancy_Services_Logo.svg.png',
+    eligible_programs_json: JSON.stringify(['BTech CSE', 'BTech IT', 'BTech Mechanical', 'BTech Chemical']),
+    min_cgpa: 7.0,
+    required_skills_json: JSON.stringify(['Java', 'Python', 'SQL', 'Data Structures', 'Spring Boot']),
+    preferred_skills_json: JSON.stringify(['Cloud Fundamentals', 'Git', 'Linux']),
+    job_type: 'Full-time',
+    ctc_range: '₹9,00,000 - ₹12,00,000 PA',
+    openings: 12,
+    deadline: '2026-12-05',
+    job_description: 'Digital transformation, full-stack microservices delivery, and automated test frameworks across TCS Digital enterprise clients.',
+    application_type: 'internal',
+    question_bank_json: '[]',
+    question_bank_status: 'complete',
+    applications_open: 1,
+    applicant_count: 14,
+    created_at: new Date().toISOString()
+  },
   {
     id: 'req_gsfc_chem_demo',
     company_id: 'c_gsfc_limited',
@@ -293,28 +361,55 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
   }, [company, currentUser]);
 
   const unreadStudentMailsCount = useMemo(() => {
+    const email = (currentUser?.email || '').toLowerCase();
     const compName = (isGsfcLimitedDemo ? 'GSFC Limited' : (company?.company_name || currentUser?.company_name || currentUser?.name || '')).toLowerCase();
     return studentMailsList.filter(m => {
       const mComp = (m.company_name || '').toLowerCase();
-      const isTarget = isGsfcLimitedDemo ? (mComp.includes('gsfc') || (m.company_id || '').includes('gsfc')) : (mComp.includes(compName) || compName.includes(mComp));
+      const mId = (m.company_id || '').toLowerCase();
+      const isTarget = isGsfcLimitedDemo
+        ? (mComp.includes('gsfc') || mId.includes('gsfc'))
+        : (mComp.includes(compName) || compName.includes(mComp) ||
+           (email.includes('google') && (mComp.includes('google') || mId.includes('google'))) ||
+           (email.includes('microsoft') && (mComp.includes('microsoft') || mId.includes('microsoft'))) ||
+           (email.includes('tcs') && (mComp.includes('tcs') || mId.includes('tcs'))));
       return isTarget && m.status === 'unread';
     }).length;
   }, [studentMailsList, isGsfcLimitedDemo, company, currentUser]);
 
   const totalStudentMailsCount = useMemo(() => {
+    const email = (currentUser?.email || '').toLowerCase();
     const compName = (isGsfcLimitedDemo ? 'GSFC Limited' : (company?.company_name || currentUser?.company_name || currentUser?.name || '')).toLowerCase();
     return studentMailsList.filter(m => {
       const mComp = (m.company_name || '').toLowerCase();
-      return isGsfcLimitedDemo ? (mComp.includes('gsfc') || (m.company_id || '').includes('gsfc')) : (mComp.includes(compName) || compName.includes(mComp));
+      const mId = (m.company_id || '').toLowerCase();
+      return isGsfcLimitedDemo
+        ? (mComp.includes('gsfc') || mId.includes('gsfc'))
+        : (mComp.includes(compName) || compName.includes(mComp) ||
+           (email.includes('google') && (mComp.includes('google') || mId.includes('google'))) ||
+           (email.includes('microsoft') && (mComp.includes('microsoft') || mId.includes('microsoft'))) ||
+           (email.includes('tcs') && (mComp.includes('tcs') || mId.includes('tcs'))));
     }).length;
   }, [studentMailsList, isGsfcLimitedDemo, company, currentUser]);
 
 
   const [requirements, setRequirements] = useState(() => {
-    const compName = (company?.company_name || currentUser?.company_name || currentUser?.name || '').toLowerCase();
+    const compId = company?.id || currentUser?.owner_id || currentUser?.profile?.id || currentUser?.id || 'c_demo';
+    const fromVault = dbVault.getCollection('company_requirements_' + compId, null);
+    if (fromVault && fromVault.length > 0) return fromVault;
+
     const email = (currentUser?.email || '').toLowerCase();
-    const isDemo = compName.includes('gsfc limited') || email.includes('gsfclimited@gmail.com');
-    return isDemo ? DEFAULT_COMPANY_REQUIREMENTS : [];
+    const compName = (company?.company_name || currentUser?.company_name || currentUser?.name || '').toLowerCase();
+    
+    if (email.includes('google') || compName.includes('google')) {
+      return DEFAULT_COMPANY_REQUIREMENTS.filter(r => r.company_id === 'c_google');
+    }
+    if (email.includes('microsoft') || compName.includes('microsoft')) {
+      return DEFAULT_COMPANY_REQUIREMENTS.filter(r => r.company_id === 'c_microsoft');
+    }
+    if (email.includes('tcs') || compName.includes('tcs')) {
+      return DEFAULT_COMPANY_REQUIREMENTS.filter(r => r.company_id === 'c_tcs');
+    }
+    return DEFAULT_COMPANY_REQUIREMENTS.filter(r => r.company_id === 'c_gsfc_limited');
   });
   const [activeReqApplicants, setActiveReqApplicants] = useState(null);
   const [applicantsData, setApplicantsData] = useState([]);
@@ -539,11 +634,16 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
   };
 
   const handleEvaluationSaveSuccess = (updatedData) => {
-    setAllCompanyApplicants(prev => prev.map(a => 
-      (a.application_id === updatedData.application_id || a.id === updatedData.application_id)
-        ? { ...a, ...updatedData }
-        : a
-    ));
+    const compId = company?.id || currentUser?.owner_id || currentUser?.profile?.id || currentUser?.id || 'c_demo';
+    setAllCompanyApplicants(prev => {
+      const next = prev.map(a => 
+        (a.application_id === updatedData.application_id || a.id === updatedData.application_id)
+          ? { ...a, ...updatedData }
+          : a
+      );
+      dbVault.saveCollection('company_applicants_' + compId, next);
+      return next;
+    });
     if (applicantsData) {
       setApplicantsData(prev => prev.map(a => 
         (a.application_id === updatedData.application_id || a.id === updatedData.application_id)
@@ -1175,44 +1275,55 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
   }, [company, currentUser]);
 
   const fetchCompanyRequirements = async () => {
-    const compId = company?.id || currentUser?.owner_id || currentUser?.profile?.id || currentUser?.id;
-    if (!compId) {
-      setRequirements(isGsfcLimitedDemo ? DEFAULT_COMPANY_REQUIREMENTS : []);
-      return;
+    const compId = company?.id || currentUser?.owner_id || currentUser?.profile?.id || currentUser?.id || 'c_demo';
+    const fromVault = dbVault.getCollection('company_requirements_' + compId, null);
+    
+    const email = (currentUser?.email || '').toLowerCase();
+    const compName = (company?.company_name || currentUser?.company_name || currentUser?.name || '').toLowerCase();
+    
+    let defaultReqs = DEFAULT_COMPANY_REQUIREMENTS.filter(r => r.company_id === 'c_gsfc_limited');
+    if (email.includes('google') || compName.includes('google')) {
+      defaultReqs = DEFAULT_COMPANY_REQUIREMENTS.filter(r => r.company_id === 'c_google');
+    } else if (email.includes('microsoft') || compName.includes('microsoft')) {
+      defaultReqs = DEFAULT_COMPANY_REQUIREMENTS.filter(r => r.company_id === 'c_microsoft');
+    } else if (email.includes('tcs') || compName.includes('tcs')) {
+      defaultReqs = DEFAULT_COMPANY_REQUIREMENTS.filter(r => r.company_id === 'c_tcs');
     }
+
     try {
       const res = await fetch(`/api/company/requirements?companyId=${compId}`);
       if (res.ok) {
         const data = await res.json();
-        if (Array.isArray(data)) {
+        if (Array.isArray(data) && data.length > 0) {
           setRequirements(data);
+          dbVault.saveCollection('company_requirements_' + compId, data);
           return;
         }
       }
-      setRequirements(isGsfcLimitedDemo ? DEFAULT_COMPANY_REQUIREMENTS : []);
+      setRequirements(fromVault || defaultReqs);
     } catch (err) {
-      console.error('Error fetching company requirements:', err);
-      setRequirements(isGsfcLimitedDemo ? DEFAULT_COMPANY_REQUIREMENTS : []);
+      setRequirements(fromVault || defaultReqs);
     }
   };
 
 
   const fetchCandidateDatabase = async () => {
-    const compId = company?.id || currentUser?.owner_id || currentUser?.profile?.id || currentUser?.id;
-    if (!compId) return;
+    const compId = company?.id || currentUser?.owner_id || currentUser?.profile?.id || currentUser?.id || 'c_demo';
+    const fromVault = dbVault.getCollection('company_applicants_' + compId, null);
+
     try {
       const res = await fetch(`/api/company/all-applicants?companyId=${compId}`);
       if (res.ok) {
         const data = await res.json();
         if (Array.isArray(data) && data.length > 0) {
           setAllCompanyApplicants(data);
+          dbVault.saveCollection('company_applicants_' + compId, data);
           return;
         }
       }
-      setAllCompanyApplicants(DEFAULT_COMPANY_APPLICANTS);
+      setAllCompanyApplicants(fromVault || DEFAULT_COMPANY_APPLICANTS);
     } catch (err) {
-      console.warn('Network notice: Loaded default registered candidate vault for GSFC recruitment drives.');
-      setAllCompanyApplicants(DEFAULT_COMPANY_APPLICANTS);
+      setAllCompanyApplicants(fromVault || DEFAULT_COMPANY_APPLICANTS);
     }
   };
 
@@ -1364,11 +1475,19 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
         created_at: new Date().toISOString()
       };
 
-      // 1. Optimistically update local state so the drive appears in the feed immediately
+      // 1. Optimistically update local state so the drive appears in the feed immediately and persists
       if (editingReqId) {
-        setRequirements(prev => prev.map(r => r.id === editingReqId ? { ...r, ...newDriveRecord } : r));
+        setRequirements(prev => {
+          const next = prev.map(r => r.id === editingReqId ? { ...r, ...newDriveRecord } : r);
+          dbVault.saveCollection('company_requirements_' + compId, next);
+          return next;
+        });
       } else {
-        setRequirements(prev => [newDriveRecord, ...prev]);
+        setRequirements(prev => {
+          const next = [newDriveRecord, ...prev];
+          dbVault.saveCollection('company_requirements_' + compId, next);
+          return next;
+        });
       }
 
       // 2. Trigger server-side save

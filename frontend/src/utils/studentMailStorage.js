@@ -1,3 +1,5 @@
+import { dbVault } from '../services/dbVault';
+
 const STORAGE_KEY = 'gsfc_student_company_mails';
 
 export const INITIAL_STUDENT_MAILS = [
@@ -101,13 +103,25 @@ export const INITIAL_STUDENT_MAILS = [
 
 export function getStudentMails() {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(INITIAL_STUDENT_MAILS));
-      return INITIAL_STUDENT_MAILS;
+    const fromVault = dbVault.getCollection('student_company_mails', null);
+    if (fromVault && Array.isArray(fromVault) && fromVault.length > 0) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(fromVault));
+      return fromVault;
     }
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : INITIAL_STUDENT_MAILS;
+
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        dbVault.saveCollection('student_company_mails', parsed);
+        return parsed;
+      }
+    }
+
+    // Default initialization
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(INITIAL_STUDENT_MAILS));
+    dbVault.saveCollection('student_company_mails', INITIAL_STUDENT_MAILS);
+    return INITIAL_STUDENT_MAILS;
   } catch (err) {
     console.error('Error reading student mails:', err);
     return INITIAL_STUDENT_MAILS;
@@ -142,8 +156,9 @@ export function saveStudentMail(mailData) {
       replied_by: mailData.replied_by || null
     };
 
-    const updated = [newMail, ...existing];
+    const updated = [newMail, ...existing.filter(x => x.id !== newMail.id)];
     localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+    dbVault.saveCollection('student_company_mails', updated);
 
     // Dispatch custom event for real-time reactivity in open components
     if (typeof window !== 'undefined') {
@@ -166,24 +181,32 @@ export function saveStudentMail(mailData) {
   }
 }
 
+export function isCompanyMatching(mail, companyNameOrId, isGsfcInternal = false) {
+  if (!companyNameOrId || companyNameOrId === 'all') return true;
+
+  const mailComp = (mail.company_name || '').toLowerCase();
+  const mailId = (mail.company_id || '').toLowerCase();
+  const query = String(companyNameOrId).toLowerCase().trim();
+
+  if (isGsfcInternal) {
+    return mailComp.includes('gsfc') || mailId.includes('gsfc');
+  }
+
+  // Keywords intelligent check
+  if (query.includes('google') && (mailComp.includes('google') || mailId.includes('google'))) return true;
+  if (query.includes('microsoft') && (mailComp.includes('microsoft') || mailId.includes('microsoft') || mailComp.includes('azure'))) return true;
+  if (query.includes('tcs') && (mailComp.includes('tcs') || mailId.includes('tcs') || mailComp.includes('tata'))) return true;
+  if (query.includes('gsfc') && (mailComp.includes('gsfc') || mailId.includes('gsfc'))) return true;
+
+  // Direct substring / exact id match
+  return mailComp.includes(query) || query.includes(mailComp) || mailId === query;
+}
+
 export function getMailsForCompany(companyNameOrId, isGsfcInternal = false) {
   const allMails = getStudentMails();
   if (!companyNameOrId || companyNameOrId === 'all') return allMails;
 
-  const query = String(companyNameOrId).toLowerCase().trim();
-  
-  return allMails.filter(m => {
-    const compName = (m.company_name || '').toLowerCase();
-    const compId = (m.company_id || '').toLowerCase();
-    
-    if (isGsfcInternal) {
-      // If GSFC Limited/Internal login, show GSFC mails by default, or all if viewing global
-      return compName.includes('gsfc') || compId.includes('gsfc');
-    }
-
-    // Direct match by company name or id
-    return compName.includes(query) || query.includes(compName) || compId === query;
-  });
+  return allMails.filter(m => isCompanyMatching(m, companyNameOrId, isGsfcInternal));
 }
 
 export function markMailStatus(mailId, status) {
@@ -191,6 +214,7 @@ export function markMailStatus(mailId, status) {
     const mails = getStudentMails();
     const updated = mails.map(m => (m.id === mailId ? { ...m, status } : m));
     localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+    dbVault.saveCollection('student_company_mails', updated);
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('gsfc_student_mail_updated', { detail: { mailId, status } }));
     }
@@ -219,6 +243,7 @@ export function replyToStudentMail(mailId, replyText, recruiterName = 'Corporate
     });
 
     localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+    dbVault.saveCollection('student_company_mails', updated);
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('gsfc_student_mail_updated', { detail: { mailId, replyText, repliedAt } }));
     }
@@ -244,6 +269,7 @@ export function deleteStudentMail(mailId) {
     const mails = getStudentMails();
     const updated = mails.filter(m => m.id !== mailId);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+    dbVault.saveCollection('student_company_mails', updated);
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('gsfc_student_mail_updated', { detail: { deletedId: mailId } }));
     }

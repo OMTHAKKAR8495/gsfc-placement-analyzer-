@@ -35,7 +35,17 @@ export default function CompanyStudentMailReceiver({
   const [expandedMailId, setExpandedMailId] = useState(null);
 
   const resolvedCompanyName = useMemo(() => {
-    return isGsfcPartner ? 'GSFC Limited' : (currentCompanyName || currentUser?.company_name || currentUser?.name || 'Recruiting Partner');
+    if (isGsfcPartner) return 'GSFC Limited';
+    const email = (currentUser?.email || '').toLowerCase();
+    if (email.includes('google')) return 'Google Cloud India';
+    if (email.includes('microsoft')) return 'Microsoft Azure Systems';
+    if (email.includes('tcs') || email.includes('tata')) return 'Tata Consultancy Services (TCS)';
+    if (email.includes('gsfc')) return 'GSFC Limited';
+
+    if (currentCompanyName && currentCompanyName !== 'Recruiting Partner') return currentCompanyName;
+    if (currentUser?.company_name && currentUser?.company_name !== 'Corporate Partner' && currentUser?.company_name !== 'GSFC Recruiter') return currentUser.company_name;
+    if (currentUser?.name && currentUser?.name !== 'GSFC Recruiter') return currentUser.name;
+    return 'Google Cloud India';
   }, [currentCompanyName, isGsfcPartner, currentUser]);
 
   const loadMails = () => {
@@ -71,8 +81,15 @@ export default function CompanyStudentMailReceiver({
           const isGsfc = mailComp.includes('gsfc') || mailId.includes('gsfc');
           if (!isGsfc) return false;
         } else {
-          // Outsider company: check match
-          const matchesComp = mailComp.includes(targetComp) || targetComp.includes(mailComp) || (currentCompanyId && mailId === currentCompanyId.toLowerCase());
+          // Check intelligent match
+          const matchesComp = 
+            mailComp.includes(targetComp) || 
+            targetComp.includes(mailComp) || 
+            (targetComp.includes('google') && (mailComp.includes('google') || mailId.includes('google'))) ||
+            (targetComp.includes('microsoft') && (mailComp.includes('microsoft') || mailId.includes('microsoft'))) ||
+            (targetComp.includes('tcs') && (mailComp.includes('tcs') || mailId.includes('tcs') || mailComp.includes('tata'))) ||
+            (currentCompanyId && mailId === currentCompanyId.toLowerCase());
+            
           if (!matchesComp) return false;
         }
       }
@@ -120,7 +137,14 @@ export default function CompanyStudentMailReceiver({
       if (isGsfcPartner) {
         return mailComp.includes('gsfc') || mailId.includes('gsfc');
       }
-      return mailComp.includes(targetComp) || targetComp.includes(mailComp) || (currentCompanyId && mailId === currentCompanyId.toLowerCase());
+      return (
+        mailComp.includes(targetComp) || 
+        targetComp.includes(mailComp) || 
+        (targetComp.includes('google') && (mailComp.includes('google') || mailId.includes('google'))) ||
+        (targetComp.includes('microsoft') && (mailComp.includes('microsoft') || mailId.includes('microsoft'))) ||
+        (targetComp.includes('tcs') && (mailComp.includes('tcs') || mailId.includes('tcs') || mailComp.includes('tata'))) ||
+        (currentCompanyId && mailId === currentCompanyId.toLowerCase())
+      );
     });
 
     const total = scopeMails.length;
