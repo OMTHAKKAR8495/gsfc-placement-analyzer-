@@ -34,29 +34,40 @@ export default function Navbar({ currentUser, activeRole, onRoleSwitch, onOpenAu
   const resolveNavbarAvatar = (user) => {
     if (!user) return '';
     const email = (user?.email || user?.profile?.email || '').toLowerCase().trim();
-    const roll = (user?.profile?.roll_number || (email.startsWith('2') ? email.split('@')[0] : '')).toLowerCase().trim();
+    const role = (user?.role || user?.user_role || '').toLowerCase().trim();
 
+    // 1. Direct email-scoped avatar (if user explicitly uploaded their own avatar)
     if (email && localStorage.getItem('gsfc_user_avatar_' + email)) {
       return localStorage.getItem('gsfc_user_avatar_' + email);
     }
+
+    // 2. If user is Admin, Faculty, or Recruiter -> DO NOT inherit student avatars
+    if (role === 'admin' || role === 'superadmin' || role === 'faculty' || role === 'company' || role === 'recruiter' || email.includes('admin') || email.includes('faculty')) {
+      return user?.profile?.photo_url || user?.profile?.avatar_url || '';
+    }
+
+    // 3. For students only: resolve student roll number avatar
+    const roll = (user?.profile?.roll_number || (email.startsWith('2') ? email.split('@')[0] : '')).toLowerCase().trim();
     if (roll && localStorage.getItem('gsfc_user_avatar_' + roll)) {
       return localStorage.getItem('gsfc_user_avatar_' + roll);
     }
     if (roll && localStorage.getItem('gsfc_user_avatar_' + roll + '@gsfcuniversity.ac.in')) {
       return localStorage.getItem('gsfc_user_avatar_' + roll + '@gsfcuniversity.ac.in');
     }
-    if (localStorage.getItem('gsfc_user_avatar_thakkar_om@gmail.com')) {
-      return localStorage.getItem('gsfc_user_avatar_thakkar_om@gmail.com');
+
+    // Only if logged in student is Om Thakkar
+    if (email.includes('om') || email === '24bt04171@gsfcuniversity.ac.in') {
+      if (localStorage.getItem('gsfc_user_avatar_thakkar_om@gmail.com')) {
+        return localStorage.getItem('gsfc_user_avatar_thakkar_om@gmail.com');
+      }
+      if (localStorage.getItem('gsfc_user_avatar_24bt04171@gsfcuniversity.ac.in')) {
+        return localStorage.getItem('gsfc_user_avatar_24bt04171@gsfcuniversity.ac.in');
+      }
+      if (localStorage.getItem('gsfc_user_avatar_24bt04171')) {
+        return localStorage.getItem('gsfc_user_avatar_24bt04171');
+      }
     }
-    if (localStorage.getItem('gsfc_user_avatar_24bt04171@gsfcuniversity.ac.in')) {
-      return localStorage.getItem('gsfc_user_avatar_24bt04171@gsfcuniversity.ac.in');
-    }
-    if (localStorage.getItem('gsfc_user_avatar_24bt04171')) {
-      return localStorage.getItem('gsfc_user_avatar_24bt04171');
-    }
-    if (localStorage.getItem('gsfc_user_avatar')) {
-      return localStorage.getItem('gsfc_user_avatar');
-    }
+
     return user?.profile?.photo_url || user?.profile?.avatar_url || '';
   };
 

@@ -144,29 +144,40 @@ export const resolveStudentId = (user, student) => {
 export const resolveSavedAvatar = (user, student) => {
   if (!user && !student) return '';
   const email = (user?.email || user?.profile?.email || student?.email || '').toLowerCase().trim();
-  const roll = (user?.profile?.roll_number || student?.roll_number || (email.startsWith('2') ? email.split('@')[0] : '')).toLowerCase().trim();
-  
+  const role = (user?.role || user?.user_role || '').toLowerCase().trim();
+
+  // 1. Direct email-scoped avatar (if this specific user/student uploaded one)
   if (email && localStorage.getItem('gsfc_user_avatar_' + email)) {
     return localStorage.getItem('gsfc_user_avatar_' + email);
   }
+
+  // 2. If user is Admin, Faculty, or Recruiter -> DO NOT inherit student avatars
+  if (role === 'admin' || role === 'superadmin' || role === 'faculty' || role === 'company' || role === 'recruiter' || email.includes('admin') || email.includes('faculty')) {
+    return user?.profile?.photo_url || user?.profile?.avatar_url || '';
+  }
+
+  // 3. For students only: resolve student roll number avatar
+  const roll = (user?.profile?.roll_number || student?.roll_number || (email.startsWith('2') ? email.split('@')[0] : '')).toLowerCase().trim();
   if (roll && localStorage.getItem('gsfc_user_avatar_' + roll)) {
     return localStorage.getItem('gsfc_user_avatar_' + roll);
   }
   if (roll && localStorage.getItem('gsfc_user_avatar_' + roll + '@gsfcuniversity.ac.in')) {
     return localStorage.getItem('gsfc_user_avatar_' + roll + '@gsfcuniversity.ac.in');
   }
-  if (localStorage.getItem('gsfc_user_avatar_thakkar_om@gmail.com')) {
-    return localStorage.getItem('gsfc_user_avatar_thakkar_om@gmail.com');
+
+  // Only if logged in student is Om Thakkar
+  if (email.includes('om') || email === '24bt04171@gsfcuniversity.ac.in' || roll === '24bt04171') {
+    if (localStorage.getItem('gsfc_user_avatar_thakkar_om@gmail.com')) {
+      return localStorage.getItem('gsfc_user_avatar_thakkar_om@gmail.com');
+    }
+    if (localStorage.getItem('gsfc_user_avatar_24bt04171@gsfcuniversity.ac.in')) {
+      return localStorage.getItem('gsfc_user_avatar_24bt04171@gsfcuniversity.ac.in');
+    }
+    if (localStorage.getItem('gsfc_user_avatar_24bt04171')) {
+      return localStorage.getItem('gsfc_user_avatar_24bt04171');
+    }
   }
-  if (localStorage.getItem('gsfc_user_avatar_24bt04171@gsfcuniversity.ac.in')) {
-    return localStorage.getItem('gsfc_user_avatar_24bt04171@gsfcuniversity.ac.in');
-  }
-  if (localStorage.getItem('gsfc_user_avatar_24bt04171')) {
-    return localStorage.getItem('gsfc_user_avatar_24bt04171');
-  }
-  if (localStorage.getItem('gsfc_user_avatar')) {
-    return localStorage.getItem('gsfc_user_avatar');
-  }
+
   return user?.profile?.photo_url || user?.profile?.avatar_url || student?.photo_url || student?.avatar_url || '';
 };
 
@@ -1395,10 +1406,20 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
       <div className="glass-panel p-6 sm:p-8 rounded-3xl relative overflow-hidden border border-slate-200/90 shadow-xl bg-gradient-to-r from-blue-900/10 via-teal-900/10 to-indigo-900/10">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
           <div className="flex items-start sm:items-center gap-4 sm:gap-5">
-            {/* Candidate Big Passport Photo Frame */}
+            {/* Candidate Big Portrait / Avatar Frame */}
             <div className="relative group shrink-0">
               <div className="w-20 h-26 sm:w-24 sm:h-32 rounded-3xl overflow-hidden border-3 border-blue-900 dark:border-amber-400 bg-white dark:bg-slate-800 shadow-xl flex items-center justify-center ring-4 ring-blue-500/15 transition-transform group-hover:scale-105">
-                {currentUser && avatarUrl ? (
+                {currentUser?.role === 'admin' || currentUser?.role === 'superadmin' ? (
+                  <div className="w-full h-full bg-gradient-to-tr from-slate-900 via-indigo-950 to-blue-900 text-white font-black text-2xl flex flex-col items-center justify-center gap-1">
+                    <span className="text-2xl">👑</span>
+                    <span className="text-xs tracking-widest font-black uppercase text-amber-300">ADMIN</span>
+                  </div>
+                ) : currentUser?.role === 'faculty' ? (
+                  <div className="w-full h-full bg-gradient-to-tr from-blue-950 via-teal-950 to-indigo-900 text-white font-black text-2xl flex flex-col items-center justify-center gap-1">
+                    <span className="text-2xl">👨‍🏫</span>
+                    <span className="text-xs tracking-widest font-black uppercase text-teal-300">FACULTY</span>
+                  </div>
+                ) : currentUser && avatarUrl ? (
                   <img src={avatarUrl} alt="Candidate Portrait" className="w-full h-full object-cover" />
                 ) : (
                   <div className="w-full h-full bg-gradient-to-tr from-blue-900 via-indigo-900 to-amber-600 text-white font-black text-2xl flex items-center justify-center">
@@ -1406,8 +1427,12 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
                   </div>
                 )}
               </div>
-              <span className={`absolute -bottom-1 -right-1 px-2 py-0.5 rounded-full text-[9px] font-black tracking-wider uppercase border-2 border-white dark:border-slate-900 shadow-md ${currentUser ? 'bg-emerald-500 text-white' : 'bg-slate-600 text-white'}`}>
-                {currentUser ? 'VERIFIED' : 'GUEST'}
+              <span className={`absolute -bottom-1 -right-1 px-2 py-0.5 rounded-full text-[9px] font-black tracking-wider uppercase border-2 border-white dark:border-slate-900 shadow-md ${
+                currentUser?.role === 'admin' ? 'bg-indigo-600 text-white' :
+                currentUser?.role === 'faculty' ? 'bg-teal-600 text-white' :
+                currentUser ? 'bg-emerald-500 text-white' : 'bg-slate-600 text-white'
+              }`}>
+                {currentUser?.role ? currentUser.role.toUpperCase() : currentUser ? 'VERIFIED' : 'GUEST'}
               </span>
             </div>
 
@@ -1416,7 +1441,15 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
                 <span className="px-3 py-1 bg-blue-100 text-blue-900 border border-blue-200 rounded-full text-xs font-black flex items-center gap-1.5">
                   <Sparkles className="w-3.5 h-3.5 text-blue-900" /> GSFC University Placement Workspace
                 </span>
-                {currentUser ? (
+                {currentUser?.role === 'admin' ? (
+                  <span className="px-3 py-1 bg-indigo-100 text-indigo-900 border border-indigo-300 rounded-full text-xs font-black flex items-center gap-1.5">
+                    👑 TPC Admin Command View
+                  </span>
+                ) : currentUser?.role === 'faculty' ? (
+                  <span className="px-3 py-1 bg-teal-100 text-teal-900 border border-teal-300 rounded-full text-xs font-black flex items-center gap-1.5">
+                    👨‍🏫 Faculty Advisory View
+                  </span>
+                ) : currentUser ? (
                   <span className="px-3 py-1 bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-full text-xs font-black flex items-center gap-1.5">
                     <CheckCircle2 className="w-3.5 h-3.5 text-emerald-800" /> {student?.program || 'BTech CSE'} ({student?.cgpa || 8.5} CGPA)
                   </span>
