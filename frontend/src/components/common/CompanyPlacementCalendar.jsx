@@ -170,88 +170,93 @@ export default function CompanyPlacementCalendar({ currentUser, onSelectEvent })
   });
 
   return (
-    <div className="mt-4 pt-4 border-t border-slate-200/80 space-y-4">
+    <div className="mt-6 pt-6 border-t-2 border-slate-200/90 space-y-5">
       {/* Calendar Header */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div className="p-1.5 bg-blue-900 text-white rounded-xl shadow-xs">
-            <CalendarIcon className="w-4 h-4" />
+        <div className="flex items-center gap-2.5">
+          <div className="p-2 bg-blue-900 text-white rounded-xl shadow-md">
+            <CalendarIcon className="w-5 h-5" />
           </div>
           <div>
-            <h4 className="font-black text-xs text-slate-900">Upcoming Placement Calendar</h4>
-            <p className="text-[10px] font-bold text-slate-500">Corporate Drive Dates & Schedules</p>
+            <h4 className="font-black text-sm text-slate-900">Upcoming Placement Calendar</h4>
+            <p className="text-[11px] font-bold text-slate-500">Corporate Drive Dates & Schedules</p>
           </div>
         </div>
 
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-2">
           {isAuthorized ? (
             <button
               onClick={() => openAddModal()}
-              className="px-2.5 py-1 bg-gradient-to-r from-blue-900 to-indigo-800 hover:from-blue-800 hover:to-indigo-700 text-white rounded-lg text-[10px] font-black shadow-xs flex items-center gap-1 cursor-pointer transition-all hover:scale-102"
+              className="px-3 py-1.5 bg-gradient-to-r from-blue-900 to-indigo-800 hover:from-blue-800 hover:to-indigo-700 text-white rounded-xl text-xs font-black shadow-md flex items-center gap-1.5 cursor-pointer transition-all hover:scale-105"
               title="Add / Schedule Company Drive Date (Faculty & Admin Only)"
             >
-              <Plus className="w-3 h-3" />
+              <Plus className="w-3.5 h-3.5" />
               <span>Add Date</span>
             </button>
           ) : (
-            <span className="px-2 py-0.5 bg-slate-100 text-slate-600 text-[9px] font-black rounded-md border border-slate-200 flex items-center gap-1">
-              <Lock className="w-2.5 h-2.5" /> Read-Only
+            <span className="px-2.5 py-1 bg-slate-100 text-slate-700 text-[10px] font-black rounded-lg border border-slate-200 flex items-center gap-1">
+              <Lock className="w-3 h-3" /> Read-Only
             </span>
           )}
         </div>
       </div>
 
       {/* Sub-Tabs: Mini Calendar vs Upcoming Timeline */}
-      <div className="flex items-center justify-between bg-slate-100 p-1 rounded-xl text-[11px] font-black">
+      <div className="flex items-center justify-between bg-slate-100/90 p-1.5 rounded-2xl text-xs font-black border border-slate-200/80">
         <button
           onClick={() => setActiveView('calendar')}
-          className={`flex-1 py-1 px-2 rounded-lg text-center transition-all ${
-            activeView === 'calendar' ? 'bg-white text-blue-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
+          className={`flex-1 py-2 px-3 rounded-xl text-center transition-all ${
+            activeView === 'calendar' ? 'bg-white text-blue-900 shadow-sm font-black' : 'text-slate-600 hover:text-slate-900'
           }`}
         >
           📅 Month Grid
         </button>
         <button
           onClick={() => setActiveView('timeline')}
-          className={`flex-1 py-1 px-2 rounded-lg text-center transition-all ${
-            activeView === 'timeline' ? 'bg-white text-blue-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
+          className={`flex-1 py-2 px-3 rounded-xl text-center transition-all ${
+            activeView === 'timeline' ? 'bg-white text-blue-900 shadow-sm font-black' : 'text-slate-600 hover:text-slate-900'
           }`}
         >
           📋 Upcoming List ({events.length})
         </button>
       </div>
 
-      {/* VIEW 1: MONTHLY CALENDAR GRID */}
+      {/* VIEW 1: MONTHLY CALENDAR GRID (LARGE & PROMINENT) */}
       {activeView === 'calendar' && (
-        <div className="space-y-3 bg-white p-3 rounded-2xl border border-slate-200 shadow-xs">
+        <div className="space-y-4 bg-white p-4 sm:p-5 rounded-3xl border border-slate-200 shadow-md">
           {/* Month Switcher */}
-          <div className="flex items-center justify-between text-xs font-black text-slate-900 px-1">
-            <span>{monthNames[month]} {year}</span>
-            <div className="flex items-center gap-1">
+          <div className="flex items-center justify-between text-sm sm:text-base font-black text-slate-900 px-1 pb-1 border-b border-slate-100">
+            <span className="flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-amber-500" />
+              <span>{monthNames[month]} {year}</span>
+            </span>
+            <div className="flex items-center gap-1.5">
               <button
                 onClick={prevMonth}
-                className="p-1 hover:bg-slate-100 rounded-lg text-slate-600 transition-colors"
+                className="p-1.5 hover:bg-slate-100 rounded-xl text-slate-700 transition-colors cursor-pointer"
+                title="Previous Month"
               >
-                <ChevronLeft className="w-3.5 h-3.5" />
+                <ChevronLeft className="w-4 h-4" />
               </button>
               <button
                 onClick={nextMonth}
-                className="p-1 hover:bg-slate-100 rounded-lg text-slate-600 transition-colors"
+                className="p-1.5 hover:bg-slate-100 rounded-xl text-slate-700 transition-colors cursor-pointer"
+                title="Next Month"
               >
-                <ChevronRight className="w-3.5 h-3.5" />
+                <ChevronRight className="w-4 h-4" />
               </button>
             </div>
           </div>
 
           {/* Days of Week Headers */}
-          <div className="grid grid-cols-7 text-center text-[10px] font-black text-slate-400">
+          <div className="grid grid-cols-7 text-center text-xs font-black text-slate-500 py-1">
             <span>Su</span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span>
           </div>
 
-          {/* Days Cells Grid */}
-          <div className="grid grid-cols-7 gap-1 text-center text-xs">
+          {/* Days Cells Grid - Large, Tall & Prominent */}
+          <div className="grid grid-cols-7 gap-1.5 text-center">
             {Array.from({ length: firstDayOfMonth }).map((_, i) => (
-              <div key={`empty_${i}`} className="h-7"></div>
+              <div key={`empty_${i}`} className="min-h-[48px] sm:min-h-[54px]"></div>
             ))}
 
             {Array.from({ length: daysInMonth }).map((_, i) => {
@@ -265,79 +270,93 @@ export default function CompanyPlacementCalendar({ currentUser, onSelectEvent })
                 <button
                   key={`day_${dayNum}`}
                   onClick={() => setSelectedDate(dateStr)}
-                  className={`h-7 rounded-lg font-bold flex flex-col items-center justify-center relative transition-all cursor-pointer ${
+                  className={`min-h-[48px] sm:min-h-[54px] p-1 rounded-2xl font-bold flex flex-col items-center justify-between transition-all cursor-pointer select-none ${
                     isSelected
-                      ? 'bg-blue-900 text-white font-black shadow-xs'
+                      ? 'bg-blue-900 text-white font-black shadow-lg scale-102 ring-2 ring-blue-500/30'
                       : hasEvents
-                      ? 'bg-blue-50 text-blue-900 hover:bg-blue-100 font-black border border-blue-200'
-                      : 'hover:bg-slate-50 text-slate-700'
+                      ? 'bg-blue-50/90 text-blue-900 hover:bg-blue-100 font-black border border-blue-300 shadow-xs'
+                      : 'hover:bg-slate-100/80 text-slate-700 border border-transparent'
                   }`}
                 >
-                  <span className="text-[11px] leading-none">{dayNum}</span>
+                  <span className="text-xs sm:text-sm leading-tight">{dayNum}</span>
                   {hasEvents && (
-                    <span className={`w-1.5 h-1.5 rounded-full mt-0.5 ${isSelected ? 'bg-amber-400' : 'bg-blue-600'}`}></span>
+                    <div className="w-full flex flex-col items-center">
+                      <span className={`w-2 h-2 rounded-full ${isSelected ? 'bg-amber-300' : 'bg-blue-600'} animate-pulse`}></span>
+                      <span className={`text-[8px] font-black leading-none truncate max-w-[95%] hidden sm:block mt-0.5 ${
+                        isSelected ? 'text-blue-100' : 'text-blue-900'
+                      }`}>
+                        {dayEvents[0].company_name.split(' ')[0]}
+                      </span>
+                    </div>
                   )}
+                  {!hasEvents && <div className="h-2"></div>}
                 </button>
               );
             })}
           </div>
 
           {/* Selected Date Details Box */}
-          <div className="mt-2 pt-2 border-t border-slate-100 space-y-2">
-            <div className="flex items-center justify-between text-[11px] font-black">
-              <span className="text-slate-600">
-                Events on {new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+          <div className="mt-4 pt-3 border-t border-slate-200 space-y-3">
+            <div className="flex items-center justify-between text-xs font-black">
+              <span className="text-slate-700 flex items-center gap-1.5">
+                <span>🗓️</span>
+                <span>Events on {new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
               </span>
               {isAuthorized && (
                 <button
                   onClick={() => openAddModal(selectedDate)}
-                  className="text-[10px] text-blue-900 font-bold hover:underline flex items-center gap-0.5"
+                  className="text-[11px] text-blue-900 font-black hover:underline flex items-center gap-1 cursor-pointer bg-blue-50 px-2 py-0.5 rounded-md border border-blue-200"
                 >
-                  <Plus className="w-2.5 h-2.5" /> Add Drive Here
+                  <Plus className="w-3 h-3" /> Schedule Drive Here
                 </button>
               )}
             </div>
 
             {eventsOnSelectedDate.length > 0 ? (
-              <div className="space-y-2">
+              <div className="space-y-3">
                 {eventsOnSelectedDate.map((evt) => (
-                  <div key={evt.id} className="p-2.5 bg-slate-50 rounded-xl border border-slate-200 space-y-1.5 text-left">
-                    <div className="flex items-start justify-between gap-1">
+                  <div key={evt.id} className="p-4 bg-slate-50/90 rounded-2xl border border-slate-200 space-y-2.5 text-left shadow-xs">
+                    <div className="flex items-start justify-between gap-2">
                       <div>
-                        <div className="font-black text-xs text-slate-900">{evt.company_name}</div>
-                        <div className="text-[10px] text-blue-900 font-bold">{evt.role}</div>
+                        <div className="font-black text-sm text-slate-900">{evt.company_name}</div>
+                        <div className="text-xs text-blue-900 font-bold">{evt.role}</div>
                       </div>
-                      <span className="px-1.5 py-0.5 bg-emerald-100 text-emerald-900 font-black text-[9px] rounded border border-emerald-300">
+                      <span className="px-2.5 py-1 bg-emerald-100 text-emerald-950 font-black text-xs rounded-xl border border-emerald-300 shrink-0">
                         {evt.ctc}
                       </span>
                     </div>
 
-                    <div className="text-[10px] text-slate-600 font-medium space-y-0.5">
-                      <div className="flex items-center gap-1 font-bold text-slate-800">
-                        <Sparkles className="w-3 h-3 text-amber-500 shrink-0" /> {evt.stage}
+                    <div className="text-xs text-slate-600 font-medium space-y-1 bg-white p-2.5 rounded-xl border border-slate-200/80">
+                      <div className="flex items-center gap-1.5 font-black text-slate-800">
+                        <Sparkles className="w-3.5 h-3.5 text-amber-500 shrink-0" /> {evt.stage}
                       </div>
-                      <div className="flex items-center gap-1">
-                        <Clock className="w-3 h-3 text-slate-400 shrink-0" /> {evt.time}
+                      <div className="flex items-center gap-1.5">
+                        <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0" /> {evt.time}
                       </div>
-                      <div className="flex items-center gap-1">
-                        <MapPin className="w-3 h-3 text-slate-400 shrink-0" /> {evt.location}
+                      <div className="flex items-center gap-1.5">
+                        <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" /> {evt.location}
                       </div>
+                      {evt.eligible_batches && (
+                        <div className="flex items-center gap-1.5 text-[11px] text-blue-900 font-bold pt-0.5">
+                          <Users className="w-3.5 h-3.5 text-blue-800 shrink-0" /> Batches: {Array.isArray(evt.eligible_batches) ? evt.eligible_batches.join(', ') : evt.eligible_batches}
+                        </div>
+                      )}
                     </div>
 
                     {isAuthorized && (
-                      <div className="flex items-center justify-end gap-1.5 pt-1.5 border-t border-slate-200/80">
+                      <div className="flex items-center justify-end gap-2 pt-1 border-t border-slate-200">
                         <button
                           onClick={() => openEditModal(evt)}
-                          className="px-2 py-0.5 bg-white hover:bg-slate-100 text-blue-900 font-bold text-[10px] rounded border border-slate-300 flex items-center gap-1 cursor-pointer"
+                          className="px-3 py-1 bg-white hover:bg-slate-100 text-blue-900 font-black text-xs rounded-lg border border-slate-300 flex items-center gap-1 cursor-pointer transition-all"
                         >
-                          <Edit3 className="w-2.5 h-2.5" /> Edit Date
+                          <Edit3 className="w-3 h-3" /> Edit Date & Status
                         </button>
                         <button
                           onClick={() => handleDelete(evt.id, evt.company_name)}
-                          className="p-1 hover:bg-rose-50 text-rose-600 rounded transition-colors"
+                          className="p-1.5 hover:bg-rose-50 text-rose-600 rounded-lg transition-colors cursor-pointer"
                           title="Remove Schedule"
                         >
-                          <Trash2 className="w-3 h-3" />
+                          <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       </div>
                     )}
@@ -345,13 +364,14 @@ export default function CompanyPlacementCalendar({ currentUser, onSelectEvent })
                 ))}
               </div>
             ) : (
-              <div className="text-center py-3 text-slate-400 text-[11px] font-medium">
-                No company drives scheduled on this date.
+              <div className="text-center py-5 bg-slate-50 rounded-2xl border border-slate-200 text-slate-500 text-xs font-bold">
+                No company placement drives scheduled on this date.
               </div>
             )}
           </div>
         </div>
       )}
+
 
       {/* VIEW 2: TIMELINE LIST */}
       {activeView === 'timeline' && (

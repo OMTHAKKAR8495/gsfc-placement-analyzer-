@@ -124,7 +124,7 @@ export default function CompanyTrackerSidebar({ currentUser, onSelectCompany, on
   });
 
   return (
-    <aside className="glass-panel p-4 sm:p-5 rounded-3xl border border-slate-200/90 shadow-xl space-y-4 lg:sticky lg:top-24 max-h-[85vh] overflow-y-auto">
+    <aside className="glass-panel p-4 sm:p-5 rounded-3xl border border-slate-200/90 shadow-xl space-y-4 lg:sticky lg:top-24 max-h-[92vh] overflow-y-auto custom-scrollbar">
       {/* Header Title */}
       <div className="flex items-center justify-between pb-3 border-b border-slate-200">
         <div className="flex items-center gap-2">
