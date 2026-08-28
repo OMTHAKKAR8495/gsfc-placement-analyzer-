@@ -170,7 +170,7 @@ export default function CompanyPlacementCalendar({ currentUser, onSelectEvent })
   });
 
   return (
-    <div className="mt-6 pt-6 border-t-2 border-slate-200/90 space-y-5">
+    <div className="glass-panel p-4 sm:p-5 rounded-3xl border border-slate-200/90 shadow-xl space-y-4">
       {/* Calendar Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2.5">

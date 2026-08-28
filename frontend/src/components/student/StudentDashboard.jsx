@@ -4,6 +4,7 @@ import { Upload, FileText, CheckCircle, AlertTriangle, Sparkles, Briefcase, Awar
 
 import MockInterviewChat from './MockInterviewChat';
 import CompanyTrackerSidebar from '../common/CompanyTrackerSidebar';
+import CompanyPlacementCalendar from '../common/CompanyPlacementCalendar';
 import ReportPDFModal from '../common/ReportPDFModal';
 import InternalAutoFillApplyModal from './InternalAutoFillApplyModal';
 import ExternalApplyConfirmModal from './ExternalApplyConfirmModal';
@@ -2864,9 +2865,10 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
         </div>
 
 
-        {/* Right Sticky Sidebar */}
-        <div className="lg:col-span-1">
+        {/* Right Sticky Sidebar — Separated Cards with Generous Spacing */}
+        <div className="lg:col-span-1 space-y-6">
           <CompanyTrackerSidebar currentUser={currentUser} />
+          <CompanyPlacementCalendar currentUser={currentUser} isStandaloneCard={true} />
         </div>
 
       </div>

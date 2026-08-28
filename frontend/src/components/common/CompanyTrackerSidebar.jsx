@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { Building2, Sparkles, Clock, CheckCircle2, Search, Filter, ArrowUpRight, TrendingUp, Calendar } from 'lucide-react';
-import CompanyPlacementCalendar from './CompanyPlacementCalendar';
 
 export default function CompanyTrackerSidebar({ currentUser, onSelectCompany, onApplyClick }) {
   const [activeFilter, setActiveFilter] = useState('new'); // 'new', 'past', 'all'
@@ -238,9 +237,6 @@ export default function CompanyTrackerSidebar({ currentUser, onSelectCompany, on
           </div>
         )}
       </div>
-
-      {/* 📅 UPCOMING COMPANY DRIVES CALENDAR */}
-      <CompanyPlacementCalendar currentUser={resolvedUser} />
     </aside>
   );
 }
