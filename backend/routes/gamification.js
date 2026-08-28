@@ -285,8 +285,25 @@ router.get('/leaderboard', (req, res) => {
     const params = [];
 
     if (department && department !== 'All') {
-      query += ` AND (s.program LIKE ? OR s.branch LIKE ?)`;
-      params.push(`%${department}%`, `%${department}%`);
+      const d = department.toLowerCase();
+      if (d.includes('cse') || d.includes('computer') || d.includes('cs')) {
+        query += ` AND (LOWER(s.program) LIKE '%cse%' OR LOWER(s.branch) LIKE '%computer%' OR LOWER(s.branch) LIKE '%data%' OR LOWER(s.branch) LIKE '%intelligence%')`;
+      } else if (d.includes('chem')) {
+        query += ` AND (LOWER(s.program) LIKE '%chem%' OR LOWER(s.branch) LIKE '%chem%')`;
+      } else if (d.includes('mech')) {
+        query += ` AND (LOWER(s.program) LIKE '%mech%' OR LOWER(s.branch) LIKE '%mech%')`;
+      } else if (d.includes('it') || d.includes('information')) {
+        query += ` AND (LOWER(s.program) LIKE '%it%' OR LOWER(s.branch) LIKE '%information%')`;
+      } else if (d.includes('mba') || d.includes('management')) {
+        query += ` AND (LOWER(s.program) LIKE '%mba%' OR LOWER(s.branch) LIKE '%analytics%' OR LOWER(s.branch) LIKE '%marketing%')`;
+      } else if (d.includes('fire') || d.includes('safety')) {
+        query += ` AND (LOWER(s.program) LIKE '%fire%' OR LOWER(s.branch) LIKE '%safety%')`;
+      } else if (d.includes('ece') || d.includes('electronics')) {
+        query += ` AND (LOWER(s.program) LIKE '%ece%' OR LOWER(s.branch) LIKE '%electronics%')`;
+      } else {
+        query += ` AND (s.program LIKE ? OR s.branch LIKE ?)`;
+        params.push(`%${department}%`, `%${department}%`);
+      }
     }
 
     if (year && year !== 'All') {
