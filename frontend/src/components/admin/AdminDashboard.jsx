@@ -1916,7 +1916,29 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
         </div>
 
         {/* Prominent Direct Module Action in Pill Header */}
-        <div className="flex items-center gap-1.5 shrink-0 pl-1 border-t sm:border-t-0 sm:border-l border-slate-200 dark:border-slate-700 pt-1 sm:pt-0">
+        <div className="flex flex-wrap items-center gap-1.5 shrink-0 pl-1 border-t sm:border-t-0 sm:border-l border-slate-200 dark:border-slate-700 pt-1 sm:pt-0">
+          <button
+            onClick={() => {
+              setCalendarDriveForm({
+                company_name: '',
+                role: 'Software Development Engineer',
+                ctc: '₹14.00 LPA',
+                date: new Date().toISOString().split('T')[0],
+                time: '10:00 AM IST',
+                stage: 'Online Coding Assessment (Proctored)',
+                location: 'GSFC University Auditorium & Lab',
+                eligible_batches: '2025, 2026',
+                eligible_branches: 'CSE, IT, AI & DS',
+                status: 'Scheduled'
+              });
+              setCalendarSchedulerModalOpen(true);
+            }}
+            className="w-full sm:w-auto px-3.5 py-1.5 rounded-xl text-xs font-black bg-gradient-to-r from-emerald-800 to-teal-800 hover:from-emerald-700 text-white shadow-sm border border-emerald-400/40 transition-all flex items-center justify-center gap-1.5 cursor-pointer hover:scale-105"
+            title="Schedule or Add Upcoming Company Drive Date to Placement Calendar"
+          >
+            <Calendar className="w-3.5 h-3.5 text-amber-300" />
+            <span>📅➕ Schedule Drive Date</span>
+          </button>
           <button
             onClick={() => setAddGsfcCompanyModalOpen(true)}
             className="w-full sm:w-auto px-3.5 py-1.5 rounded-xl text-xs font-black bg-gradient-to-r from-blue-950 via-indigo-900 to-blue-900 hover:from-blue-900 text-white shadow-sm border border-amber-400/40 transition-all flex items-center justify-center gap-1.5 cursor-pointer hover:scale-105"
