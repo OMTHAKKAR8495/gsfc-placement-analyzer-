@@ -55,17 +55,39 @@ export default function UniversalQRScanner({
       setIsScanning(true);
 
       const qrRegionId = scannerContainerId.current;
+      
+      // Stop previous instance if any
+      if (html5QrCodeRef.current) {
+        try {
+          if (html5QrCodeRef.current.isScanning) {
+            await html5QrCodeRef.current.stop();
+          }
+          html5QrCodeRef.current.clear();
+        } catch (e) {}
+      }
+
+      // Small tick to ensure DOM is ready
+      await new Promise(r => setTimeout(r, 100));
+
+      const element = document.getElementById(qrRegionId);
+      if (!element) {
+        throw new Error('Scanner DOM element not found');
+      }
+
       const html5QrCode = new Html5Qrcode(qrRegionId);
       html5QrCodeRef.current = html5QrCode;
 
+      const qrWidth = Math.min(window.innerWidth - 80, 250);
       const config = {
         fps: 15,
-        qrbox: { width: 250, height: 250 },
+        qrbox: { width: Math.max(qrWidth, 180), height: Math.max(qrWidth, 180) },
         aspectRatio: 1.0
       };
 
+      const cameraConstraints = { facingMode: facingMode === 'user' ? 'user' : 'environment' };
+
       await html5QrCode.start(
-        { facingMode: facingMode },
+        cameraConstraints,
         config,
         (decodedText) => {
           // On QR Code Scan Detected
@@ -77,10 +99,37 @@ export default function UniversalQRScanner({
           // Ignore frame decode errors
         }
       );
+
+      // Force playsinline on mobile video elements for iOS/Android
+      const videoEl = element.querySelector('video');
+      if (videoEl) {
+        videoEl.setAttribute('playsinline', 'true');
+        videoEl.setAttribute('webkit-playsinline', 'true');
+        videoEl.setAttribute('muted', 'true');
+        videoEl.play().catch(() => {});
+      }
     } catch (err) {
-      console.error('Failed to start camera:', err);
-      setCameraError('Unable to access device camera. Please check permissions or use manual code entry.');
-      setIsScanning(false);
+      console.error('Failed to start camera on mobile/desktop:', err);
+      // Fallback attempt: try starting with generic camera without exact constraints
+      try {
+        const qrRegionId = scannerContainerId.current;
+        const html5QrCode = new Html5Qrcode(qrRegionId);
+        html5QrCodeRef.current = html5QrCode;
+        await html5QrCode.start(
+          true, // any available camera
+          { fps: 15, qrbox: { width: 220, height: 220 } },
+          (decodedText) => {
+            playBeepSound(true);
+            handleLookupToken(decodedText);
+            stopCameraScanner();
+          },
+          () => {}
+        );
+      } catch (fallbackErr) {
+        console.error('Camera fallback also failed:', fallbackErr);
+        setCameraError('Camera access unavailable on this browser. Ensure camera permissions are allowed in your phone browser settings, or use "Upload QR Image" or manual code entry below.');
+        setIsScanning(false);
+      }
     }
   };
 
@@ -307,21 +356,16 @@ export default function UniversalQRScanner({
           </div>
         </div>
 
-        {/* Live Camera Viewport Container */}
-        {isScanning && (
-          <div className="relative rounded-3xl overflow-hidden border-2 border-indigo-500/50 bg-black shadow-inner flex flex-col items-center justify-center p-3 animate-fadeIn">
-            <div id={scannerContainerId.current} className="w-full max-w-sm rounded-2xl overflow-hidden"></div>
-            <div className="text-center mt-3 text-xs text-slate-400 font-bold flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
-              <span>Align Candidate Pass QR code inside the target frame</span>
-            </div>
+        {/* Single Persistent Live Camera Viewport Container */}
+        <div className={`relative rounded-3xl overflow-hidden border-2 border-indigo-500/50 bg-black shadow-inner flex flex-col items-center justify-center p-3 animate-fadeIn ${
+          isScanning ? 'block' : 'hidden'
+        }`}>
+          <div id={scannerContainerId.current} className="w-full max-w-sm rounded-2xl overflow-hidden min-h-[220px] flex items-center justify-center"></div>
+          <div className="text-center mt-3 text-xs text-slate-400 font-bold flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+            <span>Align Candidate Pass QR code inside the target frame</span>
           </div>
-        )}
-
-        {/* Hidden container for file-based scanner */}
-        {!isScanning && (
-          <div id={scannerContainerId.current} className="hidden"></div>
-        )}
+        </div>
 
         {cameraError && (
           <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-2xl text-xs text-amber-200 space-y-2">
