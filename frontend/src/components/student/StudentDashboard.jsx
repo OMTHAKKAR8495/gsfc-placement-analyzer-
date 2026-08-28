@@ -2866,7 +2866,7 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
 
         {/* Right Sticky Sidebar */}
         <div className="lg:col-span-1">
-          <CompanyTrackerSidebar />
+          <CompanyTrackerSidebar currentUser={currentUser} />
         </div>
 
       </div>

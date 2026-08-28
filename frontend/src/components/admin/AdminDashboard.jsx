@@ -27,6 +27,7 @@ import AdminEntryLogsManager from './AdminEntryLogsManager';
 import AdminSecurityStaffManager from './AdminSecurityStaffManager';
 import AdminMeetingsManager from './AdminMeetingsManager';
 import AdminSubscriptionPlansManager from './AdminSubscriptionPlansManager';
+import { placementCalendarStorage } from '../../utils/placementCalendarStorage';
 
 
 
@@ -1349,6 +1350,60 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
     } catch (err) {
       console.error('Error deleting drive:', err);
     }
+  };
+
+  // Placement Calendar Scheduling State
+  const [calendarSchedulerModalOpen, setCalendarSchedulerModalOpen] = useState(false);
+  const [scheduledDriveInfo, setScheduledDriveInfo] = useState(null);
+  const [calendarDriveForm, setCalendarDriveForm] = useState({
+    company_name: '',
+    role: '',
+    ctc: '₹14.00 LPA',
+    date: '2026-09-15',
+    time: '10:00 AM IST',
+    stage: 'Online Coding Assessment (Proctored)',
+    location: 'GSFC Computer Lab & Virtual Arena',
+    eligible_batches: '2025, 2026',
+    eligible_branches: 'CSE, IT, AI & DS',
+    status: 'Scheduled'
+  });
+
+  const handleOpenCalendarScheduler = (driveItem) => {
+    setScheduledDriveInfo(driveItem);
+    setCalendarDriveForm({
+      company_name: driveItem.company_name || driveItem.name || '',
+      role: driveItem.title || driveItem.role || 'Placement Candidate',
+      ctc: driveItem.ctc_range || driveItem.ctc || '₹12.00 LPA',
+      date: new Date(Date.now() + 86400000 * 5).toISOString().split('T')[0],
+      time: '10:00 AM IST',
+      stage: 'Online Coding Assessment (Proctored)',
+      location: 'GSFC Auditorium & Virtual Panel',
+      eligible_batches: '2025, 2026',
+      eligible_branches: 'CSE, IT, Chemical, Mechanical',
+      status: 'Scheduled'
+    });
+    setCalendarSchedulerModalOpen(true);
+  };
+
+  const handleSaveCalendarDrive = (e) => {
+    e.preventDefault();
+    if (!calendarDriveForm.company_name.trim()) return;
+
+    placementCalendarStorage.upsertEvent({
+      company_name: calendarDriveForm.company_name,
+      role: calendarDriveForm.role,
+      ctc: calendarDriveForm.ctc,
+      date: calendarDriveForm.date,
+      time: calendarDriveForm.time,
+      stage: calendarDriveForm.stage,
+      location: calendarDriveForm.location,
+      eligible_batches: calendarDriveForm.eligible_batches.split(',').map(s => s.trim()).filter(Boolean),
+      eligible_branches: calendarDriveForm.eligible_branches.split(',').map(s => s.trim()).filter(Boolean),
+      status: calendarDriveForm.status
+    }, currentUser || { name: 'TPC Admin', role: 'admin' });
+
+    setCalendarSchedulerModalOpen(false);
+    alert(`🎉 Placement Drive Date for "${calendarDriveForm.company_name}" successfully saved to the Placement Calendar on ${calendarDriveForm.date}!`);
   };
 
   const handleOpenCompanyDrivesManager = (company) => {
@@ -3368,6 +3423,15 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
                       <td className="py-4 px-5 text-right whitespace-nowrap">
                         <button
                           type="button"
+                          onClick={() => handleOpenCalendarScheduler(reqItem)}
+                          className="py-1.5 px-3 bg-blue-900 hover:bg-blue-800 text-white rounded-xl text-xs font-black inline-flex items-center gap-1 transition-all shadow-sm cursor-pointer hover:scale-105 mr-1.5"
+                          title="Schedule or update drive date in Placement Calendar"
+                        >
+                          <Calendar className="w-3.5 h-3.5" />
+                          <span>📅 Schedule Date</span>
+                        </button>
+                        <button
+                          type="button"
                           onClick={() => handleDeleteDrive(reqItem.id, reqItem.title, reqItem.company_name)}
                           className="py-1.5 px-3 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-black inline-flex items-center gap-1 transition-all shadow-sm cursor-pointer hover:scale-105"
                           title={`Delete only this drive ("${reqItem.title}")`}
@@ -5352,6 +5416,156 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
         mode="tpo"
       />
 
+      {/* 📅 Placement Calendar Drive Scheduler Modal */}
+      {calendarSchedulerModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-md animate-fadeIn">
+          <div className="relative w-full max-w-md bg-white rounded-3xl border border-slate-200 shadow-2xl p-6 space-y-4 text-slate-900 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 bg-blue-900 text-white rounded-xl">
+                  <Calendar className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="font-black text-sm text-slate-900">Schedule Drive on Placement Calendar</h3>
+                  <p className="text-[10px] font-bold text-slate-500">Authorized TPC Admin Control</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setCalendarSchedulerModalOpen(false)}
+                className="p-1.5 text-slate-400 hover:text-slate-800 rounded-xl"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveCalendarDrive} className="space-y-3 text-xs">
+              <div>
+                <label className="block font-black text-slate-700 mb-1">Company Name</label>
+                <input
+                  type="text"
+                  required
+                  value={calendarDriveForm.company_name}
+                  onChange={(e) => setCalendarDriveForm({ ...calendarDriveForm, company_name: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl font-bold text-slate-900 focus:outline-none focus:border-blue-900"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block font-black text-slate-700 mb-1">Role / Title</label>
+                  <input
+                    type="text"
+                    required
+                    value={calendarDriveForm.role}
+                    onChange={(e) => setCalendarDriveForm({ ...calendarDriveForm, role: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl font-bold text-slate-900 focus:outline-none focus:border-blue-900"
+                  />
+                </div>
+                <div>
+                  <label className="block font-black text-slate-700 mb-1">Offered CTC</label>
+                  <input
+                    type="text"
+                    required
+                    value={calendarDriveForm.ctc}
+                    onChange={(e) => setCalendarDriveForm({ ...calendarDriveForm, ctc: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl font-bold text-slate-900 focus:outline-none focus:border-blue-900"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block font-black text-slate-700 mb-1">Drive Date</label>
+                  <input
+                    type="date"
+                    required
+                    value={calendarDriveForm.date}
+                    onChange={(e) => setCalendarDriveForm({ ...calendarDriveForm, date: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl font-bold text-slate-900 focus:outline-none focus:border-blue-900"
+                  />
+                </div>
+                <div>
+                  <label className="block font-black text-slate-700 mb-1">Time & Slot</label>
+                  <input
+                    type="text"
+                    value={calendarDriveForm.time}
+                    onChange={(e) => setCalendarDriveForm({ ...calendarDriveForm, time: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl font-bold text-slate-900 focus:outline-none focus:border-blue-900"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-black text-slate-700 mb-1">Drive Stage / Event Type</label>
+                <select
+                  value={calendarDriveForm.stage}
+                  onChange={(e) => setCalendarDriveForm({ ...calendarDriveForm, stage: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl font-bold text-slate-900 focus:outline-none focus:border-blue-900"
+                >
+                  <option value="Online Coding Assessment (Proctored)">Online Coding Assessment (Proctored)</option>
+                  <option value="Pre-Placement Talk (PPT) & Orientation">Pre-Placement Talk (PPT) & Orientation</option>
+                  <option value="Technical Interview Round 1 & DSA">Technical Interview Round 1 & DSA</option>
+                  <option value="System Design & Low-Level Architecture">System Design & Low-Level Architecture</option>
+                  <option value="HR & Leadership Bar Raiser Round">HR & Leadership Bar Raiser Round</option>
+                  <option value="Final Placement Offer Release">Final Placement Offer Release</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block font-black text-slate-700 mb-1">Venue / Mode</label>
+                <input
+                  type="text"
+                  value={calendarDriveForm.location}
+                  onChange={(e) => setCalendarDriveForm({ ...calendarDriveForm, location: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl font-bold text-slate-900 focus:outline-none focus:border-blue-900"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block font-black text-slate-700 mb-1">Eligible Batches</label>
+                  <input
+                    type="text"
+                    value={calendarDriveForm.eligible_batches}
+                    onChange={(e) => setCalendarDriveForm({ ...calendarDriveForm, eligible_batches: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl font-bold text-slate-900 focus:outline-none focus:border-blue-900"
+                  />
+                </div>
+                <div>
+                  <label className="block font-black text-slate-700 mb-1">Placement Status</label>
+                  <select
+                    value={calendarDriveForm.status}
+                    onChange={(e) => setCalendarDriveForm({ ...calendarDriveForm, status: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl font-bold text-slate-900 focus:outline-none focus:border-blue-900"
+                  >
+                    <option value="Scheduled">Scheduled</option>
+                    <option value="In Progress">In Progress</option>
+                    <option value="Shortlist Released">Shortlist Released</option>
+                    <option value="Placed / Completed">Placed / Completed</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-200">
+                <button
+                  type="button"
+                  onClick={() => setCalendarSchedulerModalOpen(false)}
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold text-xs cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 bg-gradient-to-r from-blue-900 to-indigo-800 hover:from-blue-800 hover:to-indigo-700 text-white rounded-xl font-black text-xs shadow-md cursor-pointer"
+                >
+                  Save Date to Calendar
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
       {/* 🏢 Add GSFC Recruited / Placed Company Modal */}
       <AddGSFCCompanyModal
         isOpen={addGsfcCompanyModalOpen}

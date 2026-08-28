@@ -1,10 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { Building2, Sparkles, Clock, CheckCircle2, Search, Filter, ArrowUpRight, TrendingUp, Calendar } from 'lucide-react';
+import CompanyPlacementCalendar from './CompanyPlacementCalendar';
 
-export default function CompanyTrackerSidebar({ onSelectCompany, onApplyClick }) {
+export default function CompanyTrackerSidebar({ currentUser, onSelectCompany, onApplyClick }) {
   const [activeFilter, setActiveFilter] = useState('new'); // 'new', 'past', 'all'
   const [searchQuery, setSearchQuery] = useState('');
   const [minCtcFilter, setMinCtcFilter] = useState(false);
+
+  // Resolve user role
+  const resolvedUser = currentUser || (() => {
+    try {
+      const stored = localStorage.getItem('currentUser') || localStorage.getItem('campus_hire_user') || localStorage.getItem('user');
+      if (stored) return JSON.parse(stored);
+    } catch (e) {}
+    const role = localStorage.getItem('user_role');
+    if (role) return { role };
+    return null;
+  })();
 
   const defaultCompaniesList = [
     {
@@ -226,6 +238,9 @@ export default function CompanyTrackerSidebar({ onSelectCompany, onApplyClick })
           </div>
         )}
       </div>
+
+      {/* 📅 UPCOMING COMPANY DRIVES CALENDAR */}
+      <CompanyPlacementCalendar currentUser={resolvedUser} />
     </aside>
   );
 }
