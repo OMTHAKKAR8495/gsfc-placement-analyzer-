@@ -12,6 +12,7 @@ import {
   replyToStudentMail, 
   deleteStudentMail 
 } from '../../utils/studentMailStorage';
+import { studentInboxStorage } from '../../utils/studentInboxStorage';
 import { useToast } from '../../context/ToastContext';
 
 export default function CompanyStudentMailReceiver({
@@ -33,6 +34,17 @@ export default function CompanyStudentMailReceiver({
   const [replyText, setReplyText] = useState('');
   const [submittingReply, setSubmittingReply] = useState(false);
   const [expandedMailId, setExpandedMailId] = useState(null);
+  const [composeModalOpen, setComposeModalOpen] = useState(false);
+  const [composeForm, setComposeForm] = useState({
+    student_name: 'Om Thakkar',
+    student_email: '24bt04171@gsfcuniversity.ac.in',
+    subject: '🎉 Invitation for Technical Interview & System Design Round',
+    event_stage: 'Technical Interview Round 1',
+    scheduled_date: '2026-09-04',
+    scheduled_time: '10:00 AM IST',
+    meeting_link: 'https://meet.google.com/goo-gsfc-int',
+    body: 'Dear Candidate,\n\nWe have reviewed your profile and ATS Resume. We are pleased to invite you to our upcoming placement round.\n\nPlease be available at the scheduled time.\n\nBest regards,\nRecruitment Team'
+  });
 
   const resolvedCompanyName = useMemo(() => {
     if (isGsfcPartner) return 'GSFC Limited';
@@ -206,6 +218,19 @@ export default function CompanyStudentMailReceiver({
     const recruiterName = `${resolvedCompanyName} Talent Acquisition`;
     replyToStudentMail(replyingMail.id, replyText.trim(), recruiterName);
 
+    // Also dispatch directly into the student's personal mailbox
+    studentInboxStorage.sendMessage({
+      student_email: replyingMail.sender_email || '24bt04171@gsfcuniversity.ac.in',
+      student_name: replyingMail.sender_name || 'Om Thakkar',
+      sender_type: 'company',
+      sender_name: recruiterName,
+      sender_email: currentUser?.email || 'campus.hiring@company.com',
+      company_name: resolvedCompanyName,
+      subject: `Response from ${resolvedCompanyName}: ${replyingMail.subject || 'Regarding your placement query'}`,
+      body: replyText.trim(),
+      event_stage: replyingMail.type === 'meeting_absence' ? 'Interview Reschedule Update' : 'Recruiter Communication'
+    }, currentUser);
+
     setTimeout(() => {
       setSubmittingReply(false);
       setReplyingMail(null);
@@ -216,6 +241,37 @@ export default function CompanyStudentMailReceiver({
         message: `Your response has been sent to ${replyingMail.sender_name} (${replyingMail.sender_email}).`
       });
     }, 400);
+  };
+
+  const handleSendCompose = (e) => {
+    e.preventDefault();
+    if (!composeForm.student_email || !composeForm.subject || !composeForm.body) {
+      showToast({ type: 'warning', title: 'Missing Information', message: 'Please fill in student email, subject, and message.' });
+      return;
+    }
+
+    studentInboxStorage.sendMessage({
+      student_name: composeForm.student_name,
+      student_email: composeForm.student_email,
+      sender_type: 'company',
+      sender_name: `${resolvedCompanyName} Talent Acquisition`,
+      sender_email: currentUser?.email || 'campus.hiring@company.com',
+      company_name: resolvedCompanyName,
+      subject: composeForm.subject,
+      body: composeForm.body,
+      event_stage: composeForm.event_stage,
+      scheduled_date: composeForm.scheduled_date,
+      scheduled_time: composeForm.scheduled_time,
+      meeting_link: composeForm.meeting_link
+    }, currentUser);
+
+    setComposeModalOpen(false);
+    showToast({
+      type: 'success',
+      title: '✉️ Interview Email Sent to Student!',
+      message: `Delivered directly to ${composeForm.student_name} (${composeForm.student_email})'s Mailbox!`,
+      triggerCrackles: true
+    });
   };
 
   // Quick Reply Template Insertion
@@ -309,6 +365,16 @@ export default function CompanyStudentMailReceiver({
                 🌐 All Demo Companies ({mails.length})
               </button>
             </div>
+
+            <button
+              type="button"
+              onClick={() => setComposeModalOpen(true)}
+              className="px-3.5 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-xl text-xs font-black flex items-center gap-1.5 cursor-pointer transition shadow-md hover:scale-105"
+              title="Compose and send official interview email or call letter to a student"
+            >
+              <Send className="w-3.5 h-3.5" />
+              <span>✉️ Send Interview Call</span>
+            </button>
 
             <button
               type="button"
@@ -972,6 +1038,157 @@ export default function CompanyStudentMailReceiver({
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+      {/* ═══════════════════════════════════════════════════════════ */}
+      {/* MODAL 3: COMPOSE DIRECT INTERVIEW EMAIL / CALL             */}
+      {/* ═══════════════════════════════════════════════════════════ */}
+      {composeModalOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto animate-fadeIn">
+          <div className="bg-white dark:bg-slate-900 w-full max-w-xl rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden my-8">
+            <div className="p-5 bg-gradient-to-r from-blue-900 to-indigo-900 text-white flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <Send className="w-5 h-5 text-amber-300" />
+                <div>
+                  <h3 className="font-black text-sm">Compose Direct Interview Email</h3>
+                  <p className="text-[11px] text-blue-200 font-medium">Deliver official call letters directly to student mailbox</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setComposeModalOpen(false)}
+                className="p-1 text-slate-300 hover:text-white rounded-lg cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSendCompose} className="p-6 space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-black text-slate-700 dark:text-slate-300 mb-1">
+                    Student Candidate Name *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={composeForm.student_name}
+                    onChange={(e) => setComposeForm({ ...composeForm, student_name: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-black text-slate-700 dark:text-slate-300 mb-1">
+                    Student GSFC Email *
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    value={composeForm.student_email}
+                    onChange={(e) => setComposeForm({ ...composeForm, student_email: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-black text-slate-700 dark:text-slate-300 mb-1">
+                  Email Subject / Call Title *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={composeForm.subject}
+                  onChange={(e) => setComposeForm({ ...composeForm, subject: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-xs font-black text-slate-700 dark:text-slate-300 mb-1">
+                    Round / Stage
+                  </label>
+                  <select
+                    value={composeForm.event_stage}
+                    onChange={(e) => setComposeForm({ ...composeForm, event_stage: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white"
+                  >
+                    <option value="Online Assessment">Online Assessment</option>
+                    <option value="Technical Interview Round 1">Technical Interview 1</option>
+                    <option value="System Design Round">System Design Round</option>
+                    <option value="HR / Leadership Bar Raiser">HR / Leadership Panel</option>
+                    <option value="Final Selection Offer">Final Selection Offer</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-black text-slate-700 dark:text-slate-300 mb-1">
+                    Interview Date
+                  </label>
+                  <input
+                    type="date"
+                    value={composeForm.scheduled_date}
+                    onChange={(e) => setComposeForm({ ...composeForm, scheduled_date: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-black text-slate-700 dark:text-slate-300 mb-1">
+                    Time Slot
+                  </label>
+                  <input
+                    type="text"
+                    value={composeForm.scheduled_time}
+                    onChange={(e) => setComposeForm({ ...composeForm, scheduled_time: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-black text-slate-700 dark:text-slate-300 mb-1">
+                  Meeting Link / Venue
+                </label>
+                <input
+                  type="text"
+                  placeholder="https://meet.google.com/... or GSFC Innovation Lab"
+                  value={composeForm.meeting_link}
+                  onChange={(e) => setComposeForm({ ...composeForm, meeting_link: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-black text-slate-700 dark:text-slate-300 mb-1">
+                  Official Message & Instructions *
+                </label>
+                <textarea
+                  rows={4}
+                  required
+                  value={composeForm.body}
+                  onChange={(e) => setComposeForm({ ...composeForm, body: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-900 dark:text-white"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-200 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setComposeModalOpen(false)}
+                  className="px-4 py-2 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-bold cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-6 py-2 bg-gradient-to-r from-blue-900 to-indigo-800 hover:from-blue-800 text-white rounded-xl text-xs font-black flex items-center gap-1.5 shadow-md cursor-pointer"
+                >
+                  <Send className="w-3.5 h-3.5" />
+                  <span>Dispatch Email</span>
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

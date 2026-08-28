@@ -20,6 +20,7 @@ import AICopilotDrawer from '../common/AICopilotDrawer';
 import AIPlacementIntelligenceHub from './AIPlacementIntelligenceHub';
 import LeaderboardTab from './LeaderboardTab';
 import GamificationBadgesModal from './GamificationBadgesModal';
+import StudentMailboxTab from './StudentMailboxTab';
 import { generateGoogleCalendarUrl, downloadIcsFile } from '../../utils/calendarUtils';
 import { saveStudentMail } from '../../utils/studentMailStorage';
 import { useToast } from '../../context/ToastContext';
@@ -1599,11 +1600,24 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
                 : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200/80 dark:border-slate-700 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
-            <CheckCircle2 className={`w-4 h-4 ${activeTab === 'assessments' ? 'text-white' : 'text-blue-600'}`} />
-            <span>Assessments & Tests</span>
+            <Clock className={`w-4 h-4 ${activeTab === 'assessments' ? 'text-white' : 'text-blue-600'}`} />
+            <span>Online Tests</span>
           </button>
 
-          {/* 9. ALUMNI MENTORSHIP */}
+          {/* 9. MY PLACEMENT MAILBOX & INTERVIEW CALLS */}
+          <button
+            onClick={() => handleTabChange('mailbox')}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs sm:text-sm font-black transition-all shrink-0 whitespace-nowrap cursor-pointer relative ${
+              activeTab === 'mailbox'
+                ? 'bg-theme-gradient text-white shadow-md scale-105 ring-2 ring-blue-500/30'
+                : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200/80 dark:border-slate-700 hover:text-slate-900 dark:hover:text-white'
+            }`}
+          >
+            <Mail className={`w-4 h-4 ${activeTab === 'mailbox' ? 'text-white' : 'text-blue-600'}`} />
+            <span>📬 My Mailbox</span>
+          </button>
+
+          {/* 10. ALUMNI MENTORSHIP */}
           <button
             onClick={() => handleTabChange('alumni')}
             className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs sm:text-sm font-black transition-all shrink-0 whitespace-nowrap cursor-pointer ${
@@ -2842,6 +2856,14 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
                 )}
               </div>
             </div>
+          )}
+
+          {/* 📬 TAB: PLACEMENT MAILBOX & INTERVIEW CALLS */}
+          {activeTab === 'mailbox' && (
+            <StudentMailboxTab
+              currentStudent={student || currentUser?.profile || currentUser}
+              currentUser={currentUser}
+            />
           )}
 
           {/* 🏆 TAB 0: LEADERBOARD & BADGES */}
