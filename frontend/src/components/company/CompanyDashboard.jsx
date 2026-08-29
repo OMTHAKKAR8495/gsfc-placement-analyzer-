@@ -409,7 +409,11 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
     if (email.includes('tcs') || compName.includes('tcs')) {
       return DEFAULT_COMPANY_REQUIREMENTS.filter(r => r.company_id === 'c_tcs');
     }
-    return DEFAULT_COMPANY_REQUIREMENTS.filter(r => r.company_id === 'c_gsfc_limited');
+    if (compName.includes('gsfc') || isGsfcLimitedDemo) {
+      return DEFAULT_COMPANY_REQUIREMENTS.filter(r => r.company_id === 'c_gsfc_limited');
+    }
+    // For custom registered recruiters (e.g. Oteck, new companies), start clean with their own posted jobs
+    return [];
   });
   const [activeReqApplicants, setActiveReqApplicants] = useState(null);
   const [applicantsData, setApplicantsData] = useState([]);
@@ -1281,8 +1285,10 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
     const email = (currentUser?.email || '').toLowerCase();
     const compName = (company?.company_name || currentUser?.company_name || currentUser?.name || '').toLowerCase();
     
-    let defaultReqs = DEFAULT_COMPANY_REQUIREMENTS.filter(r => r.company_id === 'c_gsfc_limited');
-    if (email.includes('google') || compName.includes('google')) {
+    let defaultReqs = [];
+    if (compName.includes('gsfc') || isGsfcLimitedDemo) {
+      defaultReqs = DEFAULT_COMPANY_REQUIREMENTS.filter(r => r.company_id === 'c_gsfc_limited');
+    } else if (email.includes('google') || compName.includes('google')) {
       defaultReqs = DEFAULT_COMPANY_REQUIREMENTS.filter(r => r.company_id === 'c_google');
     } else if (email.includes('microsoft') || compName.includes('microsoft')) {
       defaultReqs = DEFAULT_COMPANY_REQUIREMENTS.filter(r => r.company_id === 'c_microsoft');
@@ -1294,7 +1300,7 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
       const res = await fetch(`/api/company/requirements?companyId=${compId}`);
       if (res.ok) {
         const data = await res.json();
-        if (Array.isArray(data) && data.length > 0) {
+        if (Array.isArray(data)) {
           setRequirements(data);
           dbVault.saveCollection('company_requirements_' + compId, data);
           return;
