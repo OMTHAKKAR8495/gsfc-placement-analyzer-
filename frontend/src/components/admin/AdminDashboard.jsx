@@ -27,6 +27,8 @@ import AdminEntryLogsManager from './AdminEntryLogsManager';
 import AdminSecurityStaffManager from './AdminSecurityStaffManager';
 import AdminMeetingsManager from './AdminMeetingsManager';
 import AdminSubscriptionPlansManager from './AdminSubscriptionPlansManager';
+import MasterDatabaseExplorer from './MasterDatabaseExplorer';
+import SignupsManager from './SignupsManager';
 import { placementCalendarStorage } from '../../utils/placementCalendarStorage';
 
 
@@ -282,6 +284,9 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
   const [loginHistoryTotal, setLoginHistoryTotal] = useState(0);
   const [loginHistoryPage, setLoginHistoryPage] = useState(1);
   const [loginHistoryRoleFilter, setLoginHistoryRoleFilter] = useState('All');
+  const [loginHistorySessionStatusFilter, setLoginHistorySessionStatusFilter] = useState('All');
+  const [loginHistoryDatePreset, setLoginHistoryDatePreset] = useState('all');
+  const [loginHistoryStats, setLoginHistoryStats] = useState({ totalLogins: 0, activeSessions: 0, todayLogins: 0, uniqueUsers: 0, desktopCount: 0, mobileCount: 0 });
   const [loginHistorySearch, setLoginHistorySearch] = useState('');
   const [loginHistoryLoading, setLoginHistoryLoading] = useState(false);
 
@@ -981,16 +986,26 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
     }
   };
 
-  const fetchLoginHistory = async (page = 1, role = loginHistoryRoleFilter, search = loginHistorySearch) => {
+  const fetchLoginHistory = async (
+    page = 1, 
+    role = loginHistoryRoleFilter, 
+    search = loginHistorySearch, 
+    sessionStatus = loginHistorySessionStatusFilter, 
+    datePreset = loginHistoryDatePreset
+  ) => {
     try {
       setLoginHistoryLoading(true);
       const roleParam = role === 'All' ? '' : role;
-      const res = await fetch(`/api/admin/login-history?page=${page}&limit=25&role=${encodeURIComponent(roleParam)}&search=${encodeURIComponent(search)}`);
+      const statusParam = sessionStatus === 'All' ? '' : sessionStatus;
+      const res = await fetch(`/api/admin/login-history?page=${page}&limit=25&role=${encodeURIComponent(roleParam)}&session_status=${encodeURIComponent(statusParam)}&datePreset=${encodeURIComponent(datePreset)}&search=${encodeURIComponent(search)}`);
       if (res.ok) {
         const data = await res.json();
         setLoginHistoryList(data.history || []);
         setLoginHistoryTotal(data.total || 0);
         setLoginHistoryPage(data.page || 1);
+        if (data.stats) {
+          setLoginHistoryStats(data.stats);
+        }
       }
     } catch (err) {
       console.error('Error fetching login history:', err);
@@ -1964,7 +1979,7 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
                 <span>➕ Quick Register Company</span>
               </button>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-1.5">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-1.5">
               <button
                 onClick={() => setAddGsfcCompanyModalOpen(true)}
                 className="flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer text-center bg-gradient-to-r from-blue-950 to-indigo-900 text-white hover:from-blue-900 hover:to-indigo-800 shadow-sm border border-indigo-500/30"
@@ -1981,6 +1996,30 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
                 }`}
               >
                 <BarChart3 className="w-3.5 h-3.5 shrink-0" /> <span className="truncate">Governance</span>
+              </button>
+
+              {/* ✨ NEW SIGNUPS & REGISTRATIONS HUB */}
+              <button
+                onClick={() => setActiveTab('signups')}
+                className={`flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer text-center ${
+                  activeTab === 'signups'
+                    ? 'bg-gradient-to-r from-amber-600 to-indigo-800 text-white shadow-md ring-2 ring-amber-400/40'
+                    : 'bg-amber-50 text-amber-950 border border-amber-200 hover:bg-amber-100'
+                }`}
+              >
+                <UserPlus className="w-3.5 h-3.5 text-amber-600 shrink-0" /> <span className="truncate">✨ New Signups</span>
+              </button>
+
+              {/* 🗄️ MASTER UNIVERSAL DATABASE EXPLORER */}
+              <button
+                onClick={() => setActiveTab('database_explorer')}
+                className={`flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer text-center ${
+                  activeTab === 'database_explorer'
+                    ? 'bg-blue-950 text-amber-300 shadow-md ring-2 ring-amber-400/40'
+                    : 'bg-blue-50 text-blue-950 border border-blue-200 hover:bg-blue-100'
+                }`}
+              >
+                <Database className="w-3.5 h-3.5 text-amber-500 shrink-0" /> <span className="truncate">🗄️ DB Explorer</span>
               </button>
 
               <button
@@ -2041,7 +2080,7 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
                     : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100'
                 }`}
               >
-                <Database className="w-3.5 h-3.5 text-amber-600 shrink-0" /> <span className="truncate">🗄️ Database ({filteredCandidates.length})</span>
+                <Layers className="w-3.5 h-3.5 text-amber-600 shrink-0" /> <span className="truncate">🎓 Batches ({filteredCandidates.length})</span>
               </button>
 
               <button
@@ -2912,34 +2951,99 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
         </div>
       )}
 
-      {/* VIEW 3: MASTER LOGIN HISTORY AUDIT TRAIL */}
+      {/* VIEW: MASTER NEW USER SIGNUPS & REGISTRATIONS HUB */}
+      {activeTab === 'signups' && (
+        <SignupsManager />
+      )}
+
+      {/* VIEW: MASTER UNIVERSAL SYSTEM DATABASE EXPLORER */}
+      {activeTab === 'database_explorer' && (
+        <MasterDatabaseExplorer />
+      )}
+
+      {/* VIEW 3: MASTER LOGIN HISTORY AUDIT TRAIL & SESSION ANALYTICS */}
       {activeTab === 'login_history' && (
         <div className="space-y-4 animate-fadeIn">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 glass-panel p-4 sm:p-5 rounded-3xl border border-slate-200 shadow-md">
-            <div>
-              <h2 className="text-base font-black text-slate-900 flex items-center gap-2">
-                <History className="w-5 h-5 text-purple-700" /> 📜 Master User Login Audit Trail
-              </h2>
-              <p className="text-xs text-slate-600 font-bold mt-0.5">
-                Chronological persistent database records of all student, faculty, recruiter, and administrator authentication events.
-              </p>
+          {/* Header Card */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 glass-panel p-4 sm:p-5 rounded-3xl border border-slate-200 shadow-md bg-white/95">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-purple-900 text-purple-200 flex items-center justify-center font-black shrink-0 shadow-md">
+                <History className="w-5 h-5 text-purple-200" />
+              </div>
+              <div>
+                <h2 className="text-base font-black text-slate-900 flex items-center gap-2">
+                  <span>Master User Login Audit Trail & Session Activity</span>
+                </h2>
+                <p className="text-xs text-slate-600 font-bold mt-0.5">
+                  Chronological persistent database records of all student, faculty, recruiter, and administrator authentication events.
+                </p>
+              </div>
             </div>
             <div className="flex items-center gap-2">
               <button 
-                onClick={() => fetchLoginHistory(loginHistoryPage)}
-                className="px-3 py-1.5 bg-purple-50 hover:bg-purple-100 text-purple-900 rounded-xl text-xs font-black border border-purple-200 flex items-center gap-1.5 transition-all"
+                onClick={() => fetchLoginHistory(loginHistoryPage, loginHistoryRoleFilter, loginHistorySearch, loginHistorySessionStatusFilter, loginHistoryDatePreset)}
+                className="px-3 py-1.5 bg-purple-50 hover:bg-purple-100 text-purple-900 rounded-xl text-xs font-black border border-purple-200 flex items-center gap-1.5 transition-all cursor-pointer"
               >
-                <RefreshCw className="w-3.5 h-3.5" /> Refresh Audit Trail
+                <RefreshCw className={`w-3.5 h-3.5 ${loginHistoryLoading ? 'animate-spin' : ''}`} /> Refresh
               </button>
+
+              <button
+                onClick={() => {
+                  const roleParam = loginHistoryRoleFilter === 'All' ? '' : loginHistoryRoleFilter;
+                  const statusParam = loginHistorySessionStatusFilter === 'All' ? '' : loginHistorySessionStatusFilter;
+                  const url = `/api/admin/login-history/export-csv?role=${encodeURIComponent(roleParam)}&session_status=${encodeURIComponent(statusParam)}&search=${encodeURIComponent(loginHistorySearch)}`;
+                  window.open(url, '_blank');
+                }}
+                className="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-600 text-white rounded-xl text-xs font-black flex items-center gap-1.5 transition-all cursor-pointer shadow-md"
+              >
+                <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-200" />
+                <span>📥 Export CSV</span>
+              </button>
+
               <span className="text-xs font-black text-purple-900 bg-purple-50 px-3 py-1.5 rounded-xl border border-purple-200 shadow-xs">
                 Total Events: {loginHistoryTotal || loginHistoryList.length}
               </span>
             </div>
           </div>
 
-          {/* Filter Bar */}
-          <div className="glass-panel p-4 rounded-3xl border border-slate-200 shadow-md flex flex-col sm:flex-row items-center justify-between gap-3">
-            <div className="relative w-full sm:w-80">
+          {/* KPI Analytics Cards */}
+          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="p-3.5 rounded-2xl bg-purple-50/80 border border-purple-100 shadow-xs flex items-center justify-between">
+              <div>
+                <p className="text-[11px] font-black uppercase text-purple-900 tracking-wider">Total Logins</p>
+                <p className="text-xl font-black text-purple-950 mt-0.5">{loginHistoryStats.totalLogins || loginHistoryTotal}</p>
+              </div>
+              <Activity className="w-7 h-7 text-purple-400" />
+            </div>
+
+            <div className="p-3.5 rounded-2xl bg-emerald-50/80 border border-emerald-100 shadow-xs flex items-center justify-between">
+              <div>
+                <p className="text-[11px] font-black uppercase text-emerald-900 tracking-wider">Active Sessions</p>
+                <p className="text-xl font-black text-emerald-950 mt-0.5">{loginHistoryStats.activeSessions || 0}</p>
+              </div>
+              <CheckCircle2 className="w-7 h-7 text-emerald-400" />
+            </div>
+
+            <div className="p-3.5 rounded-2xl bg-blue-50/80 border border-blue-100 shadow-xs flex items-center justify-between">
+              <div>
+                <p className="text-[11px] font-black uppercase text-blue-900 tracking-wider">Logins Today</p>
+                <p className="text-xl font-black text-blue-950 mt-0.5">{loginHistoryStats.todayLogins || 0}</p>
+              </div>
+              <Calendar className="w-7 h-7 text-blue-400" />
+            </div>
+
+            <div className="p-3.5 rounded-2xl bg-amber-50/80 border border-amber-100 shadow-xs flex items-center justify-between">
+              <div>
+                <p className="text-[11px] font-black uppercase text-amber-900 tracking-wider">Unique Users</p>
+                <p className="text-xl font-black text-amber-950 mt-0.5">{loginHistoryStats.uniqueUsers || 0}</p>
+              </div>
+              <Users className="w-7 h-7 text-amber-400" />
+            </div>
+          </div>
+
+          {/* Advanced Multi-Filter Bar */}
+          <div className="glass-panel p-4 rounded-3xl border border-slate-200 shadow-md flex flex-col lg:flex-row items-center justify-between gap-3 bg-white/95">
+            <div className="relative w-full lg:w-80">
               <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
               <input
                 type="text"
@@ -2947,34 +3051,89 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
                 value={loginHistorySearch}
                 onChange={(e) => {
                   setLoginHistorySearch(e.target.value);
-                  fetchLoginHistory(1, loginHistoryRoleFilter, e.target.value);
+                  fetchLoginHistory(1, loginHistoryRoleFilter, e.target.value, loginHistorySessionStatusFilter, loginHistoryDatePreset);
                 }}
-                className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:border-purple-700"
+                className="w-full pl-9 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:border-purple-700 focus:bg-white"
               />
+              {loginHistorySearch && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setLoginHistorySearch('');
+                    fetchLoginHistory(1, loginHistoryRoleFilter, '', loginHistorySessionStatusFilter, loginHistoryDatePreset);
+                  }}
+                  className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600 text-xs font-bold"
+                >
+                  ✕
+                </button>
+              )}
             </div>
-            <div className="flex items-center gap-2 w-full sm:w-auto">
-              <select
-                value={loginHistoryRoleFilter}
-                onChange={(e) => {
-                  setLoginHistoryRoleFilter(e.target.value);
-                  fetchLoginHistory(1, e.target.value, loginHistorySearch);
-                }}
-                className="px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700"
-              >
-                <option value="All">All User Roles</option>
-                <option value="student">Students Only</option>
-                <option value="faculty">Faculty Only</option>
-                <option value="recruiter">Recruiters Only</option>
-                <option value="admin">Administrators Only</option>
-              </select>
+
+            <div className="flex items-center gap-2 w-full lg:w-auto flex-wrap sm:flex-nowrap">
+              {/* Role Filter */}
+              <div className="flex items-center gap-1.5 w-full sm:w-auto">
+                <label className="text-[10px] font-black uppercase text-slate-500 whitespace-nowrap">Role:</label>
+                <select
+                  value={loginHistoryRoleFilter}
+                  onChange={(e) => {
+                    setLoginHistoryRoleFilter(e.target.value);
+                    fetchLoginHistory(1, e.target.value, loginHistorySearch, loginHistorySessionStatusFilter, loginHistoryDatePreset);
+                  }}
+                  className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 w-full sm:w-auto"
+                >
+                  <option value="All">All Roles</option>
+                  <option value="student">🎓 Students Only</option>
+                  <option value="faculty">👩‍🏫 Faculty Only</option>
+                  <option value="recruiter">🏢 Recruiters Only</option>
+                  <option value="admin">🛡️ Admins Only</option>
+                  <option value="alumni">🎓 Alumni Only</option>
+                  <option value="security">🛡️ Security Only</option>
+                </select>
+              </div>
+
+              {/* Session Status Filter */}
+              <div className="flex items-center gap-1.5 w-full sm:w-auto">
+                <label className="text-[10px] font-black uppercase text-slate-500 whitespace-nowrap">Session:</label>
+                <select
+                  value={loginHistorySessionStatusFilter}
+                  onChange={(e) => {
+                    setLoginHistorySessionStatusFilter(e.target.value);
+                    fetchLoginHistory(1, loginHistoryRoleFilter, loginHistorySearch, e.target.value, loginHistoryDatePreset);
+                  }}
+                  className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 w-full sm:w-auto"
+                >
+                  <option value="All">All Sessions</option>
+                  <option value="active">Active Now</option>
+                  <option value="logged_out">Logged Out</option>
+                </select>
+              </div>
+
+              {/* Timeframe Filter */}
+              <div className="flex items-center gap-1.5 w-full sm:w-auto">
+                <label className="text-[10px] font-black uppercase text-slate-500 whitespace-nowrap">Time:</label>
+                <select
+                  value={loginHistoryDatePreset}
+                  onChange={(e) => {
+                    setLoginHistoryDatePreset(e.target.value);
+                    fetchLoginHistory(1, loginHistoryRoleFilter, loginHistorySearch, loginHistorySessionStatusFilter, e.target.value);
+                  }}
+                  className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 w-full sm:w-auto"
+                >
+                  <option value="all">All Time</option>
+                  <option value="today">Today Only</option>
+                  <option value="yesterday">Yesterday</option>
+                  <option value="7days">Last 7 Days</option>
+                  <option value="30days">Last 30 Days</option>
+                </select>
+              </div>
             </div>
           </div>
 
           {/* Master Login Events Table */}
-          <div className="glass-panel rounded-3xl border border-slate-200 shadow-md overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-slate-50 border-b border-slate-200 text-slate-700 font-black uppercase text-[10px] tracking-wider">
+          <div className="glass-panel rounded-3xl border border-slate-200 shadow-md overflow-hidden bg-white/95">
+            <div className="overflow-x-auto custom-scrollbar">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead className="bg-slate-100/90 border-b border-slate-200 text-slate-700 font-black uppercase text-[10px] tracking-wider">
                   <tr>
                     <th className="py-3 px-4">User Email & ID</th>
                     <th className="py-3 px-4">Role</th>
@@ -2996,7 +3155,9 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
                           <span className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase ${
                             log.role === 'student' ? 'bg-blue-100 text-blue-800' :
                             log.role === 'faculty' ? 'bg-emerald-100 text-emerald-800' :
-                            log.role === 'admin' ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-800'
+                            log.role === 'admin' ? 'bg-amber-100 text-amber-800' : 
+                            log.role === 'company' ? 'bg-orange-100 text-orange-800' :
+                            log.role === 'alumni' ? 'bg-purple-100 text-purple-800' : 'bg-slate-100 text-slate-800'
                           }`}>
                             {log.role}
                           </span>
@@ -3008,7 +3169,7 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
                           </div>
                         </td>
                         <td className="py-3 px-4">
-                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black ${
+                          <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black ${
                             log.session_status === 'active' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-slate-100 text-slate-600'
                           }`}>
                             <span className={`w-1.5 h-1.5 rounded-full ${log.session_status === 'active' ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`}></span>
@@ -3024,7 +3185,7 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
                             <span>{log.device_type || 'Desktop'}</span>
                           </div>
                           <div className="text-[10px] text-slate-500 truncate max-w-xs" title={log.user_agent}>
-                            {log.user_agent || 'Chrome 128 / macOS'}
+                            {log.user_agent || 'Chrome / macOS'}
                           </div>
                         </td>
                       </tr>

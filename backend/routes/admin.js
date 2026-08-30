@@ -1133,10 +1133,20 @@ router.get('/faculty/:id/details', (req, res) => {
   }
 });
 
-// 📜 Master User Login History Audit Trail
+// 📜 Master User Login History Audit Trail & Session Analytics
 router.get('/login-history', (req, res) => {
   try {
-    const { role = '', search = '', page = 1, limit = 50, startDate = '', endDate = '' } = req.query;
+    const { 
+      role = '', 
+      session_status = '', 
+      datePreset = 'all', 
+      search = '', 
+      page = 1, 
+      limit = 50, 
+      startDate = '', 
+      endDate = '' 
+    } = req.query;
+
     const offset = (parseInt(page, 10) - 1) * parseInt(limit, 10);
 
     let query = `
@@ -1145,29 +1155,56 @@ router.get('/login-history', (req, res) => {
     `;
     const params = [];
 
-    if (role.trim()) {
-      query += ` AND role = ?`;
-      params.push(role.trim());
+    // Role filter
+    if (role.trim() && role.toLowerCase() !== 'all') {
+      const normalizedRole = role.toLowerCase() === 'recruiter' ? 'company' : role.toLowerCase();
+      query += ` AND lower(role) = ?`;
+      params.push(normalizedRole);
     }
 
+    // Session Status filter
+    if (session_status.trim() && session_status.toLowerCase() !== 'all') {
+      query += ` AND lower(session_status) = ?`;
+      params.push(session_status.toLowerCase());
+    }
+
+    // Search filter
     if (search.trim()) {
-      query += ` AND (email LIKE ? OR user_id LIKE ? OR ip_address LIKE ? OR device_type LIKE ?)`;
+      query += ` AND (email LIKE ? OR user_id LIKE ? OR ip_address LIKE ? OR device_type LIKE ? OR user_agent LIKE ?)`;
       const term = `%${search.trim()}%`;
-      params.push(term, term, term, term);
+      params.push(term, term, term, term, term);
     }
 
-    if (startDate.trim()) {
-      query += ` AND login_at >= ?`;
-      params.push(startDate.trim());
-    }
-
-    if (endDate.trim()) {
-      query += ` AND login_at <= ?`;
-      params.push(endDate.trim() + ' 23:59:59');
+    // Date Preset or Custom Date filtering
+    if (datePreset === 'today') {
+      query += ` AND date(login_at) = date('now')`;
+    } else if (datePreset === 'yesterday') {
+      query += ` AND date(login_at) = date('now', '-1 day')`;
+    } else if (datePreset === '7days') {
+      query += ` AND login_at >= datetime('now', '-7 days')`;
+    } else if (datePreset === '30days') {
+      query += ` AND login_at >= datetime('now', '-30 days')`;
+    } else {
+      if (startDate.trim()) {
+        query += ` AND login_at >= ?`;
+        params.push(startDate.trim());
+      }
+      if (endDate.trim()) {
+        query += ` AND login_at <= ?`;
+        params.push(endDate.trim() + ' 23:59:59');
+      }
     }
 
     const countSql = `SELECT COUNT(*) as count FROM (${query})`;
     const totalCount = db.prepare(countSql).get(...params)?.count || 0;
+
+    // Summary Statistics for KPI Cards
+    const totalLoginsCount = db.prepare("SELECT count(*) as c FROM user_login_history").get()?.c || 0;
+    const activeSessionsCount = db.prepare("SELECT count(*) as c FROM user_login_history WHERE session_status = 'active'").get()?.c || 0;
+    const todayLoginsCount = db.prepare("SELECT count(*) as c FROM user_login_history WHERE date(login_at) = date('now')").get()?.c || 0;
+    const uniqueUsersCount = db.prepare("SELECT count(DISTINCT email) as c FROM user_login_history").get()?.c || 0;
+    const desktopCount = db.prepare("SELECT count(*) as c FROM user_login_history WHERE device_type = 'Desktop'").get()?.c || 0;
+    const mobileCount = db.prepare("SELECT count(*) as c FROM user_login_history WHERE device_type = 'Mobile'").get()?.c || 0;
 
     query += ` ORDER BY login_at DESC LIMIT ? OFFSET ?`;
     params.push(parseInt(limit, 10), offset);
@@ -1179,10 +1216,595 @@ router.get('/login-history', (req, res) => {
       page: parseInt(page, 10),
       limit: parseInt(limit, 10),
       totalPages: Math.ceil(totalCount / parseInt(limit, 10)),
+      stats: {
+        totalLogins: totalLoginsCount,
+        activeSessions: activeSessionsCount,
+        todayLogins: todayLoginsCount,
+        uniqueUsers: uniqueUsersCount,
+        desktopCount,
+        mobileCount
+      },
       history
     });
   } catch (err) {
     console.error('Error fetching login history:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 📥 Export Login History to CSV
+router.get('/login-history/export-csv', (req, res) => {
+  try {
+    const { role = '', session_status = '', search = '' } = req.query;
+    let query = `SELECT * FROM user_login_history WHERE 1=1`;
+    const params = [];
+
+    if (role.trim() && role.toLowerCase() !== 'all') {
+      const normalizedRole = role.toLowerCase() === 'recruiter' ? 'company' : role.toLowerCase();
+      query += ` AND lower(role) = ?`;
+      params.push(normalizedRole);
+    }
+    if (session_status.trim() && session_status.toLowerCase() !== 'all') {
+      query += ` AND lower(session_status) = ?`;
+      params.push(session_status.toLowerCase());
+    }
+    if (search.trim()) {
+      query += ` AND (email LIKE ? OR user_id LIKE ? OR ip_address LIKE ? OR device_type LIKE ?)`;
+      const term = `%${search.trim()}%`;
+      params.push(term, term, term, term);
+    }
+
+    query += ` ORDER BY login_at DESC LIMIT 5000`;
+    const logs = db.prepare(query).all(...params);
+
+    const headers = ['Log ID', 'User ID', 'Email', 'Role', 'Session Status', 'IP Address', 'Device Type', 'Login Time', 'Logout Time', 'User Agent'];
+    const rows = logs.map(l => [
+      `"${l.id || ''}"`,
+      `"${l.user_id || ''}"`,
+      `"${l.email || ''}"`,
+      `"${l.role || ''}"`,
+      `"${l.session_status || 'active'}"`,
+      `"${l.ip_address || ''}"`,
+      `"${l.device_type || 'Desktop'}"`,
+      `"${l.login_at || ''}"`,
+      `"${l.logout_at || ''}"`,
+      `"${(l.user_agent || '').replace(/"/g, '""')}"`
+    ]);
+
+    const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="GSFC_Login_History_${Date.now()}.csv"`);
+    return res.status(200).send(csvContent);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// =========================================================================
+// 🗄️ MASTER UNIVERSAL DATABASE EXPLORER (ALL TABLES & DATA INSPECTOR)
+// =========================================================================
+
+// 1. Get All System Tables & Metadata
+router.get('/database/tables', (req, res) => {
+  try {
+    const rawTables = db.prepare(`
+      SELECT name FROM sqlite_master 
+      WHERE type='table' 
+        AND name NOT LIKE 'sqlite_%' 
+        AND name NOT LIKE 'users_temp%'
+        AND name NOT LIKE 'users_migrated%'
+      ORDER BY name ASC
+    `).all();
+
+    const tables = rawTables.map(t => {
+      let count = 0;
+      try {
+        count = db.prepare(`SELECT COUNT(*) as c FROM "${t.name}"`).get()?.c || 0;
+      } catch (e) {}
+
+      let columns = [];
+      try {
+        columns = db.prepare(`PRAGMA table_info("${t.name}")`).all().map(col => ({
+          name: col.name,
+          type: col.type,
+          notnull: col.notnull === 1,
+          pk: col.pk === 1,
+          isSensitive: col.name.toLowerCase().includes('password') || col.name.toLowerCase().includes('secret')
+        }));
+      } catch (e) {}
+
+      return {
+        name: t.name,
+        rowCount: count,
+        columnsCount: columns.length,
+        columns
+      };
+    });
+
+    const totalDatabaseRows = tables.reduce((acc, t) => acc + t.rowCount, 0);
+
+    res.json({
+      success: true,
+      totalTables: tables.length,
+      totalDatabaseRows,
+      tables
+    });
+  } catch (err) {
+    console.error('Error fetching database tables:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 2. Query Specific Table Data with Live Searching, Sorting & Pagination
+router.get('/database/table/:tableName', (req, res) => {
+  try {
+    const { tableName } = req.params;
+    const { 
+      page = 1, 
+      limit = 25, 
+      search = '', 
+      sortColumn = '', 
+      sortDirection = 'DESC' 
+    } = req.query;
+
+    // Whitelist verification against sqlite_master
+    const tableExists = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name = ?").get(tableName);
+    if (!tableExists) {
+      return res.status(404).json({ error: `Table '${tableName}' does not exist in the database.` });
+    }
+
+    const columnsInfo = db.prepare(`PRAGMA table_info("${tableName}")`).all();
+    const columnNames = columnsInfo.map(c => c.name);
+
+    let query = `SELECT * FROM "${tableName}" WHERE 1=1`;
+    const params = [];
+
+    // Global Search across searchable columns
+    if (search && search.trim()) {
+      const term = `%${search.trim()}%`;
+      const searchClauses = [];
+      for (const col of columnsInfo) {
+        if (!col.name.toLowerCase().includes('password')) {
+          searchClauses.push(`CAST("${col.name}" AS TEXT) LIKE ?`);
+          params.push(term);
+        }
+      }
+      if (searchClauses.length > 0) {
+        query += ` AND (${searchClauses.join(' OR ')})`;
+      }
+    }
+
+    const countSql = `SELECT COUNT(*) as count FROM (${query})`;
+    const totalRows = db.prepare(countSql).get(...params)?.count || 0;
+
+    // Sorting
+    const safeSortDir = sortDirection.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
+    let safeSortCol = columnNames[0] || 'rowid';
+    if (sortColumn && columnNames.includes(sortColumn)) {
+      safeSortCol = sortColumn;
+    } else {
+      // Default to created_at or id or first column if exists
+      if (columnNames.includes('created_at')) safeSortCol = 'created_at';
+      else if (columnNames.includes('login_at')) safeSortCol = 'login_at';
+      else if (columnNames.includes('id')) safeSortCol = 'id';
+    }
+
+    query += ` ORDER BY "${safeSortCol}" ${safeSortDir} LIMIT ? OFFSET ?`;
+    const pageNum = Math.max(1, parseInt(page, 10));
+    const limitNum = Math.min(500, Math.max(5, parseInt(limit, 10)));
+    const offset = (pageNum - 1) * limitNum;
+    params.push(limitNum, offset);
+
+    const rawRows = db.prepare(query).all(...params);
+
+    // Sanitize sensitive columns (passwords / secrets)
+    const sanitizedRows = rawRows.map(row => {
+      const clean = { ...row };
+      for (const key of Object.keys(clean)) {
+        if (key.toLowerCase().includes('password_hash') || key.toLowerCase().includes('password')) {
+          clean[key] = '🔒 [ENCRYPTED_BCRYPT_HASH]';
+        } else if (key.toLowerCase().includes('totp_secret')) {
+          clean[key] = '🔒 [ENCRYPTED_TOTP_SECRET]';
+        }
+      }
+      return clean;
+    });
+
+    res.json({
+      success: true,
+      tableName,
+      columns: columnsInfo.map(c => ({
+        name: c.name,
+        type: c.type,
+        pk: c.pk === 1,
+        notnull: c.notnull === 1
+      })),
+      total: totalRows,
+      page: pageNum,
+      limit: limitNum,
+      totalPages: Math.ceil(totalRows / limitNum),
+      rows: sanitizedRows
+    });
+  } catch (err) {
+    console.error(`Error querying table ${req.params?.tableName}:`, err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 3. Export Any Table Data to CSV
+router.get('/database/table/:tableName/export-csv', (req, res) => {
+  try {
+    const { tableName } = req.params;
+    const { search = '' } = req.query;
+
+    const tableExists = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name = ?").get(tableName);
+    if (!tableExists) {
+      return res.status(404).json({ error: `Table '${tableName}' not found.` });
+    }
+
+    const columnsInfo = db.prepare(`PRAGMA table_info("${tableName}")`).all();
+    const columnNames = columnsInfo.map(c => c.name);
+
+    let query = `SELECT * FROM "${tableName}" WHERE 1=1`;
+    const params = [];
+
+    if (search && search.trim()) {
+      const term = `%${search.trim()}%`;
+      const searchClauses = [];
+      for (const col of columnsInfo) {
+        if (!col.name.toLowerCase().includes('password')) {
+          searchClauses.push(`CAST("${col.name}" AS TEXT) LIKE ?`);
+          params.push(term);
+        }
+      }
+      if (searchClauses.length > 0) {
+        query += ` AND (${searchClauses.join(' OR ')})`;
+      }
+    }
+
+    query += ` LIMIT 10000`;
+    const rawRows = db.prepare(query).all(...params);
+
+    const headers = columnNames.map(col => `"${col}"`).join(',');
+    const rows = rawRows.map(r => {
+      return columnNames.map(col => {
+        let val = r[col];
+        if (col.toLowerCase().includes('password')) {
+          val = '[ENCRYPTED_PASSWORD_HASH]';
+        } else if (col.toLowerCase().includes('totp_secret')) {
+          val = '[ENCRYPTED_TOTP_SECRET]';
+        } else if (val === null || val === undefined) {
+          val = '';
+        } else if (typeof val === 'object') {
+          val = JSON.stringify(val);
+        } else {
+          val = String(val);
+        }
+        return `"${val.replace(/"/g, '""')}"`;
+      }).join(',');
+    });
+
+    const csvContent = [headers, ...rows].join('\n');
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${tableName}_data_${Date.now()}.csv"`);
+    return res.status(200).send(csvContent);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// =========================================================================
+// ✨ MASTER NEW USER SIGNUPS & ACCOUNT REGISTRATIONS HUB
+// =========================================================================
+
+// 1. Get Unified Signups Across All Roles with Advanced Multi-Dimensional Filtering
+router.get('/signups', (req, res) => {
+  try {
+    const { 
+      role = '', 
+      status = '', 
+      datePreset = 'all', 
+      search = '', 
+      page = 1, 
+      limit = 50,
+      startDate = '',
+      endDate = ''
+    } = req.query;
+
+    const offset = (parseInt(page, 10) - 1) * parseInt(limit, 10);
+
+    // Unified query from users + specific profile tables
+    let baseSql = `
+      SELECT 
+        u.id as user_id,
+        u.email,
+        u.role,
+        u.created_at,
+        u.last_login_at,
+        COALESCE(u.login_count, 0) as login_count,
+        COALESCE(s.name, c.company_name, f.name, a.name, sec.name, 'Registered User') as name,
+        COALESCE(s.phone, c.contact_phone, f.phone, a.phone, sec.phone, '') as phone,
+        COALESCE(s.branch, c.industry, f.department, a.company, sec.campus_gate, '') as organization_or_branch,
+        COALESCE(s.program, f.designation, a.designation, '') as designation_or_program,
+        s.roll_number,
+        s.cgpa,
+        s.ats_score,
+        c.id as company_id,
+        c.approved as company_approved,
+        a.id as alumni_id,
+        a.verified as alumni_verified,
+        COALESCE(s.access_status, f.access_status, sec.status, 'active') as access_status,
+        CASE
+          WHEN u.role = 'company' THEN (CASE WHEN c.approved = 1 THEN 'approved' ELSE 'pending' END)
+          WHEN u.role = 'alumni' THEN (CASE WHEN a.verified = 1 THEN 'approved' ELSE 'pending' END)
+          WHEN u.role = 'student' THEN (CASE WHEN s.access_status = 'blocked' THEN 'blocked' ELSE 'approved' END)
+          WHEN u.role = 'faculty' THEN (CASE WHEN f.access_status = 'blocked' THEN 'blocked' ELSE 'approved' END)
+          WHEN u.role = 'security' THEN (CASE WHEN sec.status = 'inactive' THEN 'blocked' ELSE 'approved' END)
+          ELSE 'approved'
+        END as unified_status
+      FROM users u
+      LEFT JOIN student_profiles s ON u.id = s.user_id
+      LEFT JOIN company_profiles c ON u.id = c.user_id
+      LEFT JOIN faculty_profiles f ON u.id = f.user_id
+      LEFT JOIN alumni_profiles a ON u.id = a.user_id
+      LEFT JOIN security_staff_profiles sec ON u.id = sec.user_id
+      WHERE 1=1
+    `;
+
+    const params = [];
+
+    // Filter by Role
+    if (role.trim() && role.toLowerCase() !== 'all') {
+      const normalizedRole = role.toLowerCase() === 'recruiter' ? 'company' : role.toLowerCase();
+      baseSql += ` AND lower(u.role) = ?`;
+      params.push(normalizedRole);
+    }
+
+    // Filter by Unified Status
+    if (status.trim() && status.toLowerCase() !== 'all') {
+      const normStatus = status.toLowerCase();
+      if (normStatus === 'pending') {
+        baseSql += ` AND ((u.role = 'company' AND COALESCE(c.approved, 0) = 0) OR (u.role = 'alumni' AND COALESCE(a.verified, 0) = 0))`;
+      } else if (normStatus === 'blocked') {
+        baseSql += ` AND (s.access_status = 'blocked' OR f.access_status = 'blocked' OR sec.status = 'inactive')`;
+      } else if (normStatus === 'approved' || normStatus === 'active') {
+        baseSql += ` AND (
+          (u.role = 'company' AND c.approved = 1) OR 
+          (u.role = 'alumni' AND a.verified = 1) OR 
+          (u.role = 'student' AND COALESCE(s.access_status, 'active') != 'blocked') OR 
+          (u.role = 'faculty' AND COALESCE(f.access_status, 'active') != 'blocked') OR 
+          (u.role NOT IN ('company', 'alumni', 'student', 'faculty'))
+        )`;
+      }
+    }
+
+    // Search filter
+    if (search.trim()) {
+      baseSql += ` AND (
+        u.email LIKE ? OR 
+        s.name LIKE ? OR 
+        c.company_name LIKE ? OR 
+        f.name LIKE ? OR 
+        a.name LIKE ? OR 
+        s.roll_number LIKE ? OR 
+        s.phone LIKE ? OR 
+        c.contact_phone LIKE ?
+      )`;
+      const term = `%${search.trim()}%`;
+      params.push(term, term, term, term, term, term, term, term);
+    }
+
+    // Date Preset or Custom Date filtering
+    if (datePreset === 'today') {
+      baseSql += ` AND date(u.created_at) = date('now')`;
+    } else if (datePreset === 'yesterday') {
+      baseSql += ` AND date(u.created_at) = date('now', '-1 day')`;
+    } else if (datePreset === '7days') {
+      baseSql += ` AND u.created_at >= datetime('now', '-7 days')`;
+    } else if (datePreset === '30days') {
+      baseSql += ` AND u.created_at >= datetime('now', '-30 days')`;
+    } else {
+      if (startDate.trim()) {
+        baseSql += ` AND u.created_at >= ?`;
+        params.push(startDate.trim());
+      }
+      if (endDate.trim()) {
+        baseSql += ` AND u.created_at <= ?`;
+        params.push(endDate.trim() + ' 23:59:59');
+      }
+    }
+
+    const countSql = `SELECT COUNT(*) as count FROM (${baseSql})`;
+    const totalCount = db.prepare(countSql).get(...params)?.count || 0;
+
+    // Calculate Summary Statistics
+    const totalSignups = db.prepare("SELECT count(*) as c FROM users").get()?.c || 0;
+    const todaySignups = db.prepare("SELECT count(*) as c FROM users WHERE date(created_at) = date('now')").get()?.c || 0;
+    const weekSignups = db.prepare("SELECT count(*) as c FROM users WHERE created_at >= datetime('now', '-7 days')").get()?.c || 0;
+    const pendingCompanies = db.prepare("SELECT count(*) as c FROM company_profiles WHERE approved = 0").get()?.c || 0;
+    const pendingAlumni = db.prepare("SELECT count(*) as c FROM alumni_profiles WHERE verified = 0").get()?.c || 0;
+    const pendingApprovals = pendingCompanies + pendingAlumni;
+
+    const studentSignups = db.prepare("SELECT count(*) as c FROM users WHERE role = 'student'").get()?.c || 0;
+    const companySignups = db.prepare("SELECT count(*) as c FROM users WHERE role = 'company'").get()?.c || 0;
+    const facultySignups = db.prepare("SELECT count(*) as c FROM users WHERE role = 'faculty'").get()?.c || 0;
+    const alumniSignups = db.prepare("SELECT count(*) as c FROM users WHERE role = 'alumni'").get()?.c || 0;
+    const securitySignups = db.prepare("SELECT count(*) as c FROM users WHERE role = 'security'").get()?.c || 0;
+
+    baseSql += ` ORDER BY u.created_at DESC LIMIT ? OFFSET ?`;
+    params.push(parseInt(limit, 10), offset);
+
+    const signups = db.prepare(baseSql).all(...params);
+
+    res.json({
+      success: true,
+      total: totalCount,
+      page: parseInt(page, 10),
+      limit: parseInt(limit, 10),
+      totalPages: Math.ceil(totalCount / parseInt(limit, 10)),
+      stats: {
+        totalSignups,
+        todaySignups,
+        weekSignups,
+        pendingApprovals,
+        roleBreakdown: {
+          student: studentSignups,
+          company: companySignups,
+          faculty: facultySignups,
+          alumni: alumniSignups,
+          security: securitySignups
+        }
+      },
+      signups
+    });
+  } catch (err) {
+    console.error('Error fetching user signups:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 2. Export Signups to CSV
+router.get('/signups/export-csv', (req, res) => {
+  try {
+    const { role = '', status = '', search = '' } = req.query;
+
+    let baseSql = `
+      SELECT 
+        u.id as user_id,
+        u.email,
+        u.role,
+        u.created_at,
+        u.last_login_at,
+        COALESCE(u.login_count, 0) as login_count,
+        COALESCE(s.name, c.company_name, f.name, a.name, sec.name, 'User') as name,
+        COALESCE(s.phone, c.contact_phone, f.phone, a.phone, sec.phone, '') as phone,
+        COALESCE(s.branch, c.industry, f.department, a.company, sec.campus_gate, '') as organization_or_branch,
+        s.roll_number,
+        CASE
+          WHEN u.role = 'company' THEN (CASE WHEN c.approved = 1 THEN 'approved' ELSE 'pending' END)
+          WHEN u.role = 'alumni' THEN (CASE WHEN a.verified = 1 THEN 'approved' ELSE 'pending' END)
+          WHEN u.role = 'student' THEN (CASE WHEN s.access_status = 'blocked' THEN 'blocked' ELSE 'approved' END)
+          WHEN u.role = 'faculty' THEN (CASE WHEN f.access_status = 'blocked' THEN 'blocked' ELSE 'approved' END)
+          ELSE 'approved'
+        END as unified_status
+      FROM users u
+      LEFT JOIN student_profiles s ON u.id = s.user_id
+      LEFT JOIN company_profiles c ON u.id = c.user_id
+      LEFT JOIN faculty_profiles f ON u.id = f.user_id
+      LEFT JOIN alumni_profiles a ON u.id = a.user_id
+      LEFT JOIN security_staff_profiles sec ON u.id = sec.user_id
+      WHERE 1=1
+    `;
+
+    const params = [];
+
+    if (role.trim() && role.toLowerCase() !== 'all') {
+      const normalizedRole = role.toLowerCase() === 'recruiter' ? 'company' : role.toLowerCase();
+      baseSql += ` AND lower(u.role) = ?`;
+      params.push(normalizedRole);
+    }
+
+    if (status.trim() && status.toLowerCase() !== 'all') {
+      const normStatus = status.toLowerCase();
+      if (normStatus === 'pending') {
+        baseSql += ` AND ((u.role = 'company' AND COALESCE(c.approved, 0) = 0) OR (u.role = 'alumni' AND COALESCE(a.verified, 0) = 0))`;
+      } else if (normStatus === 'blocked') {
+        baseSql += ` AND (s.access_status = 'blocked' OR f.access_status = 'blocked' OR sec.status = 'inactive')`;
+      } else if (normStatus === 'approved' || normStatus === 'active') {
+        baseSql += ` AND (
+          (u.role = 'company' AND c.approved = 1) OR 
+          (u.role = 'alumni' AND a.verified = 1) OR 
+          (u.role = 'student' AND COALESCE(s.access_status, 'active') != 'blocked')
+        )`;
+      }
+    }
+
+    if (search.trim()) {
+      baseSql += ` AND (u.email LIKE ? OR s.name LIKE ? OR c.company_name LIKE ? OR f.name LIKE ?)`;
+      const term = `%${search.trim()}%`;
+      params.push(term, term, term, term);
+    }
+
+    baseSql += ` ORDER BY u.created_at DESC LIMIT 10000`;
+    const signups = db.prepare(baseSql).all(...params);
+
+    const headers = ['User ID', 'Registered At', 'Email', 'Role', 'Full Name / Company', 'Contact Phone', 'Branch / Organization', 'Roll Number', 'Status', 'Total Logins', 'Last Login'];
+    const rows = signups.map(s => [
+      `"${s.user_id || ''}"`,
+      `"${s.created_at || ''}"`,
+      `"${s.email || ''}"`,
+      `"${s.role || ''}"`,
+      `"${(s.name || '').replace(/"/g, '""')}"`,
+      `"${s.phone || ''}"`,
+      `"${(s.organization_or_branch || '').replace(/"/g, '""')}"`,
+      `"${s.roll_number || ''}"`,
+      `"${s.unified_status || 'approved'}"`,
+      `"${s.login_count || 0}"`,
+      `"${s.last_login_at || ''}"`
+    ]);
+
+    const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="GSFC_User_Signups_${Date.now()}.csv"`);
+    return res.status(200).send(csvContent);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 3. Update User Status / Approval Action Directly from Signups Hub
+router.post('/signups/:userId/status', (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { action, role } = req.body; // 'approve', 'reject', 'block', 'unblock'
+
+    if (!userId || !action) {
+      return res.status(400).json({ error: 'userId and action are required.' });
+    }
+
+    const user = db.prepare("SELECT * FROM users WHERE id = ?").get(userId);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+
+    const userRole = role || user.role;
+
+    if (userRole === 'company') {
+      if (action === 'approve') {
+        db.prepare("UPDATE company_profiles SET approved = 1 WHERE user_id = ?").run(userId);
+        logAdminAuditAction(req, 'APPROVE_COMPANY_SIGNUP', 'company', userId, { email: user.email });
+        return res.json({ success: true, message: `Company recruiter ${user.email} approved successfully!` });
+      } else if (action === 'reject' || action === 'block') {
+        db.prepare("UPDATE company_profiles SET approved = 0 WHERE user_id = ?").run(userId);
+        logAdminAuditAction(req, 'REVOKE_COMPANY_APPROVAL', 'company', userId, { email: user.email });
+        return res.json({ success: true, message: `Company recruiter ${user.email} access revoked.` });
+      }
+    } else if (userRole === 'alumni') {
+      if (action === 'approve') {
+        db.prepare("UPDATE alumni_profiles SET verified = 1 WHERE user_id = ?").run(userId);
+        logAdminAuditAction(req, 'APPROVE_ALUMNI_SIGNUP', 'alumni', userId, { email: user.email });
+        return res.json({ success: true, message: `Alumni mentor ${user.email} verified successfully!` });
+      } else if (action === 'reject' || action === 'block') {
+        db.prepare("UPDATE alumni_profiles SET verified = 0 WHERE user_id = ?").run(userId);
+        logAdminAuditAction(req, 'REVOKE_ALUMNI_APPROVAL', 'alumni', userId, { email: user.email });
+        return res.json({ success: true, message: `Alumni mentor ${user.email} verification revoked.` });
+      }
+    } else if (userRole === 'student') {
+      const newStatus = action === 'block' ? 'blocked' : 'active';
+      db.prepare("UPDATE student_profiles SET access_status = ? WHERE user_id = ?").run(newStatus, userId);
+      db.prepare("UPDATE authorized_students SET access_status = ? WHERE email = ?").run(newStatus, user.email);
+      logAdminAuditAction(req, action === 'block' ? 'BLOCK_STUDENT' : 'UNBLOCK_STUDENT', 'student', userId, { email: user.email });
+      return res.json({ success: true, message: `Student ${user.email} access set to ${newStatus}.` });
+    } else if (userRole === 'faculty') {
+      const newStatus = action === 'block' ? 'blocked' : 'active';
+      db.prepare("UPDATE faculty_profiles SET access_status = ? WHERE user_id = ?").run(newStatus, userId);
+      logAdminAuditAction(req, action === 'block' ? 'BLOCK_FACULTY' : 'UNBLOCK_FACULTY', 'faculty', userId, { email: user.email });
+      return res.json({ success: true, message: `Faculty ${user.email} access set to ${newStatus}.` });
+    }
+
+    res.json({ success: true, message: `Action '${action}' applied to ${user.email}.` });
+  } catch (err) {
+    console.error('Error updating signup status:', err);
     res.status(500).json({ error: err.message });
   }
 });
