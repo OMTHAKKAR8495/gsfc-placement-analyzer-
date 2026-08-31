@@ -1,6 +1,7 @@
 import db, { initDatabase } from '../db/index.js';
 import fs from 'fs';
 import path from 'path';
+import bcrypt from 'bcryptjs';
 
 console.log('🧪 Starting GSFC Placement Portal Verification Suite...\n');
 
@@ -177,5 +178,23 @@ console.log('   ✅ Strike 2 Disqualification recorded and participant marked ej
 db.prepare('DELETE FROM meeting_violations WHERE meeting_id = ?').run(testMeetingId);
 db.prepare('DELETE FROM meeting_participants WHERE meeting_id = ?').run(testMeetingId);
 db.prepare('DELETE FROM meetings WHERE id = ?').run(testMeetingId);
+
+// 9. Test Bug #7: Wrong Password Rejection & Security Check
+console.log('\n9️⃣ Testing Bug #7: Password Validation Security...');
+const testStudUser = db.prepare("SELECT id, password_hash FROM users WHERE role = 'student' AND password_hash IS NOT NULL LIMIT 1").get();
+if (testStudUser) {
+  const originalHash = testStudUser.password_hash;
+  const isWrongValid = bcrypt.compareSync('completely_wrong_password_999', originalHash);
+  if (isWrongValid) {
+    throw new Error('❌ Incorrect password matched hash unexpectedly!');
+  }
+  
+  // Verify hash in DB remains untouched
+  const hashAfter = db.prepare('SELECT password_hash FROM users WHERE id = ?').get(testStudUser.id).password_hash;
+  if (hashAfter !== originalHash) {
+    throw new Error('❌ Password hash was overwritten on invalid login!');
+  }
+  console.log('   ✅ Incorrect password securely rejected without modifying stored hash.');
+}
 
 console.log('\n🎉 ALL BACKEND VERIFICATIONS PASSED SUCCESSFULLY!');

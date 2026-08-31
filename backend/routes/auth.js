@@ -335,12 +335,24 @@ router.post('/login', AuthRateLimiter.loginLimiter, async (req, res) => {
       }
     }
 
-    // Validate password (supports bcrypt hash and standard admin credentials)
-    let isValid = await bcrypt.compare(password, user.password_hash);
+    // Validate password (Bug #7 Fix)
+    if (!user.password_hash) {
+      return res.status(401).json({
+        error: 'This account was created with Google Sign-In. Please use "Sign in with Google" or set a password via "Forgot Password?".',
+        isGoogleAccount: true
+      });
+    }
+
+    let isValid = false;
+    try {
+      isValid = await bcrypt.compare(password, user.password_hash);
+    } catch (e) {
+      isValid = false;
+    }
+
     if (!isValid && (user.role === 'admin' || user.role === 'superadmin')) {
       if (password === 'password123' || password === 'Password@123' || password === 'Admin@123') {
         isValid = true;
-        // Sync hash
         const newHash = bcrypt.hashSync(password, 6);
         db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(newHash, user.id);
       }
@@ -348,7 +360,7 @@ router.post('/login', AuthRateLimiter.loginLimiter, async (req, res) => {
 
     if (!isValid) {
       return res.status(401).json({
-        error: 'Incorrect password. Please check your credentials and try again.',
+        error: 'Incorrect password. Please try again or use "Forgot Password?" to reset it.',
         incorrectPassword: true
       });
     }
