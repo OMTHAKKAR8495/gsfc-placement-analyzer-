@@ -310,15 +310,8 @@ router.post('/login', AuthRateLimiter.loginLimiter, async (req, res) => {
         }
       } else {
         const isRoleMatch = normSelected === normActual || (normSelected === 'admin' && normActual === 'superadmin');
-
         if (normSelected && !isRoleMatch) {
-          const actualLabel = getRolePortalLabel(user.role);
-          const article = (actualLabel.startsWith('a') || actualLabel.startsWith('e') || actualLabel.startsWith('i') || actualLabel.startsWith('o') || actualLabel.startsWith('u')) ? 'an' : 'a';
-          return res.status(403).json({
-            error: `Access Denied: This account is registered as ${article} ${actualLabel}. Please use the ${actualLabel} portal.`,
-            actualRole: user.role,
-            selectedRole: selectedRole
-          });
+          console.log(`Auto-aligning role from ${normSelected} to registered ${user.role} for ${cleanEmail}`);
         }
       }
     }
@@ -365,9 +358,8 @@ router.post('/login', AuthRateLimiter.loginLimiter, async (req, res) => {
       });
     }
 
-    // 🛡️ Two-Factor Authentication Check (Mandatory for Admin/SuperAdmin, Optional for others)
-    const isMandatory2FA = user.role === 'admin' || user.role === 'superadmin';
-    const is2FAActive = (user.two_factor_enabled === 1) || (isMandatory2FA && user.two_factor_secret);
+    // 🛡️ Two-Factor Authentication Check (Active only when explicitly enabled)
+    const is2FAActive = (user.two_factor_enabled === 1) && Boolean(user.two_factor_secret);
 
     if (is2FAActive) {
       const totpCode = req.body.totp_code || req.body.totpCode;
@@ -412,6 +404,14 @@ router.post('/login', AuthRateLimiter.loginLimiter, async (req, res) => {
         name: 'Dr. Neeshu Chaudhary',
         department: 'Computer Science & Engineering',
         designation: 'Faculty Placement Coordinator'
+      };
+      ownerId = user.id;
+    } else if (user.role === 'admin' || user.role === 'superadmin') {
+      profile = {
+        id: user.id,
+        name: user.role === 'superadmin' ? 'Super Administrator' : 'GSFC TPC Director',
+        department: 'Training & Placement Cell',
+        designation: 'Director TPC'
       };
       ownerId = user.id;
     }
