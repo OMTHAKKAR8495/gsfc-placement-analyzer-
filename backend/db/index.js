@@ -7,10 +7,12 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const dbDir = process.env.DB_DIR || __dirname;
-if (process.env.DB_DIR && !fs.existsSync(process.env.DB_DIR)) {
+const isServerless = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME || process.env.NETLIFY);
+const dbDir = process.env.DB_DIR || (isServerless ? '/tmp' : __dirname);
+
+if (!fs.existsSync(dbDir)) {
   try {
-    fs.mkdirSync(process.env.DB_DIR, { recursive: true });
+    fs.mkdirSync(dbDir, { recursive: true });
   } catch (e) {
     console.warn('DB_DIR directory creation notice:', e.message);
   }
@@ -31,12 +33,12 @@ try {
   throw err;
 }
 
-
-
 export function initDatabase() {
   const schemaPath = path.join(__dirname, 'schema.sql');
-  const schema = fs.readFileSync(schemaPath, 'utf8');
-  db.exec(schema);
+  if (fs.existsSync(schemaPath)) {
+    const schema = fs.readFileSync(schemaPath, 'utf8');
+    db.exec(schema);
+  }
 
   applyMigrations();
 
@@ -47,6 +49,13 @@ export function initDatabase() {
   }
 
   seedInitialData();
+}
+
+// Auto-run initDatabase to guarantee tables exist on cold start
+try {
+  initDatabase();
+} catch (e) {
+  console.warn('Auto initDatabase notice:', e.message);
 }
 
 function applyMigrations() {

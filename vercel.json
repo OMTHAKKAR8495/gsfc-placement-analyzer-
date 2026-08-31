@@ -39,7 +39,7 @@
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": "https://gsfc-placement-backend.onrender.com/api/$1"
+      "destination": "/api/index.js"
     },
     {
       "source": "/((?!api/).*)",
