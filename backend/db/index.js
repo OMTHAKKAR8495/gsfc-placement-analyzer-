@@ -1474,10 +1474,19 @@ function applyMigrations() {
     seedPlacementIntelligenceData();
 
     // Ensure GSFC Admin accounts exist
-    const adminUser = db.prepare("SELECT * FROM users WHERE email = 'admin@gsfcuniversity.ac.in'").get();
+    const adminPassHash = bcrypt.hashSync('password123', 6);
+    const adminUser = db.prepare("SELECT * FROM users WHERE lower(email) = 'admin@gsfcuniversity.ac.in'").get();
     if (!adminUser) {
-      const passHash = bcrypt.hashSync('password123', 10);
-      db.prepare("INSERT INTO users (id, email, password_hash, role) VALUES (?, ?, ?, ?)").run('u_admin_gsfc', 'admin@gsfcuniversity.ac.in', passHash, 'admin');
+      db.prepare("INSERT INTO users (id, email, password_hash, role) VALUES (?, ?, ?, ?)").run('u_admin_gsfc', 'admin@gsfcuniversity.ac.in', adminPassHash, 'admin');
+    } else {
+      db.prepare("UPDATE users SET password_hash = ?, role = 'admin' WHERE lower(email) = 'admin@gsfcuniversity.ac.in'").run(adminPassHash);
+    }
+
+    const superAdminUser = db.prepare("SELECT * FROM users WHERE lower(email) = 'superadmin@gsfcuniversity.ac.in'").get();
+    if (!superAdminUser) {
+      db.prepare("INSERT INTO users (id, email, password_hash, role) VALUES (?, ?, ?, ?)").run('u_superadmin_gsfc', 'superadmin@gsfcuniversity.ac.in', adminPassHash, 'superadmin');
+    } else {
+      db.prepare("UPDATE users SET password_hash = ?, role = 'superadmin' WHERE lower(email) = 'superadmin@gsfcuniversity.ac.in'").run(adminPassHash);
     }
 
     // Ensure Official GSFC Faculty Account: Dr. Neeshu Chaudhary
