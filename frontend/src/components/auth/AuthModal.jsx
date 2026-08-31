@@ -726,15 +726,23 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialRole 
       let data = null;
       try { data = await res.json(); } catch(e) {}
 
-      // If user not found on login, prompt to create an account
-      if (res.status === 404 && data?.accountNotFound) {
-        setError(data.error || 'No account exists for this email yet.');
-        setShowCreateAccountPrompt(true);
+      // If user not found on login, immediately switch to Sign Up / Registration page
+      if (isLogin && (res.status === 404 || data?.accountNotFound || (data?.error && data.error.toLowerCase().includes('no account')))) {
+        setIsLogin(false);
+        setError('No account found for this email. Please register first to continue.');
+        setShowCreateAccountPrompt(false);
         setLoading(false);
         return;
       }
 
-      // If backend returned access denied, invalid password, or role mismatch error
+      // If password incorrect
+      if (isLogin && (res.status === 401 || data?.incorrectPassword || (data?.error && data.error.toLowerCase().includes('password')))) {
+        setError('Incorrect password. Please check your password and try again.');
+        setLoading(false);
+        return;
+      }
+
+      // If backend returned access denied or other error
       if (!res.ok) {
         setError(data?.error || 'Authentication failed. Please verify your credentials.');
         setLoading(false);
