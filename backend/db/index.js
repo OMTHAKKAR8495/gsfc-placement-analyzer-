@@ -7,23 +7,15 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const isServerless = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME || process.env.NETLIFY);
-let dbPath = path.join(__dirname, 'campushire.db');
-
-// In serverless environments (Vercel), copy local database to /tmp so writes succeed
-if (isServerless) {
-  const tmpDbPath = path.join('/tmp', 'campushire.db');
+const dbDir = process.env.DB_DIR || __dirname;
+if (process.env.DB_DIR && !fs.existsSync(process.env.DB_DIR)) {
   try {
-    if (!fs.existsSync(tmpDbPath)) {
-      if (fs.existsSync(dbPath)) {
-        fs.copyFileSync(dbPath, tmpDbPath);
-      }
-    }
-    dbPath = tmpDbPath;
+    fs.mkdirSync(process.env.DB_DIR, { recursive: true });
   } catch (e) {
-    console.warn('Serverless /tmp db setup notice:', e.message);
+    console.warn('DB_DIR directory creation notice:', e.message);
   }
 }
+const dbPath = path.join(dbDir, 'campushire.db');
 
 let db;
 try {
@@ -35,10 +27,10 @@ try {
   db.pragma('busy_timeout = 10000');
   db.pragma('foreign_keys = ON');
 } catch (err) {
-  console.warn('Database initialization fallback to /tmp:', err.message);
-  dbPath = path.join('/tmp', 'campushire_fallback.db');
-  db = new Database(dbPath);
+  console.error('Fatal Database initialization error on path:', dbPath, err);
+  throw err;
 }
+
 
 
 export function initDatabase() {
@@ -1673,10 +1665,351 @@ function applyMigrations() {
         insertActStmt.run(act.id, act.user_id, act.role, act.activity_type, act.title, act.description, act.metadata_json);
       }
     }
+
+    // Seed Prayaas Faculty Internships and Placement Calendar Events
+    seedInternshipAndCalendarData();
   } catch (err) {
     console.error('Migration notice:', err.message);
   }
 }
+
+function seedInternshipAndCalendarData() {
+  try {
+    // 1. Internships Table Migration
+    const internTableSql = db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='internships'").get()?.sql || '';
+    if (internTableSql.includes('REFERENCES student_profiles')) {
+      try {
+        db.exec("DROP TABLE IF EXISTS internships");
+      } catch (e) {}
+    }
+
+    // 2. meeting_violations check constraint migration
+    const violTableSql = db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='meeting_violations'").get()?.sql || '';
+    if (violTableSql.includes('CHECK(violation_type IN')) {
+      try {
+        db.exec(`
+          CREATE TABLE IF NOT EXISTS meeting_violations_temp (
+            id TEXT PRIMARY KEY,
+            meeting_id TEXT NOT NULL REFERENCES meetings(id) ON DELETE CASCADE,
+            student_id TEXT NOT NULL REFERENCES student_profiles(id) ON DELETE CASCADE,
+            student_name TEXT NOT NULL,
+            student_email TEXT NOT NULL,
+            violation_type TEXT NOT NULL,
+            details TEXT NOT NULL,
+            occurred_at DATETIME DEFAULT CURRENT_TIMESTAMP
+          );
+          INSERT INTO meeting_violations_temp SELECT * FROM meeting_violations;
+          DROP TABLE meeting_violations;
+          ALTER TABLE meeting_violations_temp RENAME TO meeting_violations;
+        `);
+      } catch (e) {}
+    }
+
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS internships (
+        id TEXT PRIMARY KEY,
+        student_id TEXT,
+        student_name TEXT NOT NULL,
+        roll_number TEXT NOT NULL,
+        program TEXT NOT NULL,
+        branch TEXT,
+        company_name TEXT NOT NULL,
+        role TEXT NOT NULL,
+        duration TEXT NOT NULL,
+        start_date TEXT,
+        end_date TEXT,
+        stipend TEXT DEFAULT '₹25,000 / month',
+        location TEXT DEFAULT 'Vadodara (On-site)',
+        industry_mentor_name TEXT,
+        industry_mentor_email TEXT,
+        faculty_mentor_name TEXT,
+        status TEXT CHECK(status IN ('applied', 'approved', 'in_progress', 'completed', 'rejected')) DEFAULT 'approved',
+        completion_status TEXT CHECK(completion_status IN ('pending', 'ongoing', 'completed', 'terminated')) DEFAULT 'ongoing',
+        performance_rating REAL DEFAULT 4.5,
+        evaluation_notes TEXT DEFAULT '',
+        noc_status TEXT DEFAULT 'issued' CHECK(noc_status IN ('pending', 'issued', 'not_required')),
+        offer_letter_url TEXT,
+        completion_certificate_url TEXT,
+        created_by TEXT DEFAULT 'TPC Faculty Coordinator',
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE INDEX IF NOT EXISTS idx_internships_roll ON internships(roll_number);
+      CREATE INDEX IF NOT EXISTS idx_internships_company ON internships(company_name);
+      CREATE INDEX IF NOT EXISTS idx_internships_status ON internships(status);
+    `);
+
+    const internCount = db.prepare('SELECT count(*) as c FROM internships').get()?.c || 0;
+    if (internCount === 0) {
+      const sampleInternships = [
+        {
+          id: 'intern_01',
+          student_id: 's_om_thakkar',
+          student_name: 'Om Thakkar',
+          roll_number: '24BT04171',
+          program: 'BTech CSE',
+          branch: 'Computer Science & Engineering',
+          company_name: 'Google Cloud India',
+          role: 'Cloud Architecture & AI Intern',
+          duration: '6 Months (Jan 2026 - Jun 2026)',
+          start_date: '2026-01-05',
+          end_date: '2026-06-30',
+          stipend: '₹45,000 / month',
+          location: 'Bangalore (Hybrid)',
+          industry_mentor_name: 'Rajesh Kannan (Staff Cloud Engineer)',
+          industry_mentor_email: 'rajeshkannan@google.com',
+          faculty_mentor_name: 'Dr. Neeshu Chaudhary',
+          status: 'approved',
+          completion_status: 'ongoing',
+          performance_rating: 4.9,
+          evaluation_notes: 'Exceptional performance on Gemini 1.5 multi-agent pipelines and Vertex AI microservices.',
+          noc_status: 'issued',
+          offer_letter_url: 'https://images.unsplash.com/photo-1586281380349-632531db7ed4?w=600&auto=format&fit=crop&q=80',
+          completion_certificate_url: '',
+          created_by: 'Dr. Neeshu Chaudhary'
+        },
+        {
+          id: 'intern_02',
+          student_id: 's_tanvi',
+          student_name: 'Tanvi Joshi',
+          roll_number: '22BCE108',
+          program: 'BTech CSE',
+          branch: 'AI & Data Science',
+          company_name: 'GSFC Limited',
+          role: 'Industrial Automation & SCADA Analytics Intern',
+          duration: '6 Months (Jan 2026 - Jun 2026)',
+          start_date: '2026-01-10',
+          end_date: '2026-06-25',
+          stipend: '₹25,000 / month',
+          location: 'Fertilizernagar, Vadodara (On-site)',
+          industry_mentor_name: 'Hitesh Bhatt (Chief General Manager - IT)',
+          industry_mentor_email: 'hbhatt@gsfcltd.com',
+          faculty_mentor_name: 'Dr. Neeshu Chaudhary',
+          status: 'approved',
+          completion_status: 'ongoing',
+          performance_rating: 4.7,
+          evaluation_notes: 'Developing real-time telemetry anomaly detection models for fertilizer plant IoT sensors.',
+          noc_status: 'issued',
+          offer_letter_url: 'https://images.unsplash.com/photo-1586281380349-632531db7ed4?w=600&auto=format&fit=crop&q=80',
+          completion_certificate_url: '',
+          created_by: 'TPC Faculty Placement Cell'
+        },
+        {
+          id: 'intern_03',
+          student_id: 's_arav',
+          student_name: 'Arav Sharma',
+          roll_number: '22BCH012',
+          program: 'BTech Chemical',
+          branch: 'Chemical Engineering',
+          company_name: 'Deepak Nitrite Ltd',
+          role: 'Chemical Process Optimization Trainee',
+          duration: '6 Months (Jan 2026 - Jun 2026)',
+          start_date: '2026-01-15',
+          end_date: '2026-07-15',
+          stipend: '₹22,000 / month',
+          location: 'Nandesari GIDC, Vadodara',
+          industry_mentor_name: 'Dr. M. P. Verma (VP Technical)',
+          industry_mentor_email: 'mpverma@deepaknitrite.com',
+          faculty_mentor_name: 'Dr. Rajesh Sharma',
+          status: 'approved',
+          completion_status: 'ongoing',
+          performance_rating: 4.6,
+          evaluation_notes: 'Analyzing distillation column energy efficiency and waste heat recovery cycles.',
+          noc_status: 'issued',
+          offer_letter_url: '',
+          completion_certificate_url: '',
+          created_by: 'Dr. Rajesh Sharma'
+        },
+        {
+          id: 'intern_04',
+          student_id: 's_priya',
+          student_name: 'Priya Patel',
+          roll_number: '21BCE088',
+          program: 'BTech CSE',
+          branch: 'Computer Science & Engineering',
+          company_name: 'Microsoft India',
+          role: 'Software Development Intern (Azure Core)',
+          duration: '3 Months (Summer 2025)',
+          start_date: '2025-05-15',
+          end_date: '2025-08-15',
+          stipend: '₹50,000 / month',
+          location: 'Hyderabad (Remote)',
+          industry_mentor_name: 'S. Sundaram (Principal Engineer)',
+          industry_mentor_email: 'ssundaram@microsoft.com',
+          faculty_mentor_name: 'Dr. Neeshu Chaudhary',
+          status: 'approved',
+          completion_status: 'completed',
+          performance_rating: 4.9,
+          evaluation_notes: 'PPO offer extended! Built distributed rate limiting middleware for Azure Cosmos DB proxies.',
+          noc_status: 'issued',
+          offer_letter_url: '',
+          completion_certificate_url: 'https://images.unsplash.com/photo-1606326608606-aa0b62935f2b?w=600&auto=format&fit=crop&q=80',
+          created_by: 'Dr. Neeshu Chaudhary'
+        },
+        {
+          id: 'intern_05',
+          student_id: 's_rahul',
+          student_name: 'Rahul Verma',
+          roll_number: '21BME034',
+          program: 'BTech Mechanical',
+          branch: 'Mechanical Engineering',
+          company_name: 'L&T Heavy Engineering',
+          role: 'Turbomachinery & CAD Design Intern',
+          duration: '6 Months (Jan 2026 - Jun 2026)',
+          start_date: '2026-01-08',
+          end_date: '2026-06-30',
+          stipend: '₹20,000 / month',
+          location: 'Hazira, Surat',
+          industry_mentor_name: 'V. K. Nair (Lead Design Engineer)',
+          industry_mentor_email: 'vknair@larsentoubro.com',
+          faculty_mentor_name: 'Prof. Jayesh Patel',
+          status: 'approved',
+          completion_status: 'ongoing',
+          performance_rating: 4.4,
+          evaluation_notes: 'Solidworks FEA stress simulation of high-pressure boiler piping headers.',
+          noc_status: 'issued',
+          offer_letter_url: '',
+          completion_certificate_url: '',
+          created_by: 'TPC Faculty Coordinator'
+        }
+      ];
+
+      const insertInternStmt = db.prepare(`
+        INSERT INTO internships (
+          id, student_id, student_name, roll_number, program, branch,
+          company_name, role, duration, start_date, end_date, stipend, location,
+          industry_mentor_name, industry_mentor_email, faculty_mentor_name,
+          status, completion_status, performance_rating, evaluation_notes,
+          noc_status, offer_letter_url, completion_certificate_url, created_by
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `);
+
+      for (const item of sampleInternships) {
+        insertInternStmt.run(
+          item.id, item.student_id, item.student_name, item.roll_number, item.program, item.branch,
+          item.company_name, item.role, item.duration, item.start_date, item.end_date, item.stipend, item.location,
+          item.industry_mentor_name, item.industry_mentor_email, item.faculty_mentor_name,
+          item.status, item.completion_status, item.performance_rating, item.evaluation_notes,
+          item.noc_status, item.offer_letter_url, item.completion_certificate_url, item.created_by
+        );
+      }
+    }
+
+    // 2. Placement Calendar Events Table
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS placement_calendar_events (
+        id TEXT PRIMARY KEY,
+        company_name TEXT NOT NULL,
+        role TEXT NOT NULL,
+        ctc TEXT,
+        date TEXT NOT NULL,
+        time TEXT,
+        stage TEXT,
+        location TEXT,
+        eligible_batches_json TEXT DEFAULT '["2025", "2026"]',
+        eligible_branches_json TEXT DEFAULT '["CSE", "IT", "AI & DS"]',
+        status TEXT DEFAULT 'Scheduled',
+        updated_by TEXT DEFAULT 'TPC Admin Coordinator',
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE INDEX IF NOT EXISTS idx_placement_calendar_date ON placement_calendar_events(date);
+    `);
+
+    const calCount = db.prepare('SELECT count(*) as c FROM placement_calendar_events').get()?.c || 0;
+    if (calCount === 0) {
+      const defaultEvents = [
+        {
+          id: 'evt_google_01',
+          company_name: 'Google Cloud India',
+          role: 'Software Engineer — AI & Cloud',
+          ctc: '₹28.00 LPA',
+          date: '2026-09-04',
+          time: '10:00 AM IST',
+          stage: 'Online Coding Assessment (Proctored)',
+          location: 'GSFC Computer Lab 4 & Remote AI Sandbox',
+          eligible_batches_json: JSON.stringify(['2025', '2026']),
+          eligible_branches_json: JSON.stringify(['CSE', 'IT', 'AI & DS']),
+          status: 'Scheduled',
+          updated_by: 'TPC Admin Coordinator'
+        },
+        {
+          id: 'evt_microsoft_01',
+          company_name: 'Microsoft Azure Systems',
+          role: 'Graduate Software Engineer',
+          ctc: '₹24.00 LPA',
+          date: '2026-09-08',
+          time: '02:00 PM IST',
+          stage: 'Technical Interview Round 1 & DSA',
+          location: 'Virtual Video Panel Room 3',
+          eligible_batches_json: JSON.stringify(['2025', '2026']),
+          eligible_branches_json: JSON.stringify(['CSE', 'IT', 'ECE']),
+          status: 'Scheduled',
+          updated_by: 'Dr. Neeshu Chaudhary (TPC)'
+        },
+        {
+          id: 'evt_tcs_01',
+          company_name: 'Tata Consultancy Services',
+          role: 'Digital Systems & Data Analyst',
+          ctc: '₹12.00 LPA',
+          date: '2026-09-12',
+          time: '09:30 AM IST',
+          stage: 'Pre-Placement Talk (PPT) & Orientation',
+          location: 'GSFC University Main Auditorium',
+          eligible_batches_json: JSON.stringify(['2025', '2026', '2027']),
+          eligible_branches_json: JSON.stringify(['All Departments']),
+          status: 'Scheduled',
+          updated_by: 'TPC Admin Coordinator'
+        },
+        {
+          id: 'evt_reliance_01',
+          company_name: 'Reliance Industries Limited',
+          role: 'Software Development Engineer - Cloud',
+          ctc: '₹10.20 LPA',
+          date: '2026-09-18',
+          time: '11:00 AM IST',
+          stage: 'Core Technical & System Architecture Round',
+          location: 'SOT Seminar Hall A',
+          eligible_batches_json: JSON.stringify(['2025', '2026']),
+          eligible_branches_json: JSON.stringify(['CSE', 'Chemical', 'Mechanical', 'IT']),
+          status: 'Scheduled',
+          updated_by: 'Faculty Placement Officer'
+        },
+        {
+          id: 'evt_amazon_01',
+          company_name: 'Amazon Web Services',
+          role: 'SDE-1 Cloud Microservices',
+          ctc: '₹32.00 LPA',
+          date: '2026-09-24',
+          time: '03:30 PM IST',
+          stage: 'Bar Raiser & Behavioral Leadership Panel',
+          location: 'Virtual Interview Studio',
+          eligible_batches_json: JSON.stringify(['2025', '2026']),
+          eligible_branches_json: JSON.stringify(['CSE', 'IT']),
+          status: 'Scheduled',
+          updated_by: 'TPC Admin Coordinator'
+        }
+      ];
+
+      const insertCalStmt = db.prepare(`
+        INSERT INTO placement_calendar_events (
+          id, company_name, role, ctc, date, time, stage, location,
+          eligible_batches_json, eligible_branches_json, status, updated_by
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `);
+
+      for (const ev of defaultEvents) {
+        insertCalStmt.run(
+          ev.id, ev.company_name, ev.role, ev.ctc, ev.date, ev.time, ev.stage, ev.location,
+          ev.eligible_batches_json, ev.eligible_branches_json, ev.status, ev.updated_by
+        );
+      }
+    }
+  } catch (err) {
+    console.error('Seed internship & calendar data notice:', err.message);
+  }
+}
+
 
 function seedPlacementIntelligenceData() {
   try {

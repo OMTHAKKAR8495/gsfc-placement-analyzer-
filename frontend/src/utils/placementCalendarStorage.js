@@ -86,33 +86,80 @@ export const DEFAULT_PLACEMENT_EVENTS = [
 
 const STORAGE_KEY = 'gsfc_placement_calendar_events';
 
+let inMemoryCache = null;
+let isFetching = false;
+
+// Background initial sync with Backend SQLite API
+async function syncFromBackend() {
+  if (isFetching || typeof window === 'undefined') return;
+  isFetching = true;
+  try {
+    const res = await fetch('/api/events/calendar');
+    if (res.ok) {
+      const serverEvents = await res.json();
+      if (Array.isArray(serverEvents) && serverEvents.length > 0) {
+        inMemoryCache = serverEvents;
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(serverEvents));
+          dbVault.saveCollection(STORAGE_KEY, serverEvents);
+        } catch (e) {}
+        window.dispatchEvent(new CustomEvent('placement_calendar_updated', { detail: serverEvents }));
+      }
+    }
+  } catch (err) {
+    console.warn('Backend placement calendar sync notice:', err.message);
+  } finally {
+    isFetching = false;
+  }
+}
+
+// Trigger initial sync
+if (typeof window !== 'undefined') {
+  syncFromBackend();
+}
+
 export const placementCalendarStorage = {
+  fetchServerEvents: async () => {
+    await syncFromBackend();
+    return inMemoryCache || placementCalendarStorage.getEvents();
+  },
+
   getEvents: () => {
+    if (inMemoryCache && Array.isArray(inMemoryCache) && inMemoryCache.length > 0) {
+      return inMemoryCache;
+    }
     try {
       const vaultData = dbVault.getCollection(STORAGE_KEY);
       if (Array.isArray(vaultData) && vaultData.length > 0) {
+        inMemoryCache = vaultData;
         return vaultData;
       }
       const local = localStorage.getItem(STORAGE_KEY);
       if (local) {
         const parsed = JSON.parse(local);
         if (Array.isArray(parsed) && parsed.length > 0) {
+          inMemoryCache = parsed;
           return parsed;
         }
       }
     } catch (e) {
       console.warn('Error reading placement calendar events:', e);
     }
-    // Initialize defaults
+    // Initialize defaults & trigger background server sync
+    inMemoryCache = DEFAULT_PLACEMENT_EVENTS;
     placementCalendarStorage.saveEvents(DEFAULT_PLACEMENT_EVENTS);
+    syncFromBackend();
     return DEFAULT_PLACEMENT_EVENTS;
   },
 
   saveEvents: (events) => {
     try {
+      inMemoryCache = events;
       localStorage.setItem(STORAGE_KEY, JSON.stringify(events));
       dbVault.saveCollection(STORAGE_KEY, events);
-      window.dispatchEvent(new CustomEvent('placement_calendar_updated', { detail: events }));
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('placement_calendar_updated', { detail: events }));
+      }
     } catch (e) {
       console.error('Error saving placement calendar events:', e);
     }
@@ -138,6 +185,16 @@ export const placementCalendarStorage = {
     }
 
     placementCalendarStorage.saveEvents(nextEvents);
+
+    // Persist asynchronously to SQLite Backend API
+    try {
+      fetch('/api/events/calendar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedEvent)
+      }).catch(err => console.warn('Async calendar API save notice:', err));
+    } catch (e) {}
+
     return updatedEvent;
   },
 
@@ -145,6 +202,14 @@ export const placementCalendarStorage = {
     const events = placementCalendarStorage.getEvents();
     const nextEvents = events.filter(e => e.id !== eventId);
     placementCalendarStorage.saveEvents(nextEvents);
+
+    // Delete asynchronously from SQLite Backend API
+    try {
+      fetch(`/api/events/calendar/${eventId}`, {
+        method: 'DELETE'
+      }).catch(err => console.warn('Async calendar API delete notice:', err));
+    } catch (e) {}
+
     return nextEvents;
   },
 
@@ -156,3 +221,4 @@ export const placementCalendarStorage = {
     return isFaculty || isAdmin;
   }
 };
+

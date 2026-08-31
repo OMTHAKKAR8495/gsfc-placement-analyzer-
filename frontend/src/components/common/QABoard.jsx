@@ -483,7 +483,8 @@ export default function QABoard({ currentUser, onOpenAuth }) {
         onClose={() => setAskModalOpen(false)}
         currentUser={currentUser}
         onQuestionCreated={(newThread) => {
-          setThreads(prev => [newThread, ...prev]);
+          if (!newThread || !newThread.id) return;
+          setThreads(prev => [newThread, ...prev.filter(t => t.id !== newThread.id)]);
           setMyQuestionsCount(prev => prev + 1);
         }}
       />

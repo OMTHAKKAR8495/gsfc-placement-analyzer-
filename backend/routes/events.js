@@ -573,6 +573,131 @@ router.post('/send-pass-email', async (req, res) => {
 });
 
 // ============================================================================
+// 📅 6.5. BACKEND-SYNCED PLACEMENT & CORPORATE DRIVES CALENDAR
+// ============================================================================
+router.get('/calendar', (req, res) => {
+  try {
+    const rawEvents = db.prepare('SELECT * FROM placement_calendar_events ORDER BY date ASC').all();
+    const parsedEvents = (rawEvents || []).map(e => ({
+      ...e,
+      eligible_batches: typeof e.eligible_batches_json === 'string' ? JSON.parse(e.eligible_batches_json || '[]') : (e.eligible_batches_json || []),
+      eligible_branches: typeof e.eligible_branches_json === 'string' ? JSON.parse(e.eligible_branches_json || '[]') : (e.eligible_branches_json || [])
+    }));
+    res.json(parsedEvents);
+  } catch (err) {
+    console.error('Error fetching calendar events:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/calendar', (req, res) => {
+  try {
+    const ev = req.body;
+    const id = ev.id || `evt_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+    const now = new Date().toISOString();
+
+    const batchesJson = Array.isArray(ev.eligible_batches) 
+      ? JSON.stringify(ev.eligible_batches) 
+      : JSON.stringify((ev.eligible_batches || '2025, 2026').split(',').map(s => s.trim()));
+
+    const branchesJson = Array.isArray(ev.eligible_branches)
+      ? JSON.stringify(ev.eligible_branches)
+      : JSON.stringify((ev.eligible_branches || 'CSE, IT').split(',').map(s => s.trim()));
+
+    db.prepare(`
+      INSERT OR REPLACE INTO placement_calendar_events (
+        id, company_name, role, ctc, date, time, stage, location,
+        eligible_batches_json, eligible_branches_json, status, updated_by, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      id,
+      ev.company_name || 'Hiring Partner',
+      ev.role || 'Placement Drive',
+      ev.ctc || '₹10.00 LPA',
+      ev.date || now.split('T')[0],
+      ev.time || '10:00 AM IST',
+      ev.stage || 'Online Coding Assessment (Proctored)',
+      ev.location || 'GSFC Computer Lab & Remote Sandbox',
+      batchesJson,
+      branchesJson,
+      ev.status || 'Scheduled',
+      ev.updated_by || 'TPC Coordinator',
+      now
+    );
+
+    const saved = db.prepare('SELECT * FROM placement_calendar_events WHERE id = ?').get(id);
+    if (saved) {
+      saved.eligible_batches = JSON.parse(saved.eligible_batches_json || '[]');
+      saved.eligible_branches = JSON.parse(saved.eligible_branches_json || '[]');
+    }
+
+    res.status(201).json({ message: 'Calendar event saved successfully', event: saved });
+  } catch (err) {
+    console.error('Error creating calendar event:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.put('/calendar/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+    const ev = req.body;
+    const now = new Date().toISOString();
+
+    const existing = db.prepare('SELECT * FROM placement_calendar_events WHERE id = ?').get(id);
+    if (!existing) return res.status(404).json({ error: 'Placement event not found' });
+
+    const batchesJson = ev.eligible_batches !== undefined
+      ? (Array.isArray(ev.eligible_batches) ? JSON.stringify(ev.eligible_batches) : JSON.stringify(ev.eligible_batches.split(',').map(s => s.trim())))
+      : existing.eligible_batches_json;
+
+    const branchesJson = ev.eligible_branches !== undefined
+      ? (Array.isArray(ev.eligible_branches) ? JSON.stringify(ev.eligible_branches) : JSON.stringify(ev.eligible_branches.split(',').map(s => s.trim())))
+      : existing.eligible_branches_json;
+
+    db.prepare(`
+      UPDATE placement_calendar_events SET
+        company_name = COALESCE(?, company_name),
+        role = COALESCE(?, role),
+        ctc = COALESCE(?, ctc),
+        date = COALESCE(?, date),
+        time = COALESCE(?, time),
+        stage = COALESCE(?, stage),
+        location = COALESCE(?, location),
+        eligible_batches_json = ?,
+        eligible_branches_json = ?,
+        status = COALESCE(?, status),
+        updated_by = COALESCE(?, updated_by),
+        updated_at = ?
+      WHERE id = ?
+    `).run(
+      ev.company_name, ev.role, ev.ctc, ev.date, ev.time, ev.stage, ev.location,
+      batchesJson, branchesJson, ev.status, ev.updated_by, now, id
+    );
+
+    const updated = db.prepare('SELECT * FROM placement_calendar_events WHERE id = ?').get(id);
+    if (updated) {
+      updated.eligible_batches = JSON.parse(updated.eligible_batches_json || '[]');
+      updated.eligible_branches = JSON.parse(updated.eligible_branches_json || '[]');
+    }
+
+    res.json({ message: 'Calendar event updated successfully', event: updated });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.delete('/calendar/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+    db.prepare('DELETE FROM placement_calendar_events WHERE id = ?').run(id);
+    res.json({ message: 'Calendar event deleted successfully', id });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ============================================================================
 // 🌐 7. Public Event Details by Slug
 // ============================================================================
 router.get('/:slug', (req, res) => {

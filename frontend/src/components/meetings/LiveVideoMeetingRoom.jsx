@@ -6,6 +6,7 @@ import {
   Clock, Calendar, Building2, Briefcase, Eye, ChevronRight, UserCheck, 
   RefreshCw, Lock, Sparkles, Volume2, Info
 } from 'lucide-react';
+import { startProctoringLoop } from '../../services/aiVisionProctor';
 
 const ICE_SERVERS = {
   iceServers: [
@@ -42,6 +43,7 @@ export default function LiveVideoMeetingRoom({ roomId, currentUser, onLeaveRoom 
   const [ejectionReason, setEjectionReason] = useState(null);
   const [liveViolationAlert, setLiveViolationAlert] = useState(null);
   const [violationsList, setViolationsList] = useState([]);
+  const [lensWarningModal, setLensWarningModal] = useState(null);
 
   // Recruiter Evaluation State
   const [candidateOutcomes, setCandidateOutcomes] = useState({}); // { studentId: { status, notes, score } }
@@ -56,6 +58,8 @@ export default function LiveVideoMeetingRoom({ roomId, currentUser, onLeaveRoom 
   const currentUserRef = useRef(currentUser);
   const meetingDataRef = useRef(null);
   const hasTriggeredViolationRef = useRef(false);
+  const lensViolationCountRef = useRef(0);
+  const meetingContainerRef = useRef(null);
 
   currentUserRef.current = currentUser;
   meetingDataRef.current = meetingData;
@@ -176,12 +180,15 @@ export default function LiveVideoMeetingRoom({ roomId, currentUser, onLeaveRoom 
     }
   };
 
-  // 2. Initialize Camera & Mic Preview (Pre-Join)
+  // 2. Initialize Camera & Mic and ensure continuous attachment
   useEffect(() => {
-    if (!loading && !error && !isJoined && !isEjected) {
+    if (localVideoRef.current && localStream) {
+      localVideoRef.current.srcObject = localStream;
+      localVideoRef.current.play().catch(err => console.warn('Local video play warning:', err));
+    } else if (!localStream && !loading && !error && !isEjected) {
       startLocalMediaPreview();
     }
-  }, [loading, error, isJoined, isEjected]);
+  }, [localStream, isJoined, videoEnabled, loading, error, isEjected]);
 
   const startLocalMediaPreview = async () => {
     try {
@@ -193,6 +200,7 @@ export default function LiveVideoMeetingRoom({ roomId, currentUser, onLeaveRoom 
       localStreamRef.current = stream;
       if (localVideoRef.current) {
         localVideoRef.current.srcObject = stream;
+        localVideoRef.current.play().catch(err => console.warn('Local video play warning:', err));
       }
     } catch (err) {
       console.warn('Could not access camera/mic preview:', err);
@@ -207,9 +215,13 @@ export default function LiveVideoMeetingRoom({ roomId, currentUser, onLeaveRoom 
     }
 
     setIsJoined(true);
+    hasTriggeredViolationRef.current = false;
+    lensViolationCountRef.current = 0;
+    setLensWarningModal(null);
 
     const token = localStorage.getItem('campushire_token') || `demo_token_${currentUser?.role || 'student'}`;
-    const socket = io({ credentials: true, query: { token } });
+    const socketUrl = import.meta.env.VITE_BACKEND_URL || (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? 'http://localhost:5001' : 'https://gsfc-placement-backend.onrender.com');
+    const socket = io(socketUrl, { credentials: true, query: { token } });
     socketRef.current = socket;
 
     socket.on('connect', () => {
@@ -443,11 +455,63 @@ export default function LiveVideoMeetingRoom({ roomId, currentUser, onLeaveRoom 
       }
     };
 
+    // 5. Global Context-Menu / Google Lens / DevTools Interception
+    const handleContextMenu = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      lensViolationCountRef.current += 1;
+      if (lensViolationCountRef.current === 1) {
+        handleLensWarning('Right-click / "Search image with Google Lens" was blocked. This is your one and only warning — doing this again will remove you from the interview.');
+      } else {
+        handleViolationDetected('external_scanning_tool', 'Attempted to use an external image-lookup tool (e.g. Google Lens) a second time after being warned.');
+      }
+    };
+
+    const handleKeyDown = (e) => {
+      // Intercept Inspect / DevTools / Screen shot shortcuts
+      if (
+        e.key === 'F12' ||
+        (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'i' || e.key === 'C' || e.key === 'c' || e.key === 'J' || e.key === 'j')) ||
+        (e.metaKey && e.altKey && (e.key === 'I' || e.key === 'i' || e.key === 'C' || e.key === 'c' || e.key === 'J' || e.key === 'j'))
+      ) {
+        e.preventDefault();
+        lensViolationCountRef.current += 1;
+        if (lensViolationCountRef.current === 1) {
+          handleLensWarning('Developer inspection and screenshot hotkeys are prohibited during the live interview.');
+        } else {
+          handleViolationDetected('external_scanning_tool', 'Prohibited inspection tool used a second time.');
+        }
+      }
+    };
+
     document.addEventListener('visibilitychange', handleVisibilityChange);
     window.addEventListener('blur', handleWindowBlur);
     window.addEventListener('beforeunload', handleBeforeUnload);
     window.addEventListener('hashchange', handleHashNavigation);
     window.addEventListener('popstate', handleHashNavigation);
+    document.addEventListener('contextmenu', handleContextMenu, true);
+    window.addEventListener('keydown', handleKeyDown, true);
+
+    // 6. AI Vision Object-Detection on Webcam (TensorFlow.js + COCO-SSD Cell Phone Detector)
+    let stopVisionLoop = null;
+    if (localVideoRef.current) {
+      stopVisionLoop = startProctoringLoop(localVideoRef.current, {
+        onDetection: (items) => {
+          if (hasTriggeredViolationRef.current || isEjected) return;
+          lensViolationCountRef.current += 1;
+          const detectedClass = items[0]?.class || 'cell phone';
+          const score = items[0]?.score || 75;
+          if (lensViolationCountRef.current === 1) {
+            handleLensWarning(`Possible phone / scanning device (${detectedClass}, ${score}% confidence) detected on webcam. Put it away immediately — doing this again will remove you from the meeting.`);
+          } else {
+            handleViolationDetected('external_scanning_tool', `Secondary mobile device / phone (${detectedClass}, ${score}% confidence) detected a second time in camera feed.`);
+          }
+        }
+      }, {
+        intervalMs: 3500,
+        confidenceThreshold: 0.60
+      });
+    }
 
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
@@ -455,8 +519,53 @@ export default function LiveVideoMeetingRoom({ roomId, currentUser, onLeaveRoom 
       window.removeEventListener('beforeunload', handleBeforeUnload);
       window.removeEventListener('hashchange', handleHashNavigation);
       window.removeEventListener('popstate', handleHashNavigation);
+      document.removeEventListener('contextmenu', handleContextMenu, true);
+      window.removeEventListener('keydown', handleKeyDown, true);
+      if (stopVisionLoop) {
+        stopVisionLoop();
+      }
     };
   }, [isJoined, isStudent, isEjected, roomId]);
+
+  const handleLensWarning = async (message) => {
+    console.warn('⚠️ LENS / EXTERNAL SCANNING STRIKE 1 WARNING:', message);
+    setLensWarningModal({
+      message,
+      count: 1,
+      timestamp: new Date().toLocaleTimeString()
+    });
+
+    if (socketRef.current) {
+      socketRef.current.emit('student-violation', {
+        roomId,
+        studentId: currentUser.profile?.id || currentUser.id,
+        studentName: currentUser.name || 'Candidate',
+        studentEmail: currentUser.email || '',
+        violationType: 'external_scanning_tool_warning',
+        details: message
+      });
+    }
+
+    try {
+      const token = localStorage.getItem('campushire_token') || `demo_token_${currentUser?.role || 'student'}`;
+      if (meetingDataRef.current?.id) {
+        await fetch(`/api/meetings/${meetingDataRef.current.id}/violation`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            studentId: currentUser.profile?.id || currentUser.id,
+            violationType: 'external_scanning_tool_warning',
+            details: message
+          })
+        });
+      }
+    } catch (e) {
+      console.error('Error reporting warning via REST:', e);
+    }
+  };
 
   const handleViolationDetected = async (violationType, details) => {
     console.warn('🚨 ANTI-CHEATING VIOLATION TRIGGERED:', violationType, details);
@@ -930,7 +1039,7 @@ export default function LiveVideoMeetingRoom({ roomId, currentUser, onLeaveRoom 
   const peerList = Object.entries(remotePeers);
 
   return (
-    <div className="h-screen w-screen bg-slate-950 text-white flex flex-col overflow-hidden select-none font-sans">
+    <div ref={meetingContainerRef} className="h-screen w-screen bg-slate-950 text-white flex flex-col overflow-hidden select-none font-sans">
       {/* 1. TOP HEADER BAR */}
       <header className="h-14 bg-slate-900/90 backdrop-blur-md border-b border-slate-800 px-4 flex items-center justify-between shrink-0 z-20">
         <div className="flex items-center gap-3">
@@ -1127,12 +1236,31 @@ export default function LiveVideoMeetingRoom({ roomId, currentUser, onLeaveRoom 
                     <p className="text-[11px] font-black text-red-400 uppercase tracking-wider mb-2 flex items-center gap-1">
                       <ShieldAlert className="w-3.5 h-3.5" /> Logged Violations ({violationsList.length})
                     </p>
-                    {violationsList.map((v, idx) => (
-                      <div key={idx} className="p-2 bg-red-950/40 border border-red-800/40 rounded-xl text-[10px] text-red-200 mb-1.5">
-                        <p className="font-bold">{v.studentName || v.student_name} — {v.violationType || v.violation_type}</p>
-                        <p className="text-slate-400 mt-0.5">{v.details}</p>
-                      </div>
-                    ))}
+                    {violationsList.map((v, idx) => {
+                      const isWarning = (v.violationType || v.violation_type) === 'external_scanning_tool_warning';
+                      return (
+                        <div
+                          key={idx}
+                          className={`p-2.5 rounded-xl text-[10px] mb-2 border ${
+                            isWarning
+                              ? 'bg-amber-950/40 border-amber-500/40 text-amber-200'
+                              : 'bg-red-950/40 border-red-800/40 text-red-200'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between font-bold">
+                            <span className="flex items-center gap-1">
+                              {isWarning ? '⚠️ WARNING (STRIKE 1)' : '🚨 EJECTED'} — {v.studentName || v.student_name}
+                            </span>
+                            <span className={`px-1.5 py-0.2 rounded text-[8px] font-black uppercase ${
+                              isWarning ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'bg-red-500/20 text-red-300 border border-red-500/30'
+                            }`}>
+                              {v.violationType || v.violation_type}
+                            </span>
+                          </div>
+                          <p className="text-slate-300 mt-1">{v.details}</p>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -1353,6 +1481,39 @@ export default function LiveVideoMeetingRoom({ roomId, currentUser, onLeaveRoom 
           )}
         </div>
       </footer>
+
+      {/* ⚠️ Strike 1 Non-Dismissive Lens / Scanning Warning Modal */}
+      {lensWarningModal && (
+        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 animate-fadeIn">
+          <div className="bg-slate-900 border-2 border-amber-500 rounded-3xl max-w-lg w-full p-6 text-white shadow-2xl space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="p-3 bg-amber-500/20 rounded-2xl border border-amber-500/30 text-amber-400">
+                <AlertCircle className="w-8 h-8 animate-pulse" />
+              </div>
+              <div>
+                <h3 className="text-base sm:text-lg font-black text-amber-300">STRIKE 1 WARNING: External Tool Intercepted</h3>
+                <p className="text-[11px] text-amber-400/80 font-bold uppercase tracking-wider">Anti-Cheating Proctoring Notice</p>
+              </div>
+            </div>
+
+            <div className="p-3.5 bg-amber-950/50 border border-amber-500/30 rounded-2xl text-xs text-amber-100 font-medium leading-relaxed">
+              {lensWarningModal.message}
+            </div>
+
+            <div className="p-3 bg-slate-800/80 border border-slate-700 rounded-2xl text-[11px] text-slate-300">
+              <span className="font-bold text-white">Strict Regulation:</span> Secondary image lookup, Google Lens scanning, and external device usage are logged on the server. A second strike triggers immediate disqualification and notifies {meetingData?.company_name || 'the interviewer'}.
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setLensWarningModal(null)}
+              className="w-full py-3 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-950 font-black rounded-xl text-xs uppercase tracking-wider transition-all cursor-pointer shadow-lg shadow-amber-500/20"
+            >
+              I Acknowledge & Return to Interview
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

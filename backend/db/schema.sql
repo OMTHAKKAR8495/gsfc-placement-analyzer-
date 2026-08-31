@@ -286,7 +286,7 @@ CREATE TABLE IF NOT EXISTS meeting_violations (
     student_id TEXT NOT NULL REFERENCES student_profiles(id) ON DELETE CASCADE,
     student_name TEXT NOT NULL,
     student_email TEXT NOT NULL,
-    violation_type TEXT CHECK(violation_type IN ('tab_switch', 'window_blur', 'navigation_attempt', 'refresh_attempt', 'closed_tab', 'ejected')) NOT NULL,
+    violation_type TEXT NOT NULL,
     details TEXT NOT NULL,
     occurred_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
@@ -475,3 +475,56 @@ CREATE TABLE IF NOT EXISTS company_student_mails (
     replied_by TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
+
+-- ============================================================================
+-- 🎓 FACULTY INTERNSHIP MODULE & PRAYAAS DCS TRACKER
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS internships (
+    id TEXT PRIMARY KEY,
+    student_id TEXT,
+    student_name TEXT NOT NULL,
+    roll_number TEXT NOT NULL,
+    program TEXT NOT NULL,
+    branch TEXT,
+    company_name TEXT NOT NULL,
+    role TEXT NOT NULL,
+    duration TEXT NOT NULL,
+    start_date TEXT,
+    end_date TEXT,
+    stipend TEXT DEFAULT '₹25,000 / month',
+    location TEXT DEFAULT 'Vadodara (On-site)',
+    industry_mentor_name TEXT,
+    industry_mentor_email TEXT,
+    faculty_mentor_name TEXT,
+    status TEXT CHECK(status IN ('applied', 'approved', 'in_progress', 'completed', 'rejected')) DEFAULT 'approved',
+    completion_status TEXT CHECK(completion_status IN ('pending', 'ongoing', 'completed', 'terminated')) DEFAULT 'ongoing',
+    performance_rating REAL DEFAULT 4.5,
+    evaluation_notes TEXT DEFAULT '',
+    noc_status TEXT DEFAULT 'issued' CHECK(noc_status IN ('pending', 'issued', 'not_required')),
+    offer_letter_url TEXT,
+    completion_certificate_url TEXT,
+    created_by TEXT DEFAULT 'TPC Faculty Coordinator',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ============================================================================
+-- 📅 BACKEND-SYNCED PLACEMENT & CORPORATE DRIVES CALENDAR
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS placement_calendar_events (
+    id TEXT PRIMARY KEY,
+    company_name TEXT NOT NULL,
+    role TEXT NOT NULL,
+    ctc TEXT,
+    date TEXT NOT NULL,
+    time TEXT,
+    stage TEXT,
+    location TEXT,
+    eligible_batches_json TEXT DEFAULT '["2025", "2026"]',
+    eligible_branches_json TEXT DEFAULT '["CSE", "IT", "AI & DS"]',
+    status TEXT DEFAULT 'Scheduled',
+    updated_by TEXT DEFAULT 'TPC Admin Coordinator',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+

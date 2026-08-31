@@ -530,7 +530,7 @@ export default function SettingsModal({ isOpen, onClose, currentUser, theme, onT
           branch: targetStream || undefined,
         };
 
-        const apiRes = await fetch('/api/students/profile', {
+        const apiRes = await fetch('/api/student/profile', {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',

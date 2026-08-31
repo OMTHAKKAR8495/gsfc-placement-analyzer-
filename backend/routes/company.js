@@ -708,4 +708,34 @@ router.patch('/student-mails/:id/reply', (req, res) => {
   }
 });
 
+// 4. Update Student Mail Status (Mark read/unread)
+router.patch('/student-mails/:id/status', (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    db.prepare(`
+      UPDATE company_student_mails
+      SET status = ?
+      WHERE id = ?
+    `).run(status || 'read', id);
+
+    res.json({ message: 'Status updated successfully', id, status });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 5. Delete Student Mail
+router.delete('/student-mails/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+    db.prepare('DELETE FROM company_student_mails WHERE id = ?').run(id);
+    res.json({ message: 'Student mail deleted successfully', id });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 export default router;
+

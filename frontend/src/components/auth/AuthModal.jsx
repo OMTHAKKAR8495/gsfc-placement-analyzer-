@@ -141,6 +141,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialRole 
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [showCreateAccountPrompt, setShowCreateAccountPrompt] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
   // Sync initialRole whenever modal opens
@@ -664,15 +665,10 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialRole 
         onClose();
         return;
       }
-      const fallbackUser = createFallbackUser(role, account.email, account.name);
-      localStorage.setItem('campushire_token', 'demo_token_' + Date.now());
-      onAuthSuccess(fallbackUser);
-      onClose();
+
+      setError('No registered account found for this Google email. Please create an account first.');
     } catch (err) {
-      const fallbackUser = createFallbackUser(role, account.email, account.name);
-      localStorage.setItem('campushire_token', 'demo_token_' + Date.now());
-      onAuthSuccess(fallbackUser);
-      onClose();
+      setError(err.message || 'Google Sign-in could not reach the server.');
     } finally {
       setGoogleLoading(false);
     }
@@ -682,12 +678,16 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialRole 
   const handleCustomGoogleSubmit = (e) => {
     e.preventDefault();
     if (!customGoogleEmail.trim()) return;
-    const derivedName = customGoogleName.trim() || customGoogleEmail.split('@')[0].replace('.', ' ').toUpperCase();
+    const cleanPrefix = customGoogleEmail.split('@')[0].toUpperCase();
+    const roll = cleanPrefix.length >= 6 ? cleanPrefix : '22BCE108';
     handleSelectGoogleAccount({
-      name: derivedName,
-      email: customGoogleEmail.trim(),
+      name: customGoogleName.trim() || 'Google Verified Student',
+      email: customGoogleEmail.trim().toLowerCase(),
+      avatar: (customGoogleName.trim() || 'G')[0].toUpperCase(),
+      color: 'bg-red-600',
+      status: '🌐 Verified Workspace Account',
       program: 'BTech CSE',
-      roll_number: '22BCE' + Math.floor(100 + Math.random() * 900)
+      roll_number: roll
     });
   };
 
@@ -709,6 +709,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialRole 
 
     unblockStudentOnLogin(formData.email, formData.roll_number);
     setLoading(true);
+    setShowCreateAccountPrompt(false);
 
     try {
       let endpoint = isLogin ? '/api/auth/login' : '/api/auth/register';
@@ -725,13 +726,19 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialRole 
       let data = null;
       try { data = await res.json(); } catch(e) {}
 
-      // If backend returned access denied or role mismatch error
+      // If user not found on login, prompt to create an account
+      if (res.status === 404 && data?.accountNotFound) {
+        setError(data.error || 'No account exists for this email yet.');
+        setShowCreateAccountPrompt(true);
+        setLoading(false);
+        return;
+      }
+
+      // If backend returned access denied, invalid password, or role mismatch error
       if (!res.ok) {
-        if (data && data.error && !data.error.includes('<!DOCTYPE')) {
-          setError(data.error);
-          return;
-        }
-        throw new Error('Authentication request rejected');
+        setError(data?.error || 'Authentication failed. Please verify your credentials.');
+        setLoading(false);
+        return;
       }
 
       if (res.ok && data) {
@@ -758,11 +765,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialRole 
         return;
       }
     } catch (err) {
-      // Safe fallback for demo environment
-      const fallbackUser = createFallbackUser(role, formData.email, formData.name);
-      localStorage.setItem('campushire_token', 'demo_token_' + Date.now());
-      onAuthSuccess(fallbackUser);
-      onClose();
+      setError(err.message || 'Authentication request failed. Please check your network and credentials.');
     } finally {
       setLoading(false);
     }
@@ -1527,9 +1530,24 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialRole 
             <form onSubmit={handleSubmit} className="mt-4 space-y-3">
 
               {error && (
-                <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs flex items-center gap-2 font-bold">
-                  <AlertCircle className="w-4 h-4 shrink-0" />
-                  {error}
+                <div className="p-3.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-700 text-amber-900 dark:text-amber-200 text-xs font-bold space-y-2">
+                  <div className="flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                    <span>{error}</span>
+                  </div>
+                  {showCreateAccountPrompt && isLogin && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsLogin(false);
+                        setError('');
+                        setShowCreateAccountPrompt(false);
+                      }}
+                      className="w-full mt-1 py-2 px-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-lg text-xs font-black flex items-center justify-center gap-2 shadow-xs transition-all cursor-pointer"
+                    >
+                      <span>Create a new account now &rarr;</span>
+                    </button>
+                  )}
                 </div>
               )}
 
@@ -1899,6 +1917,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialRole 
                   onClick={() => {
                     setIsLogin(!isLogin);
                     setError('');
+                    setShowCreateAccountPrompt(false);
                   }}
                   className="text-blue-900 hover:underline cursor-pointer"
                 >

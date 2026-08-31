@@ -60,9 +60,6 @@ export default function AskQuestionModal({ isOpen, onClose, currentUser, onQuest
   if (!isOpen) return null;
 
   const handleFinish = () => {
-    if (createdThread && onQuestionCreated) {
-      onQuestionCreated(createdThread);
-    }
     onClose();
   };
 
@@ -119,7 +116,6 @@ export default function AskQuestionModal({ isOpen, onClose, currentUser, onQuest
       saveAndBroadcastThread(threadResult);
       setIsSubmitted(true);
       if (onQuestionCreated) onQuestionCreated(threadResult);
-      if (onQuestionPosted) onQuestionPosted(threadResult);
       return;
     } catch (err) {
       // Graceful offline & Vercel static fallback: persist question locally so submission is never lost
@@ -137,7 +133,7 @@ export default function AskQuestionModal({ isOpen, onClose, currentUser, onQuest
       setCreatedThread(fallbackThread);
       saveAndBroadcastThread(fallbackThread);
       setIsSubmitted(true);
-      if (onQuestionPosted) onQuestionPosted(fallbackThread);
+      if (onQuestionCreated) onQuestionCreated(fallbackThread);
     } finally {
       setLoading(false);
     }

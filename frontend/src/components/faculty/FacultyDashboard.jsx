@@ -11,6 +11,7 @@ import UniversalQRScanner from '../scanner/UniversalQRScanner';
 import AdminMeetingsManager from '../admin/AdminMeetingsManager';
 import AddGSFCCompanyModal from '../common/AddGSFCCompanyModal';
 import CompanyPlacementCalendar from '../common/CompanyPlacementCalendar';
+import FacultyInternshipManagement from './FacultyInternshipManagement';
 
 const DEFAULT_STUDENTS = [
   {
@@ -1011,6 +1012,7 @@ GSFC University, Vadodara`);
       <div className="flex flex-wrap items-center gap-2 bg-slate-100 dark:bg-slate-800/80 p-1.5 rounded-2xl border border-slate-200 dark:border-slate-700 w-fit">
         {[
           { id: 'applications', icon: <Database className="w-4 h-4 text-indigo-400" />, label: '📋 Candidate Applications & ATS Scores', activeClass: 'bg-indigo-700' },
+          { id: 'internships', icon: <Briefcase className="w-4 h-4 text-emerald-400" />, label: '🎓 Student Internships & NOC Tracker (Prayaas Module)', activeClass: 'bg-emerald-700' },
           { id: 'tracker', icon: <Users className="w-4 h-4 text-emerald-400" />, label: '🔍 Advanced Batch & Skill Filter', activeClass: 'bg-blue-900' },
           { id: 'calendar', icon: <Calendar className="w-4 h-4 text-amber-400" />, label: '📅 Upcoming Placement Calendar & Date Scheduler', activeClass: 'bg-blue-900' },
           { id: 'online_meetings', icon: <Video className="w-4 h-4 text-emerald-400" />, label: '📹 Live Video Interviews & Meetings', activeClass: 'bg-emerald-700' },
@@ -1030,6 +1032,15 @@ GSFC University, Vadodara`);
         <div className="p-4 bg-emerald-600 text-white rounded-2xl text-xs font-black shadow-md flex items-center justify-between">
           <span>{assignedSuccessMsg}</span>
           <button onClick={() => setAssignedSuccessMsg('')} className="p-1 cursor-pointer"><X className="w-4 h-4" /></button>
+        </div>
+      )}
+
+      {/* ═══════════════════════════════════════════════════════════ */}
+      {/* TAB: FACULTY INTERNSHIP MODULE (Prayaas DCS Inspired)       */}
+      {/* ═══════════════════════════════════════════════════════════ */}
+      {activeTab === 'internships' && (
+        <div className="space-y-4 animate-fadeIn">
+          <FacultyInternshipManagement currentUser={currentUser} />
         </div>
       )}
 

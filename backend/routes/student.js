@@ -1,6 +1,9 @@
 import express from 'express';
 import multer from 'multer';
 import jwt from 'jsonwebtoken';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import db from '../db/index.js';
 import { parseResume } from '../ai/modules/resumeParser.js';
 import { computeATSScore } from '../ai/modules/atsScorer.js';
@@ -8,6 +11,19 @@ import { calculateMatchScore } from '../ai/modules/matchingEngine.js';
 import { enhanceResumeWithGemini } from '../ai/modules/resumeAI.js';
 import { analyzeDocumentAuthenticity } from '../services/authenticityChecker.js';
 import { sanitizeXss } from '../middleware/security.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+function getUploadsDir() {
+  const dir = process.env.DB_DIR ? path.join(process.env.DB_DIR, 'uploads') : path.join(__dirname, '../uploads');
+  if (!fs.existsSync(dir)) {
+    try {
+      fs.mkdirSync(dir, { recursive: true });
+    } catch(e) {}
+  }
+  return dir;
+}
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
@@ -812,6 +828,15 @@ router.post('/resume/upload', upload.single('resume'), async (req, res) => {
 
     if (req.file) {
       parseOutput = await parseResume(req.file.buffer, req.file.originalname);
+      // Persist resume file to disk under persistent directory
+      try {
+        const uDir = getUploadsDir();
+        const ext = path.extname(req.file.originalname) || '.pdf';
+        resumeUrl = `/uploads/resume_${student_id}_${Date.now()}${ext}`;
+        fs.writeFileSync(path.join(uDir, path.basename(resumeUrl)), req.file.buffer);
+      } catch (err) {
+        console.warn('Notice writing uploaded resume to disk:', err.message);
+      }
     } else if (manual_data) {
       const inputObj = typeof manual_data === 'string' ? JSON.parse(manual_data) : manual_data;
       parseOutput = {
@@ -929,10 +954,54 @@ router.post('/builder/save', upload.fields([
       if (education_json) educationArr = typeof education_json === 'string' ? JSON.parse(education_json) : education_json;
     } catch(e) {}
 
-    const marksheetsUrl = req.files?.['marksheets'] ? `/uploads/marksheets_${student_id}_${Date.now()}.pdf` : null;
-    const certificationsUrl = req.files?.['certifications'] ? `/uploads/certs_${student_id}_${Date.now()}.pdf` : null;
-    const idDocumentUrl = req.files?.['id_document'] ? `/uploads/id_${student_id}_${Date.now()}.pdf` : null;
-    const uploadedPhotoUrl = req.files?.['photo'] ? `/uploads/photo_${student_id}_${Date.now()}.jpg` : (photo_url || null);
+    const uDir = getUploadsDir();
+    let marksheetsUrl = null;
+    if (req.files?.['marksheets']?.[0]) {
+      const file = req.files['marksheets'][0];
+      const ext = path.extname(file.originalname) || '.pdf';
+      marksheetsUrl = `/uploads/marksheets_${student_id}_${Date.now()}${ext}`;
+      try {
+        fs.writeFileSync(path.join(uDir, path.basename(marksheetsUrl)), file.buffer);
+      } catch (e) {
+        console.warn('Notice saving marksheets to disk:', e.message);
+      }
+    }
+
+    let certificationsUrl = null;
+    if (req.files?.['certifications']?.[0]) {
+      const file = req.files['certifications'][0];
+      const ext = path.extname(file.originalname) || '.pdf';
+      certificationsUrl = `/uploads/certs_${student_id}_${Date.now()}${ext}`;
+      try {
+        fs.writeFileSync(path.join(uDir, path.basename(certificationsUrl)), file.buffer);
+      } catch (e) {
+        console.warn('Notice saving certifications to disk:', e.message);
+      }
+    }
+
+    let idDocumentUrl = null;
+    if (req.files?.['id_document']?.[0]) {
+      const file = req.files['id_document'][0];
+      const ext = path.extname(file.originalname) || '.pdf';
+      idDocumentUrl = `/uploads/id_${student_id}_${Date.now()}${ext}`;
+      try {
+        fs.writeFileSync(path.join(uDir, path.basename(idDocumentUrl)), file.buffer);
+      } catch (e) {
+        console.warn('Notice saving ID document to disk:', e.message);
+      }
+    }
+
+    let uploadedPhotoUrl = photo_url || null;
+    if (req.files?.['photo']?.[0]) {
+      const file = req.files['photo'][0];
+      const ext = path.extname(file.originalname) || '.jpg';
+      uploadedPhotoUrl = `/uploads/photo_${student_id}_${Date.now()}${ext}`;
+      try {
+        fs.writeFileSync(path.join(uDir, path.basename(uploadedPhotoUrl)), file.buffer);
+      } catch (e) {
+        console.warn('Notice saving photo to disk:', e.message);
+      }
+    }
 
     const synthesizedResumeJson = {
       name: name || 'Student Candidate',

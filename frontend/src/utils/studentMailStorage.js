@@ -101,10 +101,50 @@ export const INITIAL_STUDENT_MAILS = [
   }
 ];
 
+let inMemoryMailCache = null;
+let isFetchingMails = false;
+
+// Background initial sync with Backend SQLite API
+async function syncMailsFromBackend() {
+  if (isFetchingMails || typeof window === 'undefined') return;
+  isFetchingMails = true;
+  try {
+    const res = await fetch('/api/company/student-mails');
+    if (res.ok) {
+      const serverMails = await res.json();
+      if (Array.isArray(serverMails) && serverMails.length > 0) {
+        inMemoryMailCache = serverMails;
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(serverMails));
+          dbVault.saveCollection('student_company_mails', serverMails);
+        } catch (e) {}
+        window.dispatchEvent(new CustomEvent('gsfc_student_mail_updated', { detail: { allMails: serverMails } }));
+      }
+    }
+  } catch (err) {
+    console.warn('Backend student mail sync notice:', err.message);
+  } finally {
+    isFetchingMails = false;
+  }
+}
+
+if (typeof window !== 'undefined') {
+  syncMailsFromBackend();
+}
+
+export function fetchServerStudentMails() {
+  syncMailsFromBackend();
+  return inMemoryMailCache || getStudentMails();
+}
+
 export function getStudentMails() {
+  if (inMemoryMailCache && Array.isArray(inMemoryMailCache) && inMemoryMailCache.length > 0) {
+    return inMemoryMailCache;
+  }
   try {
     const fromVault = dbVault.getCollection('student_company_mails', null);
     if (fromVault && Array.isArray(fromVault) && fromVault.length > 0) {
+      inMemoryMailCache = fromVault;
       localStorage.setItem(STORAGE_KEY, JSON.stringify(fromVault));
       return fromVault;
     }
@@ -113,14 +153,17 @@ export function getStudentMails() {
     if (raw) {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed) && parsed.length > 0) {
+        inMemoryMailCache = parsed;
         dbVault.saveCollection('student_company_mails', parsed);
         return parsed;
       }
     }
 
-    // Default initialization
+    // Default initialization & sync from backend
+    inMemoryMailCache = INITIAL_STUDENT_MAILS;
     localStorage.setItem(STORAGE_KEY, JSON.stringify(INITIAL_STUDENT_MAILS));
     dbVault.saveCollection('student_company_mails', INITIAL_STUDENT_MAILS);
+    syncMailsFromBackend();
     return INITIAL_STUDENT_MAILS;
   } catch (err) {
     console.error('Error reading student mails:', err);
@@ -157,6 +200,7 @@ export function saveStudentMail(mailData) {
     };
 
     const updated = [newMail, ...existing.filter(x => x.id !== newMail.id)];
+    inMemoryMailCache = updated;
     localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
     dbVault.saveCollection('student_company_mails', updated);
 
@@ -165,13 +209,13 @@ export function saveStudentMail(mailData) {
       window.dispatchEvent(new CustomEvent('gsfc_student_mail_updated', { detail: { newMail, allMails: updated } }));
     }
 
-    // Try posting to backend API asynchronously (non-blocking)
+    // Post to backend SQLite API asynchronously
     try {
       fetch('/api/company/student-mails', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newMail)
-      }).catch(() => {});
+      }).catch(err => console.warn('Async student mail POST notice:', err));
     } catch (e) {}
 
     return newMail;
@@ -213,11 +257,22 @@ export function markMailStatus(mailId, status) {
   try {
     const mails = getStudentMails();
     const updated = mails.map(m => (m.id === mailId ? { ...m, status } : m));
+    inMemoryMailCache = updated;
     localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
     dbVault.saveCollection('student_company_mails', updated);
     if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('gsfc_student_mail_updated', { detail: { mailId, status } }));
+      window.dispatchEvent(new CustomEvent('gsfc_student_mail_updated', { detail: { mailId, status, allMails: updated } }));
     }
+
+    // Sync status with backend SQLite API
+    try {
+      fetch(`/api/company/student-mails/${mailId}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status })
+      }).catch(err => console.warn('Async student mail status PATCH notice:', err));
+    } catch (e) {}
+
     return updated;
   } catch (err) {
     console.error('Error updating mail status:', err);
@@ -242,19 +297,20 @@ export function replyToStudentMail(mailId, replyText, recruiterName = 'Corporate
       return m;
     });
 
+    inMemoryMailCache = updated;
     localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
     dbVault.saveCollection('student_company_mails', updated);
     if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('gsfc_student_mail_updated', { detail: { mailId, replyText, repliedAt } }));
+      window.dispatchEvent(new CustomEvent('gsfc_student_mail_updated', { detail: { mailId, replyText, repliedAt, allMails: updated } }));
     }
 
-    // Try posting to backend API asynchronously
+    // Post to backend SQLite API asynchronously
     try {
       fetch(`/api/company/student-mails/${mailId}/reply`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ reply: replyText, recruiterName })
-      }).catch(() => {});
+      }).catch(err => console.warn('Async student mail reply PATCH notice:', err));
     } catch (e) {}
 
     return updated;
@@ -268,11 +324,20 @@ export function deleteStudentMail(mailId) {
   try {
     const mails = getStudentMails();
     const updated = mails.filter(m => m.id !== mailId);
+    inMemoryMailCache = updated;
     localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
     dbVault.saveCollection('student_company_mails', updated);
     if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('gsfc_student_mail_updated', { detail: { deletedId: mailId } }));
+      window.dispatchEvent(new CustomEvent('gsfc_student_mail_updated', { detail: { deletedId: mailId, allMails: updated } }));
     }
+
+    // Delete from backend SQLite API asynchronously
+    try {
+      fetch(`/api/company/student-mails/${mailId}`, {
+        method: 'DELETE'
+      }).catch(err => console.warn('Async student mail DELETE notice:', err));
+    } catch (e) {}
+
     return updated;
   } catch (err) {
     console.error('Error deleting student mail:', err);
@@ -284,3 +349,4 @@ export function getUnreadCountForCompany(companyNameOrId, isGsfcInternal = false
   const compMails = getMailsForCompany(companyNameOrId, isGsfcInternal);
   return compMails.filter(m => m.status === 'unread').length;
 }
+

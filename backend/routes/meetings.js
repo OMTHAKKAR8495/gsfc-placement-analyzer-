@@ -433,20 +433,24 @@ router.post('/:id/violation', authenticateUser, (req, res) => {
       VALUES (?, ?, ?, ?, ?, ?, ?)
     `).run(violationId, id, validStudentProfileId, sName, sEmail, vType, vDetails);
 
-    // Mark student participant as ejected
-    db.prepare(`
-      UPDATE meeting_participants
-      SET join_status = 'ejected',
-          left_at = CURRENT_TIMESTAMP,
-          outcome_status = 'rejected',
-          interviewer_notes = ?
-      WHERE meeting_id = ? AND (student_id = ? OR user_id = ?)
-    `).run(`[FLAGGED & DISQUALIFIED]: ${vType} - ${vDetails}`, id, validStudentProfileId, req.user.id);
+    const isWarning = vType === 'external_scanning_tool_warning' || vType.includes('warning');
 
+    if (!isWarning) {
+      // Mark student participant as ejected only on fatal disqualifications
+      db.prepare(`
+        UPDATE meeting_participants
+        SET join_status = 'ejected',
+            left_at = CURRENT_TIMESTAMP,
+            outcome_status = 'rejected',
+            interviewer_notes = ?
+        WHERE meeting_id = ? AND (student_id = ? OR user_id = ?)
+      `).run(`[FLAGGED & DISQUALIFIED]: ${vType} - ${vDetails}`, id, validStudentProfileId, req.user.id);
+    }
 
     res.json({
       success: true,
-      message: '🚨 Anti-cheating violation recorded and session terminated.',
+      is_warning: isWarning,
+      message: isWarning ? '⚠️ Anti-cheating warning recorded.' : '🚨 Anti-cheating violation recorded and session terminated.',
       violation_id: violationId,
       violation_type: vType,
       student_name: sName,

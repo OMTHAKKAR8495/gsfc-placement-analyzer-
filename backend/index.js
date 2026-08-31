@@ -40,10 +40,35 @@ const app = express();
 const server = http.createServer(app);
 const PORT = process.env.PORT || 5001;
 
+// CORS Allowed Origins & Validator
+const allowedOrigins = [
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+  'http://localhost:5001',
+  'http://127.0.0.1:5001',
+  'http://localhost:3000',
+  ...(process.env.FRONTEND_URL ? [process.env.FRONTEND_URL.replace(/\/$/, '')] : [])
+];
+
+const isOriginAllowed = (origin) => {
+  if (!origin) return true;
+  if (allowedOrigins.includes(origin)) return true;
+  if (origin.startsWith('capacitor://') || origin.startsWith('http://localhost') || origin.startsWith('http://127.0.0.1')) return true;
+  if (/^https:\/\/[a-zA-Z0-9_-]+\.vercel\.app$/.test(origin)) return true;
+  if (origin.includes('gsfcuniversity') || origin.includes('onrender.com')) return true;
+  return false;
+};
+
 // Socket.IO Server Configuration
 const io = new SocketIOServer(server, {
   cors: {
-    origin: (origin, callback) => callback(null, true),
+    origin: (origin, callback) => {
+      if (isOriginAllowed(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error('Blocked by Socket.IO CORS policy'));
+      }
+    },
     methods: ['GET', 'POST'],
     credentials: true
   }
@@ -61,7 +86,7 @@ app.use(helmet({
       styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
       imgSrc: ["'self'", "data:", "blob:", "https:"],
       fontSrc: ["'self'", "https://fonts.gstatic.com"],
-      connectSrc: ["'self'", "http://localhost:5001", "ws://localhost:5001", "ws://localhost:5173", "http://localhost:5173", "https://generativelanguage.googleapis.com"]
+      connectSrc: ["'self'", "http://localhost:5001", "ws://localhost:5001", "ws://localhost:5173", "http://localhost:5173", "https://*.vercel.app", "wss://*.onrender.com", "https://*.onrender.com", "https://generativelanguage.googleapis.com"]
     }
   },
   xContentTypeOptions: true,
@@ -70,17 +95,16 @@ app.use(helmet({
 }));
 
 // CORS Configuration
-const allowedOrigins = ['http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:5001'];
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin) || origin.startsWith('capacitor://') || origin.startsWith('http://localhost')) {
+    if (isOriginAllowed(origin)) {
       callback(null, true);
     } else {
-      callback(null, true);
+      callback(new Error('Blocked by CORS policy'));
     }
   },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token', 'X-Requested-With']
 }));
 
@@ -95,7 +119,15 @@ app.use('/api', verifyCsrfToken);
 app.use('/api', wafShieldMiddleware);
 
 // Static uploads & frontend build directory
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+const uploadsDir = process.env.DB_DIR
+  ? path.join(process.env.DB_DIR, 'uploads')
+  : path.join(__dirname, 'uploads');
+if (!fs.existsSync(uploadsDir)) {
+  try {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+  } catch(e) {}
+}
+app.use('/uploads', express.static(uploadsDir));
 app.use(express.static(path.join(__dirname, '../frontend/dist')));
 
 // Initialize DB schema & seeds

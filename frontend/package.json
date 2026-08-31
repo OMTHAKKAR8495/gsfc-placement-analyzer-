@@ -24,6 +24,8 @@
     "@capacitor/push-notifications": "^8.1.2",
     "@capacitor/splash-screen": "^8.0.2",
     "@capacitor/status-bar": "^8.0.3",
+    "@tensorflow-models/coco-ssd": "^2.2.3",
+    "@tensorflow/tfjs": "^4.22.0",
     "canvas-confetti": "^1.9.4",
     "framer-motion": "^11.3.19",
     "html5-qrcode": "^2.3.8",

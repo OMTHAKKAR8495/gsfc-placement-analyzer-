@@ -1,0 +1,33 @@
+services:
+  - type: web
+    name: gsfc-placement-backend
+    env: node
+    plan: free
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: npm start
+    disk:
+      name: gsfc-data
+      mountPath: /data
+      sizeGB: 1
+    envVars:
+      - key: DB_DIR
+        value: /data
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 5001
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        sync: false
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
