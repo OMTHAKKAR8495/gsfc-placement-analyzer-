@@ -9,6 +9,10 @@ import { fileURLToPath } from 'url';
 import { AuthRateLimiter } from './middleware/security.js';
 import { verifyCsrfToken } from './middleware/authMiddleware.js';
 import { wafShieldMiddleware } from './middleware/wafShield.js';
+import { validateEnvironment } from './config/envValidator.js';
+
+// Validate environment configuration before booting routes
+validateEnvironment();
 
 import authRoutes from './routes/auth.js';
 import companyRoutes from './routes/company.js';
@@ -157,10 +161,10 @@ app.use('/api/admin/subscriptions', adminSubscriptionRoutes);
 
 
 
-// Health check endpoint
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', app: 'CampusHire AI Platform API Server', timestamp: new Date().toISOString() });
-});
+import healthRoutes from './routes/health.js';
+
+// Health and Readiness endpoints
+app.use('/api/health', healthRoutes);
 
 // Real-Time Socket.IO WebRTC Signaling & Anti-Cheating Hub
 io.on('connection', (socket) => {

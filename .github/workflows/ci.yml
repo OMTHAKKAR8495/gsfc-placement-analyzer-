@@ -1,0 +1,53 @@
+name: GSFC Placement Suite CI Pipeline
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  backend-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Codebase
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js Environment
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: |
+          npm --prefix backend install
+
+      - name: Run Backend Tests & Verification Suite
+        run: |
+          node backend/tests/verify_fixes_and_features.js
+          node backend/tests/test_interview_adaptive_engine.js
+          node backend/tests/test_predictive_ml_model.js
+          node backend/tests/test_alumni_matching_engine.js
+          node backend/tests/test_crm_and_accreditation.js
+          node backend/tests/test_blockchain_hash_chain.js
+
+  frontend-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Codebase
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js Environment
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Frontend Dependencies
+        run: |
+          npm --prefix frontend install
+
+      - name: Build Frontend Production Artifact
+        run: |
+          npm --prefix frontend run build

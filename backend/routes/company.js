@@ -726,12 +726,198 @@ router.patch('/student-mails/:id/status', (req, res) => {
   }
 });
 
-// 5. Delete Student Mail
-router.delete('/student-mails/:id', (req, res) => {
+// ---------------------------------------------------------------------------------
+// 6. RECRUITER CRM PIPELINE & EVALUATION RUBRICS
+// ---------------------------------------------------------------------------------
+
+// Valid CRM stages
+const VALID_CRM_STAGES = ['applied', 'shortlisted', 'assessment', 'interview', 'offered', 'joined', 'rejected'];
+
+// Update Application CRM Stage with Audit Trail & Notifications
+router.patch('/applications/:id/stage', (req, res) => {
   try {
     const { id } = req.params;
-    db.prepare('DELETE FROM company_student_mails WHERE id = ?').run(id);
-    res.json({ message: 'Student mail deleted successfully', id });
+    const { stage, notes, recruiter_name } = req.body;
+
+    const normalizedStage = (stage || '').toLowerCase().trim();
+    if (!VALID_CRM_STAGES.includes(normalizedStage)) {
+      return res.status(400).json({
+        error: `Invalid stage. Must be one of: ${VALID_CRM_STAGES.join(', ')}`
+      });
+    }
+
+    const application = db.prepare(`
+      SELECT a.*, r.title as requirement_title, c.company_name, s.name as student_name, s.id as student_profile_id, u.id as user_id
+      FROM applications a
+      JOIN requirements r ON a.requirement_id = r.id
+      JOIN company_profiles c ON r.company_id = c.id
+      JOIN student_profiles s ON a.student_id = s.id
+      JOIN users u ON s.user_id = u.id
+      WHERE a.id = ?
+    `).get(id);
+
+    if (!application) {
+      return res.status(404).json({ error: 'Application not found' });
+    }
+
+    const prevStage = application.status;
+    db.prepare(`
+      UPDATE applications 
+      SET status = ?
+      WHERE id = ?
+    `).run(normalizedStage, id);
+
+    // Audit log
+    try {
+      db.prepare(`
+        INSERT INTO audit_logs (id, user_id, action, entity_type, entity_id, details_json)
+        VALUES (?, ?, 'stage_transition', 'application', ?, ?)
+      `).run(
+        'audit_' + Date.now(),
+        application.user_id || 'system',
+        id,
+        JSON.stringify({
+          from: prevStage,
+          to: normalizedStage,
+          recruiter: recruiter_name || 'Corporate Recruiter',
+          notes: notes || '',
+          timestamp: new Date().toISOString()
+        })
+      );
+    } catch(e) {}
+
+    // Dispatch notification to candidate
+    try {
+      NotificationService.notifyStudent(application.student_id, {
+        title: `Application Update: ${application.company_name}`,
+        message: `Your application for ${application.requirement_title} has progressed to stage: ${normalizedStage.toUpperCase()}.`,
+        type: 'application_update',
+        link: '/#dashboard'
+      });
+    } catch(e) {}
+
+    res.json({
+      success: true,
+      applicationId: id,
+      previousStage: prevStage,
+      currentStage: normalizedStage,
+      updatedAt: new Date().toISOString()
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Bulk Candidate Stage Transition
+router.post('/applications/bulk-stage', (req, res) => {
+  try {
+    const { application_ids = [], target_stage, notes, recruiter_name } = req.body;
+
+    const normalizedStage = (target_stage || '').toLowerCase().trim();
+    if (!VALID_CRM_STAGES.includes(normalizedStage)) {
+      return res.status(400).json({
+        error: `Invalid stage. Must be one of: ${VALID_CRM_STAGES.join(', ')}`
+      });
+    }
+
+    if (!Array.isArray(application_ids) || application_ids.length === 0) {
+      return res.status(400).json({ error: 'application_ids must be a non-empty array' });
+    }
+
+    const updateStmt = db.prepare(`UPDATE applications SET status = ? WHERE id = ?`);
+    const bulkTx = db.transaction((ids) => {
+      let updatedCount = 0;
+      for (const appId of ids) {
+        const result = updateStmt.run(normalizedStage, appId);
+        if (result.changes > 0) updatedCount++;
+      }
+      return updatedCount;
+    });
+
+    const affectedCount = bulkTx(application_ids);
+
+    res.json({
+      success: true,
+      targetStage: normalizedStage,
+      totalRequested: application_ids.length,
+      affectedCount,
+      notes: notes || ''
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Custom Evaluation Rubrics API
+router.post('/rubrics', (req, res) => {
+  try {
+    const { requirement_id, rubric_name, technical_weight = 40, ats_weight = 20, star_weight = 20, cgpa_weight = 20, min_cutoff_score = 70 } = req.body;
+    if (!requirement_id) {
+      return res.status(400).json({ error: 'requirement_id is required' });
+    }
+
+    // Ensure weights sum up reasonably
+    const totalWeight = Number(technical_weight) + Number(ats_weight) + Number(star_weight) + Number(cgpa_weight);
+    if (totalWeight <= 0) {
+      return res.status(400).json({ error: 'Evaluation rubric weights must be greater than zero.' });
+    }
+
+    const rubricConfig = {
+      rubric_name: rubric_name || 'Standard Enterprise Hiring Rubric',
+      technical_weight: Number(technical_weight),
+      ats_weight: Number(ats_weight),
+      star_weight: Number(star_weight),
+      cgpa_weight: Number(cgpa_weight),
+      min_cutoff_score: Number(min_cutoff_score),
+      updated_at: new Date().toISOString()
+    };
+
+    // Store in requirement metadata
+    db.prepare(`
+      UPDATE requirements
+      SET custom_rubric_json = ?
+      WHERE id = ?
+    `).run(JSON.stringify(rubricConfig), requirement_id);
+
+    res.json({
+      success: true,
+      requirementId: requirement_id,
+      rubric: rubricConfig
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/rubrics/:requirementId', (req, res) => {
+  try {
+    const { requirementId } = req.params;
+    const reqRow = db.prepare('SELECT custom_rubric_json, title FROM requirements WHERE id = ?').get(requirementId);
+    if (!reqRow) {
+      return res.status(404).json({ error: 'Requirement not found' });
+    }
+
+    let rubric = null;
+    try {
+      rubric = reqRow.custom_rubric_json ? JSON.parse(reqRow.custom_rubric_json) : null;
+    } catch(e) {}
+
+    if (!rubric) {
+      rubric = {
+        rubric_name: 'Standard Default Engineering Rubric',
+        technical_weight: 40,
+        ats_weight: 20,
+        star_weight: 20,
+        cgpa_weight: 20,
+        min_cutoff_score: 70
+      };
+    }
+
+    res.json({
+      requirementId,
+      requirementTitle: reqRow.title,
+      rubric
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

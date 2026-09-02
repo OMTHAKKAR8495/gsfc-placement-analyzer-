@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node index.js",
     "dev": "node --watch index.js",
-    "test": "node tests/verify_all.js"
+    "test": "node tests/verify_fixes_and_features.js && node tests/test_interview_adaptive_engine.js && node tests/test_predictive_ml_model.js && node tests/test_alumni_matching_engine.js && node tests/test_crm_and_accreditation.js && node tests/test_blockchain_hash_chain.js",
+    "seed:dev": "node scripts/seedDevAccounts.js"
   },
   "dependencies": {
     "@google/generative-ai": "^0.17.1",

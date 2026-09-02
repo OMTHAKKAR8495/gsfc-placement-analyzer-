@@ -4,6 +4,7 @@ import { queryTPOCopilot } from '../ai/modules/tpoCopilot.js';
 import { calculateStudentReadiness } from '../ai/modules/readinessCalculator.js';
 import { simulatePlacementScenario } from '../ai/modules/whatIfSimulator.js';
 import { queryPlacementRAG } from '../ai/modules/ragKnowledgeBase.js';
+import { computeStudentPlacementProbability, forecastPlacementTrends } from '../ai/modules/placementForecaster.js';
 import jwt from 'jsonwebtoken';
 
 const router = express.Router();
@@ -953,7 +954,115 @@ router.post('/placement-risks/:id/resolve', (req, res) => {
   try {
     const { id } = req.params;
     db.prepare('UPDATE placement_risk_alerts SET is_resolved = 1 WHERE id = ?').run(id);
-    res.json({ success: true, message: 'Risk alert resolved.' });
+// Continuous At-Risk Roster with Multi-Factor Factor Decomposition
+router.get('/at-risk-roster', (req, res) => {
+  try {
+    const students = db.prepare(`
+      SELECT 
+        s.*, 
+        u.email,
+        (SELECT COUNT(*) FROM applications a WHERE a.student_id = s.id) as applied_count,
+        (SELECT AVG(score) FROM student_assessments asm WHERE asm.student_id = s.id) as mock_score
+      FROM student_profiles s
+      JOIN users u ON s.user_id = u.id
+      ORDER BY s.cgpa ASC
+    `).all();
+
+    if (students.length === 0) {
+      return res.json([]);
+    }
+
+    // Calculate department medians
+    const atsScores = students.map(s => Number(s.ats_score) || 75).sort((a, b) => a - b);
+    const cgpas = students.map(s => Number(s.cgpa) || 7.5).sort((a, b) => a - b);
+    const medianAts = atsScores[Math.floor(atsScores.length / 2)] || 80;
+    const medianCgpa = cgpas[Math.floor(cgpas.length / 2)] || 7.6;
+
+    const scoredRoster = students.map(st => {
+      const evaluation = computeStudentPlacementProbability({
+        id: st.id,
+        user_id: st.user_id,
+        name: st.name,
+        roll_number: st.roll_number,
+        program: st.program,
+        branch: st.branch,
+        cgpa: st.cgpa,
+        ats_score: st.ats_score,
+        mock_interview_score: st.mock_score || 70,
+        applications_count: st.applied_count || 0,
+        parsed_resume_json: st.parsed_resume_json
+      }, {
+        departmentMedianAts: medianAts,
+        departmentMedianCgpa: medianCgpa
+      });
+
+      return {
+        ...evaluation,
+        email: st.email
+      };
+    }).sort((a, b) => b.riskScore - a.riskScore);
+
+    res.json({
+      departmentMedians: {
+        medianAts,
+        medianCgpa,
+        totalEvaluated: scoredRoster.length
+      },
+      criticalCount: scoredRoster.filter(r => r.riskLevel === 'Critical High Risk').length,
+      moderateCount: scoredRoster.filter(r => r.riskLevel === 'Moderate Attention Needed').length,
+      lowRiskCount: scoredRoster.filter(r => r.riskLevel === 'Low Risk').length,
+      roster: scoredRoster
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Institutional Placement Cohort Predictive Forecast
+router.get('/cohort-forecast', async (req, res) => {
+  try {
+    const totalStudents = db.prepare('SELECT COUNT(*) as count FROM student_profiles').get()?.count || 120;
+    const totalSelected = db.prepare("SELECT COUNT(DISTINCT student_id) as count FROM applications WHERE status = 'selected'").get()?.count || 45;
+    const totalDrives = db.prepare('SELECT COUNT(*) as count FROM requirements').get()?.count || 18;
+
+    const branchStats = db.prepare(`
+      SELECT 
+        COALESCE(s.branch, s.program) as branch,
+        COUNT(s.id) as total,
+        COUNT(DISTINCT CASE WHEN a.status = 'selected' THEN s.id END) as selected,
+        AVG(s.ats_score) as avgAts,
+        AVG(s.cgpa) as avgCgpa
+      FROM student_profiles s
+      LEFT JOIN applications a ON s.id = a.student_id
+      GROUP BY COALESCE(s.branch, s.program)
+    `).all();
+
+    const currentPlacementRate = totalStudents > 0 ? Math.round((totalSelected / totalStudents) * 100) : 0;
+
+    const forecast = await forecastPlacementTrends({
+      totalStudents,
+      totalSelected,
+      currentPlacementRate,
+      totalDrives,
+      branchStats: branchStats.map(b => ({
+        branch: b.branch || 'Engineering',
+        total: b.total,
+        selected: b.selected,
+        avgAts: b.avgAts ? Math.round(b.avgAts) : 80,
+        avgCgpa: b.avgCgpa ? Number(b.avgCgpa.toFixed(2)) : 7.6
+      }))
+    });
+
+    res.json({
+      timestamp: new Date().toISOString(),
+      currentMetrics: {
+        totalStudents,
+        totalSelected,
+        currentPlacementRate,
+        totalDrives
+      },
+      forecast
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

@@ -6,6 +6,7 @@ services:
     rootDir: backend
     buildCommand: npm install
     startCommand: npm start
+    healthCheckPath: /api/health
     disk:
       name: gsfc-data
       mountPath: /data

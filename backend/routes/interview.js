@@ -149,10 +149,10 @@ router.post('/mock/start', async (req, res) => {
   }
 });
 
-// Submit single answer for real-time AI evaluation
+// Submit single answer for real-time AI evaluation with Speech & STAR Analytics
 router.post('/mock/answer', async (req, res) => {
   try {
-    const { session_id, question_index, answer_text } = req.body;
+    const { session_id, question_index, answer_text, speech_metrics = {} } = req.body;
 
     const session = db.prepare('SELECT * FROM mock_interview_sessions WHERE id = ?').get(session_id);
     if (!session) {
@@ -170,7 +170,8 @@ router.post('/mock/answer', async (req, res) => {
     const feedback = await evaluateAnswer({
       question: targetQuestion.question,
       expectedKeyPoints: targetQuestion.expectedKeyPoints || [],
-      candidateAnswer: answer_text
+      candidateAnswer: answer_text,
+      speechMetrics: speech_metrics
     });
 
     targetQuestion.feedback = feedback;
@@ -193,35 +194,67 @@ router.post('/mock/answer', async (req, res) => {
   }
 });
 
-// Get Student's Mock Interview Sessions History
-router.get('/sessions', (req, res) => {
+// Generate Adaptive Next Question on the fly based on rolling performance
+router.post('/mock/adaptive-next', async (req, res) => {
   try {
-    const studentId = req.query.student_id || req.query.studentId;
-    if (!studentId) {
-      return res.status(400).json({ error: 'student_id is required' });
+    const { session_id, current_category } = req.body;
+    const session = db.prepare('SELECT * FROM mock_interview_sessions WHERE id = ?').get(session_id);
+    if (!session) {
+      return res.status(404).json({ error: 'Mock interview session not found.' });
     }
 
-    const sessions = db.prepare(`
-      SELECT 
-        s.*, 
-        r.title as requirement_title, 
-        r.ctc_range, 
-        c.company_name, 
-        c.logo_url
-      FROM mock_interview_sessions s
-      LEFT JOIN requirements r ON s.requirement_id = r.id
-      LEFT JOIN company_profiles c ON r.company_id = c.id
-      WHERE s.student_id = ?
-      ORDER BY s.created_at DESC
-    `).all(studentId);
+    const qaPairs = JSON.parse(session.qa_pairs_json || '[]');
+    const answeredPairs = qaPairs.filter(p => p.feedback && typeof p.feedback.score === 'number');
+    const rollingAvg = answeredPairs.length > 0
+      ? Math.round(answeredPairs.reduce((sum, p) => sum + p.feedback.score, 0) / answeredPairs.length)
+      : 75;
+    const previousScore = answeredPairs.length > 0 ? answeredPairs[answeredPairs.length - 1].feedback.score : 75;
 
-    res.json(sessions);
+    const requirement = session.requirement_id
+      ? db.prepare('SELECT * FROM requirements WHERE id = ?').get(session.requirement_id)
+      : { title: 'Enterprise Software Engineer' };
+
+    const { generateAdaptiveNextQuestion } = await import('../ai/modules/interviewGenerator.js');
+    const adaptiveQ = await generateAdaptiveNextQuestion({
+      requirement: requirement || { title: 'Software Engineer' },
+      previousScore,
+      rollingAvg,
+      questionIndex: qaPairs.length + 1,
+      currentCategory: current_category || 'Applied Systems Engineering'
+    });
+
+    const newPair = {
+      questionId: adaptiveQ.id || `q_adaptive_${Date.now()}`,
+      category: adaptiveQ.category || 'Adaptive Engineering',
+      question: adaptiveQ.question,
+      expectedKeyPoints: adaptiveQ.expectedKeyPoints || [],
+      difficulty: adaptiveQ.difficulty || 'Medium',
+      difficultyLevel: adaptiveQ.difficultyLevel || 2,
+      candidateAnswer: null,
+      feedback: null
+    };
+
+    qaPairs.push(newPair);
+
+    db.prepare(`
+      UPDATE mock_interview_sessions 
+      SET qa_pairs_json = ? 
+      WHERE id = ?
+    `).run(JSON.stringify(qaPairs), session_id);
+
+    res.json({
+      success: true,
+      newQuestion: newPair,
+      totalQuestions: qaPairs.length,
+      currentQuestionIndex: qaPairs.length - 1,
+      rollingAvg
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// Finish session and return final readiness report card
+// Finish session and return multi-dimensional scorecard & study sprint
 router.post('/mock/finish', (req, res) => {
   try {
     const { session_id } = req.body;
@@ -230,8 +263,14 @@ router.post('/mock/finish', (req, res) => {
       return res.status(404).json({ error: 'Mock interview session not found.' });
     }
 
+    const requirement = session.requirement_id
+      ? db.prepare('SELECT r.*, c.company_name FROM requirements r LEFT JOIN company_profiles c ON r.company_id = c.id WHERE r.id = ?').get(session.requirement_id)
+      : null;
+
     const qaPairs = JSON.parse(session.qa_pairs_json || '[]');
-    const summary = generateFinalReadinessSummary(qaPairs);
+    const summary = generateFinalReadinessSummary(qaPairs, {
+      target_company: requirement?.company_name || 'Tier-1 Hiring Partner'
+    });
 
     db.prepare(`
       UPDATE mock_interview_sessions

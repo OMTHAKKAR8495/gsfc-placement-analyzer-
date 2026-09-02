@@ -10,7 +10,8 @@
     "dev:backend": "npm --prefix backend run dev",
     "build": "npm --prefix frontend run build",
     "build:all": "npm --prefix frontend install && npm --prefix frontend run build && npm --prefix backend install",
-    "test": "npm --prefix backend test",
+    "test": "node backend/tests/verify_fixes_and_features.js && node backend/tests/test_interview_adaptive_engine.js && node backend/tests/test_predictive_ml_model.js && node backend/tests/test_alumni_matching_engine.js && node backend/tests/test_crm_and_accreditation.js && node backend/tests/test_blockchain_hash_chain.js",
+    "seed:dev": "node backend/scripts/seedDevAccounts.js",
     "mobile:build": "npm --prefix frontend run mobile:build",
     "mobile:android": "npm --prefix frontend run mobile:android",
     "mobile:ios": "npm --prefix frontend run mobile:ios"

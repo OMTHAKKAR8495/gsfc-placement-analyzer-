@@ -1086,6 +1086,11 @@ function applyMigrations() {
         ALTER TABLE student_profiles ADD COLUMN whatsapp_number TEXT;
       `);
     } catch(e) {}
+    try {
+      db.exec(`
+        ALTER TABLE requirements ADD COLUMN custom_rubric_json TEXT;
+      `);
+    } catch(e) {}
 
     // Migrate users.role check constraint if 'faculty'/'superadmin'/'security' is missing
     const userTableCheckSql = db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='users'").get()?.sql || '';
@@ -1192,6 +1197,38 @@ function applyMigrations() {
         author_name TEXT,
         author_role TEXT CHECK(author_role IN ('student', 'alumni', 'admin', 'company')),
         content TEXT NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    // 3b. Alumni Mentorship Availability Slots Table
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS alumni_mentorship_slots (
+        id TEXT PRIMARY KEY,
+        alumni_id TEXT NOT NULL REFERENCES alumni_profiles(id) ON DELETE CASCADE,
+        day_of_week TEXT NOT NULL,
+        start_time TEXT NOT NULL,
+        end_time TEXT NOT NULL,
+        topic_focus TEXT DEFAULT 'General Career & Technical Mentorship',
+        is_booked INTEGER DEFAULT 0,
+        booked_student_id TEXT,
+        booked_student_name TEXT,
+        meeting_link TEXT,
+        session_notes TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    // 3c. Alumni Mentor Reviews & Reputation Table
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS alumni_mentor_reviews (
+        id TEXT PRIMARY KEY,
+        alumni_id TEXT NOT NULL REFERENCES alumni_profiles(id) ON DELETE CASCADE,
+        student_id TEXT NOT NULL,
+        student_name TEXT NOT NULL,
+        rating INTEGER NOT NULL CHECK(rating >= 1 AND rating <= 5),
+        feedback TEXT NOT NULL,
+        session_topic TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
       );
     `);

@@ -321,4 +321,58 @@ router.get('/student/:studentId', (req, res) => {
   }
 });
 
+// 6. Comprehensive Whole-Ledger Cryptographic Audit
+router.get('/audit-chain', (req, res) => {
+  try {
+    const blocks = db.prepare(`
+      SELECT id, block_number, document_hash, previous_block_hash, merkle_root, student_name, roll_number
+      FROM blockchain_anchored_documents
+      ORDER BY block_number ASC
+    `).all();
+
+    if (blocks.length === 0) {
+      return res.json({
+        isChainValid: true,
+        totalBlocks: 0,
+        verifiedBlocks: 0,
+        message: 'Cryptographic ledger is initialized with 0 anchored blocks.'
+      });
+    }
+
+    let isChainValid = true;
+    const errors = [];
+
+    for (let i = 0; i < blocks.length; i++) {
+      const curr = blocks[i];
+
+      // Verify Merkle Root consistency: MerkleRoot = SHA256(docHash + prevHash)
+      const expectedMerkleRoot = computeSha256(curr.document_hash + curr.previous_block_hash);
+      if (curr.merkle_root !== expectedMerkleRoot) {
+        isChainValid = false;
+        errors.push(`Block #${curr.block_number} (${curr.id}): Merkle root tamper detected. Expected ${expectedMerkleRoot}, got ${curr.merkle_root}`);
+      }
+
+      // Verify Hash-Chain continuity with predecessor
+      if (i > 0) {
+        const prev = blocks[i - 1];
+        if (curr.previous_block_hash !== prev.document_hash) {
+          isChainValid = false;
+          errors.push(`Block #${curr.block_number} (${curr.id}): Chain link broken. Previous hash does not match Block #${prev.block_number} document hash.`);
+        }
+      }
+    }
+
+    res.json({
+      isChainValid,
+      totalBlocks: blocks.length,
+      verifiedBlocks: isChainValid ? blocks.length : blocks.length - errors.length,
+      auditTimestamp: new Date().toISOString(),
+      status: isChainValid ? '100% Cryptographically Intact & Tamper-Evident' : 'Tamper Detected in Hash-Chain',
+      errors
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 export default router;
