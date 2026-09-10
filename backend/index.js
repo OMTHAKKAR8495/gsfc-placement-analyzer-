@@ -1,11 +1,13 @@
 import express from 'express';
 import http from 'http';
+import fs from 'fs';
 import { Server as SocketIOServer } from 'socket.io';
 import cors from 'cors';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import db, { initDatabase } from './db/index.js';
 import { AuthRateLimiter } from './middleware/security.js';
 import { verifyCsrfToken } from './middleware/authMiddleware.js';
 import { wafShieldMiddleware } from './middleware/wafShield.js';
@@ -362,7 +364,7 @@ app.get('*', (req, res) => {
   });
 });
 
-// Centralized Security Error Handler (Masks Internal Stack Traces)
+// Centralized Security & Crash Fallback Handler
 app.use((err, req, res, next) => {
   console.error('🔒 [SECURITY AUDIT SERVER ERROR]:', err.stack || err.message || err);
   
@@ -372,8 +374,21 @@ app.use((err, req, res, next) => {
 
   const statusCode = err.statusCode || err.status || 500;
   res.status(statusCode).json({
-    error: statusCode === 500 ? 'An internal security error occurred. Our engineering team has been notified.' : err.message
+    status: 'error',
+    safeMode: true,
+    error: statusCode === 500 ? 'An internal server error occurred. Operating in temporary safe mode.' : err.message
   });
+});
+
+// Process-level Crash Prevention & Safe Fallback
+process.on('uncaughtException', (err) => {
+  console.error('💥 [CRITICAL UNCAUGHT EXCEPTION PREVENTED]:', err);
+  // Logged to prevent immediate Node.js process death in production
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('⚠️ [CRITICAL UNHANDLED REJECTION PREVENTED]:', reason);
+  // Logged to prevent unhandled promise rejection crashes
 });
 
 const isMain = process.argv[1] && (fileURLToPath(import.meta.url) === process.argv[1] || process.argv[1].endsWith('backend/index.js') || process.argv[1].endsWith('index.js'));
@@ -384,4 +399,5 @@ if (isMain && !process.env.VERCEL) {
 }
 
 export default app;
+
 

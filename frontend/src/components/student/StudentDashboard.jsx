@@ -760,6 +760,7 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
 
     const studentId = resolveStudentId(currentUser, student);
     const activeEmail = (currentUser?.email || student?.email || '').toLowerCase();
+    const activeRoll = (currentUser?.profile?.roll_number || student?.roll_number || '').toUpperCase();
     if (!studentId && !activeEmail) {
       setApplications([]);
       return;
@@ -770,6 +771,12 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
       try {
         const raw = localStorage.getItem('gsfc_student_applications_' + activeEmail);
         if (raw) localSaved = JSON.parse(raw) || [];
+      } catch(e) {}
+    }
+    if (localSaved.length === 0 && activeRoll) {
+      try {
+        const rawRoll = localStorage.getItem('gsfc_student_applications_' + activeRoll);
+        if (rawRoll) localSaved = JSON.parse(rawRoll) || [];
       } catch(e) {}
     }
 
@@ -799,6 +806,9 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
           setApplications(merged);
           if (activeEmail && currentUser?.role === 'student') {
             localStorage.setItem('gsfc_student_applications_' + activeEmail, JSON.stringify(merged));
+          }
+          if (activeRoll && currentUser?.role === 'student') {
+            localStorage.setItem('gsfc_student_applications_' + activeRoll, JSON.stringify(merged));
           }
           return;
         }
@@ -1210,10 +1220,14 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
       };
       
       const email = (currentUser?.email || student?.email || '').toLowerCase();
+      const roll = (currentUser?.profile?.roll_number || student?.roll_number || '').toUpperCase();
       setApplications(prev => {
         const updated = [newApp, ...prev.filter(a => a.requirement_id !== reqId)];
         if (email) {
           localStorage.setItem('gsfc_student_applications_' + email, JSON.stringify(updated));
+        }
+        if (roll) {
+          localStorage.setItem('gsfc_student_applications_' + roll, JSON.stringify(updated));
         }
         return updated;
       });

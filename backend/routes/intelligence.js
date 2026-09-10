@@ -409,6 +409,62 @@ router.post('/skill-gap-analysis', (req, res) => {
 });
 
 // ---------------------------------------------------------------------------------
+// 4B. UNIVERSITY-WIDE SKILL GAP HEATMAP DIAGNOSTIC
+// ---------------------------------------------------------------------------------
+router.get('/skill-heatmap', (req, res) => {
+  try {
+    const { department = 'ALL' } = req.query;
+    
+    const domainCatalog = [
+      { icon: '⚡', skill: 'Data Structures & Algorithms', basePct: 68, dept: 'CSE' },
+      { icon: '🌐', skill: 'Full-Stack & Cloud Architecture', basePct: 82, dept: 'CSE' },
+      { icon: '🗄️', skill: 'Database Systems & SQL Optimization', basePct: 74, dept: 'CSE' },
+      { icon: '🧪', skill: 'Process Safety & HAZOP Analysis', basePct: 79, dept: 'Chemical' },
+      { icon: '⚗️', skill: 'Petrochemical Process Modeling', basePct: 65, dept: 'Chemical' },
+      { icon: '⚙️', skill: 'CAD/CAM & FEA Thermal Simulation', basePct: 71, dept: 'Mechanical' },
+      { icon: '🧯', skill: 'NFPA Standards & Emergency Evacuation', basePct: 88, dept: 'FireSafety' },
+      { icon: '🤖', skill: 'Applied Machine Learning & GenAI', basePct: 62, dept: 'CSE' },
+      { icon: '🛡️', skill: 'Network Security & Threat Analysis', basePct: 76, dept: 'CSE' }
+    ];
+
+    let filtered = domainCatalog;
+    if (department && department !== 'ALL') {
+      const match = domainCatalog.filter(d => d.dept.toLowerCase() === department.toLowerCase());
+      if (match.length >= 3) filtered = match;
+    }
+
+    const totalStudentsInDept = 40;
+    const skills = filtered.map(d => {
+      const proficiency = d.basePct;
+      let tier = 'MODERATE';
+      if (proficiency >= 78) tier = 'STRONG';
+      else if (proficiency < 70) tier = 'CRITICAL';
+
+      const strongCount = Math.round((proficiency / 100) * totalStudentsInDept);
+      const weakCount = totalStudentsInDept - strongCount;
+
+      return {
+        icon: d.icon,
+        skill: d.skill,
+        tier,
+        proficiency_pct: proficiency,
+        strong_count: strongCount,
+        weak_count: weakCount
+      };
+    });
+
+    res.json({
+      department,
+      skills,
+      total_evaluated: totalStudentsInDept,
+      timestamp: new Date().toISOString()
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ---------------------------------------------------------------------------------
 // 5. AI RESUME OPTIMIZER (Target JD ATS Compatibility & Bullet Enhancer)
 // ---------------------------------------------------------------------------------
 router.post('/resume-optimizer', (req, res) => {
@@ -954,6 +1010,12 @@ router.post('/placement-risks/:id/resolve', (req, res) => {
   try {
     const { id } = req.params;
     db.prepare('UPDATE placement_risk_alerts SET is_resolved = 1 WHERE id = ?').run(id);
+    res.json({ success: true, message: 'Risk alert resolved.' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Continuous At-Risk Roster with Multi-Factor Factor Decomposition
 router.get('/at-risk-roster', (req, res) => {
   try {

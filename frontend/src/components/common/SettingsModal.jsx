@@ -5,7 +5,8 @@ import {
   Download, Trash2, Key, Check, CheckCircle2, AlertCircle, 
   Sparkles, HelpCircle, FileText, Smartphone, Mail, Globe, 
   ExternalLink, Lock, Eye, EyeOff, RefreshCw, Zap, Eye as EyeIcon, 
-  Minimize2, Camera, UploadCloud, FileCheck, Plus, Paperclip, Award, CheckCircle, QrCode, Copy 
+  Minimize2, Camera, UploadCloud, FileCheck, Plus, Paperclip, Award, CheckCircle, QrCode, Copy,
+  Terminal, Bug, Activity, ShieldAlert, Cpu
 } from 'lucide-react';
 import { useToast } from '../../context/ToastContext';
 import { useLanguage } from '../../context/LanguageContext';
@@ -128,6 +129,11 @@ export default function SettingsModal({ isOpen, onClose, currentUser, theme, onT
   const [newPassword, setNewPassword] = useState('');
   const [showPassText, setShowPassText] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
+
+  // 🛠️ Developer & Safe Mode Test States
+  const [devSimulateCrash, setDevSimulateCrash] = useState(false);
+  const [healthStatus, setHealthStatus] = useState(null);
+  const [healthLoading, setHealthLoading] = useState(false);
 
   // Input Refs for 1-Click Upload triggers
   const photoInputRef = useRef(null);
@@ -701,7 +707,8 @@ export default function SettingsModal({ isOpen, onClose, currentUser, theme, onT
               { id: 'notifications', label: '🔔 Notifications & SMS', icon: Bell },
               { id: 'security', label: '🔒 Security & Access', icon: Shield },
               { id: 'data', label: '📄 Data & Exports', icon: Download },
-              { id: 'institutional', label: '🏛️ TPC Guidelines & Info', icon: HelpCircle }
+              { id: 'institutional', label: '🏛️ TPC Guidelines & Info', icon: HelpCircle },
+              { id: 'developer', label: '🛠️ Developer & Safe Mode', icon: Terminal, badge: 'Dev' }
             ].map(tab => {
               const Icon = tab.icon;
               return (
@@ -1459,6 +1466,127 @@ export default function SettingsModal({ isOpen, onClose, currentUser, theme, onT
                 </div>
               </div>
             )}
+
+            {/* 7. 🛠️ DEVELOPER & SAFE MODE SUITE */}
+            {activeTab === 'developer' && (
+              <div className="space-y-5 animate-fadeIn">
+                {devSimulateCrash && (() => {
+                  throw new Error('🚨 [Developer Mode Simulated Exception]: Component crashed on command to test Fault Tolerance & Safe Guard!');
+                })()}
+
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="px-2 py-0.5 bg-amber-500/20 text-amber-500 dark:text-amber-400 font-mono text-[10px] font-black uppercase rounded-md border border-amber-500/30">
+                      Developer Diagnostic Sandbox
+                    </span>
+                  </div>
+                  <h3 className="text-base font-black text-slate-900 dark:text-slate-100 mt-1">Fault Tolerance & Safe Mode Suite</h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Test crash resilience, trigger Error Boundaries, and inspect real-time platform safe guards.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                  {/* Card 1: Simulate Crash */}
+                  <div className="p-4 bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/50 rounded-2xl flex flex-col justify-between space-y-3">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2 text-rose-700 dark:text-rose-400 font-black text-xs">
+                        <Bug className="w-4 h-4" />
+                        <span>Simulate Component Crash</span>
+                      </div>
+                      <p className="text-[11px] text-slate-600 dark:text-slate-400">
+                        Intentionally triggers a fatal UI rendering exception to test the <strong>ErrorBoundary & Safe Mode Fallback</strong> live in action.
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setDevSimulateCrash(true)}
+                      className="w-full py-2.5 px-3 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-xs font-black flex items-center justify-center gap-2 shadow-md transition-transform cursor-pointer"
+                    >
+                      <ShieldAlert className="w-4 h-4" /> 💥 Trigger Crash Test
+                    </button>
+                  </div>
+
+                  {/* Card 2: Server Health Check */}
+                  <div className="p-4 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/50 rounded-2xl flex flex-col justify-between space-y-3">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2 text-blue-700 dark:text-blue-400 font-black text-xs">
+                        <Activity className="w-4 h-4" />
+                        <span>Backend Health & Safe Guard Probe</span>
+                      </div>
+                      <p className="text-[11px] text-slate-600 dark:text-slate-400">
+                        Sends a live liveness ping to <code>/api/health</code> to test backend safe status and uptime.
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      disabled={healthLoading}
+                      onClick={async () => {
+                        setHealthLoading(true);
+                        try {
+                          const res = await fetch('/api/health');
+                          const data = await res.json();
+                          setHealthStatus(data);
+                          showToast({
+                            type: 'success',
+                            title: '🩺 Backend Healthy & Protected',
+                            message: `Uptime: ${data.uptimeSeconds || 0}s | Safe Guard Active`
+                          });
+                        } catch(e) {
+                          setHealthStatus({ status: 'offline', error: e.message });
+                          showToast({
+                            type: 'error',
+                            title: 'Health Probe Failed',
+                            message: e.message
+                          });
+                        } finally {
+                          setHealthLoading(false);
+                        }
+                      }}
+                      className="w-full py-2.5 px-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-black flex items-center justify-center gap-2 shadow-md transition-transform cursor-pointer"
+                    >
+                      {healthLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Activity className="w-4 h-4" />}
+                      <span>🩺 Probe Server Safe Guard</span>
+                    </button>
+                  </div>
+                </div>
+
+                {healthStatus && (
+                  <div className="p-3 bg-slate-900 text-slate-200 rounded-2xl border border-slate-800 text-[11px] font-mono space-y-1 overflow-x-auto">
+                    <div className="text-emerald-400 font-bold">● System Response Probe:</div>
+                    <pre className="text-[10px] text-slate-300">{JSON.stringify(healthStatus, null, 2)}</pre>
+                  </div>
+                )}
+
+                {/* Emergency Session Recovery */}
+                <div className="p-4 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-700 flex items-center justify-between gap-3">
+                  <div className="space-y-0.5">
+                    <div className="text-xs font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                      <Cpu className="w-4 h-4 text-purple-600" />
+                      <span>Hard Reset Browser Session Storage</span>
+                    </div>
+                    <div className="text-[11px] text-slate-500">
+                      Instantly purges corrupted workspace state and reboots cleanly.
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      sessionStorage.clear();
+                      localStorage.removeItem('gsfc_active_workspace');
+                      window.location.reload();
+                    }}
+                    className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-bold shrink-0 cursor-pointer shadow transition-colors"
+                  >
+                    🔄 Purge & Reboot
+                  </button>
+                </div>
+              </div>
+            )}
+
 
           </div>
         </div>

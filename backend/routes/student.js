@@ -237,13 +237,21 @@ router.get('/dashboard-summary', (req, res) => {
 
     const student = db.prepare('SELECT * FROM student_profiles WHERE id = ?').get(studentId);
     
+    // Resolve all profile alias IDs sharing same roll number (e.g. Om Thakkar batch and dev accounts)
+    let studentIds = [studentId];
+    if (student?.roll_number) {
+      const aliases = db.prepare('SELECT id FROM student_profiles WHERE roll_number = ?').all(student.roll_number);
+      studentIds = Array.from(new Set([...studentIds, ...aliases.map(a => a.id)]));
+    }
+    const idPlaceholders = studentIds.map(() => '?').join(',');
+
     // Counts
-    const applicationsCount = db.prepare('SELECT COUNT(*) as c FROM applications WHERE student_id = ?').get(studentId)?.c || 0;
-    const shortlistedCount = db.prepare("SELECT COUNT(*) as c FROM applications WHERE student_id = ? AND status IN ('shortlisted', 'interview', 'selected')").get(studentId)?.c || 0;
-    const selectedCount = db.prepare("SELECT COUNT(*) as c FROM applications WHERE student_id = ? AND status = 'selected'").get(studentId)?.c || 0;
-    const bookmarksCount = db.prepare('SELECT COUNT(*) as c FROM student_bookmarks WHERE student_id = ?').get(studentId)?.c || 0;
-    const assessmentsCount = db.prepare('SELECT COUNT(*) as c FROM student_assessments WHERE student_id = ?').get(studentId)?.c || 0;
-    const mockInterviewsCount = db.prepare('SELECT COUNT(*) as c FROM mock_interview_sessions WHERE student_id = ?').get(studentId)?.c || 0;
+    const applicationsCount = db.prepare(`SELECT COUNT(DISTINCT requirement_id) as c FROM applications WHERE student_id IN (${idPlaceholders})`).get(...studentIds)?.c || 0;
+    const shortlistedCount = db.prepare(`SELECT COUNT(DISTINCT requirement_id) as c FROM applications WHERE student_id IN (${idPlaceholders}) AND status IN ('shortlisted', 'interview', 'selected')`).get(...studentIds)?.c || 0;
+    const selectedCount = db.prepare(`SELECT COUNT(DISTINCT requirement_id) as c FROM applications WHERE student_id IN (${idPlaceholders}) AND status = 'selected'`).get(...studentIds)?.c || 0;
+    const bookmarksCount = db.prepare(`SELECT COUNT(DISTINCT entity_id) as c FROM student_bookmarks WHERE student_id IN (${idPlaceholders})`).get(...studentIds)?.c || 0;
+    const assessmentsCount = db.prepare(`SELECT COUNT(*) as c FROM student_assessments WHERE student_id IN (${idPlaceholders})`).get(...studentIds)?.c || 0;
+    const mockInterviewsCount = db.prepare(`SELECT COUNT(*) as c FROM mock_interview_sessions WHERE student_id IN (${idPlaceholders})`).get(...studentIds)?.c || 0;
     const unreadNotificationsCount = db.prepare('SELECT COUNT(*) as c FROM student_notifications WHERE student_id = ? AND is_read = 0').get(studentId)?.c || 0;
     const myQuestionsCount = db.prepare('SELECT COUNT(*) as c FROM qa_threads WHERE student_id = ?').get(studentId)?.c || 0;
 
@@ -288,10 +296,16 @@ router.get('/requirements', (req, res) => {
       bmarks.forEach(b => bookmarkedReqIds.add(b.entity_id));
     }
 
-    // Load Applied Req IDs for this student
+    // Load Applied Req IDs for this student (across profile aliases sharing roll number)
     let appliedReqIds = new Map();
     if (studentId) {
-      const apps = db.prepare("SELECT requirement_id, status, applied_at FROM applications WHERE student_id = ?").all(studentId);
+      let studentIds = [studentId];
+      if (student?.roll_number) {
+        const aliases = db.prepare('SELECT id FROM student_profiles WHERE roll_number = ?').all(student.roll_number);
+        studentIds = Array.from(new Set([...studentIds, ...aliases.map(a => a.id)]));
+      }
+      const idPlaceholders = studentIds.map(() => '?').join(',');
+      const apps = db.prepare(`SELECT requirement_id, status, applied_at FROM applications WHERE student_id IN (${idPlaceholders})`).all(...studentIds);
       apps.forEach(a => appliedReqIds.set(a.requirement_id, a));
     }
 
@@ -308,30 +322,24 @@ router.get('/requirements', (req, res) => {
         matchScore: null,
         eligible: true,
         reason: 'Upload resume to calculate exact NLP match score',
-        matchedSkills: [],
-        missingSkills: [],
-        strengthSummary: 'Upload resume to generate AI domain match analysis.',
-        improvementTips: ['Upload resume in Student Workspace to analyze match.']
+        reasons: ['Upload resume to calculate exact NLP match score']
       };
 
-      if (student && student.parsed_resume_json) {
+      if (student) {
         matchInfo = calculateMatchScore(student, reqItem);
       }
 
       const appData = appliedReqIds.get(reqItem.id);
-
       return {
         ...reqItem,
         matchScore: matchInfo.matchScore,
         eligible: matchInfo.eligible,
         eligibilityReason: matchInfo.reason,
-        matchedSkills: matchInfo.matchedSkills || [],
-        missingSkills: matchInfo.missingSkills || [],
-        strengthSummary: matchInfo.strengthSummary || '',
-        improvementTips: matchInfo.improvementTips || [],
-        breakdown: matchInfo.breakdown || {},
+        eligibility_reason: matchInfo.reason,
+        eligibility_reasons: matchInfo.reasons || [matchInfo.reason],
         is_bookmarked: bookmarkedReqIds.has(reqItem.id),
         is_applied: Boolean(appData),
+        has_applied: !!appData,
         application_status: appData?.status || null,
         applied_at: appData?.applied_at || null
       };
@@ -383,12 +391,23 @@ router.get('/applications', (req, res) => {
            LEFT JOIN users u ON sp.user_id = u.id 
            WHERE sp.user_id = ? OR (u.email = ? AND ? != '')
          )
+         OR a.student_id IN (
+           SELECT sp2.id FROM student_profiles sp2
+           WHERE sp2.roll_number IS NOT NULL AND sp2.roll_number != '' AND sp2.roll_number = (
+             SELECT sp1.roll_number FROM student_profiles sp1
+             LEFT JOIN users u1 ON sp1.user_id = u1.id
+             WHERE sp1.id = ? OR sp1.user_id = ? OR (lower(u1.email) = ? AND ? != '')
+             LIMIT 1
+           )
+         )
+      GROUP BY a.requirement_id
       ORDER BY a.applied_at DESC
     `).all(
       rawStudentId || '', 
       derivedLocalId || '', derivedLocalId || '',
       rawStudentId || '', 
-      queryEmail || '', queryEmail || ''
+      queryEmail || '', queryEmail || '',
+      rawStudentId || '', rawStudentId || '', queryEmail || '', queryEmail || ''
     );
 
     res.json(apps);

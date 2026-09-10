@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 
 import Navbar from './components/common/Navbar';
 import AuthModal from './components/auth/AuthModal';
+import GSFCDigitalCampusLoginPage from './components/auth/GSFCDigitalCampusLoginPage';
 import StudentDashboard from './components/student/StudentDashboard';
 import CompanyDashboard from './components/company/CompanyDashboard';
 import AdminDashboard from './components/admin/AdminDashboard';
@@ -27,8 +28,14 @@ import { Network } from '@capacitor/network';
 import { SplashScreen } from '@capacitor/splash-screen';
 
 export const resolveBaseWorkspace = (rawHash) => {
-  if (!rawHash) return 'student';
+  if (!rawHash) return 'login';
   const clean = rawHash.replace(/^#/, '').toLowerCase().trim();
+  if (clean === 'login' || clean === 'signin' || clean === 'auth' || clean === 'dcs') {
+    return 'login';
+  }
+  if (clean === 'guest' || clean === 'student-guest') {
+    return 'student';
+  }
   if (
     clean.startsWith('verify-document') ||
     clean.startsWith('verify') ||
@@ -79,11 +86,14 @@ export const getDefaultWorkspaceForRole = (role) => {
   if (role === 'company') return 'company';
   if (role === 'alumni') return 'alumni';
   if (role === 'fest') return 'fest';
-  return 'student'; // student, guest, or unauthenticated
+  if (role === 'student') return 'student';
+  return 'login'; // default landing
 };
 
 export const isRoleAllowedInWorkspace = (user, targetWorkspace) => {
   const base = resolveBaseWorkspace(targetWorkspace);
+
+  if (base === 'login') return true;
 
   // Main Student Homepage, Fest Portal & Alumni Network are universally accessible to all users & guests
   if (base === 'student' || base === 'alumni' || base === 'fest' || !base) {
@@ -159,6 +169,12 @@ export const getInitialActiveRole = () => {
   const rawHash = (typeof window !== 'undefined' ? window.location.hash : '').replace(/^#/, '');
   const savedRoleHint = typeof window !== 'undefined' ? localStorage.getItem('gsfc_active_workspace') : null;
 
+  if (rawHash === 'login' || rawHash === 'signin' || rawHash === 'dcs') return 'login';
+  if (!user && (rawHash === 'guest' || rawHash === 'student-guest')) return 'student';
+  if (!user && !rawHash.startsWith('verify') && !rawHash.startsWith('pass') && !rawHash.startsWith('event')) {
+    return 'login';
+  }
+
   // 1. Try URL hash first, ONLY IF permitted for this user
   if (rawHash) {
     const baseFromHash = resolveBaseWorkspace(rawHash);
@@ -175,8 +191,8 @@ export const getInitialActiveRole = () => {
     }
   }
 
-  // 3. Fall back to user's authorized default workspace
-  return getDefaultWorkspaceForRole(user?.role);
+  // 3. Fall back to user's authorized default workspace or 'login' if unauthenticated
+  return user ? getDefaultWorkspaceForRole(user?.role) : 'login';
 };
 
 function App() {
@@ -229,6 +245,10 @@ function App() {
   const [publicRoute, setPublicRoute] = useState(resolvePublicRoute);
 
   const [isOffline, setIsOffline] = useState(false);
+  const [isGuestBrowsing, setIsGuestBrowsing] = useState(() => {
+    const hash = typeof window !== 'undefined' ? window.location.hash.replace(/^#/, '') : '';
+    return hash === 'guest' || hash === 'student-guest';
+  });
   const [activeRole, setActiveRole] = useState(() => getInitialActiveRole());
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [openPostModalSignal, setOpenPostModalSignal] = useState(0);
@@ -336,13 +356,19 @@ function App() {
       setPublicRoute(null);
 
       const rawHash = window.location.hash.replace(/^#/, '');
+      if (rawHash === 'guest' || rawHash === 'student-guest') {
+        setIsGuestBrowsing(true);
+      } else if (rawHash === 'login' || rawHash === 'signin' || rawHash === 'dcs') {
+        setIsGuestBrowsing(false);
+      }
+
       const base = resolveBaseWorkspace(rawHash);
       const user = currentUserRef.current;
       if (isRoleAllowedInWorkspace(user, base)) {
         setActiveRole(base);
         localStorage.setItem('gsfc_active_workspace', base);
       } else {
-        const fallbackRole = getDefaultWorkspaceForRole(user?.role);
+        const fallbackRole = user ? getDefaultWorkspaceForRole(user?.role) : 'login';
         setActiveRole(fallbackRole);
         localStorage.setItem('gsfc_active_workspace', fallbackRole);
         window.history.replaceState(null, '', `#${fallbackRole}`);
@@ -408,7 +434,7 @@ function App() {
 
     if (!token) {
       setCurrentUser(null);
-      const safeGuestRole = isRoleAllowedInWorkspace(null, activeRole) ? activeRole : 'student';
+      const safeGuestRole = isGuestBrowsing ? 'student' : (activeRole === 'verify-document' ? 'verify-document' : 'login');
       if (activeRole !== safeGuestRole) {
         setActiveRole(safeGuestRole);
       }
@@ -456,13 +482,15 @@ function App() {
     localStorage.removeItem('gsfc_user_avatar');
     localStorage.removeItem('gsfc_candidate_name');
     setCurrentUser(null);
-    setActiveRole('student');
-    window.location.hash = '#student';
+    setIsGuestBrowsing(false);
+    setActiveRole('login');
+    window.location.hash = '#login';
     window.dispatchEvent(new CustomEvent('gsfc-avatar-updated', { detail: { avatarUrl: '' } }));
     window.dispatchEvent(new CustomEvent('gsfc-user-updated', { detail: { user: null } }));
   };
 
   const handleAuthSuccess = (userData) => {
+    setIsGuestBrowsing(false);
     const userEmail = (userData?.email || userData?.profile?.email || '').toLowerCase();
     
     // Restore avatar strictly for this user account (stored as base64, not in DB)
@@ -538,6 +566,30 @@ function App() {
     );
   }
 
+  // 🏛️ Official GSFC University Digital Campus System Login Gateway
+  const isHashLogin = typeof window !== 'undefined' && (
+    window.location.hash === '#login' || 
+    window.location.hash === '#signin' || 
+    window.location.hash === '#dcs'
+  );
+  const isExplicitLoginState = activeRole === 'login' || isHashLogin;
+  const shouldRenderDcsLogin = (isExplicitLoginState || (!currentUser && !isGuestBrowsing)) &&
+                               !publicRoute &&
+                               activeRole !== 'verify-document';
+
+  if (shouldRenderDcsLogin) {
+    return (
+      <GSFCDigitalCampusLoginPage
+        onLoginSuccess={handleAuthSuccess}
+        onGuestBrowse={() => {
+          setIsGuestBrowsing(true);
+          setActiveRole('student');
+          window.location.hash = '#guest';
+        }}
+      />
+    );
+  }
+
   // 🛡️ Dedicated Security Officer Terminal View
   if (currentUser?.role === 'security' || activeRole === 'security') {
     return (
@@ -581,7 +633,15 @@ function App() {
           currentUser={currentUser}
           activeRole={activeRole}
           onRoleSwitch={handleRoleSwitch}
-          onOpenAuth={() => setAuthModalOpen(true)}
+          onOpenAuth={() => {
+            if (!currentUser) {
+              setIsGuestBrowsing(false);
+              setActiveRole('login');
+              window.location.hash = '#login';
+            } else {
+              setAuthModalOpen(true);
+            }
+          }}
           onLogout={handleLogout}
           theme={theme}
           onToggleTheme={toggleTheme}

@@ -2518,9 +2518,11 @@ router.get('/accreditation/nirf-naac-data', (req, res) => {
 });
 
 // 📥 Unified Multi-Standard Accreditation Exporter (NAAC, NIRF, NBA Tier-1, AICTE)
-router.get('/accreditation/export', (req, res) => {
+router.get(['/accreditation/export', '/accreditation/export-nirf-csv', '/accreditation/export-naac-csv'], (req, res) => {
   try {
-    const { format = 'naac', year, department } = req.query;
+    let { format = 'naac', year, department } = req.query;
+    if (req.path.includes('export-nirf-csv')) format = 'nirf';
+    if (req.path.includes('export-naac-csv')) format = 'naac';
     const cleanFormat = format.toLowerCase().trim();
 
     if (cleanFormat === 'nirf') {

@@ -92,6 +92,10 @@ function scanValueForThreats(val, threatLog = []) {
       if (key === '__proto__' || key === 'constructor' || key === 'prototype') {
         threatLog.push({ type: 'PROTOTYPE_POLLUTION_KEY', key });
       }
+      // Allow code solutions for coding assessments, technical interviews, and sandbox execution
+      if (key === 'codeSolution' || key === 'code' || key === 'solution' || key === 'script') {
+        continue;
+      }
       scanValueForThreats(val[key], threatLog);
     }
   }
@@ -117,9 +121,10 @@ export function wafShieldMiddleware(req, res, next) {
   }
 
   // 2. Scan Query Params & Request Body
+  const isSandboxRoute = (req.path && req.path.includes('sandbox')) || (req.originalUrl && req.originalUrl.includes('sandbox'));
   const threats = [];
   if (req.query) scanValueForThreats(req.query, threats);
-  if (req.body && req.path !== '/api/intelligence/sandbox/execute') {
+  if (req.body && !isSandboxRoute) {
     scanValueForThreats(req.body, threats);
   }
 

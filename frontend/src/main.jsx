@@ -24,10 +24,19 @@ if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
   });
 }
 
+// Global Browser Safe-Guard to prevent total application crash from unhandled events
+if (typeof window !== 'undefined') {
+  window.addEventListener('error', (event) => {
+    console.warn('🛡️ [Browser Safe Guard] Caught unhandled script error:', event.message || event.error);
+  });
+
+  window.addEventListener('unhandledrejection', (event) => {
+    console.warn('🛡️ [Browser Safe Guard] Caught unhandled promise rejection:', event.reason);
+  });
+}
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <App />
   </React.StrictMode>,
 )
-

@@ -27,10 +27,11 @@ export function calculateMatchScore(studentProfile, requirement) {
   const studentCgpa = parseFloat(studentProfile.cgpa || studentData.cgpa || 0.0);
 
   // 1. HARD FILTERS (Program & Min CGPA)
-  const isProgramEligible = eligiblePrograms.length === 0 || eligiblePrograms.some(prog => {
-    const pClean = prog.toLowerCase();
-    const sProgClean = studentProgram.toLowerCase();
-    const sBranchClean = studentBranch.toLowerCase();
+  const isProgramEligible = eligiblePrograms.length === 0 || eligiblePrograms.filter(Boolean).some(prog => {
+    if (!prog || typeof prog !== 'string') return false;
+    const pClean = prog.toLowerCase().trim();
+    const sProgClean = (studentProgram || '').toLowerCase().trim();
+    const sBranchClean = (studentBranch || '').toLowerCase().trim();
     return sProgClean.includes(pClean) || pClean.includes(sProgClean) || sBranchClean.includes(pClean) || pClean.includes(sBranchClean);
   });
 
