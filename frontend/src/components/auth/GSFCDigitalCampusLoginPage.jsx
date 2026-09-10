@@ -3,17 +3,6 @@ import { User, Lock, Eye, EyeOff, Check, ChevronDown, Sparkles, Shield, Graduati
 
 const PORTAL_ROLES = [
   {
-    id: 'student_om',
-    role: 'student',
-    label: '🎓 Om Thakkar (thakkar_om@gmail.com — Stored ID & Pass)',
-    defaultUsername: 'thakkar_om@gmail.com',
-    defaultEmail: 'thakkar_om@gmail.com',
-    defaultPass: 'password123',
-    requiresGsfcDomain: false,
-    badge: 'Om Thakkar (3 Applied)',
-    color: 'from-blue-600 to-indigo-700'
-  },
-  {
     id: 'student_roll',
     role: 'student',
     label: '🎓 GSFC Student (24BT04171 — Placement Candidate)',
@@ -207,10 +196,9 @@ export default function GSFCDigitalCampusLoginPage({ onLoginSuccess, onGuestBrow
         const u = JSON.parse(savedUser);
         if (u?.email) {
           const isDomain = u.email.endsWith('@gsfcuniversity.ac.in');
-          const isOmEmail = u.email.includes('thakkar');
-          const isRoll = u.email.includes('24bt');
+          const isStudent = u.role === 'student' || u.email.includes('24bt') || u.email.includes('thakkar');
           return {
-            roleId: isOmEmail ? 'student_om' : (isRoll ? 'student_roll' : (u.role || 'student_om')),
+            roleId: isStudent ? 'student_roll' : (u.role || 'student_roll'),
             username: isDomain ? u.email.replace('@gsfcuniversity.ac.in', '') : u.email,
             password: localStorage.getItem('gsfc_dcs_saved_password') || 'password123',
             appendDomain: isDomain
@@ -221,7 +209,7 @@ export default function GSFCDigitalCampusLoginPage({ onLoginSuccess, onGuestBrow
       if (savedEmail) {
         const isDomain = savedEmail.endsWith('@gsfcuniversity.ac.in');
         return {
-          roleId: savedEmail.includes('thakkar') ? 'student_om' : (savedEmail.includes('24bt') ? 'student_roll' : 'student_om'),
+          roleId: 'student_roll',
           username: isDomain ? savedEmail.replace('@gsfcuniversity.ac.in', '') : savedEmail,
           password: localStorage.getItem('gsfc_dcs_saved_password') || 'password123',
           appendDomain: isDomain
@@ -229,10 +217,10 @@ export default function GSFCDigitalCampusLoginPage({ onLoginSuccess, onGuestBrow
       }
     } catch(e) {}
     return {
-      roleId: 'student_om',
-      username: 'thakkar_om@gmail.com',
+      roleId: 'student_roll',
+      username: '24bt04171',
       password: 'password123',
-      appendDomain: false
+      appendDomain: true
     };
   };
 
@@ -584,8 +572,7 @@ export default function GSFCDigitalCampusLoginPage({ onLoginSuccess, onGuestBrow
 
             <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5 text-[10px]">
               {[
-                { id: 'student_om', label: '🎓 Om (thakkar_om)' },
-                { id: 'student_roll', label: '🎓 Om (24BT04171)' },
+                { id: 'student_roll', label: '🎓 24BT04171' },
                 { id: 'placed_company', label: '🏢 GSFC Ltd' },
                 { id: 'outside_company', label: '🌐 Corporate' },
                 { id: 'faculty', label: '🏛️ Faculty' },
@@ -615,7 +602,7 @@ export default function GSFCDigitalCampusLoginPage({ onLoginSuccess, onGuestBrow
           <div className="pt-1">
             <button
               type="button"
-              onClick={() => fillQuickPersona('student_om')}
+              onClick={() => fillQuickPersona('student_roll')}
               className="w-full py-2 px-3 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 rounded-lg text-xs font-bold flex items-center justify-center gap-2.5 transition-colors cursor-pointer shadow-xs"
             >
               <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
@@ -624,7 +611,7 @@ export default function GSFCDigitalCampusLoginPage({ onLoginSuccess, onGuestBrow
                 <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
                 <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
               </svg>
-              <span>Sign in with Google (Om Thakkar)</span>
+              <span>Sign in with Google (Student ID: 24BT04171)</span>
             </button>
           </div>
         </div>
