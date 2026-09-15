@@ -102,10 +102,10 @@ router.put('/plans/:planId', (req, res) => {
           updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
     `).run(
-      name, badge_title, price_inr !== undefined ? parseInt(price_inr) : existing.price_inr,
+      name ?? null, badge_title ?? null, price_inr !== undefined ? parseInt(price_inr) : existing.price_inr,
       duration_days !== undefined ? parseInt(duration_days) : existing.duration_days,
       max_postings !== undefined ? parseInt(max_postings) : existing.max_postings,
-      description, featuresJson, activeVal, planId
+      description ?? null, featuresJson, activeVal, planId
     );
 
     const updated = db.prepare('SELECT * FROM subscription_plans WHERE id = ?').get(planId);

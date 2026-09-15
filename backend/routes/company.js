@@ -394,8 +394,8 @@ router.post('/applications/:id/update-evaluation', (req, res) => {
     `).run(
       attendance_status || app.attendance_status,
       cleanStatus,
-      evaluation_notes !== undefined ? evaluation_notes : app.evaluation_notes,
-      evaluation_score !== undefined ? evaluation_score : app.evaluation_score,
+      evaluation_notes !== undefined ? (evaluation_notes ?? null) : app.evaluation_notes,
+      evaluation_score !== undefined ? (evaluation_score ?? null) : app.evaluation_score,
       id
     );
 
@@ -420,7 +420,7 @@ router.get('/requirements/:id/applicants', (req, res) => {
       return res.status(404).json({ error: 'Requirement not found.' });
     }
 
-    const apps = db.prepare(`
+    const applicants = db.prepare(`
       SELECT a.id as application_id, a.match_score, a.status, a.applied_at, a.applied_via,
              COALESCE(a.attendance_status, 'pending') as attendance_status,
              COALESCE(a.evaluation_notes, '') as evaluation_notes,
@@ -433,10 +433,10 @@ router.get('/requirements/:id/applicants', (req, res) => {
       JOIN student_profiles s ON a.student_id = s.id
       JOIN users u ON s.user_id = u.id
       WHERE a.requirement_id = ?
+      ORDER BY a.match_score DESC
     `).all(id);
 
-    // Compute live match score & parsed skill summaries
-    const rankedApplicants = apps.map(app => {
+    const rankedApplicants = applicants.map(app => {
       let parsedData = {};
       try { parsedData = JSON.parse(app.parsed_resume_json || '{}'); } catch (e) { }
 
@@ -453,7 +453,7 @@ router.get('/requirements/:id/applicants', (req, res) => {
         skillsSummary: parsedData.skills?.technical || [],
         parsedResume: parsedData
       };
-    }).sort((a, b) => b.matchScore - a.matchScore); // Ranked highest first!
+    }).sort((a, b) => b.matchScore - a.matchScore);
 
     res.json({
       requirement,

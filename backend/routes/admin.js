@@ -1523,8 +1523,8 @@ router.get('/signups', (req, res) => {
         u.last_login_at,
         COALESCE(u.login_count, 0) as login_count,
         COALESCE(s.name, c.company_name, f.name, a.name, sec.name, 'Registered User') as name,
-        COALESCE(s.phone, c.contact_phone, f.phone, a.phone, sec.phone, '') as phone,
-        COALESCE(s.branch, c.industry, f.department, a.company, sec.campus_gate, '') as organization_or_branch,
+        COALESCE(s.phone, c.contact_phone, f.phone, sec.phone, '') as phone,
+        COALESCE(s.branch, c.industry, f.department, a.company, sec.gate_assigned, '') as organization_or_branch,
         COALESCE(s.program, f.designation, a.designation, '') as designation_or_program,
         s.roll_number,
         s.cgpa,
@@ -1533,13 +1533,13 @@ router.get('/signups', (req, res) => {
         c.approved as company_approved,
         a.id as alumni_id,
         a.verified as alumni_verified,
-        COALESCE(s.access_status, f.access_status, sec.status, 'active') as access_status,
+        COALESCE(s.access_status, f.status, sec.active_status, 'active') as access_status,
         CASE
           WHEN u.role = 'company' THEN (CASE WHEN c.approved = 1 THEN 'approved' ELSE 'pending' END)
           WHEN u.role = 'alumni' THEN (CASE WHEN a.verified = 1 THEN 'approved' ELSE 'pending' END)
           WHEN u.role = 'student' THEN (CASE WHEN s.access_status = 'blocked' THEN 'blocked' ELSE 'approved' END)
-          WHEN u.role = 'faculty' THEN (CASE WHEN f.access_status = 'blocked' THEN 'blocked' ELSE 'approved' END)
-          WHEN u.role = 'security' THEN (CASE WHEN sec.status = 'inactive' THEN 'blocked' ELSE 'approved' END)
+          WHEN u.role = 'faculty' THEN (CASE WHEN f.status = 'inactive' OR f.status = 'blocked' THEN 'blocked' ELSE 'approved' END)
+          WHEN u.role = 'security' THEN (CASE WHEN sec.active_status = 'inactive' THEN 'blocked' ELSE 'approved' END)
           ELSE 'approved'
         END as unified_status
       FROM users u
@@ -1566,13 +1566,13 @@ router.get('/signups', (req, res) => {
       if (normStatus === 'pending') {
         baseSql += ` AND ((u.role = 'company' AND COALESCE(c.approved, 0) = 0) OR (u.role = 'alumni' AND COALESCE(a.verified, 0) = 0))`;
       } else if (normStatus === 'blocked') {
-        baseSql += ` AND (s.access_status = 'blocked' OR f.access_status = 'blocked' OR sec.status = 'inactive')`;
+        baseSql += ` AND (s.access_status = 'blocked' OR f.status = 'inactive' OR f.status = 'blocked' OR sec.active_status = 'inactive')`;
       } else if (normStatus === 'approved' || normStatus === 'active') {
         baseSql += ` AND (
           (u.role = 'company' AND c.approved = 1) OR 
           (u.role = 'alumni' AND a.verified = 1) OR 
           (u.role = 'student' AND COALESCE(s.access_status, 'active') != 'blocked') OR 
-          (u.role = 'faculty' AND COALESCE(f.access_status, 'active') != 'blocked') OR 
+          (u.role = 'faculty' AND COALESCE(f.status, 'active') != 'blocked' AND COALESCE(f.status, 'active') != 'inactive') OR 
           (u.role NOT IN ('company', 'alumni', 'student', 'faculty'))
         )`;
       }

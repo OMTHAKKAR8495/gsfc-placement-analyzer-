@@ -671,8 +671,8 @@ router.put('/calendar/:id', (req, res) => {
         updated_at = ?
       WHERE id = ?
     `).run(
-      ev.company_name, ev.role, ev.ctc, ev.date, ev.time, ev.stage, ev.location,
-      batchesJson, branchesJson, ev.status, ev.updated_by, now, id
+      ev.company_name ?? null, ev.role ?? null, ev.ctc ?? null, ev.date ?? null, ev.time ?? null, ev.stage ?? null, ev.location ?? null,
+      batchesJson, branchesJson, ev.status ?? null, ev.updated_by ?? null, now, id
     );
 
     const updated = db.prepare('SELECT * FROM placement_calendar_events WHERE id = ?').get(id);

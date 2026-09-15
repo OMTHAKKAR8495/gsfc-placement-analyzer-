@@ -432,7 +432,13 @@ router.put('/admin/rules/:actionKey', (req, res) => {
           badge_desc = COALESCE(?, badge_desc),
           updated_at = CURRENT_TIMESTAMP
       WHERE action_key = ?
-    `).run(points_reward, label, badge_name, badge_desc, actionKey);
+    `).run(
+      points_reward !== undefined ? parseInt(points_reward) : null,
+      label ?? null,
+      badge_name ?? null,
+      badge_desc ?? null,
+      actionKey
+    );
 
     res.json({ success: true, message: `Rule ${actionKey} updated successfully.` });
   } catch (err) {

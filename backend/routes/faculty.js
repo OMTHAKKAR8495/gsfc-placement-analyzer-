@@ -359,12 +359,12 @@ router.put('/internships/:id', (req, res) => {
         updated_at = ?
       WHERE id = ?
     `).run(
-      body.student_name, body.roll_number, body.program, body.branch,
-      body.company_name, body.role, body.duration, body.start_date, body.end_date,
-      body.stipend, body.location, body.industry_mentor_name, body.industry_mentor_email,
-      body.faculty_mentor_name, body.status, body.completion_status,
-      body.performance_rating ? parseFloat(body.performance_rating) : undefined,
-      body.evaluation_notes, body.noc_status, body.offer_letter_url, body.completion_certificate_url,
+      body.student_name ?? null, body.roll_number ?? null, body.program ?? null, body.branch ?? null,
+      body.company_name ?? null, body.role ?? null, body.duration ?? null, body.start_date ?? null, body.end_date ?? null,
+      body.stipend ?? null, body.location ?? null, body.industry_mentor_name ?? null, body.industry_mentor_email ?? null,
+      body.faculty_mentor_name ?? null, body.status ?? null, body.completion_status ?? null,
+      body.performance_rating ? parseFloat(body.performance_rating) : null,
+      body.evaluation_notes ?? null, body.noc_status ?? null, body.offer_letter_url ?? null, body.completion_certificate_url ?? null,
       now, id
     );
 
@@ -395,9 +395,9 @@ router.patch('/internships/:id/status', (req, res) => {
         updated_at = ?
       WHERE id = ?
     `).run(
-      status, completion_status, noc_status,
-      performance_rating ? parseFloat(performance_rating) : undefined,
-      evaluation_notes, now, id
+      status ?? null, completion_status ?? null, noc_status ?? null,
+      performance_rating ? parseFloat(performance_rating) : null,
+      evaluation_notes ?? null, now, id
     );
 
     const updated = db.prepare('SELECT * FROM internships WHERE id = ?').get(id);

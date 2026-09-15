@@ -526,7 +526,7 @@ router.post('/whatsapp/opt-in', (req, res) => {
       SET whatsapp_opt_in = ?,
           whatsapp_number = COALESCE(?, whatsapp_number)
       WHERE id = ? OR user_id = ?
-    `).run(optInVal, phone, studentId, studentId);
+    `).run(optInVal, phone ?? null, studentId, studentId);
 
     res.json({
       success: true,

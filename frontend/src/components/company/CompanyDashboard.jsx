@@ -1546,9 +1546,33 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
 
   const handleUpdateApplicationStatus = async (appId, newStatus) => {
     if (!appId) return;
+    const compId = company?.id || currentUser?.owner_id || currentUser?.profile?.id || currentUser?.id || 'c_demo';
+    
     // Optimistic UI state update so dropdown reflects selection immediately
     setApplicantsData(prev => prev ? prev.map(a => (a.application_id === appId || a.id === appId) ? { ...a, status: newStatus } : a) : []);
-    setAllCompanyApplicants(prev => prev ? prev.map(a => (a.application_id === appId || a.id === appId) ? { ...a, status: newStatus } : a) : []);
+    setAllCompanyApplicants(prev => {
+      const updated = prev ? prev.map(a => (a.application_id === appId || a.id === appId) ? { ...a, status: newStatus } : a) : [];
+      try {
+        dbVault.saveCollection('company_applicants_' + compId, updated);
+      } catch (e) {}
+      return updated;
+    });
+
+    const statusLabels = {
+      applied: '🟢 Newly Applied',
+      shortlisted: '⚡ Shortlisted',
+      interview: '🗓️ Interview Scheduled',
+      selected: '🏆 Selected (Offer Extended)',
+      rejected: '❌ Rejected'
+    };
+
+    if (showToast) {
+      showToast({
+        title: 'Application Status Updated',
+        message: `Candidate stage moved to ${statusLabels[newStatus] || newStatus}.`,
+        type: 'success'
+      });
+    }
 
     try {
       const res = await fetch('/api/company/update-application-status', {
@@ -1558,7 +1582,7 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
       });
       if (!res.ok) {
         const data = await res.json();
-        alert(data.error || 'Failed to update application status on server');
+        console.warn('Status update sync notice:', data.error);
       }
     } catch (err) {
       console.error('Error updating status:', err);

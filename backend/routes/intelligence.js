@@ -39,49 +39,25 @@ function awardStudentXP(studentId, xpAmount, reason = 'placement_activity') {
   try {
     if (!studentId) return null;
     let gamification = db.prepare('SELECT * FROM student_gamification WHERE student_id = ?').get(studentId);
-    const today = new Date().toISOString().split('T')[0];
 
     if (!gamification) {
       db.prepare(`
-        INSERT INTO student_gamification (student_id, total_xp, level, current_streak, highest_streak, last_active_date, badges_json, achievements_json)
-        VALUES (?, ?, 1, 1, 1, ?, '["first_login"]', '["Started Placement Journey"]')
-      `).run(studentId, xpAmount, today);
-      return { total_xp: xpAmount, level: 1, current_streak: 1, xp_gained: xpAmount };
+        INSERT INTO student_gamification (student_id, points_total, level, current_streak, nickname)
+        VALUES (?, ?, 1, 1, ?)
+      `).run(studentId, xpAmount, 'Student_' + Math.floor(100 + Math.random() * 900));
+      return { points_total: xpAmount, level: 1, current_streak: 1, xp_gained: xpAmount };
     }
 
-    let streak = gamification.current_streak || 1;
-    let highestStreak = gamification.highest_streak || 1;
-    const lastActive = gamification.last_active_date;
-
-    if (lastActive) {
-      const lastDate = new Date(lastActive);
-      const curDate = new Date(today);
-      const diffDays = Math.round((curDate - lastDate) / (1000 * 60 * 60 * 24));
-      if (diffDays === 1) {
-        streak += 1;
-        if (streak > highestStreak) highestStreak = streak;
-      } else if (diffDays > 1) {
-        streak = 1;
-      }
-    }
-
-    const newXP = (gamification.total_xp || 0) + xpAmount;
-    const newLevel = Math.max(1, Math.floor(newXP / 200) + 1);
-
-    // Badges logic
-    let badges = [];
-    try { badges = JSON.parse(gamification.badges_json || '[]'); } catch(e) { badges = []; }
-    if (newXP >= 500 && !badges.includes('dsa_warrior')) badges.push('dsa_warrior');
-    if (streak >= 7 && !badges.includes('7_day_streak')) badges.push('7_day_streak');
-    if (newXP >= 1000 && !badges.includes('placement_ace')) badges.push('placement_ace');
+    const newPoints = (gamification.points_total || 0) + xpAmount;
+    const newLevel = Math.max(1, Math.floor(newPoints / 200) + 1);
 
     db.prepare(`
       UPDATE student_gamification
-      SET total_xp = ?, level = ?, current_streak = ?, highest_streak = ?, last_active_date = ?, badges_json = ?, updated_at = CURRENT_TIMESTAMP
+      SET points_total = ?, level = ?, updated_at = CURRENT_TIMESTAMP
       WHERE student_id = ?
-    `).run(newXP, newLevel, streak, highestStreak, today, JSON.stringify(badges), studentId);
+    `).run(newPoints, newLevel, studentId);
 
-    return { total_xp: newXP, level: newLevel, current_streak: streak, xp_gained: xpAmount, badges };
+    return { points_total: newPoints, level: newLevel, current_streak: gamification.current_streak || 1, xp_gained: xpAmount };
   } catch (err) {
     console.error('Error awarding XP:', err);
     return null;

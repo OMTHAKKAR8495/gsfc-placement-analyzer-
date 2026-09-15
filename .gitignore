@@ -20,6 +20,9 @@ build/
 .DS_Store
 *.log
 npm-debug.log*
+backend/uploads/*
+!backend/uploads/.gitkeep
+uploads/
 
 # System
 .idea/

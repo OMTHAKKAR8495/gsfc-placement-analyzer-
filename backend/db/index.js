@@ -49,6 +49,8 @@ export function initDatabase() {
   }
 
   seedInitialData();
+  seedAlumniAndCommunityData();
+  seedPlacementIntelligenceData();
 }
 
 // Auto-run initDatabase to guarantee tables exist on cold start
@@ -1515,9 +1517,6 @@ function applyMigrations() {
       );
     `);
 
-    // Seed Demo Alumni, Job Fairs & Q&A if not already present
-    seedAlumniAndCommunityData();
-    seedPlacementIntelligenceData();
 
     // Ensure GSFC Admin accounts exist
     const adminPassHash = bcrypt.hashSync('password123', 6);
@@ -2133,20 +2132,20 @@ function seedPlacementIntelligenceData() {
         },
         {
           id: 'risk_02',
-          student_id: 's_rahul_verma',
+          student_id: 's_rohan',
           risk_type: 'missing_resume',
           severity: 'medium',
           title: 'Profile Missing Final Semester Marksheets Verification',
-          description: 'Rahul Verma has a high ATS score but lacks verified semester 7 marksheets in his dossier vault.',
+          description: 'Rohan Patel has a high ATS score but lacks verified semester 7 marksheets in his dossier vault.',
           requirement_id: null
         },
         {
           id: 'risk_03',
-          student_id: 's_ananya',
+          student_id: 's_priya',
           risk_type: 'low_assessment_score',
           severity: 'medium',
-          title: 'DSA Coding Sandbox Score Below Cutoff: Ananya Deshmukh',
-          description: 'Ananya scored 45% in Dynamic Programming mock evaluation. Recommended for Adaptive Remedial Assessment.',
+          title: 'DSA Coding Sandbox Score Below Cutoff: Priya Patel',
+          description: 'Priya scored 45% in Dynamic Programming mock evaluation. Recommended for Adaptive Remedial Assessment.',
           requirement_id: null
         }
       ];
