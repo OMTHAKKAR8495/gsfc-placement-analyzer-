@@ -129,6 +129,15 @@ function applyMigrations() {
     if (!compColumns.includes('contact_phone')) {
       db.exec("ALTER TABLE company_profiles ADD COLUMN contact_phone TEXT");
     }
+    if (!compColumns.includes('phone')) {
+      db.exec("ALTER TABLE company_profiles ADD COLUMN phone TEXT");
+    }
+    if (!compColumns.includes('verified')) {
+      db.exec("ALTER TABLE company_profiles ADD COLUMN verified INTEGER DEFAULT 1");
+    }
+    if (!compColumns.includes('location')) {
+      db.exec("ALTER TABLE company_profiles ADD COLUMN location TEXT DEFAULT 'Vadodara / Hybrid'");
+    }
 
     const appColumns = db.prepare("PRAGMA table_info(applications)").all().map(c => c.name);
     if (!appColumns.includes('applied_via')) {
@@ -1534,9 +1543,10 @@ function applyMigrations() {
       db.prepare("UPDATE users SET password_hash = ?, role = 'superadmin' WHERE lower(email) = 'superadmin@gsfcuniversity.ac.in'").run(adminPassHash);
     }
 
-    // Ensure Official GSFC Faculty Account: Dr. Neeshu Chaudhary
-    const facultyUser = db.prepare("SELECT * FROM users WHERE email = 'neeshuchaudhary@gsfcuniversityfaculty.ac.in'").get();
-    const facultyPassHash = bcrypt.hashSync('NEESHUCHAUDHARY@8495', 10);
+    // Ensure Official GSFC Faculty Accounts
+    const defaultFacultyHash = bcrypt.hashSync('password123', 6);
+    const facultyUser = db.prepare("SELECT * FROM users WHERE lower(email) = 'neeshuchaudhary@gsfcuniversityfaculty.ac.in'").get();
+    const facultyPassHash = bcrypt.hashSync('NEESHUCHAUDHARY@8495', 6);
     if (!facultyUser) {
       db.prepare("INSERT INTO users (id, email, password_hash, role) VALUES (?, ?, ?, ?)").run(
         'u_faculty_neeshu',
@@ -1545,10 +1555,55 @@ function applyMigrations() {
         'faculty'
       );
     } else {
-      db.prepare("UPDATE users SET password_hash = ?, role = 'faculty' WHERE email = 'neeshuchaudhary@gsfcuniversityfaculty.ac.in'").run(
+      db.prepare("UPDATE users SET password_hash = ?, role = 'faculty' WHERE lower(email) = 'neeshuchaudhary@gsfcuniversityfaculty.ac.in'").run(
         facultyPassHash
       );
     }
+
+    const cseFacultyUser = db.prepare("SELECT * FROM users WHERE lower(email) = 'faculty.cse@gsfcuniversity.ac.in'").get();
+    if (!cseFacultyUser) {
+      db.prepare("INSERT INTO users (id, email, password_hash, role) VALUES (?, ?, ?, ?)").run(
+        'u_faculty_cse',
+        'faculty.cse@gsfcuniversity.ac.in',
+        defaultFacultyHash,
+        'faculty'
+      );
+    } else {
+      db.prepare("UPDATE users SET password_hash = ?, role = 'faculty' WHERE lower(email) = 'faculty.cse@gsfcuniversity.ac.in'").run(
+        defaultFacultyHash
+      );
+    }
+
+    // Ensure Official GSFC Partner Companies & Recruiters
+    const partnerComp = [
+      { userId: 'u_comp_gsfc_limited', profileId: 'c_gsfc_limited', email: 'gsfclimited@gmail.com', name: 'GSFC Limited', logo: 'https://images.unsplash.com/photo-1560179707-f14e90ef3623?w=120&auto=format&fit=crop&q=80', industry: 'Chemical & Industrial Fertilizers', website: 'https://gsfclimited.com' },
+      { userId: 'u_comp_google_recruiter', profileId: 'c_google_corp', email: 'recruiter.google@company.com', name: 'Google Cloud Partner', logo: 'https://images.unsplash.com/photo-1573804633927-bfcbcd909acd?w=120&auto=format&fit=crop&q=80', industry: 'Cloud & Artificial Intelligence', website: 'https://cloud.google.com' }
+    ];
+
+    for (const c of partnerComp) {
+      db.prepare(`INSERT OR IGNORE INTO users (id, email, password_hash, role) VALUES (?, ?, ?, 'company')`).run(c.userId, c.email.toLowerCase(), adminPassHash);
+      db.prepare(`UPDATE users SET password_hash = ?, role = 'company' WHERE lower(email) = ?`).run(adminPassHash, c.email.toLowerCase());
+      db.prepare(`
+        INSERT OR IGNORE INTO company_profiles (id, user_id, company_name, logo_url, industry, website, approved, verified)
+        VALUES (?, ?, ?, ?, ?, ?, 1, 1)
+      `).run(c.profileId, c.userId, c.name, c.logo, c.industry, c.website);
+    }
+
+    // Ensure GSFC Alumni Mentor Account
+    db.prepare(`INSERT OR IGNORE INTO users (id, email, password_hash, role) VALUES (?, ?, ?, 'alumni')`).run('u_alumni_priya', 'priya.patel@alumni.gsfc.ac.in', adminPassHash);
+    db.prepare(`UPDATE users SET password_hash = ?, role = 'alumni' WHERE lower(email) = 'priya.patel@alumni.gsfc.ac.in'`).run(adminPassHash);
+    db.prepare(`
+      INSERT OR IGNORE INTO alumni_profiles (id, user_id, name, batch_year, company, designation, linkedin_url, bio, verified)
+      VALUES ('alumni_priya', 'u_alumni_priya', 'Priya Patel', '2019-2023', 'Amazon AWS', 'Cloud Solutions Architect', 'https://linkedin.com/in/priya-patel-aws', 'GSFC University 2023 BTech CSE Gold Medalist.', 1)
+    `).run();
+
+    // Ensure Student 24BT04171 Account
+    db.prepare(`INSERT OR IGNORE INTO users (id, email, password_hash, role) VALUES (?, ?, ?, 'student')`).run('u_omthakkar_24bt', '24bt04171@gsfcuniversity.ac.in', adminPassHash);
+    db.prepare(`UPDATE users SET password_hash = ?, role = 'student' WHERE lower(email) = '24bt04171@gsfcuniversity.ac.in'`).run(adminPassHash);
+
+    // Ensure Fest Attendee Account
+    db.prepare(`INSERT OR IGNORE INTO users (id, email, password_hash, role) VALUES (?, ?, ?, 'student')`).run('u_fest_attendee', 'fest_attendee@msu.ac.in', adminPassHash);
+    db.prepare(`UPDATE users SET password_hash = ? WHERE lower(email) = 'fest_attendee@msu.ac.in'`).run(adminPassHash);
 
     // 18. Persistent User Login History & Audit Table
     db.exec(`
@@ -2669,11 +2724,32 @@ function seedInitialData() {
     VALUES (?, ?, ?, ?)
   `).run('u_admin_gsfc', 'admin@gsfcuniversity.ac.in', passwordHash, 'admin');
 
-  // 2. Approved Companies
+  // 2. Approved Companies & Corporate Partners
   const companies = [
+    {
+      userId: 'u_comp_gsfc_limited',
+      profileId: 'c_gsfc_limited',
+      email: 'gsfclimited@gmail.com',
+      name: 'GSFC Limited',
+      logo: 'https://images.unsplash.com/photo-1560179707-f14e90ef3623?w=120&auto=format&fit=crop&q=80',
+      industry: 'Chemical & Industrial Fertilizers',
+      website: 'https://gsfclimited.com',
+      approved: 1
+    },
+    {
+      userId: 'u_comp_google_recruiter',
+      profileId: 'c_google_corp',
+      email: 'recruiter.google@company.com',
+      name: 'Google Cloud Partner',
+      logo: 'https://images.unsplash.com/photo-1573804633927-bfcbcd909acd?w=120&auto=format&fit=crop&q=80',
+      industry: 'Cloud & Artificial Intelligence',
+      website: 'https://cloud.google.com',
+      approved: 1
+    },
     {
       userId: 'u_comp_google',
       profileId: 'c_google',
+      email: 'c_google@recruiter.com',
       name: 'Google Cloud India',
       logo: 'https://images.unsplash.com/photo-1573804633927-bfcbcd909acd?w=120&auto=format&fit=crop&q=80',
       industry: 'Cloud & Artificial Intelligence',
@@ -2683,6 +2759,7 @@ function seedInitialData() {
     {
       userId: 'u_comp_microsoft',
       profileId: 'c_microsoft',
+      email: 'c_microsoft@recruiter.com',
       name: 'Microsoft Azure Systems',
       logo: 'https://images.unsplash.com/photo-1642132652859-3ef5a1048fd1?w=120&auto=format&fit=crop&q=80',
       industry: 'Software & Cloud Services',
@@ -2692,6 +2769,7 @@ function seedInitialData() {
     {
       userId: 'u_comp_tcs',
       profileId: 'c_tcs',
+      email: 'c_tcs@recruiter.com',
       name: 'Tata Consultancy Services',
       logo: 'https://images.unsplash.com/photo-1560179707-f14e90ef3623?w=120&auto=format&fit=crop&q=80',
       industry: 'IT Services & Consulting',
@@ -2701,6 +2779,7 @@ function seedInitialData() {
     {
       userId: 'u_comp_pending',
       profileId: 'c_nexus',
+      email: 'c_nexus@recruiter.com',
       name: 'Nexus Quantum Labs (Startup)',
       logo: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=120&auto=format&fit=crop&q=80',
       industry: 'Quantum Tech / AI',
@@ -2710,11 +2789,17 @@ function seedInitialData() {
   ];
 
   for (const c of companies) {
-    db.prepare(`INSERT INTO users (id, email, password_hash, role) VALUES (?, ?, ?, ?)`).run(c.userId, `${c.profileId}@recruiter.com`, passwordHash, 'company');
-    db.prepare(`INSERT INTO company_profiles (id, user_id, company_name, logo_url, industry, website, approved) VALUES (?, ?, ?, ?, ?, ?, ?)`).run(
+    const userEmail = c.email || `${c.profileId}@recruiter.com`;
+    db.prepare(`INSERT OR IGNORE INTO users (id, email, password_hash, role) VALUES (?, ?, ?, ?)`).run(c.userId, userEmail, passwordHash, 'company');
+    db.prepare(`UPDATE users SET password_hash = ?, role = 'company' WHERE lower(email) = ?`).run(passwordHash, userEmail.toLowerCase());
+    db.prepare(`INSERT OR IGNORE INTO company_profiles (id, user_id, company_name, logo_url, industry, website, approved) VALUES (?, ?, ?, ?, ?, ?, ?)`).run(
       c.profileId, c.userId, c.name, c.logo, c.industry, c.website, c.approved
     );
   }
+
+  // Seed Fest Attendee Guest Account
+  db.prepare(`INSERT OR IGNORE INTO users (id, email, password_hash, role) VALUES (?, ?, ?, ?)`).run('u_fest_attendee', 'fest_attendee@msu.ac.in', passwordHash, 'student');
+  db.prepare(`UPDATE users SET password_hash = ? WHERE lower(email) = 'fest_attendee@msu.ac.in'`).run(passwordHash);
 
   // 3. Students
   const students = [

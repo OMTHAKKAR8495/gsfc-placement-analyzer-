@@ -282,12 +282,20 @@ router.post('/login', AuthRateLimiter.loginLimiter, async (req, res) => {
     let user = db.prepare('SELECT * FROM users WHERE lower(email) = ?').get(cleanEmail);
 
     if (!user) {
-      // 🔍 Smart Student & Roll Resolver (handles thakkar_om, 24bt04171, or alternate domain)
+      // 🔍 Smart Student, Faculty, Security & Roll Resolver
       const prefix = cleanEmail.split('@')[0];
       if (prefix === 'thakkar_om' || prefix.includes('thakkar')) {
         user = db.prepare("SELECT * FROM users WHERE lower(email) = 'thakkar_om@gmail.com'").get();
       } else if (prefix === '24bt04171') {
         user = db.prepare("SELECT * FROM users WHERE lower(email) = '24bt04171@gsfcuniversity.ac.in'").get();
+      } else if (prefix === 'faculty.cse' || prefix === 'faculty') {
+        user = db.prepare("SELECT * FROM users WHERE lower(email) = 'faculty.cse@gsfcuniversity.ac.in' OR lower(email) = 'faculty@gsfcuniversity.ac.in' OR lower(email) = 'neeshuchaudhary@gsfcuniversityfaculty.ac.in' LIMIT 1").get();
+      } else if (prefix === 'security' || prefix === 'guard') {
+        user = db.prepare("SELECT * FROM users WHERE lower(email) = 'security@gsfcuniversity.ac.in' OR role = 'security' LIMIT 1").get();
+      } else if (prefix === 'admin') {
+        user = db.prepare("SELECT * FROM users WHERE lower(email) = 'admin@gsfcuniversity.ac.in' LIMIT 1").get();
+      } else if (prefix === 'superadmin') {
+        user = db.prepare("SELECT * FROM users WHERE lower(email) = 'superadmin@gsfcuniversity.ac.in' LIMIT 1").get();
       } else {
         const studentProf = db.prepare('SELECT user_id FROM student_profiles WHERE lower(roll_number) = ?').get(prefix);
         if (studentProf) {

@@ -346,8 +346,8 @@ io.on('connection', (socket) => {
   });
 });
 
-// Fallback to index.html for SPA client-side routing on page reload
-app.get('*', (req, res) => {
+// Fallback to index.html for SPA client-side routing on page reload (Express 5 compatible wildcard syntax)
+app.get('/{*splat}', (req, res) => {
   const distIndexHtml = path.join(__dirname, '../frontend/dist/index.html');
   res.sendFile(distIndexHtml, (err) => {
     if (err) {
