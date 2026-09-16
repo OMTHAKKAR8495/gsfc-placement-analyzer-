@@ -743,10 +743,25 @@ export default function MockInterviewChat({ student, currentUser, requirement, o
               </div>
 
               <div className="aspect-video bg-slate-950 rounded-2xl overflow-hidden relative border border-slate-800 flex items-center justify-center">
-                <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
+                <video 
+                  ref={videoRef} 
+                  autoPlay 
+                  playsInline 
+                  muted 
+                  className={`w-full h-full object-cover ${!webcamActive ? 'hidden' : ''}`} 
+                />
                 {!webcamActive && (
-                  <div className="text-center p-3 text-slate-500 text-xs font-medium">
-                    Camera is off. Click "Enable Camera" for pacing & posture guidance.
+                  <div 
+                    onClick={toggleWebcam}
+                    className="absolute inset-0 flex flex-col items-center justify-center p-4 text-center cursor-pointer hover:bg-slate-900/50 transition-colors group"
+                  >
+                    <div className="p-2.5 rounded-full bg-slate-900 border border-slate-800 text-slate-400 group-hover:text-indigo-400 group-hover:border-indigo-500/30 transition-all mb-2 shadow-inner">
+                      <VideoOff className="w-5 h-5" />
+                    </div>
+                    <span className="text-xs font-bold text-slate-300 group-hover:text-white transition-colors">Camera is off</span>
+                    <span className="text-[11px] text-slate-500 max-w-[210px] mt-1 leading-snug">
+                      Click to enable camera for live pacing & posture telemetry
+                    </span>
                   </div>
                 )}
               </div>
