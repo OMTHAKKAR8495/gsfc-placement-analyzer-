@@ -5,8 +5,9 @@ import jwt from 'jsonwebtoken';
 import db from '../db/index.js';
 import { validatePasswordPolicy, AuthRateLimiter } from '../middleware/security.js';
 
+import { JWT_SECRET } from '../config/secrets.js';
+
 const router = express.Router();
-const JWT_SECRET = process.env.JWT_SECRET || 'campushire_secret_key_2026';
 
 // ==========================================
 // 🛡️ RFC 6238 TOTP Two-Factor Authentication

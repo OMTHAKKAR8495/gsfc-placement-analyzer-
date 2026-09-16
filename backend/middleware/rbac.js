@@ -1,7 +1,7 @@
 import jwt from 'jsonwebtoken';
 import db from '../db/index.js';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'campushire_secret_key_2026';
+import { JWT_SECRET } from '../config/secrets.js';
 
 /**
  * 🛡️ Granular Role-Based Access Control (RBAC) & Tenant Guard Middleware

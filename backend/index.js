@@ -380,15 +380,33 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Process-level Crash Prevention & Safe Fallback
+// Process-level Crash Handler & Safe Graceful Shutdown
+function crashAndRestart(kind, err) {
+  console.error(`💥 [FATAL ${kind}]:`, err?.stack || err);
+
+  const forceExitTimeout = setTimeout(() => {
+    console.error('⚠️ Force exiting process after 5s shutdown timeout.');
+    process.exit(1);
+  }, 5000);
+  forceExitTimeout.unref();
+
+  try {
+    server.close(() => {
+      clearTimeout(forceExitTimeout);
+      process.exit(1);
+    });
+  } catch (closeErr) {
+    console.error('Error closing HTTP server during crash shutdown:', closeErr);
+    process.exit(1);
+  }
+}
+
 process.on('uncaughtException', (err) => {
-  console.error('💥 [CRITICAL UNCAUGHT EXCEPTION PREVENTED]:', err);
-  // Logged to prevent immediate Node.js process death in production
+  crashAndRestart('UNCAUGHT EXCEPTION', err);
 });
 
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('⚠️ [CRITICAL UNHANDLED REJECTION PREVENTED]:', reason);
-  // Logged to prevent unhandled promise rejection crashes
+process.on('unhandledRejection', (reason) => {
+  crashAndRestart('UNHANDLED REJECTION', reason);
 });
 
 const isMain = process.argv[1] && (fileURLToPath(import.meta.url) === process.argv[1] || process.argv[1].endsWith('backend/index.js') || process.argv[1].endsWith('index.js'));

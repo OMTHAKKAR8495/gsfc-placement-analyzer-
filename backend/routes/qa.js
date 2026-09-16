@@ -3,8 +3,9 @@ import jwt from 'jsonwebtoken';
 import db from '../db/index.js';
 import { AuthRateLimiter, sanitizeXss } from '../middleware/security.js';
 
+import { JWT_SECRET } from '../config/secrets.js';
+
 const router = express.Router();
-const JWT_SECRET = process.env.JWT_SECRET || 'campushire_secret_key_2026';
 
 /**
  * Extracts and verifies the authenticated user from JWT token (Authorization header or Cookie)

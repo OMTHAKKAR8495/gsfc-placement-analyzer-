@@ -1,7 +1,8 @@
 import jwt from 'jsonwebtoken';
 import db from '../db/index.js';
 
-export const JWT_SECRET = process.env.JWT_SECRET || 'campushire_secret_key_2026';
+import { JWT_SECRET } from '../config/secrets.js';
+export { JWT_SECRET };
 
 // Middleware to authenticate JWT via Cookie or Bearer header
 export function authenticateToken(req, res, next) {

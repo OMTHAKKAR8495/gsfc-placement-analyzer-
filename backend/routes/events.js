@@ -3,8 +3,9 @@ import db from '../db/index.js';
 import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 
+import { JWT_SECRET } from '../config/secrets.js';
+
 const router = express.Router();
-const JWT_SECRET = process.env.JWT_SECRET || 'campushire_secret_key_2026';
 
 // Helper to generate a clean, secure unique pass token
 function generatePassToken(prefix = 'ANV') {

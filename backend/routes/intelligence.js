@@ -6,9 +6,9 @@ import { simulatePlacementScenario } from '../ai/modules/whatIfSimulator.js';
 import { queryPlacementRAG } from '../ai/modules/ragKnowledgeBase.js';
 import { computeStudentPlacementProbability, forecastPlacementTrends } from '../ai/modules/placementForecaster.js';
 import jwt from 'jsonwebtoken';
+import { JWT_SECRET } from '../config/secrets.js';
 
 const router = express.Router();
-const JWT_SECRET = process.env.JWT_SECRET || 'campushire_secret_key_2026';
 
 function getAuthUser(req) {
   try {

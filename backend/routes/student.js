@@ -25,9 +25,9 @@ function getUploadsDir() {
   return dir;
 }
 
+import { JWT_SECRET } from '../config/secrets.js';
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
-const JWT_SECRET = process.env.JWT_SECRET || 'campushire_secret_key_2026';
 
 /**
  * Robust Auth Helper: Extracts and verifies the authenticated student from JWT
