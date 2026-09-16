@@ -163,7 +163,25 @@ router.post('/register', AuthRateLimiter.registerLimiter, async (req, res) => {
     // 1. Check for existing user with this email
     const existingUser = db.prepare('SELECT id, email, role FROM users WHERE lower(email) = ?').get(cleanEmail);
     if (existingUser) {
-      return res.status(409).json({ error: 'An account with this university email address already exists. Please sign in.' });
+      let hasProfile = false;
+      if (existingUser.role === 'student') {
+        hasProfile = Boolean(db.prepare('SELECT id FROM student_profiles WHERE user_id = ?').get(existingUser.id));
+      } else if (existingUser.role === 'company') {
+        hasProfile = Boolean(db.prepare('SELECT id FROM company_profiles WHERE user_id = ?').get(existingUser.id));
+      } else if (existingUser.role === 'alumni') {
+        hasProfile = Boolean(db.prepare('SELECT id FROM alumni_profiles WHERE user_id = ?').get(existingUser.id));
+      } else {
+        hasProfile = true;
+      }
+
+      if (hasProfile) {
+        return res.status(409).json({ error: 'An account with this university email address already exists. Please sign in.' });
+      } else {
+        // Incomplete/interrupted record from previous attempt — clean up to allow clean re-registration
+        try {
+          db.prepare('DELETE FROM users WHERE id = ?').run(existingUser.id);
+        } catch (e) {}
+      }
     }
 
     // 2. Check for existing student roll number
