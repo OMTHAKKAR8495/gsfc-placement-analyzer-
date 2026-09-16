@@ -1,4 +1,5 @@
 import express from 'express';
+import bcrypt from 'bcryptjs';
 import db from '../db/index.js';
 import appCache from '../services/cacheService.js';
 import { AuthRateLimiter } from '../middleware/security.js';
@@ -82,6 +83,69 @@ router.get('/pending-companies', (req, res) => {
 
     res.json(pending);
   } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Reset Demo Pending Companies into SQLite Database
+router.post('/reset-pending-companies', (req, res) => {
+  try {
+    const demoPending = [
+      {
+        id: 'c_google_cloud_pending',
+        userId: 'u_comp_google_cloud_pending',
+        email: 'cloud-campus@google.com',
+        name: 'Google Cloud India (AI Infrastructure)',
+        industry: 'Cloud Computing & Generative AI',
+        website: 'https://cloud.google.com',
+        location: 'Bengaluru / Hyderabad (Hybrid)',
+        phone: '+91 98251 44556'
+      },
+      {
+        id: 'c_adani_total_pending',
+        userId: 'u_comp_adani_total_pending',
+        email: 'talent@adanitotal.com',
+        name: 'Adani Total Gas & Petrochemicals',
+        industry: 'Energy & Chemical Engineering',
+        website: 'https://www.adanigas.com',
+        location: 'Ahmedabad / Dahej / Hazira',
+        phone: '+91 97245 11223'
+      },
+      {
+        id: 'c_lt_tech_pending',
+        userId: 'u_comp_lt_tech_pending',
+        email: 'campus.hiring@ltts.com',
+        name: 'L&T Technology Services (LTTS)',
+        industry: 'Engineering & Industrial IoT',
+        website: 'https://www.ltts.com',
+        location: 'Vadodara / Mumbai',
+        phone: '+91 99099 88776'
+      }
+    ];
+
+    const passHash = bcrypt.hashSync('password123', 6);
+
+    for (const c of demoPending) {
+      db.prepare(`INSERT OR IGNORE INTO users (id, email, password_hash, role) VALUES (?, ?, ?, 'company')`).run(c.userId, c.email, passHash);
+      db.prepare(`UPDATE users SET password_hash = ?, role = 'company' WHERE id = ?`).run(passHash, c.userId);
+      db.prepare(`DELETE FROM company_profiles WHERE id = ?`).run(c.id);
+      db.prepare(`
+        INSERT INTO company_profiles (id, user_id, company_name, industry, website, location, phone, contact_phone, approved, verified)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, 0)
+      `).run(c.id, c.userId, c.name, c.industry, c.website, c.location, c.phone, c.phone);
+    }
+
+    const pending = db.prepare(`
+      SELECT c.*, u.email, u.created_at as user_registered_at
+      FROM company_profiles c
+      JOIN users u ON c.user_id = u.id
+      WHERE c.approved = 0
+      ORDER BY u.created_at DESC
+    `).all();
+
+    res.json({ success: true, message: 'Demo pending companies reloaded successfully', pending });
+  } catch (err) {
+    console.error('Error resetting pending companies:', err);
     res.status(500).json({ error: err.message });
   }
 });

@@ -135,7 +135,7 @@ const getInitialPendingCompanies = () => {
       if (Array.isArray(parsed)) return parsed;
     }
   } catch(e) {}
-  return DEFAULT_PENDING_COMPANIES;
+  return [];
 };
 
 const getInitialLoggedStudents = () => {
@@ -1211,16 +1211,12 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
       const pendingData = await pendingRes.json();
       const analyticsData = await analyticsRes.json();
 
-      let dismissed = [];
+      const serverPending = Array.isArray(pendingData) ? pendingData : [];
+      setPendingCompanies(serverPending);
       try {
-        dismissed = JSON.parse(localStorage.getItem('gsfc_dismissed_pending_companies') || '[]');
+        localStorage.setItem('gsfc_pending_companies', JSON.stringify(serverPending));
       } catch(e) {}
 
-      const cleanPending = Array.isArray(pendingData) 
-        ? pendingData.filter(c => c && !dismissed.includes(c.id))
-        : [];
-
-      setPendingCompanies(cleanPending);
       setAnalytics(analyticsData && !analyticsData.error ? analyticsData : null);
       fetchPendingAlumni();
     } catch (err) {
@@ -1295,17 +1291,13 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
   const handleApproveRejectCompany = async (companyId, action) => {
     const targetComp = pendingCompanies.find(c => c.id === companyId) || { company_name: 'Recruiter Partner' };
 
-    setPendingCompanies(prev => prev.filter(c => c.id !== companyId));
-
-    try {
-      const dismissed = JSON.parse(localStorage.getItem('gsfc_dismissed_pending_companies') || '[]');
-      if (!dismissed.includes(companyId)) {
-        dismissed.push(companyId);
-        localStorage.setItem('gsfc_dismissed_pending_companies', JSON.stringify(dismissed));
-      }
-      const updatedPending = pendingCompanies.filter(c => c.id !== companyId);
-      localStorage.setItem('gsfc_pending_companies', JSON.stringify(updatedPending));
-    } catch(e) {}
+    setPendingCompanies(prev => {
+      const next = prev.filter(c => c.id !== companyId);
+      try {
+        localStorage.setItem('gsfc_pending_companies', JSON.stringify(next));
+      } catch(e) {}
+      return next;
+    });
 
     if (action === 'approve') {
       setApprovalModal({
@@ -1344,12 +1336,20 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
     }
   };
 
-  const handleResetDemoCompanies = () => {
+  const handleResetDemoCompanies = async () => {
     try {
-      localStorage.removeItem('gsfc_dismissed_pending_companies');
-      localStorage.setItem('gsfc_pending_companies', JSON.stringify(DEFAULT_PENDING_COMPANIES));
-    } catch(e) {}
-    setPendingCompanies(DEFAULT_PENDING_COMPANIES);
+      const res = await fetch('/api/admin/reset-pending-companies', { method: 'POST' });
+      const data = await res.json();
+      if (data?.pending) {
+        setPendingCompanies(data.pending);
+        try {
+          localStorage.setItem('gsfc_pending_companies', JSON.stringify(data.pending));
+        } catch(e) {}
+      }
+    } catch(e) {
+      console.error('Error resetting demo companies:', e);
+    }
+    fetchAdminDataSilently();
   };
 
   const handleDeleteCompany = async (companyId, companyName) => {
