@@ -6,83 +6,7 @@
 
 import { dbVault } from '../services/dbVault';
 
-export const DEFAULT_PLACEMENT_EVENTS = [
-  {
-    id: 'evt_google_01',
-    company_name: 'Google Cloud India',
-    role: 'Software Engineer — AI & Cloud',
-    ctc: '₹28.00 LPA',
-    date: '2026-09-04',
-    time: '10:00 AM IST',
-    stage: 'Online Coding Assessment (Proctored)',
-    location: 'GSFC Computer Lab 4 & Remote AI Sandbox',
-    eligible_batches: ['2025', '2026'],
-    eligible_branches: ['CSE', 'IT', 'AI & DS'],
-    status: 'Scheduled',
-    updated_by: 'TPC Admin Coordinator',
-    updated_at: new Date().toISOString()
-  },
-  {
-    id: 'evt_microsoft_01',
-    company_name: 'Microsoft Azure Systems',
-    role: 'Graduate Software Engineer',
-    ctc: '₹24.00 LPA',
-    date: '2026-09-08',
-    time: '02:00 PM IST',
-    stage: 'Technical Interview Round 1 & DSA',
-    location: 'Virtual Video Panel Room 3',
-    eligible_batches: ['2025', '2026'],
-    eligible_branches: ['CSE', 'IT', 'ECE'],
-    status: 'Scheduled',
-    updated_by: 'Dr. Faculty Head (TPC)',
-    updated_at: new Date().toISOString()
-  },
-  {
-    id: 'evt_tcs_01',
-    company_name: 'Tata Consultancy Services',
-    role: 'Digital Systems & Data Analyst',
-    ctc: '₹12.00 LPA',
-    date: '2026-09-12',
-    time: '09:30 AM IST',
-    stage: 'Pre-Placement Talk (PPT) & Orientation',
-    location: 'GSFC University Main Auditorium',
-    eligible_batches: ['2025', '2026', '2027'],
-    eligible_branches: ['All Departments'],
-    status: 'Scheduled',
-    updated_by: 'TPC Admin Coordinator',
-    updated_at: new Date().toISOString()
-  },
-  {
-    id: 'evt_reliance_01',
-    company_name: 'Reliance Industries Limited',
-    role: 'Software Development Engineer - Cloud',
-    ctc: '₹10.20 LPA',
-    date: '2026-09-18',
-    time: '11:00 AM IST',
-    stage: 'Core Technical & System Architecture Round',
-    location: 'SOT Seminar Hall A',
-    eligible_batches: ['2025', '2026'],
-    eligible_branches: ['CSE', 'Chemical', 'Mechanical', 'IT'],
-    status: 'Scheduled',
-    updated_by: 'Faculty Placement Officer',
-    updated_at: new Date().toISOString()
-  },
-  {
-    id: 'evt_amazon_01',
-    company_name: 'Amazon Web Services',
-    role: 'SDE-1 Cloud Microservices',
-    ctc: '₹32.00 LPA',
-    date: '2026-09-24',
-    time: '03:30 PM IST',
-    stage: 'Bar Raiser & Behavioral Leadership Panel',
-    location: 'Virtual Interview Studio',
-    eligible_batches: ['2025', '2026'],
-    eligible_branches: ['CSE', 'IT'],
-    status: 'Scheduled',
-    updated_by: 'TPC Admin Coordinator',
-    updated_at: new Date().toISOString()
-  }
-];
+export const DEFAULT_PLACEMENT_EVENTS = [];
 
 const STORAGE_KEY = 'gsfc_placement_calendar_events';
 
@@ -97,7 +21,7 @@ async function syncFromBackend() {
     const res = await fetch('/api/events/calendar');
     if (res.ok) {
       const serverEvents = await res.json();
-      if (Array.isArray(serverEvents) && serverEvents.length > 0) {
+      if (Array.isArray(serverEvents)) {
         inMemoryCache = serverEvents;
         try {
           localStorage.setItem(STORAGE_KEY, JSON.stringify(serverEvents));
@@ -125,31 +49,30 @@ export const placementCalendarStorage = {
   },
 
   getEvents: () => {
-    if (inMemoryCache && Array.isArray(inMemoryCache) && inMemoryCache.length > 0) {
+    if (inMemoryCache && Array.isArray(inMemoryCache)) {
       return inMemoryCache;
     }
     try {
       const vaultData = dbVault.getCollection(STORAGE_KEY);
-      if (Array.isArray(vaultData) && vaultData.length > 0) {
-        inMemoryCache = vaultData;
-        return vaultData;
+      if (Array.isArray(vaultData)) {
+        const cleanVault = vaultData.filter(e => !e.id?.includes('evt_google') && !e.id?.includes('evt_microsoft') && !e.id?.includes('evt_tcs'));
+        inMemoryCache = cleanVault;
+        return cleanVault;
       }
       const local = localStorage.getItem(STORAGE_KEY);
       if (local) {
         const parsed = JSON.parse(local);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          inMemoryCache = parsed;
-          return parsed;
+        if (Array.isArray(parsed)) {
+          const cleanLocal = parsed.filter(e => !e.id?.includes('evt_google') && !e.id?.includes('evt_microsoft') && !e.id?.includes('evt_tcs'));
+          inMemoryCache = cleanLocal;
+          return cleanLocal;
         }
       }
     } catch (e) {
       console.warn('Error reading placement calendar events:', e);
     }
-    // Initialize defaults & trigger background server sync
-    inMemoryCache = DEFAULT_PLACEMENT_EVENTS;
-    placementCalendarStorage.saveEvents(DEFAULT_PLACEMENT_EVENTS);
-    syncFromBackend();
-    return DEFAULT_PLACEMENT_EVENTS;
+    inMemoryCache = [];
+    return [];
   },
 
   saveEvents: (events) => {

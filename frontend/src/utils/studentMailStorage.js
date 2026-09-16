@@ -2,104 +2,7 @@ import { dbVault } from '../services/dbVault';
 
 const STORAGE_KEY = 'gsfc_student_company_mails';
 
-export const INITIAL_STUDENT_MAILS = [
-  {
-    id: 'mail_seed_1',
-    company_name: 'Google Cloud India',
-    company_id: 'c_google',
-    sender_name: 'Thakkar Om',
-    sender_email: 'thakkar_om@gmail.com',
-    sender_phone: '+91 95584 13347',
-    roll_number: '24BT04171',
-    program: 'BTech CSE',
-    branch: 'Computer Science & Engineering',
-    cgpa: 8.9,
-    type: 'meeting_absence',
-    subject: '[Meeting Absence Explanation] Thakkar Om — Room gsfc-google-ai-101',
-    message: 'Dear Google Cloud Hiring Team,\n\nDuring the live proctoring check for room gsfc-google-ai-101 (Software Development Engineer - AI & Cloud), I encountered an unexpected network glitch and temporary webcam permission refresh which triggered a security lock. I sincerely apologize for the inconvenience. I have retested my video/mic setup and would appreciate if my technical round can be rescheduled or re-evaluated.\n\nThank you,\nThakkar Om\nRoll No: 24BT04171',
-    meeting_id: 'meet_google_ai_101',
-    room_id: 'gsfc-google-ai-101',
-    meeting_title: 'Google Cloud India — SDE Technical Interview & Live Coding',
-    drive_title: 'Software Development Engineer - Cloud & AI',
-    status: 'unread',
-    created_at: new Date(Date.now() - 1000 * 60 * 45).toISOString(),
-    recruiter_reply: null,
-    replied_at: null,
-    replied_by: null
-  },
-  {
-    id: 'mail_seed_2',
-    company_name: 'Tata Consultancy Services (TCS)',
-    company_id: 'c_tcs',
-    sender_name: 'Arav Sharma',
-    sender_email: 'arav.sharma@student.gsfc.ac.in',
-    sender_phone: '+91 98765 43212',
-    roll_number: '22BCE115',
-    program: 'BTech CSE',
-    branch: 'Cybersecurity',
-    cgpa: 8.6,
-    type: 'leave_company',
-    subject: '[Withdrawal Request] Arav Sharma — TCS Digital Prime',
-    message: 'Respected TCS Recruitment Panel,\n\nI am writing to formally request withdrawal of my application from the TCS Digital recruitment process. I have accepted an offer from an earlier campus drive that aligns with my specialization in cybersecurity operations. I want to express my sincere gratitude for considering my profile.\n\nBest regards,\nArav Sharma',
-    meeting_id: 'meet_tcs_digital_202',
-    room_id: 'gsfc-tcs-digital-202',
-    meeting_title: 'TCS Digital — Technical Assessment & System Design Review',
-    drive_title: 'TCS Digital Prime (₹9.00 LPA)',
-    status: 'replied',
-    created_at: new Date(Date.now() - 1000 * 60 * 60 * 4).toISOString(),
-    recruiter_reply: 'Dear Arav, We acknowledge your formal withdrawal request and have updated your application status accordingly. We wish you the very best in your future career endeavors.',
-    replied_at: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(),
-    replied_by: 'TCS Campus Talent Acquisition Team'
-  },
-  {
-    id: 'mail_seed_3',
-    company_name: 'GSFC Limited',
-    company_id: 'c_gsfc_limited',
-    sender_name: 'Tanvi Joshi',
-    sender_email: 'tanvi.j@gsfcuniversity.ac.in',
-    sender_phone: '+91 98765 43211',
-    roll_number: '22BCE108',
-    program: 'BTech CSE',
-    branch: 'AI & Data Science',
-    cgpa: 8.8,
-    type: 'meeting_absence',
-    subject: '[Meeting Absence Explanation] Tanvi Joshi — Industrial Systems Interview',
-    message: 'Respected GSFC Limited Placement Committee,\n\nI was unable to join the initial 10-minute briefing today due to mid-semester laboratory examination duties at GSFC University. I am now available and ready to present my technical portfolio for the Industrial Automation Systems Officer role at your earliest convenience.\n\nSincerely,\nTanvi Joshi',
-    meeting_id: 'meet_gsfc_auto_01',
-    room_id: 'GSFC-MEET-AUTO-771',
-    meeting_title: 'GSFC Limited — Industrial Automation & Telemetry Panel',
-    drive_title: 'IT & Industrial Automation Systems Officer',
-    status: 'read',
-    created_at: new Date(Date.now() - 1000 * 60 * 60 * 8).toISOString(),
-    recruiter_reply: null,
-    replied_at: null,
-    replied_by: null
-  },
-  {
-    id: 'mail_seed_4',
-    company_name: 'Microsoft Azure Systems',
-    company_id: 'c_microsoft',
-    sender_name: 'Pooja Patel',
-    sender_email: 'pooja.patel@student.gsfc.ac.in',
-    sender_phone: '+91 98765 43213',
-    roll_number: '22BCE124',
-    program: 'BTech IT',
-    branch: 'Information Technology',
-    cgpa: 9.1,
-    type: 'meeting_absence',
-    subject: '[Meeting Absence Explanation] Pooja Patel — Azure Cloud Assessment',
-    message: 'Dear Microsoft Recruiting Team,\n\nI encountered a brief power brownout in our campus area right at the scheduled interview start time. The backup power is restored now. Kindly permit me to rejoin the interview queue if possible.\n\nWarm regards,\nPooja Patel',
-    meeting_id: 'meet_ms_azure_03',
-    room_id: 'GSFC-MEET-AZURE-404',
-    meeting_title: 'Microsoft Azure — Cloud Systems Interview',
-    drive_title: 'Graduate Software Engineer (₹24.00 LPA)',
-    status: 'unread',
-    created_at: new Date(Date.now() - 1000 * 60 * 120).toISOString(),
-    recruiter_reply: null,
-    replied_at: null,
-    replied_by: null
-  }
-];
+export const INITIAL_STUDENT_MAILS = [];
 
 let inMemoryMailCache = null;
 let isFetchingMails = false;
@@ -112,7 +15,7 @@ async function syncMailsFromBackend() {
     const res = await fetch('/api/company/student-mails');
     if (res.ok) {
       const serverMails = await res.json();
-      if (Array.isArray(serverMails) && serverMails.length > 0) {
+      if (Array.isArray(serverMails)) {
         inMemoryMailCache = serverMails;
         try {
           localStorage.setItem(STORAGE_KEY, JSON.stringify(serverMails));
@@ -138,37 +41,31 @@ export function fetchServerStudentMails() {
 }
 
 export function getStudentMails() {
-  if (inMemoryMailCache && Array.isArray(inMemoryMailCache) && inMemoryMailCache.length > 0) {
+  if (inMemoryMailCache && Array.isArray(inMemoryMailCache)) {
     return inMemoryMailCache;
   }
   try {
     const fromVault = dbVault.getCollection('student_company_mails', null);
-    if (fromVault && Array.isArray(fromVault) && fromVault.length > 0) {
-      inMemoryMailCache = fromVault;
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(fromVault));
-      return fromVault;
+    if (fromVault && Array.isArray(fromVault)) {
+      const cleanVault = fromVault.filter(m => !m.id?.includes('mail_seed') && !m.room_id?.includes('google'));
+      inMemoryMailCache = cleanVault;
+      return cleanVault;
     }
 
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        inMemoryMailCache = parsed;
-        dbVault.saveCollection('student_company_mails', parsed);
-        return parsed;
+      if (Array.isArray(parsed)) {
+        const cleanParsed = parsed.filter(m => !m.id?.includes('mail_seed') && !m.room_id?.includes('google'));
+        inMemoryMailCache = cleanParsed;
+        return cleanParsed;
       }
     }
-
-    // Default initialization & sync from backend
-    inMemoryMailCache = INITIAL_STUDENT_MAILS;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(INITIAL_STUDENT_MAILS));
-    dbVault.saveCollection('student_company_mails', INITIAL_STUDENT_MAILS);
-    syncMailsFromBackend();
-    return INITIAL_STUDENT_MAILS;
   } catch (err) {
     console.error('Error reading student mails:', err);
-    return INITIAL_STUDENT_MAILS;
   }
+  inMemoryMailCache = [];
+  return [];
 }
 
 export function saveStudentMail(mailData) {

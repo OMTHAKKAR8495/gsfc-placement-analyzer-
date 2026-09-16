@@ -1976,93 +1976,39 @@ function seedInternshipAndCalendarData() {
       CREATE INDEX IF NOT EXISTS idx_placement_calendar_date ON placement_calendar_events(date);
     `);
 
-    const calCount = db.prepare('SELECT count(*) as c FROM placement_calendar_events').get()?.c || 0;
-    if (calCount === 0) {
-      const defaultEvents = [
-        {
-          id: 'evt_google_01',
-          company_name: 'Google Cloud India',
-          role: 'Software Engineer — AI & Cloud',
-          ctc: '₹28.00 LPA',
-          date: '2026-09-04',
-          time: '10:00 AM IST',
-          stage: 'Online Coding Assessment (Proctored)',
-          location: 'GSFC Computer Lab 4 & Remote AI Sandbox',
-          eligible_batches_json: JSON.stringify(['2025', '2026']),
-          eligible_branches_json: JSON.stringify(['CSE', 'IT', 'AI & DS']),
-          status: 'Scheduled',
-          updated_by: 'TPC Admin Coordinator'
-        },
-        {
-          id: 'evt_microsoft_01',
-          company_name: 'Microsoft Azure Systems',
-          role: 'Graduate Software Engineer',
-          ctc: '₹24.00 LPA',
-          date: '2026-09-08',
-          time: '02:00 PM IST',
-          stage: 'Technical Interview Round 1 & DSA',
-          location: 'Virtual Video Panel Room 3',
-          eligible_batches_json: JSON.stringify(['2025', '2026']),
-          eligible_branches_json: JSON.stringify(['CSE', 'IT', 'ECE']),
-          status: 'Scheduled',
-          updated_by: 'Dr. Neeshu Chaudhary (TPC)'
-        },
-        {
-          id: 'evt_tcs_01',
-          company_name: 'Tata Consultancy Services',
-          role: 'Digital Systems & Data Analyst',
-          ctc: '₹12.00 LPA',
-          date: '2026-09-12',
-          time: '09:30 AM IST',
-          stage: 'Pre-Placement Talk (PPT) & Orientation',
-          location: 'GSFC University Main Auditorium',
-          eligible_batches_json: JSON.stringify(['2025', '2026', '2027']),
-          eligible_branches_json: JSON.stringify(['All Departments']),
-          status: 'Scheduled',
-          updated_by: 'TPC Admin Coordinator'
-        },
-        {
-          id: 'evt_reliance_01',
-          company_name: 'Reliance Industries Limited',
-          role: 'Software Development Engineer - Cloud',
-          ctc: '₹10.20 LPA',
-          date: '2026-09-18',
-          time: '11:00 AM IST',
-          stage: 'Core Technical & System Architecture Round',
-          location: 'SOT Seminar Hall A',
-          eligible_batches_json: JSON.stringify(['2025', '2026']),
-          eligible_branches_json: JSON.stringify(['CSE', 'Chemical', 'Mechanical', 'IT']),
-          status: 'Scheduled',
-          updated_by: 'Faculty Placement Officer'
-        },
-        {
-          id: 'evt_amazon_01',
-          company_name: 'Amazon Web Services',
-          role: 'SDE-1 Cloud Microservices',
-          ctc: '₹32.00 LPA',
-          date: '2026-09-24',
-          time: '03:30 PM IST',
-          stage: 'Bar Raiser & Behavioral Leadership Panel',
-          location: 'Virtual Interview Studio',
-          eligible_batches_json: JSON.stringify(['2025', '2026']),
-          eligible_branches_json: JSON.stringify(['CSE', 'IT']),
-          status: 'Scheduled',
-          updated_by: 'TPC Admin Coordinator'
+    if (process.env.SEED_DEMO_DATA === 'true') {
+      const calCount = db.prepare('SELECT count(*) as c FROM placement_calendar_events').get()?.c || 0;
+      if (calCount === 0) {
+        const defaultEvents = [
+          {
+            id: 'evt_google_01',
+            company_name: 'Google Cloud India',
+            role: 'Software Engineer — AI & Cloud',
+            ctc: '₹28.00 LPA',
+            date: '2026-09-04',
+            time: '10:00 AM IST',
+            stage: 'Online Coding Assessment (Proctored)',
+            location: 'GSFC Computer Lab 4 & Remote AI Sandbox',
+            eligible_batches_json: JSON.stringify(['2025', '2026']),
+            eligible_branches_json: JSON.stringify(['CSE', 'IT', 'AI & DS']),
+            status: 'Scheduled',
+            updated_by: 'TPC Admin Coordinator'
+          }
+        ];
+
+        const insertCalStmt = db.prepare(`
+          INSERT INTO placement_calendar_events (
+            id, company_name, role, ctc, date, time, stage, location,
+            eligible_batches_json, eligible_branches_json, status, updated_by
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `);
+
+        for (const ev of defaultEvents) {
+          insertCalStmt.run(
+            ev.id, ev.company_name, ev.role, ev.ctc, ev.date, ev.time, ev.stage, ev.location,
+            ev.eligible_batches_json, ev.eligible_branches_json, ev.status, ev.updated_by
+          );
         }
-      ];
-
-      const insertCalStmt = db.prepare(`
-        INSERT INTO placement_calendar_events (
-          id, company_name, role, ctc, date, time, stage, location,
-          eligible_batches_json, eligible_branches_json, status, updated_by
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `);
-
-      for (const ev of defaultEvents) {
-        insertCalStmt.run(
-          ev.id, ev.company_name, ev.role, ev.ctc, ev.date, ev.time, ev.stage, ev.location,
-          ev.eligible_batches_json, ev.eligible_branches_json, ev.status, ev.updated_by
-        );
       }
     }
   } catch (err) {
@@ -3167,8 +3113,10 @@ function seedAppliedStudentApplications() {
 
 
 
-// Automatically seed applications on every startup
-seedAppliedStudentApplications();
+// Automatically seed applications only if explicitly configured for demo mode
+if (process.env.SEED_DEMO_DATA === 'true') {
+  seedAppliedStudentApplications();
+}
 
 export default db;
 

@@ -41,89 +41,7 @@ export const safeJsonArray = (val, fallback = []) => {
   return fallback;
 };
 
-export const DEFAULT_REQUIREMENTS_FEED = [
-
-  {
-    id: 'req_google_swe',
-    company_name: 'Google Cloud India',
-    title: 'Software Development Engineer — AI & Cloud Systems',
-    company_logo_url: 'https://upload.wikimedia.org/wikipedia/commons/2/2f/Google_2015_logo.svg',
-    logo_url: 'https://upload.wikimedia.org/wikipedia/commons/2/2f/Google_2015_logo.svg',
-    job_type: 'Full-time',
-    ctc_range: '₹24,00,000 - ₹28,00,000 PA',
-    openings: 5,
-    min_cgpa: 7.5,
-    eligible_programs_json: JSON.stringify(['BTech CSE', 'BTech IT', 'MSc CS']),
-    required_skills_json: JSON.stringify(['Python', 'React', 'Node.js', 'SQL', 'Cloud Architecture']),
-    deadline: '2026-10-30',
-    job_description: 'Join Google Cloud engineering team building next-generation enterprise AI infrastructure, distributed cloud microservices, and high-performance developer tools.',
-    matchScore: 92,
-    eligible: true,
-    application_type: 'internal',
-    applications_open: 1,
-    company_email: 'campus.hiring@google.com'
-  },
-  {
-    id: 'req_microsoft_sde',
-    company_name: 'Microsoft Azure Systems',
-    title: 'Graduate Software Engineer (Cloud & Microservices)',
-    company_logo_url: 'https://upload.wikimedia.org/wikipedia/commons/4/44/Microsoft_logo_%282012%29.svg',
-    logo_url: 'https://upload.wikimedia.org/wikipedia/commons/4/44/Microsoft_logo_%282012%29.svg',
-    job_type: 'Full-time',
-    ctc_range: '₹22,00,000 - ₹24,00,000 PA',
-    openings: 4,
-    min_cgpa: 7.0,
-    eligible_programs_json: JSON.stringify(['BTech CSE', 'BTech IT', 'MCA']),
-    required_skills_json: JSON.stringify(['C#', 'Python', 'Azure', 'Distributed Systems', 'SQL']),
-    deadline: '2026-11-15',
-    job_description: 'Develop scalable cloud microservices, Kubernetes control planes, and enterprise AI orchestration pipelines.',
-    matchScore: 88,
-    eligible: true,
-    application_type: 'internal',
-    applications_open: 1,
-    company_email: 'campus.recruit@microsoft.com'
-  },
-  {
-    id: 'req_gsfc_core',
-    company_name: 'GSFC Limited',
-    title: 'Process & Plant Operations Engineer',
-    company_logo_url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/18/Gujarat_State_Fertilizers_and_Chemicals_logo.svg/300px-Gujarat_State_Fertilizers_and_Chemicals_logo.svg.png',
-    logo_url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/18/Gujarat_State_Fertilizers_and_Chemicals_logo.svg/300px-Gujarat_State_Fertilizers_and_Chemicals_logo.svg.png',
-    job_type: 'Full-time',
-    ctc_range: '₹10,50,000 - ₹14,00,000 PA',
-    openings: 8,
-    min_cgpa: 6.5,
-    eligible_programs_json: JSON.stringify(['BTech Chemical', 'BTech Mechanical', 'MSc Chemistry']),
-    required_skills_json: JSON.stringify(['Process Optimization', 'Chemical Safety', 'Thermodynamics', 'AutoCAD']),
-    deadline: '2026-11-30',
-    job_description: 'Core engineering and operations management role across GSFC manufacturing plants and modern chemical processing facilities.',
-    matchScore: 82,
-    eligible: true,
-    application_type: 'internal',
-    applications_open: 1,
-    company_email: 'recruitment@gsfcltd.com'
-  },
-  {
-    id: 'req_tcs_digital',
-    company_name: 'Tata Consultancy Services',
-    title: 'Digital Systems & Data Analyst',
-    company_logo_url: 'https://images.unsplash.com/photo-1560179707-f14e90ef3623?w=100&auto=format&fit=crop&q=60',
-    logo_url: 'https://images.unsplash.com/photo-1560179707-f14e90ef3623?w=100&auto=format&fit=crop&q=60',
-    job_type: 'Full-time',
-    ctc_range: '₹9,00,000 - ₹12,00,000 PA',
-    openings: 12,
-    min_cgpa: 6.5,
-    eligible_programs_json: JSON.stringify(['BTech CSE', 'BTech IT', 'BTech Mechanical', 'MBA']),
-    required_skills_json: JSON.stringify(['SQL', 'Python', 'PowerBI', 'Data Analytics', 'Excel']),
-    deadline: '2026-12-05',
-    job_description: 'Analyze enterprise data warehouses, build automated ETL data pipelines, and develop executive reporting dashboards.',
-    matchScore: 85,
-    eligible: true,
-    application_type: 'internal',
-    applications_open: 1,
-    company_email: 'campus@tcs.com'
-  }
-];
+export const DEFAULT_REQUIREMENTS_FEED = [];
 
 export const resolveStudentId = (user, student) => {
   if (user?.profile?.id) return user.profile.id;
@@ -191,54 +109,26 @@ export const ensureString = (val, fallback = '') => {
   return fallback;
 };
 
-const DEFAULT_STUDENT_MEETINGS = [
-  {
-    id: 'meet_google_sde_101',
-    room_id: 'gsfc-google-ai-101',
-    title: 'Google Cloud India — SDE Technical Interview & Live Coding',
-    company_name: 'Google Cloud India',
-    drive_title: 'Software Development Engineer - Cloud & AI (₹28.00 LPA)',
-    scheduled_at: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
-    duration_minutes: 45,
-    status: 'live',
-    join_status: 'ready',
-    meeting_link: '#meeting/gsfc-google-ai-101'
-  },
-  {
-    id: 'meet_tcs_digital_102',
-    room_id: 'gsfc-tcs-digital-202',
-    title: 'TCS Digital — Technical Assessment & System Design Review',
-    company_name: 'Tata Consultancy Services (TCS)',
-    drive_title: 'TCS Digital Prime (₹9.00 LPA)',
-    scheduled_at: new Date(Date.now() + 2 * 3600 * 1000).toISOString(),
-    duration_minutes: 30,
-    status: 'scheduled',
-    join_status: 'ready',
-    meeting_link: '#meeting/gsfc-tcs-digital-202'
-  },
-  {
-    id: 'meet_tpc_mock_103',
-    room_id: 'gsfc-tpc-mock-303',
-    title: 'GSFC TPC Placement Cell — 1-on-1 Faculty Mock Technical Panel',
-    company_name: 'GSFC University Training & Placement Cell',
-    drive_title: 'Campus Placement Readiness Coaching',
-    scheduled_at: new Date(Date.now() + 24 * 3600 * 1000).toISOString(),
-    duration_minutes: 30,
-    status: 'scheduled',
-    join_status: 'ready',
-    meeting_link: '#meeting/gsfc-tpc-mock-303'
-  }
-];
+const DEFAULT_STUDENT_MEETINGS = [];
 
 const getInitialStudentMeetings = () => {
   try {
     const raw = localStorage.getItem('gsfc_student_meetings');
     if (raw) {
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      if (Array.isArray(parsed)) {
+        const clean = parsed.filter(m => {
+          const str = (m.id || '' + m.room_id || '' + m.title || '' + m.company_name || '').toLowerCase();
+          return !str.includes('google') && !str.includes('tcs') && !str.includes('microsoft') && !str.includes('mock') && !str.includes('seed');
+        });
+        if (clean.length !== parsed.length) {
+          localStorage.setItem('gsfc_student_meetings', JSON.stringify(clean));
+        }
+        return clean;
+      }
     }
   } catch(e) {}
-  return DEFAULT_STUDENT_MEETINGS;
+  return [];
 };
 
 export const getInitialTab = () => {
@@ -506,17 +396,22 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
       if (res.ok) {
         const data = await res.json();
         if (Array.isArray(data) && data.length > 0) {
-          setStudentMeetings(data);
-          try { localStorage.setItem('gsfc_student_meetings', JSON.stringify(data)); } catch(e) {}
+          const clean = data.filter(m => {
+            const str = (m.id || '' + m.room_id || '' + m.title || '' + m.company_name || '').toLowerCase();
+            return !str.includes('google') && !str.includes('tcs') && !str.includes('microsoft') && !str.includes('mock') && !str.includes('seed');
+          });
+          setStudentMeetings(clean);
+          try { localStorage.setItem('gsfc_student_meetings', JSON.stringify(clean)); } catch(e) {}
         } else {
-          setStudentMeetings(DEFAULT_STUDENT_MEETINGS);
+          setStudentMeetings([]);
+          try { localStorage.removeItem('gsfc_student_meetings'); } catch(e) {}
         }
       } else {
-        setStudentMeetings(DEFAULT_STUDENT_MEETINGS);
+        setStudentMeetings([]);
       }
       setLoadingMeetings(false);
     } catch (err) {
-      setStudentMeetings(DEFAULT_STUDENT_MEETINGS);
+      setStudentMeetings([]);
       setLoadingMeetings(false);
     }
   };
@@ -2607,139 +2502,153 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
                   </button>
                 </div>
 
-                <div className="grid grid-cols-1 gap-4">
-                  {studentMeetings.map(m => {
-                    const isLive = m.status === 'live';
-                    const isCompleted = m.status === 'completed';
-                    const roomCode = m.room_id || m.id || m.room_code;
-                    const isEjected = m.join_status === 'ejected' || m.join_status === 'disqualified' || m.is_disqualified || localStorage.getItem(`gsfc_meeting_ejected_${roomCode}`) === 'true';
-                    const fullLink = `${window.location.origin}/#meeting/${roomCode}`;
+                {studentMeetings.length === 0 ? (
+                  <div className="glass-panel p-8 rounded-3xl border border-slate-200/90 text-center space-y-3 bg-white/70">
+                    <div className="w-12 h-12 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-700 flex items-center justify-center mx-auto">
+                      <Video className="w-6 h-6" />
+                    </div>
+                    <div className="space-y-1">
+                      <h4 className="text-sm font-black text-slate-900">No Video Interviews Scheduled</h4>
+                      <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">
+                        When corporate hiring partners or TPC faculty panel schedule a live coding round or video interview for you, it will appear here with one-click proctored join access.
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 gap-4">
+                    {studentMeetings.map(m => {
+                      const isLive = m.status === 'live';
+                      const isCompleted = m.status === 'completed';
+                      const roomCode = m.room_id || m.id || m.room_code;
+                      const isEjected = m.join_status === 'ejected' || m.join_status === 'disqualified' || m.is_disqualified || localStorage.getItem(`gsfc_meeting_ejected_${roomCode}`) === 'true';
+                      const fullLink = `${window.location.origin}/#meeting/${roomCode}`;
 
-                    return (
-                      <div
-                        key={m.id}
-                        className={`glass-panel p-5 sm:p-6 rounded-3xl border shadow-md space-y-4 transition ${
-                          isEjected ? 'border-red-300 bg-red-50/40' : (isLive ? 'border-emerald-400 bg-emerald-50/20 ring-2 ring-emerald-400/30' : 'border-slate-200 bg-white')
-                        }`}
-                      >
-                        {/* Top Header Row: Badges & Copy Link Button */}
-                        <div className="flex items-center justify-between gap-3 flex-wrap">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase flex items-center gap-1.5 shadow-xs ${
-                              isEjected 
-                                ? 'bg-red-100 text-red-800 border border-red-300' 
-                                : (isLive ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' : 'bg-blue-100 text-blue-800 border border-blue-200')
-                            }`}>
-                              {isLive && <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />}
-                              {isEjected ? '⛔ DISQUALIFIED / EJECTED' : (isLive ? '🔴 LIVE NOW' : 'UPCOMING')}
-                            </span>
-                            <span className="text-xs text-slate-700 font-mono font-bold bg-slate-100 border border-slate-200 px-2.5 py-1 rounded-lg">
-                              Room ID: <span className="text-emerald-700 font-extrabold">{roomCode}</span>
-                            </span>
-                          </div>
-
-                          <button
-                            type="button"
-                            onClick={() => {
-                              navigator.clipboard.writeText(fullLink);
-                              setCopiedMeetingId(m.id);
-                              setTimeout(() => setCopiedMeetingId(null), 2000);
-                            }}
-                            className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all shadow-xs"
-                            title="Copy direct join link"
-                          >
-                            {copiedMeetingId === m.id ? (
-                              <>
-                                <Check className="w-3.5 h-3.5 text-emerald-600" />
-                                <span className="text-emerald-700 font-black">Copied Link!</span>
-                              </>
-                            ) : (
-                              <>
-                                <Copy className="w-3.5 h-3.5 text-slate-600" />
-                                <span>Copy Link</span>
-                              </>
-                            )}
-                          </button>
-                        </div>
-
-                        {/* Title & Drive Info */}
-                        <div className="space-y-2">
-                          <h3 className="text-base sm:text-lg font-black text-slate-900 leading-snug">{m.title}</h3>
-                          <div className="flex flex-wrap items-center gap-2 text-xs">
-                            <span className="inline-flex items-center gap-1.5 font-bold text-blue-900 bg-blue-50 px-2.5 py-1 rounded-lg border border-blue-200/80">
-                              <Building2 className="w-3.5 h-3.5 text-blue-900" />
-                              <span>{m.company_name}</span>
-                            </span>
-                            <span className="inline-flex items-center gap-1.5 font-semibold text-slate-700 bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-200/80">
-                              <Briefcase className="w-3.5 h-3.5 text-slate-500" />
-                              <span>{m.drive_title}</span>
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* Action Bar */}
-                        {isEjected ? (
-                          <div className="p-3.5 bg-red-100/70 border border-red-300/80 rounded-2xl flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
-                            <div className="flex items-center gap-2 text-xs font-black text-red-900">
-                              <ShieldAlert className="w-4 h-4 text-red-600 shrink-0" />
-                              <span>Session Disqualified & Ejected due to Proctoring / Security Violation</span>
+                      return (
+                        <div
+                          key={m.id}
+                          className={`glass-panel p-5 sm:p-6 rounded-3xl border shadow-md space-y-4 transition ${
+                            isEjected ? 'border-red-300 bg-red-50/40' : (isLive ? 'border-emerald-400 bg-emerald-50/20 ring-2 ring-emerald-400/30' : 'border-slate-200 bg-white')
+                          }`}
+                        >
+                          {/* Top Header Row: Badges & Copy Link Button */}
+                          <div className="flex items-center justify-between gap-3 flex-wrap">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase flex items-center gap-1.5 shadow-xs ${
+                                isEjected 
+                                  ? 'bg-red-100 text-red-800 border border-red-300' 
+                                  : (isLive ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' : 'bg-blue-100 text-blue-800 border border-blue-200')
+                              }`}>
+                                {isLive && <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />}
+                                {isEjected ? '⛔ DISQUALIFIED / EJECTED' : (isLive ? '🔴 LIVE NOW' : 'UPCOMING')}
+                              </span>
+                              <span className="text-xs text-slate-700 font-mono font-bold bg-slate-100 border border-slate-200 px-2.5 py-1 rounded-lg">
+                                Room ID: <span className="text-emerald-700 font-extrabold">{roomCode}</span>
+                              </span>
                             </div>
-                            <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap justify-end shrink-0">
-                              <button
-                                type="button"
-                                onClick={() => { setLeaveMeetingMailModal({ meeting: m, type: 'other_reason' }); setLeaveMeetingMailSent(false); setLeaveMeetingMailNote(''); }}
-                                className="w-full sm:w-auto px-3.5 py-2 bg-amber-100 hover:bg-amber-200 text-amber-950 border border-amber-300 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 cursor-pointer transition-all shadow-xs"
-                                title="Mail the company explaining your reason for leaving the meeting"
-                              >
-                                <Mail className="w-3.5 h-3.5 text-amber-700" />
-                                <span>Mail: Meeting Absence</span>
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => { setLeaveMeetingMailModal({ meeting: m, type: 'leave_company' }); setLeaveMeetingMailSent(false); setLeaveMeetingMailNote(''); }}
-                                className="w-full sm:w-auto px-3.5 py-2 bg-rose-100 hover:bg-rose-200 text-rose-950 border border-rose-300 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 cursor-pointer transition-all shadow-xs"
-                                title="Mail the company expressing your wish to leave / withdraw from the hiring process"
-                              >
-                                <Mail className="w-3.5 h-3.5 text-rose-700" />
-                                <span>Mail: Leave Process</span>
-                              </button>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="flex items-center justify-end pt-1">
+
                             <button
                               type="button"
                               onClick={() => {
-                                window.location.hash = `#meeting/${roomCode}`;
+                                navigator.clipboard.writeText(fullLink);
+                                setCopiedMeetingId(m.id);
+                                setTimeout(() => setCopiedMeetingId(null), 2000);
                               }}
-                              className={`w-full sm:w-auto px-6 py-2.5 text-white font-black text-xs rounded-xl shadow-lg flex items-center justify-center gap-2 transition cursor-pointer ${
-                                isLive
-                                  ? 'bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 hover:scale-105 shadow-emerald-700/30 ring-2 ring-emerald-400'
-                                  : 'bg-gradient-to-r from-blue-900 to-indigo-800 hover:from-blue-800 hover:to-indigo-700'
-                              }`}
+                              className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all shadow-xs"
+                              title="Copy direct join link"
                             >
-                              <Video className="w-4 h-4" />
-                              <span>{isLive ? '🟢 JOIN LIVE INTERVIEW NOW' : 'Join Video Room'}</span>
+                              {copiedMeetingId === m.id ? (
+                                <>
+                                  <Check className="w-3.5 h-3.5 text-emerald-600" />
+                                  <span className="text-emerald-700 font-black">Copied Link!</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Copy className="w-3.5 h-3.5 text-slate-600" />
+                                  <span>Copy Link</span>
+                                </>
+                              )}
                             </button>
                           </div>
-                        )}
 
-                        {/* Footer Bar */}
-                        <div className="pt-3 border-t border-slate-200/80 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500">
-                          <span className="flex items-center gap-1.5 font-medium text-slate-600">
-                            <Calendar className="w-3.5 h-3.5 text-emerald-600" />
-                            <span>{new Date(m.scheduled_at).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })} ({m.duration_minutes} Mins)</span>
-                          </span>
+                          {/* Title & Drive Info */}
+                          <div className="space-y-2">
+                            <h3 className="text-base sm:text-lg font-black text-slate-900 leading-snug">{m.title}</h3>
+                            <div className="flex flex-wrap items-center gap-2 text-xs">
+                              <span className="inline-flex items-center gap-1.5 font-bold text-blue-900 bg-blue-50 px-2.5 py-1 rounded-lg border border-blue-200/80">
+                                <Building2 className="w-3.5 h-3.5 text-blue-900" />
+                                <span>{m.company_name}</span>
+                              </span>
+                              <span className="inline-flex items-center gap-1.5 font-semibold text-slate-700 bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-200/80">
+                                <Briefcase className="w-3.5 h-3.5 text-slate-500" />
+                                <span>{m.drive_title}</span>
+                              </span>
+                            </div>
+                          </div>
 
-                          <span className="text-[11px] text-slate-500 flex items-center gap-1 font-medium">
-                            <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-                            <span>Proctored with Full-Screen Tab Lock</span>
-                          </span>
+                          {/* Action Bar */}
+                          {isEjected ? (
+                            <div className="p-3.5 bg-red-100/70 border border-red-300/80 rounded-2xl flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+                              <div className="flex items-center gap-2 text-xs font-black text-red-900">
+                                <ShieldAlert className="w-4 h-4 text-red-600 shrink-0" />
+                                <span>Session Disqualified & Ejected due to Proctoring / Security Violation</span>
+                              </div>
+                              <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap justify-end shrink-0">
+                                <button
+                                  type="button"
+                                  onClick={() => { setLeaveMeetingMailModal({ meeting: m, type: 'other_reason' }); setLeaveMeetingMailSent(false); setLeaveMeetingMailNote(''); }}
+                                  className="w-full sm:w-auto px-3.5 py-2 bg-amber-100 hover:bg-amber-200 text-amber-950 border border-amber-300 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 cursor-pointer transition-all shadow-xs"
+                                  title="Mail the company explaining your reason for leaving the meeting"
+                                >
+                                  <Mail className="w-3.5 h-3.5 text-amber-700" />
+                                  <span>Mail: Meeting Absence</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => { setLeaveMeetingMailModal({ meeting: m, type: 'leave_company' }); setLeaveMeetingMailSent(false); setLeaveMeetingMailNote(''); }}
+                                  className="w-full sm:w-auto px-3.5 py-2 bg-rose-100 hover:bg-rose-200 text-rose-950 border border-rose-300 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 cursor-pointer transition-all shadow-xs"
+                                  title="Mail the company expressing your wish to leave / withdraw from the hiring process"
+                                >
+                                  <Mail className="w-3.5 h-3.5 text-rose-700" />
+                                  <span>Mail: Leave Process</span>
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex items-center justify-end pt-1">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  window.location.hash = `#meeting/${roomCode}`;
+                                }}
+                                className={`w-full sm:w-auto px-6 py-2.5 text-white font-black text-xs rounded-xl shadow-lg flex items-center justify-center gap-2 transition cursor-pointer ${
+                                  isLive
+                                    ? 'bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 hover:scale-105 shadow-emerald-700/30 ring-2 ring-emerald-400'
+                                    : 'bg-gradient-to-r from-blue-900 to-indigo-800 hover:from-blue-800 hover:to-indigo-700'
+                                }`}
+                              >
+                                <Video className="w-4 h-4" />
+                                <span>{isLive ? '🟢 JOIN LIVE INTERVIEW NOW' : 'Join Video Room'}</span>
+                              </button>
+                            </div>
+                          )}
+
+                          {/* Footer Bar */}
+                          <div className="pt-3 border-t border-slate-200/80 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500">
+                            <span className="flex items-center gap-1.5 font-medium text-slate-600">
+                              <Calendar className="w-3.5 h-3.5 text-emerald-600" />
+                              <span>{new Date(m.scheduled_at).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })} ({m.duration_minutes} Mins)</span>
+                            </span>
+
+                            <span className="text-[11px] text-slate-500 flex items-center gap-1 font-medium">
+                              <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                              <span>Proctored with Full-Screen Tab Lock</span>
+                            </span>
+                          </div>
                         </div>
-                      </div>
-                    );
-                  })}
-                </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             </div>
           )}

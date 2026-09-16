@@ -17,74 +17,7 @@ export default function CompanyTrackerSidebar({ currentUser, onSelectCompany, on
     return null;
   })();
 
-  const defaultCompaniesList = [
-    {
-      id: 'c_google',
-      name: 'Google Cloud India',
-      logo: 'https://upload.wikimedia.org/wikipedia/commons/2/2f/Google_2015_logo.svg',
-      type: 'new',
-      role: 'Software Engineer — AI & Cloud',
-      ctc: '₹28.00 LPA',
-      date: 'Arrived Today',
-      status: '⚡ Newly Arrived',
-      badgeColor: 'bg-emerald-100 text-emerald-900 border-emerald-300'
-    },
-    {
-      id: 'c_microsoft',
-      name: 'Microsoft Azure Systems',
-      logo: 'https://upload.wikimedia.org/wikipedia/commons/4/44/Microsoft_logo_%282012%29.svg',
-      type: 'new',
-      role: 'Graduate Software Engineer',
-      ctc: '₹24.00 LPA',
-      date: '2 Days Ago',
-      status: '⚡ Newly Arrived',
-      badgeColor: 'bg-emerald-100 text-emerald-900 border-emerald-300'
-    },
-    {
-      id: 'c_tcs',
-      name: 'Tata Consultancy Services',
-      logo: 'https://images.unsplash.com/photo-1560179707-f14e90ef3623?w=100&auto=format&fit=crop&q=60',
-      type: 'new',
-      role: 'Digital Systems & Data Analyst',
-      ctc: '₹12.00 LPA',
-      date: '3 Days Ago',
-      status: '⚡ Newly Arrived',
-      badgeColor: 'bg-emerald-100 text-emerald-900 border-emerald-300'
-    },
-    {
-      id: 'c_amazon',
-      name: 'Amazon Web Services',
-      logo: 'https://upload.wikimedia.org/wikipedia/commons/a/a9/Amazon_logo.svg',
-      type: 'past',
-      role: 'SDE-1 Cloud Microservices',
-      ctc: '₹32.00 LPA',
-      date: 'Drive Completed (July 2026)',
-      status: '✅ Passed Drive',
-      badgeColor: 'bg-slate-100 text-slate-700 border-slate-300'
-    },
-    {
-      id: 'c_reliance',
-      name: 'Reliance Jio AI Labs',
-      logo: 'https://images.unsplash.com/photo-1542744094-3a31b272c490?w=100&auto=format&fit=crop&q=60',
-      type: 'past',
-      role: 'Data Science Trainee',
-      ctc: '₹14.50 LPA',
-      date: 'Drive Completed (June 2026)',
-      status: '✅ Passed Drive',
-      badgeColor: 'bg-slate-100 text-slate-700 border-slate-300'
-    },
-    {
-      id: 'c_infosys',
-      name: 'Infosys Power Programmer',
-      logo: 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=100&auto=format&fit=crop&q=60',
-      type: 'past',
-      role: 'Systems Engineer Specialist',
-      ctc: '₹9.50 LPA',
-      date: 'Drive Completed (May 2026)',
-      status: '✅ Passed Drive',
-      badgeColor: 'bg-slate-100 text-slate-700 border-slate-300'
-    }
-  ];
+  const defaultCompaniesList = [];
 
   const [companiesList, setCompaniesList] = useState(defaultCompaniesList);
 
@@ -96,22 +29,25 @@ export default function CompanyTrackerSidebar({ currentUser, onSelectCompany, on
     try {
       const res = await fetch('/api/student/requirements?showAll=true');
       const data = await res.json();
-      if (data.feed && data.feed.length > 0) {
+      if (data.feed && Array.isArray(data.feed) && data.feed.length > 0) {
         const live = data.feed.map(item => ({
           id: item.company_id || item.id,
           name: item.company_name,
-          logo: item.logo_url || 'https://upload.wikimedia.org/wikipedia/commons/2/2f/Google_2015_logo.svg',
+          logo: item.logo_url || 'https://images.unsplash.com/photo-1560179707-f14e90ef3623?w=100&auto=format&fit=crop&q=60',
           type: 'new',
           role: item.title,
           ctc: item.ctc_range,
-          date: 'Arrived Today',
+          date: 'Active Drive',
           status: '⚡ Newly Arrived',
           badgeColor: 'bg-emerald-100 text-emerald-900 border-emerald-300'
         }));
-        const past = defaultCompaniesList.filter(c => c.type === 'past');
-        setCompaniesList([...live, ...past]);
+        setCompaniesList(live);
+      } else {
+        setCompaniesList([]);
       }
-    } catch (e) {}
+    } catch (e) {
+      setCompaniesList([]);
+    }
   };
 
   const filteredCompanies = companiesList.filter(c => {
