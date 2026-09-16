@@ -7,6 +7,7 @@ import { validatePasswordPolicy, AuthRateLimiter } from '../middleware/security.
 
 import { JWT_SECRET } from '../config/secrets.js';
 import { verifyGoogleIdToken } from '../services/googleAuth.js';
+import { syncToSupabase } from '../services/supabaseService.js';
 
 const router = express.Router();
 
