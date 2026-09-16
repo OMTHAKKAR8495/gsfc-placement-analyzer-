@@ -40,6 +40,16 @@ export function initDatabase() {
     db.exec(schema);
   }
 
+  const indexesPath = path.join(__dirname, 'indexes.sql');
+  if (fs.existsSync(indexesPath)) {
+    try {
+      const indexes = fs.readFileSync(indexesPath, 'utf8');
+      db.exec(indexes);
+    } catch (e) {
+      console.warn('Indexes initialization notice:', e.message);
+    }
+  }
+
   applyMigrations();
 
   bootstrapAdminAccounts();
@@ -53,20 +63,37 @@ export function initDatabase() {
 
 function bootstrapAdminAccounts() {
   try {
-    const adminPassword = process.env.INITIAL_ADMIN_PASSWORD || 'Admin@GSFC2026!';
+    const existingAdminCount = db.prepare("SELECT COUNT(*) as count FROM users WHERE role IN ('admin', 'superadmin')").get()?.count || 0;
+    
+    if (existingAdminCount > 0) {
+      return; // Admin accounts already established
+    }
+
+    const adminEmail = process.env.INITIAL_ADMIN_EMAIL || 'admin@gsfcuniversity.ac.in';
+    const adminPassword = process.env.INITIAL_ADMIN_PASSWORD;
+
+    if (!adminPassword) {
+      if (process.env.NODE_ENV === 'production') {
+        throw new Error('FATAL SECURITY ERROR: Database has 0 administrator accounts and INITIAL_ADMIN_PASSWORD is not configured in production. Refusing to boot. Please set INITIAL_ADMIN_PASSWORD & INITIAL_ADMIN_EMAIL or run "node backend/scripts/createRealAdmin.js".');
+      } else {
+        console.warn('⚠️ [Admin Bootstrap]: No admin accounts exist in local database and INITIAL_ADMIN_PASSWORD is not set. Run "node backend/scripts/createRealAdmin.js" or set INITIAL_ADMIN_PASSWORD.');
+        return;
+      }
+    }
+
     const passHash = bcrypt.hashSync(adminPassword, 10);
-
-    const existingAdmin = db.prepare("SELECT * FROM users WHERE lower(email) = 'admin@gsfcuniversity.ac.in'").get();
-    if (!existingAdmin) {
-      db.prepare("INSERT INTO users (id, email, password_hash, role) VALUES (?, ?, ?, ?)").run('u_admin_gsfc_prod', 'admin@gsfcuniversity.ac.in', passHash, 'admin');
-    }
-
-    const existingSuperadmin = db.prepare("SELECT * FROM users WHERE lower(email) = 'superadmin@gsfcuniversity.ac.in'").get();
-    if (!existingSuperadmin) {
-      db.prepare("INSERT INTO users (id, email, password_hash, role) VALUES (?, ?, ?, ?)").run('u_superadmin_gsfc_prod', 'superadmin@gsfcuniversity.ac.in', passHash, 'superadmin');
-    }
+    db.prepare("INSERT INTO users (id, email, password_hash, role) VALUES (?, ?, ?, ?)").run(
+      'u_admin_' + Date.now(),
+      adminEmail.toLowerCase().trim(),
+      passHash,
+      'admin'
+    );
+    console.log(`🏛️ [Admin Bootstrap]: Successfully initialized primary administrator account (${adminEmail}) using INITIAL_ADMIN_PASSWORD.`);
   } catch (err) {
-    console.error('Error bootstrapping production admin accounts:', err.message);
+    if (process.env.NODE_ENV === 'production') {
+      throw err;
+    }
+    console.error('Error bootstrapping admin account:', err.message);
   }
 }
 
@@ -318,21 +345,25 @@ function applyMigrations() {
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', 'TPC Admin Governance')
     `);
 
-    // Ensure core test students are pre-authorized
-    const coreDefaultStudents = [
-      { roll_number: '24BT04171', email: '24bt04171@gsfcuniversity.ac.in', name: 'Om Thakkar', program: 'BTech CSE', branch: 'Computer Science & Engineering', cgpa: 8.9, passing_year: 2026, admission_year: 2024, phone: '+91 98765 43210' },
-      { roll_number: '21BCE045', email: 'thakkar_om@gmail.com', name: 'Thakkar Om', program: 'BTech CSE', branch: 'Computer Science & Engineering', cgpa: 8.8, passing_year: 2026, admission_year: 2022, phone: '+91 98765 43210' },
-      { roll_number: '21BCE042', email: 'student@gsfcuniversity.ac.in', name: 'Priya Patel', program: 'BTech CSE', branch: 'Computer Science & Engineering', cgpa: 8.6, passing_year: 2026, admission_year: 2022, phone: '+91 98765 43210' },
-      { roll_number: '22BCE108', email: 'tanvi.j@gsfcuniversity.ac.in', name: 'Tanvi Joshi', program: 'BTech CSE', branch: 'AI & Data Science', cgpa: 9.1, passing_year: 2026, admission_year: 2022, phone: '+91 98765 43210' },
-      { roll_number: '22BCH012', email: 'arav.sharma@student.gsfc.ac.in', name: 'Arav Sharma', program: 'BTech Chemical', branch: 'Chemical Engineering', cgpa: 8.4, passing_year: 2026, admission_year: 2022, phone: '+91 98765 43210' },
-      { roll_number: '21BME034', email: 'rahul.verma@gsfcuniversity.ac.in', name: 'Rahul Verma', program: 'BTech Mechanical', branch: 'Mechanical Engineering', cgpa: 8.2, passing_year: 2026, admission_year: 2022, phone: '+91 98765 43210' }
-    ];
-
-    for (const c of coreDefaultStudents) {
-      insertAuthStudentStmt.run('auth_' + c.roll_number.toLowerCase(), c.roll_number, c.email.toLowerCase(), c.name, c.program, c.branch, c.cgpa, c.passing_year, c.admission_year, c.phone);
-    }
+    // Sync existing student profiles into authorized_students table so active registered students have access
     for (const st of existingStudentsForAuth) {
       insertAuthStudentStmt.run('auth_' + (st.roll_number || 'stud').toLowerCase(), st.roll_number, st.email.toLowerCase(), st.name, st.program || 'BTech CSE', st.branch || 'Engineering', st.cgpa || 8.0, st.passing_year || 2026, st.admission_year || 2022, st.phone || '');
+    }
+
+    // Seed demo authorized students only in explicit demo environment
+    if (process.env.NODE_ENV !== 'production' && process.env.SEED_DEMO_DATA === 'true') {
+      const coreDefaultStudents = [
+        { roll_number: '24BT04171', email: '24bt04171@gsfcuniversity.ac.in', name: 'Om Thakkar', program: 'BTech CSE', branch: 'Computer Science & Engineering', cgpa: 8.9, passing_year: 2026, admission_year: 2024, phone: '+91 98765 43210' },
+        { roll_number: '21BCE045', email: 'thakkar_om@gmail.com', name: 'Thakkar Om', program: 'BTech CSE', branch: 'Computer Science & Engineering', cgpa: 8.8, passing_year: 2026, admission_year: 2022, phone: '+91 98765 43210' },
+        { roll_number: '21BCE042', email: 'student@gsfcuniversity.ac.in', name: 'Priya Patel', program: 'BTech CSE', branch: 'Computer Science & Engineering', cgpa: 8.6, passing_year: 2026, admission_year: 2022, phone: '+91 98765 43210' },
+        { roll_number: '22BCE108', email: 'tanvi.j@gsfcuniversity.ac.in', name: 'Tanvi Joshi', program: 'BTech CSE', branch: 'AI & Data Science', cgpa: 9.1, passing_year: 2026, admission_year: 2022, phone: '+91 98765 43210' },
+        { roll_number: '22BCH012', email: 'arav.sharma@student.gsfc.ac.in', name: 'Arav Sharma', program: 'BTech Chemical', branch: 'Chemical Engineering', cgpa: 8.4, passing_year: 2026, admission_year: 2022, phone: '+91 98765 43210' },
+        { roll_number: '21BME034', email: 'rahul.verma@gsfcuniversity.ac.in', name: 'Rahul Verma', program: 'BTech Mechanical', branch: 'Mechanical Engineering', cgpa: 8.2, passing_year: 2026, admission_year: 2022, phone: '+91 98765 43210' }
+      ];
+
+      for (const c of coreDefaultStudents) {
+        insertAuthStudentStmt.run('auth_' + c.roll_number.toLowerCase(), c.roll_number, c.email.toLowerCase(), c.name, c.program, c.branch, c.cgpa, c.passing_year, c.admission_year, c.phone);
+      }
     }
 
     // 📬 Inbound Student Mails Table & Pre-Seeding

@@ -30,15 +30,88 @@ export function validatePasswordPolicy(password, email = '') {
 }
 
 /**
- * Auth Rate Limiter: Pass-through middleware for zero rate-limit blockages during campus drives & demos
+ * Rate Limiter Configuration:
+ * - Employs compound key generation (IP + normalized account identifier) to prevent account-lockout DoS across shared campus NAT networks while blocking distributed and single-target brute-force attempts.
+ * - Skips counting successful logins (skipSuccessfulRequests: true).
  */
-const passThrough = (req, res, next) => next();
+const getClientIp = (req) => {
+  const forwarded = req.headers['x-forwarded-for'];
+  if (forwarded && typeof forwarded === 'string') {
+    return forwarded.split(',')[0].trim();
+  }
+  return req.ip || req.socket?.remoteAddress || '127.0.0.1';
+};
 
 export const AuthRateLimiter = {
-  loginLimiter: passThrough,
-  registerLimiter: passThrough,
-  aiFeatureLimiter: passThrough,
-  generalApiLimiter: passThrough
+  // 10 failed login attempts per minute per account+IP
+  loginLimiter: rateLimit({
+    windowMs: 60 * 1000,
+    max: 15,
+    skipSuccessfulRequests: true,
+    keyGenerator: (req) => {
+      const ip = getClientIp(req);
+      const account = (req.body?.email || req.body?.username || '').toLowerCase().trim();
+      return account ? `${ip}::${account}` : ip;
+    },
+    message: {
+      status: 'error',
+      error: 'Too many authentication attempts for this account. Please wait 60 seconds before retrying.'
+    },
+    standardHeaders: true,
+    legacyHeaders: false
+  }),
+
+  // Max 10 account registrations per hour per IP
+  registerLimiter: rateLimit({
+    windowMs: 60 * 60 * 1000,
+    max: 10,
+    keyGenerator: (req) => getClientIp(req),
+    message: {
+      status: 'error',
+      error: 'Account registration rate limit exceeded from this IP. Please try again later.'
+    },
+    standardHeaders: true,
+    legacyHeaders: false
+  }),
+
+  // Max 5 OTP password reset requests per 10 minutes per account+IP
+  otpLimiter: rateLimit({
+    windowMs: 10 * 60 * 1000,
+    max: 5,
+    keyGenerator: (req) => {
+      const ip = getClientIp(req);
+      const email = (req.body?.email || '').toLowerCase().trim();
+      return email ? `${ip}::otp::${email}` : ip;
+    },
+    message: {
+      status: 'error',
+      error: 'Password reset OTP request limit reached. Please wait 10 minutes.'
+    },
+    standardHeaders: true,
+    legacyHeaders: false
+  }),
+
+  // Max 60 AI generation requests per minute
+  aiFeatureLimiter: rateLimit({
+    windowMs: 60 * 1000,
+    max: 60,
+    keyGenerator: (req) => getClientIp(req),
+    message: {
+      status: 'error',
+      error: 'AI feature rate limit exceeded. Please wait a moment.'
+    },
+    standardHeaders: true,
+    legacyHeaders: false
+  }),
+
+  // Max 400 API requests per minute per IP
+  generalApiLimiter: rateLimit({
+    windowMs: 60 * 1000,
+    max: 400,
+    keyGenerator: (req) => getClientIp(req),
+    standardHeaders: true,
+    legacyHeaders: false
+  })
 };
 
 /**

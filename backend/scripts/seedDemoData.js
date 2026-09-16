@@ -10,6 +10,17 @@ const __dirname = path.dirname(__filename);
 const dbDir = process.env.DB_DIR || path.join(__dirname, '../db');
 const dbPath = path.join(dbDir, 'campushire.db');
 
+// ==============================================================================
+// GSFC UNIVERSITY PLACEMENT MANAGEMENT PORTAL - DEMO DATA SEEDER
+// PRODUCTION SAFETY GUARD: This script must NEVER be executed in production environments.
+// It is strictly gated behind NODE_ENV !== 'production' AND ALLOW_DEV_SEED === 'true'.
+// ==============================================================================
+
+if (process.env.NODE_ENV === 'production' || process.env.ALLOW_DEV_SEED !== 'true') {
+  console.error('🚫 [SECURITY BLOCK]: Refusing to execute demo seeder in production mode or without explicit ALLOW_DEV_SEED=true.');
+  process.exit(1);
+}
+
 export function seedDemoEnvironment() {
   console.log('🌱 [Demo Mode]: Seeding test/showcase demo records into isolated database environment...');
   const db = new Database(dbPath);

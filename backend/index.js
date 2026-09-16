@@ -364,49 +364,47 @@ app.get('/{*splat}', (req, res) => {
   });
 });
 
-// Centralized Security & Crash Fallback Handler
+// Centralized Security & Resilient Error Handler
 app.use((err, req, res, next) => {
-  console.error('🔒 [SECURITY AUDIT SERVER ERROR]:', err.stack || err.message || err);
+  const isProduction = process.env.NODE_ENV === 'production';
+  const userId = req.user?.id || req.user?.userId || 'anonymous';
+  const routeContext = `${req.method} ${req.originalUrl || req.url}`;
+  
+  console.error(`🔒 [SERVER ERROR] [${new Date().toISOString()}] [Route: ${routeContext}] [User: ${userId}]:`, err?.stack || err?.message || err);
   
   if (res.headersSent) {
     return next(err);
   }
 
-  const statusCode = err.statusCode || err.status || 500;
+  const statusCode = Number(err.statusCode || err.status) || 500;
+  
   res.status(statusCode).json({
     status: 'error',
-    safeMode: true,
-    error: statusCode === 500 ? 'An internal server error occurred. Operating in temporary safe mode.' : err.message
+    error: isProduction && statusCode === 500
+      ? 'An internal server error occurred. Please contact TPC Administration if the issue persists.'
+      : (err.message || 'An unexpected error occurred.')
   });
 });
 
-// Process-level Crash Handler & Safe Graceful Shutdown
-function crashAndRestart(kind, err) {
-  console.error(`💥 [FATAL ${kind}]:`, err?.stack || err);
-
-  const forceExitTimeout = setTimeout(() => {
-    console.error('⚠️ Force exiting process after 5s shutdown timeout.');
-    process.exit(1);
-  }, 5000);
-  forceExitTimeout.unref();
-
-  try {
-    server.close(() => {
-      clearTimeout(forceExitTimeout);
-      process.exit(1);
-    });
-  } catch (closeErr) {
-    console.error('Error closing HTTP server during crash shutdown:', closeErr);
-    process.exit(1);
-  }
-}
-
-process.on('uncaughtException', (err) => {
-  crashAndRestart('UNCAUGHT EXCEPTION', err);
+// Process-level Diagnostic & Unhandled Error Listeners (Non-crashing for recoverable requests)
+process.on('unhandledRejection', (reason) => {
+  console.error('⚠️ [NON-FATAL UNHANDLED REJECTION]:', reason?.stack || reason);
 });
 
-process.on('unhandledRejection', (reason) => {
-  crashAndRestart('UNHANDLED REJECTION', reason);
+process.on('uncaughtException', (err) => {
+  const isFatal = err.code === 'EADDRINUSE' || err.code === 'SQLITE_CORRUPT' || err.message?.includes('out of memory');
+  console.error(`💥 [${isFatal ? 'FATAL' : 'RECOVERABLE'} UNCAUGHT EXCEPTION]:`, err?.stack || err);
+  
+  if (isFatal) {
+    console.error('⛔ Truly fatal system failure detected. Initiating graceful termination...');
+    const forceExit = setTimeout(() => process.exit(1), 3000);
+    forceExit.unref();
+    try {
+      server.close(() => process.exit(1));
+    } catch (_) {
+      process.exit(1);
+    }
+  }
 });
 
 const isMain = process.argv[1] && (fileURLToPath(import.meta.url) === process.argv[1] || process.argv[1].endsWith('backend/index.js') || process.argv[1].endsWith('index.js'));

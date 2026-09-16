@@ -1,7 +1,14 @@
--- ==============================================================================
--- ADVANCED SQLITE PERFORMANCE & B-TREE COMPOUND INDEXES
--- Optimizes query execution speed to < 2ms across hundreds of student candidates
--- ==============================================================================
+-- 0. Core User Authentication & Lookup Indexes
+CREATE INDEX IF NOT EXISTS idx_users_email_lower ON users(email);
+CREATE INDEX IF NOT EXISTS idx_users_google_id ON users(google_id);
+CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
+CREATE INDEX IF NOT EXISTS idx_students_user_id ON student_profiles(user_id);
+CREATE INDEX IF NOT EXISTS idx_students_roll_number ON student_profiles(roll_number);
+CREATE INDEX IF NOT EXISTS idx_auth_students_email ON authorized_students(email);
+CREATE INDEX IF NOT EXISTS idx_auth_students_roll ON authorized_students(roll_number);
+CREATE INDEX IF NOT EXISTS idx_companies_user_id ON company_profiles(user_id);
+CREATE INDEX IF NOT EXISTS idx_faculty_user_id ON faculty_profiles(user_id);
+CREATE INDEX IF NOT EXISTS idx_security_user_id ON security_staff_profiles(user_id);
 
 -- 1. Compound Index for Applications Lookup and Duplicate Checks
 CREATE INDEX IF NOT EXISTS idx_apps_student_req ON applications(student_id, requirement_id);

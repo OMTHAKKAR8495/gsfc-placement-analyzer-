@@ -3,11 +3,17 @@ import db, { initDatabase } from '../db/index.js';
 
 /**
  * Isolated Local Development Account Seeding Script
- * Run with: node backend/scripts/seedDevAccounts.js
+ * Run with: ALLOW_DEV_SEED=true node backend/scripts/seedDevAccounts.js
  * 
- * Safely creates or updates local test development accounts for all supported user roles
- * with high-entropy bcrypt password hashing.
+ * PRODUCTION SAFETY GUARD: This script must NEVER be executed in production environments.
+ * It is strictly gated behind NODE_ENV !== 'production' AND ALLOW_DEV_SEED === 'true'.
  */
+
+if (process.env.NODE_ENV === 'production' || process.env.ALLOW_DEV_SEED !== 'true') {
+  console.error('🚫 [SECURITY BLOCK]: Refusing to execute dev account seeder in production mode or without explicit ALLOW_DEV_SEED=true.');
+  console.error('👉 To create a real administrator in production, run: node backend/scripts/createRealAdmin.js');
+  process.exit(1);
+}
 
 console.log('🌱 Initializing GSFC Placement Portal Local Development Seeder...\n');
 

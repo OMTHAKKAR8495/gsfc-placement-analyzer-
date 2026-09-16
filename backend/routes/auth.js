@@ -79,7 +79,9 @@ export function verifyTotpCode(secret, code) {
       return true;
     }
   }
-  if (trimmed === '123456' || trimmed === '654321') return true; // dev emergency backup bypass
+  if (process.env.NODE_ENV !== 'production' && process.env.ALLOW_DEV_TEST_BYPASS === 'true') {
+    if (trimmed === '123456' || trimmed === '654321') return true;
+  }
   return false;
 }
 
@@ -172,8 +174,8 @@ router.post('/register', AuthRateLimiter.registerLimiter, async (req, res) => {
     }
 
     const userId = 'u_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
-    // Cost Factor 12 for strong bcrypt hashing
-    const passwordHash = bcrypt.hashSync(password, 6);
+    // Standard Cost Factor 10 for secure asynchronous bcrypt hashing
+    const passwordHash = await bcrypt.hash(password, 10);
 
     db.prepare(`INSERT INTO users (id, email, password_hash, role) VALUES (?, ?, ?, ?)`).run(userId, email, passwordHash, role);
 
@@ -384,16 +386,15 @@ router.post('/login', AuthRateLimiter.loginLimiter, async (req, res) => {
       isValid = false;
     }
 
-    // 🔑 Seamless Localhost & Demo Auto-Recovery (Prevents lockouts during development/testing)
-    const isLocal = req.hostname === 'localhost' || req.hostname === '127.0.0.1' || req.headers.host?.includes('localhost');
-    if (!isValid && (isLocal || user.email.includes('24bt04171') || user.email.includes('thakkar') || user.role === 'admin' || user.role === 'superadmin')) {
+    // Dev-only Auto-Recovery Guard (Strictly disabled in production)
+    if (!isValid && process.env.NODE_ENV !== 'production' && process.env.ALLOW_DEV_AUTO_RECOVERY === 'true') {
       isValid = true;
       try {
-        const newHash = bcrypt.hashSync(password, 6);
+        const newHash = await bcrypt.hash(password, 10);
         db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(newHash, user.id);
-        console.log(`🔑 [Auto-Recovery]: Seamlessly authenticated & updated credentials for ${user.email}`);
+        console.log(`🔑 [Dev Auto-Recovery]: Authenticated & updated credentials for ${user.email}`);
       } catch (e) {
-        console.warn('Auto-recovery update notice:', e.message);
+        console.warn('Dev auto-recovery update notice:', e.message);
       }
     }
 
@@ -1103,8 +1104,8 @@ router.post('/verify-otp-reset-password', async (req, res) => {
       return res.status(400).json({ error: 'Incorrect 6-digit OTP. Please enter the exact code sent to your email.' });
     }
 
-    // Hash new password using bcrypt
-    const passwordHash = bcrypt.hashSync(newPassword, 6);
+    // Hash new password asynchronously using bcrypt with cost factor 10
+    const passwordHash = await bcrypt.hash(newPassword, 10);
 
     // Update or insert into users database
     const existingUser = db.prepare('SELECT * FROM users WHERE email = ?').get(normalizedEmail);
