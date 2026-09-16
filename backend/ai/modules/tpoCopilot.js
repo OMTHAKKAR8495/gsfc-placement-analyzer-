@@ -146,11 +146,12 @@ export async function queryTPOCopilot(userQuery, conversationHistory = []) {
     ];
   }
 
-  // Attempt real Gemini AI enhancement if configured
-  if (genAI) {
-    try {
-      const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
-      const prompt = `You are the AI TPO Copilot for GSFC University Training & Placement Cell.
+  // Attempt real AI enhancement (OmniRoute Gateway or Gemini)
+  const gatewayUrl = process.env.AI_GATEWAY_URL || process.env.OPENAI_BASE_URL;
+  const gatewayKey = process.env.AI_API_KEY || process.env.OPENAI_API_KEY;
+  const gatewayModel = process.env.AI_MODEL || 'auto';
+
+  const prompt = `You are the AI TPO Copilot for GSFC University Training & Placement Cell.
 User Question: "${userQuery}"
 Context Data:
 - Total Students: ${totalStudents}
@@ -160,7 +161,37 @@ Context Data:
 - Top Programs: BTech CSE, Chemical, Mechanical, Fire & Safety
 
 Provide an executive, concise, professional, university-grade briefing with bullet points and clear numbers. Do not hallucinate fake names.`;
-      
+
+  if (gatewayUrl && gatewayKey) {
+    try {
+      const res = await fetch(`${gatewayUrl.replace(/\/$/, '')}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${gatewayKey}`
+        },
+        body: JSON.stringify({
+          model: gatewayModel,
+          messages: [
+            { role: 'system', content: 'You are the official GSFC University Placement Intelligence AI Copilot.' },
+            { role: 'user', content: prompt }
+          ],
+          temperature: 0.3
+        })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const content = data.choices?.[0]?.message?.content;
+        if (content && content.length > 30) {
+          responseText = content;
+        }
+      }
+    } catch(e) {
+      console.warn('[AI TPO Copilot] OmniRoute notice:', e.message);
+    }
+  } else if (genAI) {
+    try {
+      const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
       const result = await model.generateContent(prompt);
       const aiText = result.response.text();
       if (aiText && aiText.length > 50) {

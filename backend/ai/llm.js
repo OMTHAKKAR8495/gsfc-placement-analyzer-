@@ -31,22 +31,64 @@ export function cleanJsonOutput(rawText) {
 }
 
 /**
- * Fast, non-blocking LLM caller with 1.5s AbortController timeout
+ * Fast, non-blocking LLM caller with OmniRoute AI gateway & Gemini support
  */
 export async function callLLM({ prompt, schemaDescription, fallbackGenerator }) {
-  const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+  const gatewayUrl = process.env.AI_GATEWAY_URL || process.env.OPENAI_BASE_URL;
+  const gatewayKey = process.env.AI_API_KEY || process.env.OPENAI_API_KEY;
+  const gatewayModel = process.env.AI_MODEL || 'auto';
 
-  // Attempt Gemini API call if key is provided
-  if (apiKey && apiKey.length > 10 && !apiKey.includes('YOUR_')) {
+  // 1. Attempt OmniRoute / OpenAI-compatible AI Gateway
+  if (gatewayUrl && gatewayKey) {
+    try {
+      const endpoint = `${gatewayUrl.replace(/\/$/, '')}/chat/completions`;
+      const fullPrompt = `${prompt}\n\nIMPORTANT INSTRUCTION: Respond strictly with valid JSON conforming to this schema:\n${schemaDescription}`;
+
+      const timeoutMs = process.env.AI_TIMEOUT_MS ? parseInt(process.env.AI_TIMEOUT_MS, 10) : 5000;
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${gatewayKey}`
+        },
+        body: JSON.stringify({
+          model: gatewayModel,
+          messages: [
+            { role: 'system', content: 'You are an enterprise career and placement evaluation AI. Respond strictly in valid JSON format.' },
+            { role: 'user', content: fullPrompt }
+          ],
+          temperature: 0.2
+        }),
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+
+      if (res.ok) {
+        const data = await res.json();
+        const content = data.choices?.[0]?.message?.content || '';
+        if (content) {
+          return cleanJsonOutput(content);
+        }
+      }
+    } catch (err) {
+      console.warn(`[AI Engine] OmniRoute Gateway notice: ${err.message}. Falling back.`);
+    }
+  }
+
+  // 2. Attempt Google Gemini API call if key is provided
+  const geminiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+  if (geminiKey && geminiKey.length > 10 && !geminiKey.includes('YOUR_')) {
     try {
       const { GoogleGenerativeAI } = await import('@google/generative-ai');
-      const ai = new GoogleGenerativeAI(apiKey);
+      const ai = new GoogleGenerativeAI(geminiKey);
       const targetModelName = process.env.GEMINI_MODEL || 'gemini-3.6-flash';
       const model = ai.getGenerativeModel({ model: targetModelName });
       
       const fullPrompt = `${prompt}\n\nIMPORTANT INSTRUCTION: Respond strictly with valid JSON. Do not include markdown headers or commentary outside JSON.\nSchema requirement:\n${schemaDescription}`;
       
-      // 3.5s timeout promise race
       const timeoutPromise = new Promise((_, reject) =>
         setTimeout(() => reject(new Error('LLM call timed out after 3500ms')), 3500)
       );
@@ -60,7 +102,7 @@ export async function callLLM({ prompt, schemaDescription, fallbackGenerator }) 
     }
   }
 
-  // Instant deterministic local engine fallback (0ms latency!)
+  // 3. Instant deterministic local engine fallback (0ms latency!)
   if (fallbackGenerator) {
     return fallbackGenerator();
   }
