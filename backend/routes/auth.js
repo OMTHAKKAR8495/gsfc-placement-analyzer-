@@ -157,19 +157,50 @@ router.post('/register', AuthRateLimiter.registerLimiter, async (req, res) => {
       return res.status(400).json({ error: passCheck.message });
     }
 
-    if (role === 'student') {
-      const cleanEmail = email.toLowerCase().trim();
-      const cleanRoll = (roll_number || '').trim().toLowerCase();
-      const authRecord = db.prepare('SELECT * FROM authorized_students WHERE lower(email) = ? OR lower(roll_number) = ?').get(cleanEmail, cleanRoll);
-      if (!authRecord) {
-        return res.status(403).json({
-          error: 'Registration Blocked: Your enrollment number or email has not been registered by TPC Admin. Only students pre-authorized by TPC can access the portal.'
-        });
+    const cleanEmail = email.toLowerCase().trim();
+    const cleanRoll = (roll_number || '').trim().toUpperCase();
+
+    // 1. Check for existing user with this email
+    const existingUser = db.prepare('SELECT id, email, role FROM users WHERE lower(email) = ?').get(cleanEmail);
+    if (existingUser) {
+      return res.status(409).json({ error: 'An account with this university email address already exists. Please sign in.' });
+    }
+
+    // 2. Check for existing student roll number
+    if (role === 'student' && cleanRoll) {
+      const existingRoll = db.prepare('SELECT id, roll_number, name FROM student_profiles WHERE upper(roll_number) = ?').get(cleanRoll);
+      if (existingRoll) {
+        return res.status(409).json({ error: `An account with Enrollment/Roll Number "${cleanRoll}" is already registered. Please sign in or contact TPC Admin.` });
       }
-      if (authRecord.access_status === 'blocked') {
+    }
+
+    if (role === 'student') {
+      const authRecord = db.prepare('SELECT * FROM authorized_students WHERE lower(email) = ? OR upper(roll_number) = ?').get(cleanEmail, cleanRoll);
+      if (authRecord && authRecord.access_status === 'blocked') {
         return res.status(403).json({
           error: 'Registration Denied: Your student portal access is currently restricted by TPC Admin.'
         });
+      }
+      if (!authRecord && cleanRoll) {
+        // Register newly created student into authorized_students master roster
+        const authId = 'auth_' + cleanRoll.toLowerCase().replace(/[^a-z0-9_]/g, '_');
+        try {
+          db.prepare(`
+            INSERT OR IGNORE INTO authorized_students (id, roll_number, email, name, program, branch, cgpa, passing_year, admission_year, phone, access_status, authorized_by)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', 'Student Self-Registration')
+          `).run(
+            authId,
+            cleanRoll,
+            cleanEmail,
+            name || 'GSFC Student',
+            program || 'BTech CSE',
+            branch || 'Computer Science & Engineering',
+            parseFloat(cgpa) || 8.0,
+            parseInt(req.body.passing_year, 10) || 2026,
+            parseInt(req.body.admission_year, 10) || 2022,
+            phone || ''
+          );
+        } catch(e) {}
       }
     }
 
@@ -177,31 +208,89 @@ router.post('/register', AuthRateLimiter.registerLimiter, async (req, res) => {
     // Standard Cost Factor 10 for secure asynchronous bcrypt hashing
     const passwordHash = await bcrypt.hash(password, 10);
 
-    db.prepare(`INSERT INTO users (id, email, password_hash, role) VALUES (?, ?, ?, ?)`).run(userId, email, passwordHash, role);
+    db.prepare(`INSERT INTO users (id, email, password_hash, role) VALUES (?, ?, ?, ?)`).run(userId, cleanEmail, passwordHash, role);
 
     let ownerId = userId;
+    let userProfile = null;
+
     if (role === 'student') {
       const studentId = 's_' + Date.now();
       ownerId = studentId;
-      const cleanEmail = email.toLowerCase().trim();
-      const cleanRoll = (roll_number || '').trim().toLowerCase();
-      const authRecord = db.prepare('SELECT * FROM authorized_students WHERE lower(email) = ? OR lower(roll_number) = ?').get(cleanEmail, cleanRoll);
+      const authRecord = db.prepare('SELECT * FROM authorized_students WHERE lower(email) = ? OR upper(roll_number) = ?').get(cleanEmail, cleanRoll);
+
+      const finalRoll = cleanRoll || authRecord?.roll_number || '24BT04171';
+      const finalName = (name || authRecord?.name || 'GSFC Student').trim();
+      const finalPhone = (phone || authRecord?.phone || '').trim();
+      const finalProgram = program || authRecord?.program || 'BTech CSE';
+      const finalBranch = branch || authRecord?.branch || 'Computer Science & Engineering';
+      const finalCgpa = parseFloat(cgpa || authRecord?.cgpa || 8.0);
+      const finalAdmissionYear = parseInt(req.body.admission_year || authRecord?.admission_year || 2022, 10);
+      const finalPassingYear = parseInt(req.body.passing_year || authRecord?.passing_year || 2026, 10);
 
       db.prepare(`
-        INSERT INTO student_profiles (id, user_id, roll_number, name, phone, program, branch, cgpa, admission_year, passing_year, access_status, is_authorized)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', 1)
+        INSERT INTO student_profiles (id, user_id, roll_number, name, phone, program, branch, cgpa, admission_year, passing_year, access_status, is_authorized, profile_completion)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', 1, 75)
       `).run(
         studentId,
         userId,
-        authRecord?.roll_number || roll_number || '24BT04171',
-        authRecord?.name || name || 'New Student',
-        authRecord?.phone || phone || '+91 98765 43210',
-        authRecord?.program || program || 'BTech CSE',
-        authRecord?.branch || branch || 'Computer Science',
-        parseFloat(authRecord?.cgpa || cgpa || 8.0),
-        authRecord?.admission_year || 2022,
-        authRecord?.passing_year || 2026
+        finalRoll,
+        finalName,
+        finalPhone,
+        finalProgram,
+        finalBranch,
+        finalCgpa,
+        finalAdmissionYear,
+        finalPassingYear
       );
+
+      userProfile = {
+        id: studentId,
+        user_id: userId,
+        roll_number: finalRoll,
+        name: finalName,
+        phone: finalPhone,
+        program: finalProgram,
+        branch: finalBranch,
+        cgpa: finalCgpa,
+        passing_year: finalPassingYear,
+        admission_year: finalAdmissionYear
+      };
+
+      // 📬 Generate Welcome & Official Credentials Mailbox Notification
+      const welcomeNotifId = 'notif_welcome_' + Date.now();
+      const welcomeTitle = '🎓 Welcome to GSFC University Digital Campus System — Account Credentials & Portal Access';
+      const welcomeBody = `Dear ${finalName},
+
+Welcome to the GSFC University Placement & Career Governance Portal. Your student placement candidate profile has been successfully provisioned.
+
+📋 YOUR OFFICIAL ACCOUNT CREDENTIALS:
+--------------------------------------------------
+• Candidate Legal Name: ${finalName}
+• Enrollment / Roll Number: ${finalRoll}
+• User ID / Login Email: ${cleanEmail}
+• Temporary / Registered Password: ${password}
+• Registered Mobile / Contact: ${finalPhone || 'Not specified'}
+• Academic Program & Branch: ${finalProgram} — ${finalBranch}
+• Placement Batch: ${finalPassingYear}
+--------------------------------------------------
+
+🔒 INSTITUTIONAL SECURITY POLICY:
+Your legal name, enrollment number, and mobile number are permanently locked and bound to your academic record to ensure corporate placement dossier authenticity. If you require any official corrections, please submit a formal verification request to your TPC Placement Coordinator or Admin.
+
+Please keep this message stored safely in your mailbox for future reference.
+
+Best regards,
+Training & Placement Cell (TPC)
+GSFC University, Vadodara`;
+
+      try {
+        db.prepare(`
+          INSERT INTO student_notifications (id, student_id, notification_type, title, message, is_read)
+          VALUES (?, ?, 'welcome_credentials', ?, ?, 0)
+        `).run(welcomeNotifId, studentId, welcomeTitle, welcomeBody);
+      } catch(e) {}
+
+      console.log(`✉️ [Mailbox Dispatch] Welcome & Credentials message created for student ${finalRoll} (${cleanEmail})`);
     } else if (role === 'company') {
       const companyId = 'c_' + Date.now();
       ownerId = companyId;
@@ -209,6 +298,7 @@ router.post('/register', AuthRateLimiter.registerLimiter, async (req, res) => {
         INSERT INTO company_profiles (id, user_id, company_name, contact_phone, industry, website, approved)
         VALUES (?, ?, ?, ?, ?, ?, 0)
       `).run(companyId, userId, company_name || 'Recruiter Company', phone || '+91 98765 43210', industry || 'Technology', website || 'https://company.com');
+      userProfile = { id: companyId, company_name: company_name || 'Recruiter Company' };
     } else if (role === 'alumni') {
       const alumniId = 'alumni_' + Date.now();
       ownerId = alumniId;
@@ -216,12 +306,13 @@ router.post('/register', AuthRateLimiter.registerLimiter, async (req, res) => {
         INSERT INTO alumni_profiles (id, user_id, name, batch_year, company, designation, linkedin_url, bio, verified)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)
       `).run(alumniId, userId, name || 'GSFC Alumni', req.body.batch_year || '2020-2024', company_name || req.body.company || 'Industry Partner', req.body.designation || 'Software Engineer', req.body.linkedin_url || '', req.body.bio || '', 0);
+      userProfile = { id: alumniId, name: name || 'GSFC Alumni' };
     }
 
-    const createdUser = { id: userId, email, role };
+    const createdUser = { id: userId, email: cleanEmail, role, profile: userProfile };
     recordUserLoginEvent(createdUser, req);
 
-    const token = jwt.sign({ userId, email, role, owner_id: ownerId }, JWT_SECRET, { expiresIn: '7d' });
+    const token = jwt.sign({ userId, email: cleanEmail, role, owner_id: ownerId }, JWT_SECRET, { expiresIn: '7d' });
     const csrfToken = 'csrf_' + Math.random().toString(36).substring(2);
 
     // Set Secure httpOnly Cookie
@@ -238,7 +329,7 @@ router.post('/register', AuthRateLimiter.registerLimiter, async (req, res) => {
       sameSite: 'strict'
     });
 
-    res.json({ message: 'Registration successful', token, csrfToken, user: { id: userId, email, role, owner_id: ownerId } });
+    res.json({ message: 'Registration successful', token, csrfToken, user: createdUser });
   } catch (err) {
     console.error('Registration error:', err);
     res.status(500).json({ error: err.message });

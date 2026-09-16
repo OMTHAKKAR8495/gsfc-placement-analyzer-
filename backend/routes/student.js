@@ -176,6 +176,14 @@ router.put('/profile', (req, res) => {
       return res.status(404).json({ error: 'Student profile not found.' });
     }
 
+    const isPrivilegedAdmin = authUser && (authUser.role === 'admin' || authUser.role === 'superadmin' || authUser.role === 'faculty');
+
+    // Students cannot change their legal name, roll_number, or phone once created.
+    // Only TPC Placement Coordinators and Admins can update verified institutional identity fields.
+    const targetName = isPrivilegedAdmin ? (name ? sanitizeXss(name) : null) : null;
+    const targetRoll = isPrivilegedAdmin ? (roll_number ? sanitizeXss(roll_number) : null) : null;
+    const targetPhone = isPrivilegedAdmin ? (phone ? sanitizeXss(phone) : null) : null;
+
     db.prepare(`
       UPDATE student_profiles
       SET name = COALESCE(?, name),
@@ -191,9 +199,9 @@ router.put('/profile', (req, res) => {
           photo_url = COALESCE(?, photo_url)
       WHERE id = ?
     `).run(
-      name ? sanitizeXss(name) : null,
-      roll_number ? sanitizeXss(roll_number) : null,
-      phone ? sanitizeXss(phone) : null,
+      targetName,
+      targetRoll,
+      targetPhone,
       program ? sanitizeXss(program) : null,
       branch ? sanitizeXss(branch) : null,
       cgpa ? parseFloat(cgpa) : null,

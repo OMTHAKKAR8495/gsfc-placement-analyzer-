@@ -573,8 +573,27 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
   const handleWithdrawApplication = async (appId) => {
     if (!window.confirm('Are you sure you want to withdraw this campus placement application?')) return;
     try {
-      const res = await fetch(`/api/student/applications/${appId}`, { method: 'DELETE' });
+      const token = localStorage.getItem('campushire_token');
+      const headers = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      const res = await fetch(`/api/student/applications/${appId}`, { method: 'DELETE', headers });
       if (res.ok) {
+        const activeEmail = (currentUser?.email || student?.email || '').toLowerCase();
+        const activeRoll = (currentUser?.profile?.roll_number || student?.roll_number || '').toUpperCase();
+        setApplications(prev => {
+          const updated = prev.filter(a => a.id !== appId && a.requirement_id !== appId);
+          if (activeEmail) {
+            if (updated.length > 0) localStorage.setItem('gsfc_student_applications_' + activeEmail, JSON.stringify(updated));
+            else localStorage.removeItem('gsfc_student_applications_' + activeEmail);
+          }
+          if (activeRoll) {
+            if (updated.length > 0) localStorage.setItem('gsfc_student_applications_' + activeRoll, JSON.stringify(updated));
+            else localStorage.removeItem('gsfc_student_applications_' + activeRoll);
+          }
+          return updated;
+        });
+
         showToast({
           type: 'default',
           title: 'Application Withdrawn',
@@ -691,32 +710,34 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
 
       if (res.ok) {
         const data = await res.json();
-        if (Array.isArray(data) && data.length > 0) {
-          const merged = [...data];
-          localSaved.forEach(la => {
-            if (!merged.some(m => m.requirement_id === la.requirement_id || (m.job_title === la.job_title && m.company_name === la.company_name))) {
-              merged.unshift(la);
-            }
-          });
-          setApplications(merged);
+        if (Array.isArray(data)) {
+          setApplications(data);
           if (activeEmail && currentUser?.role === 'student') {
-            localStorage.setItem('gsfc_student_applications_' + activeEmail, JSON.stringify(merged));
+            if (data.length > 0) {
+              localStorage.setItem('gsfc_student_applications_' + activeEmail, JSON.stringify(data));
+            } else {
+              localStorage.removeItem('gsfc_student_applications_' + activeEmail);
+            }
           }
           if (activeRoll && currentUser?.role === 'student') {
-            localStorage.setItem('gsfc_student_applications_' + activeRoll, JSON.stringify(merged));
+            if (data.length > 0) {
+              localStorage.setItem('gsfc_student_applications_' + activeRoll, JSON.stringify(data));
+            } else {
+              localStorage.removeItem('gsfc_student_applications_' + activeRoll);
+            }
           }
           return;
         }
       }
     } catch (err) {
-      // Graceful fallback
+      // Offline fallback only
+      if (localSaved.length > 0) {
+        setApplications(localSaved);
+        return;
+      }
     }
 
-    if (localSaved.length > 0) {
-      setApplications(localSaved);
-    } else {
-      setApplications([]);
-    }
+    setApplications([]);
   };
 
 

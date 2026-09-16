@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { User, Lock, Eye, EyeOff, Check, ChevronDown, Sparkles, Shield, GraduationCap, Building2, Key, HelpCircle, ArrowRight, RefreshCw, Crown, Award, Image as ImageIcon } from 'lucide-react';
+import { User, Lock, Eye, EyeOff, Check, ChevronDown, Sparkles, Shield, GraduationCap, Building2, Key, HelpCircle, ArrowRight, RefreshCw, Crown, Award, Image as ImageIcon, Phone, Mail, FileText, CheckCircle2, AlertCircle, Info } from 'lucide-react';
+import { studentInboxStorage } from '../../utils/studentInboxStorage';
 
 const PORTAL_ROLES = [
   {
@@ -222,6 +223,21 @@ export default function GSFCDigitalCampusLoginPage({ onLoginSuccess, onGuestBrow
   const [error, setError] = useState('');
   const [bgStyle, setBgStyle] = useState('panorama'); // 'panorama' | 'classic'
   
+  // Auth Tab: 'signin' | 'register'
+  const [authTab, setAuthTab] = useState('signin');
+
+  // Student Registration Form State
+  const [regName, setRegName] = useState('');
+  const [regRoll, setRegRoll] = useState('');
+  const [regPhone, setRegPhone] = useState('');
+  const [regEmailUser, setRegEmailUser] = useState('');
+  const [regAppendDomain, setRegAppendDomain] = useState(true);
+  const [regProgram, setRegProgram] = useState('BTech Computer Science & Engineering');
+  const [regPassingYear, setRegPassingYear] = useState('2026');
+  const [regPassword, setRegPassword] = useState('');
+  const [regConfirmPassword, setRegConfirmPassword] = useState('');
+  const [regShowPassword, setRegShowPassword] = useState(false);
+  
   // Forgot Password state
   const [forgotModalOpen, setForgotModalOpen] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
@@ -238,9 +254,16 @@ export default function GSFCDigitalCampusLoginPage({ onLoginSuccess, onGuestBrow
   const currentRoleConfig = PORTAL_ROLES.find(r => r.id === selectedRoleId) || PORTAL_ROLES[0];
 
   // Initialize Google Identity Services (GIS)
+  const isRealGoogleClient = Boolean(
+    import.meta.env.VITE_GOOGLE_CLIENT_ID &&
+    !import.meta.env.VITE_GOOGLE_CLIENT_ID.includes('e3k85omgsfcunivplacement') &&
+    !import.meta.env.VITE_GOOGLE_CLIENT_ID.includes('your-google-oauth2') &&
+    !import.meta.env.VITE_GOOGLE_CLIENT_ID.includes('placeholder')
+  );
+
   useEffect(() => {
     const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
-    if (!googleClientId) return;
+    if (!googleClientId || !isRealGoogleClient) return;
 
     const setupGIS = () => {
       if (window.google?.accounts?.id) {
@@ -281,7 +304,7 @@ export default function GSFCDigitalCampusLoginPage({ onLoginSuccess, onGuestBrow
       }, 250);
       return () => clearInterval(interval);
     }
-  }, [selectedRoleId]);
+  }, [selectedRoleId, isRealGoogleClient]);
 
   const handleGoogleCredentialResponse = async (response) => {
     if (!response || !response.credential) {
@@ -489,6 +512,131 @@ export default function GSFCDigitalCampusLoginPage({ onLoginSuccess, onGuestBrow
     }
   };
 
+  const handleStudentRegister = async (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    setError('');
+
+    if (!regName.trim()) {
+      setError('Please enter your full legal student name.');
+      return;
+    }
+    if (!regRoll.trim()) {
+      setError('Please enter your Enrollment / Roll Number (e.g. 24BT04171).');
+      return;
+    }
+    if (!regPhone.trim()) {
+      setError('Please enter your registered mobile / WhatsApp number.');
+      return;
+    }
+    if (!regEmailUser.trim()) {
+      setError('Please enter your university username or email address.');
+      return;
+    }
+    if (!regPassword) {
+      setError('Please create a secure password (min 8 characters).');
+      return;
+    }
+    if (regPassword.length < 8) {
+      setError('Password must be at least 8 characters long.');
+      return;
+    }
+    if (regPassword !== regConfirmPassword) {
+      setError('Passwords do not match. Please re-enter your password.');
+      return;
+    }
+
+    const cleanUser = regEmailUser.trim().toLowerCase();
+    const fullRegEmail = regAppendDomain
+      ? (cleanUser.includes('@') ? cleanUser : `${cleanUser}@gsfcuniversity.ac.in`)
+      : (cleanUser.includes('@') ? cleanUser : `${cleanUser}@gsfcuniversity.ac.in`);
+
+    setLoading(true);
+    try {
+      const res = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          role: 'student',
+          name: regName.trim(),
+          roll_number: regRoll.trim().toUpperCase(),
+          phone: regPhone.trim(),
+          email: fullRegEmail,
+          password: regPassword,
+          program: regProgram,
+          branch: regProgram.includes('—') ? regProgram.split('—')[1].trim() : regProgram,
+          passing_year: parseInt(regPassingYear, 10) || 2026,
+          admission_year: (parseInt(regPassingYear, 10) || 2026) - 4
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Registration failed. Please check your information.');
+      }
+
+      // 📬 Dispatch official Welcome & Credentials Mail to Student Mailbox (Persistent)
+      try {
+        studentInboxStorage.sendMessage({
+          id: `msg_welcome_${Date.now()}`,
+          student_id: data.user?.profile?.id || data.user?.id || 's_student',
+          student_email: fullRegEmail,
+          student_name: regName.trim(),
+          sender_type: 'admin',
+          sender_name: 'Training & Placement Cell (TPC)',
+          sender_email: 'tpc@gsfcuniversity.ac.in',
+          sender_role: 'TPC Central Governance',
+          company_name: 'GSFC University TPC',
+          subject: '🎓 Welcome to GSFC University Digital Campus System — Account Credentials & Portal Access',
+          body: `Dear ${regName.trim()},
+
+Welcome to the GSFC University Placement & Career Governance Portal. Your student placement candidate profile has been successfully provisioned.
+
+📋 YOUR OFFICIAL ACCOUNT CREDENTIALS:
+--------------------------------------------------
+• Candidate Legal Name: ${regName.trim()}
+• Enrollment / Roll Number: ${regRoll.trim().toUpperCase()}
+• User ID / Login Email: ${fullRegEmail}
+• Registered Password: ${regPassword}
+• Registered Mobile / Contact: ${regPhone.trim()}
+• Academic Program: ${regProgram}
+• Placement Batch: ${regPassingYear}
+--------------------------------------------------
+
+🔒 INSTITUTIONAL SECURITY POLICY:
+Your legal name, enrollment number, and mobile number are permanently locked and bound to your academic record to ensure corporate placement dossier authenticity. If you require any official corrections, please submit a formal verification request to your TPC Placement Coordinator or Admin.
+
+Please keep this message stored safely in your mailbox for future reference.
+
+Best regards,
+Training & Placement Cell (TPC)
+GSFC University, Vadodara`,
+          event_stage: 'Account Provisioned',
+          is_read: false
+        });
+      } catch (e) {
+        console.warn('Mailbox message store notice:', e);
+      }
+
+      // Save persistent session in browser
+      if (data.token) {
+        localStorage.setItem('campushire_token', data.token);
+      }
+      if (data.user) {
+        localStorage.setItem('campushire_user', JSON.stringify(data.user));
+      }
+      localStorage.setItem('gsfc_last_login_username', fullRegEmail);
+      localStorage.setItem('gsfc_candidate_email', fullRegEmail);
+
+      if (onLoginSuccess) {
+        onLoginSuccess(data.user);
+      }
+    } catch (err) {
+      setError(err.message || 'Registration failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const fillQuickPersona = (roleId) => {
     handleRoleChange(roleId);
     const target = PORTAL_ROLES.find(r => r.id === roleId);
@@ -602,9 +750,37 @@ export default function GSFCDigitalCampusLoginPage({ onLoginSuccess, onGuestBrow
           </p>
         </div>
 
-        {/* LOGIN CARD */}
+        {/* LOGIN / REGISTRATION CARD */}
         <div className="w-full bg-white/95 backdrop-blur-xl rounded-2xl shadow-[0_20px_60px_rgba(15,23,42,0.16)] border border-white/80 p-6 sm:p-7 space-y-4">
           
+          {/* AUTH DUAL TAB SWITCHER: SIGN IN vs NEW STUDENT REGISTRATION */}
+          <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200">
+            <button
+              type="button"
+              onClick={() => { setAuthTab('signin'); setError(''); }}
+              className={`flex-1 py-2 text-xs font-black rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                authTab === 'signin'
+                  ? 'bg-white text-blue-900 shadow-sm border border-slate-200/80'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <Key className="w-3.5 h-3.5 text-blue-600" />
+              <span>Sign In</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => { setAuthTab('register'); setError(''); }}
+              className={`flex-1 py-2 text-xs font-black rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                authTab === 'register'
+                  ? 'bg-white text-blue-900 shadow-sm border border-slate-200/80'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <GraduationCap className="w-3.5 h-3.5 text-amber-600" />
+              <span>New Student Registration</span>
+            </button>
+          </div>
+
           {error && (
             <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs font-bold rounded-lg flex items-center gap-2 animate-shake">
               <span className="w-2 h-2 rounded-full bg-rose-500 shrink-0"></span>
@@ -612,114 +788,336 @@ export default function GSFCDigitalCampusLoginPage({ onLoginSuccess, onGuestBrow
             </div>
           )}
 
-          <form onSubmit={handleLogin} className="space-y-3.5">
-            
-            {/* ROLE SELECTOR DROPDOWN (Matches Image 2) */}
-            <div className="space-y-1.5">
-              <label className="text-[11px] font-black text-slate-600 uppercase tracking-wider flex items-center justify-between">
-                <span>Select Portal Role to Sign In</span>
-                <span className="text-[10px] text-blue-700 font-bold font-mono">
-                  {currentRoleConfig.badge}
-                </span>
-              </label>
-
-              <div className="relative">
-                <select
-                  value={selectedRoleId}
-                  onChange={(e) => handleRoleChange(e.target.value)}
-                  className="w-full py-2.5 px-3.5 bg-slate-50 hover:bg-slate-100/90 border border-slate-300 rounded-lg text-xs font-black text-slate-800 appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-600 focus:bg-white transition-all shadow-inner"
-                >
-                  {PORTAL_ROLES.map((r) => (
-                    <option key={r.id} value={r.id} className="py-2 text-slate-900 font-bold">
-                      {r.label}
-                    </option>
-                  ))}
-                </select>
-                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500">
-                  <ChevronDown className="w-4 h-4" />
-                </div>
-              </div>
-            </div>
-
-            {/* USERNAME INPUT WITH CHECKBOX */}
-            <div className="space-y-1">
-              <div className="flex rounded-lg overflow-hidden border border-slate-300 focus-within:border-blue-600 focus-within:ring-2 focus-within:ring-blue-500/20 bg-white transition-all">
-                <div className="w-10 bg-[#1E88E5] flex items-center justify-center text-white shrink-0">
-                  <User className="w-4 h-4" />
-                </div>
-                <input
-                  type="text"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  placeholder="Username / University Email"
-                  autoComplete="username"
-                  required
-                  className="flex-1 px-3 py-2 text-xs font-semibold text-slate-800 placeholder-slate-400 focus:outline-none min-w-0"
-                />
-                <label className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-50 text-[11px] font-bold text-slate-600 border-l border-slate-200 cursor-pointer select-none shrink-0 hover:bg-slate-100 transition-colors">
-                  <input
-                    type="checkbox"
-                    checked={appendDomain}
-                    onChange={(e) => setAppendDomain(e.target.checked)}
-                    className="w-3.5 h-3.5 text-blue-600 rounded border-slate-300 focus:ring-blue-500 cursor-pointer"
-                  />
-                  <span className="font-mono text-[10px]">@gsfcuniversity.ac.in</span>
+          {authTab === 'signin' ? (
+            <form onSubmit={handleLogin} className="space-y-3.5">
+              
+              {/* ROLE SELECTOR DROPDOWN */}
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-black text-slate-600 uppercase tracking-wider flex items-center justify-between">
+                  <span>Select Portal Role to Sign In</span>
+                  <span className="text-[10px] text-blue-700 font-bold font-mono">
+                    {currentRoleConfig.badge}
+                  </span>
                 </label>
-              </div>
-            </div>
 
-            {/* PASSWORD INPUT WITH EYE TOGGLE */}
-            <div className="space-y-1">
-              <div className="flex rounded-lg overflow-hidden border border-slate-300 focus-within:border-blue-600 focus-within:ring-2 focus-within:ring-blue-500/20 bg-white transition-all">
-                <div className="w-10 bg-[#1E88E5] flex items-center justify-center text-white shrink-0">
-                  <Lock className="w-4 h-4" />
+                <div className="relative">
+                  <select
+                    value={selectedRoleId}
+                    onChange={(e) => handleRoleChange(e.target.value)}
+                    className="w-full py-2.5 px-3.5 bg-slate-50 hover:bg-slate-100/90 border border-slate-300 rounded-lg text-xs font-black text-slate-800 appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-600 focus:bg-white transition-all shadow-inner"
+                  >
+                    {PORTAL_ROLES.map((r) => (
+                      <option key={r.id} value={r.id} className="py-2 text-slate-900 font-bold">
+                        {r.label}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500">
+                    <ChevronDown className="w-4 h-4" />
+                  </div>
                 </div>
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Password"
-                  autoComplete="current-password"
-                  required
-                  className="flex-1 px-3 py-2 text-xs font-semibold text-slate-800 placeholder-slate-400 focus:outline-none min-w-0"
-                />
+              </div>
+
+              {/* USERNAME INPUT WITH CHECKBOX */}
+              <div className="space-y-1">
+                <div className="flex rounded-lg overflow-hidden border border-slate-300 focus-within:border-blue-600 focus-within:ring-2 focus-within:ring-blue-500/20 bg-white transition-all">
+                  <div className="w-10 bg-[#1E88E5] flex items-center justify-center text-white shrink-0">
+                    <User className="w-4 h-4" />
+                  </div>
+                  <input
+                    type="text"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    placeholder="Username / University Email"
+                    autoComplete="username"
+                    required
+                    className="flex-1 px-3 py-2 text-xs font-semibold text-slate-800 placeholder-slate-400 focus:outline-none min-w-0"
+                  />
+                  <label className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-50 text-[11px] font-bold text-slate-600 border-l border-slate-200 cursor-pointer select-none shrink-0 hover:bg-slate-100 transition-colors">
+                    <input
+                      type="checkbox"
+                      checked={appendDomain}
+                      onChange={(e) => setAppendDomain(e.target.checked)}
+                      className="w-3.5 h-3.5 text-blue-600 rounded border-slate-300 focus:ring-blue-500 cursor-pointer"
+                    />
+                    <span className="font-mono text-[10px]">@gsfcuniversity.ac.in</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* PASSWORD INPUT WITH EYE TOGGLE */}
+              <div className="space-y-1">
+                <div className="flex rounded-lg overflow-hidden border border-slate-300 focus-within:border-blue-600 focus-within:ring-2 focus-within:ring-blue-500/20 bg-white transition-all">
+                  <div className="w-10 bg-[#1E88E5] flex items-center justify-center text-white shrink-0">
+                    <Lock className="w-4 h-4" />
+                  </div>
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Password"
+                    autoComplete="current-password"
+                    required
+                    className="flex-1 px-3 py-2 text-xs font-semibold text-slate-800 placeholder-slate-400 focus:outline-none min-w-0"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="px-3 text-slate-400 hover:text-slate-600 focus:outline-none cursor-pointer"
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+
+              {/* LOGIN BUTTON */}
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full py-2.5 px-4 bg-[#1E88E5] hover:bg-[#1565C0] active:bg-[#0D47A1] text-white text-sm font-black rounded-lg transition-colors duration-150 cursor-pointer shadow-md flex items-center justify-center gap-2"
+              >
+                {loading ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    <span>Signing In & Loading Data...</span>
+                  </>
+                ) : (
+                  <span>Login</span>
+                )}
+              </button>
+
+              {/* FORGOT PASSWORD LINK */}
+              <div className="text-center pt-0.5">
                 <button
                   type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="px-3 text-slate-400 hover:text-slate-600 focus:outline-none cursor-pointer"
+                  onClick={() => setForgotModalOpen(true)}
+                  className="text-xs font-bold text-blue-700 hover:text-blue-900 hover:underline cursor-pointer"
                 >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  Forgot Password ?
                 </button>
               </div>
-            </div>
+            </form>
+          ) : (
+            /* NEW STUDENT REGISTRATION FORM */
+            <form onSubmit={handleStudentRegister} className="space-y-3 animate-fadeIn">
+              
+              <div className="p-3 bg-blue-50/80 border border-blue-200 rounded-xl space-y-1">
+                <div className="flex items-center gap-1.5 text-blue-950 font-black text-xs">
+                  <GraduationCap className="w-4 h-4 text-blue-700" />
+                  <span>Student Placement Candidate Registration</span>
+                </div>
+                <p className="text-[11px] text-slate-600 leading-tight">
+                  Register your official GSFC University student credentials to participate in on-campus & corporate placement drives.
+                </p>
+              </div>
 
-            {/* LOGIN BUTTON */}
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full py-2.5 px-4 bg-[#1E88E5] hover:bg-[#1565C0] active:bg-[#0D47A1] text-white text-sm font-black rounded-lg transition-colors duration-150 cursor-pointer shadow-md flex items-center justify-center gap-2"
-            >
-              {loading ? (
-                <>
-                  <RefreshCw className="w-4 h-4 animate-spin" />
-                  <span>Signing In & Loading Data...</span>
-                </>
-              ) : (
-                <span>Login</span>
-              )}
-            </button>
+              {/* FULL NAME */}
+              <div className="space-y-1">
+                <label className="text-[11px] font-black text-slate-700 uppercase tracking-wider flex items-center justify-between">
+                  <span>Student Legal Full Name *</span>
+                  <span className="text-[9px] text-amber-700 font-bold flex items-center gap-0.5">
+                    <Lock className="w-2.5 h-2.5" /> Immutable after creation
+                  </span>
+                </label>
+                <div className="flex rounded-lg overflow-hidden border border-slate-300 focus-within:border-blue-600 focus-within:ring-2 focus-within:ring-blue-500/20 bg-white">
+                  <div className="w-9 bg-[#1E88E5] flex items-center justify-center text-white shrink-0">
+                    <User className="w-4 h-4" />
+                  </div>
+                  <input
+                    type="text"
+                    required
+                    value={regName}
+                    onChange={(e) => setRegName(e.target.value)}
+                    placeholder="e.g. Om Thakkar"
+                    className="flex-1 px-3 py-2 text-xs font-bold text-slate-800 placeholder-slate-400 focus:outline-none min-w-0"
+                  />
+                </div>
+              </div>
 
-            {/* FORGOT PASSWORD LINK */}
-            <div className="text-center pt-0.5">
+              {/* ROLL NUMBER & MOBILE NUMBER GRID */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <div className="space-y-1">
+                  <label className="text-[11px] font-black text-slate-700 uppercase tracking-wider flex items-center justify-between">
+                    <span>Enrollment / Roll No. *</span>
+                  </label>
+                  <div className="flex rounded-lg overflow-hidden border border-slate-300 focus-within:border-blue-600 focus-within:ring-2 focus-within:ring-blue-500/20 bg-white">
+                    <div className="w-9 bg-slate-700 flex items-center justify-center text-white shrink-0">
+                      <Award className="w-4 h-4" />
+                    </div>
+                    <input
+                      type="text"
+                      required
+                      value={regRoll}
+                      onChange={(e) => setRegRoll(e.target.value.toUpperCase())}
+                      placeholder="e.g. 24BT04171"
+                      className="flex-1 px-3 py-2 text-xs font-bold font-mono text-slate-800 placeholder-slate-400 focus:outline-none min-w-0 uppercase"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[11px] font-black text-slate-700 uppercase tracking-wider flex items-center justify-between">
+                    <span>Mobile / WhatsApp No. *</span>
+                  </label>
+                  <div className="flex rounded-lg overflow-hidden border border-slate-300 focus-within:border-blue-600 focus-within:ring-2 focus-within:ring-blue-500/20 bg-white">
+                    <div className="w-9 bg-emerald-600 flex items-center justify-center text-white shrink-0">
+                      <Phone className="w-4 h-4" />
+                    </div>
+                    <input
+                      type="tel"
+                      required
+                      value={regPhone}
+                      onChange={(e) => setRegPhone(e.target.value)}
+                      placeholder="e.g. +91 98765 43210"
+                      className="flex-1 px-3 py-2 text-xs font-bold text-slate-800 placeholder-slate-400 focus:outline-none min-w-0"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* UNIVERSITY EMAIL */}
+              <div className="space-y-1">
+                <label className="text-[11px] font-black text-slate-700 uppercase tracking-wider">
+                  University Student Email ID *
+                </label>
+                <div className="flex rounded-lg overflow-hidden border border-slate-300 focus-within:border-blue-600 focus-within:ring-2 focus-within:ring-blue-500/20 bg-white">
+                  <div className="w-9 bg-blue-700 flex items-center justify-center text-white shrink-0">
+                    <Mail className="w-4 h-4" />
+                  </div>
+                  <input
+                    type="text"
+                    required
+                    value={regEmailUser}
+                    onChange={(e) => setRegEmailUser(e.target.value)}
+                    placeholder="e.g. 24bt04171"
+                    className="flex-1 px-3 py-2 text-xs font-bold text-slate-800 placeholder-slate-400 focus:outline-none min-w-0"
+                  />
+                  <label className="flex items-center gap-1 px-2 py-1.5 bg-slate-50 text-[10px] font-bold text-slate-600 border-l border-slate-200 cursor-pointer select-none shrink-0">
+                    <input
+                      type="checkbox"
+                      checked={regAppendDomain}
+                      onChange={(e) => setRegAppendDomain(e.target.checked)}
+                      className="w-3.5 h-3.5 text-blue-600 rounded border-slate-300 cursor-pointer"
+                    />
+                    <span className="font-mono text-[10px]">@gsfcuniversity.ac.in</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* PROGRAM & PASSING YEAR */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                <div className="sm:col-span-2 space-y-1">
+                  <label className="text-[11px] font-black text-slate-700 uppercase tracking-wider">
+                    Program / Branch *
+                  </label>
+                  <select
+                    value={regProgram}
+                    onChange={(e) => setRegProgram(e.target.value)}
+                    className="w-full py-2 px-2.5 bg-slate-50 border border-slate-300 rounded-lg text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-600"
+                  >
+                    <option value="BTech Computer Science & Engineering">BTech — Computer Science & Engg.</option>
+                    <option value="BTech Information Technology">BTech — Information Technology & AI</option>
+                    <option value="BTech Chemical Engineering">BTech — Chemical Engineering</option>
+                    <option value="BTech Mechanical Engineering">BTech — Mechanical Engineering</option>
+                    <option value="BTech Fire & Safety Engineering">BTech — Fire & Safety Engineering</option>
+                    <option value="MSc Computer Science & Data Analytics">MSc — Computer Science / Data Science</option>
+                    <option value="BBA / MBA Business Management">BBA / MBA — Business Management</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[11px] font-black text-slate-700 uppercase tracking-wider">
+                    Batch Year *
+                  </label>
+                  <select
+                    value={regPassingYear}
+                    onChange={(e) => setRegPassingYear(e.target.value)}
+                    className="w-full py-2 px-2.5 bg-slate-50 border border-slate-300 rounded-lg text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-600"
+                  >
+                    <option value="2026">2026 Batch</option>
+                    <option value="2025">2025 Batch</option>
+                    <option value="2027">2027 Batch</option>
+                    <option value="2028">2028 Batch</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* PASSWORD & CONFIRM PASSWORD */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <div className="space-y-1">
+                  <label className="text-[11px] font-black text-slate-700 uppercase tracking-wider">
+                    Create Password *
+                  </label>
+                  <div className="flex rounded-lg overflow-hidden border border-slate-300 focus-within:border-blue-600 focus-within:ring-2 focus-within:ring-blue-500/20 bg-white">
+                    <div className="w-8 bg-slate-800 flex items-center justify-center text-white shrink-0">
+                      <Lock className="w-3.5 h-3.5" />
+                    </div>
+                    <input
+                      type={regShowPassword ? 'text' : 'password'}
+                      required
+                      value={regPassword}
+                      onChange={(e) => setRegPassword(e.target.value)}
+                      placeholder="Min 8 characters"
+                      className="flex-1 px-2.5 py-2 text-xs font-bold text-slate-800 placeholder-slate-400 focus:outline-none min-w-0"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[11px] font-black text-slate-700 uppercase tracking-wider">
+                    Confirm Password *
+                  </label>
+                  <div className="flex rounded-lg overflow-hidden border border-slate-300 focus-within:border-blue-600 focus-within:ring-2 focus-within:ring-blue-500/20 bg-white">
+                    <div className="w-8 bg-slate-800 flex items-center justify-center text-white shrink-0">
+                      <Lock className="w-3.5 h-3.5" />
+                    </div>
+                    <input
+                      type={regShowPassword ? 'text' : 'password'}
+                      required
+                      value={regConfirmPassword}
+                      onChange={(e) => setRegConfirmPassword(e.target.value)}
+                      placeholder="Re-enter password"
+                      className="flex-1 px-2.5 py-2 text-xs font-bold text-slate-800 placeholder-slate-400 focus:outline-none min-w-0"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setRegShowPassword(!regShowPassword)}
+                      className="px-2 text-slate-400 hover:text-slate-600"
+                    >
+                      {regShowPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* INSTITUTIONAL LOCK POLICY NOTICE */}
+              <div className="p-2.5 bg-amber-50/90 border border-amber-200 rounded-xl flex items-start gap-2 text-[10px] text-amber-900 font-medium">
+                <Lock className="w-3.5 h-3.5 text-amber-700 shrink-0 mt-0.5" />
+                <span>
+                  <strong>Identity Lock Policy:</strong> Your legal name, enrollment number, and mobile number will be locked upon registration. After creation, students cannot change their name or phone directly. Official modifications require formal approval from your <strong>TPC Placement Coordinator or Admin</strong>.
+                </span>
+              </div>
+
+              {/* REGISTER SUBMIT BUTTON */}
               <button
-                type="button"
-                onClick={() => setForgotModalOpen(true)}
-                className="text-xs font-bold text-blue-700 hover:text-blue-900 hover:underline cursor-pointer"
+                type="submit"
+                disabled={loading}
+                className="w-full py-2.5 px-4 bg-gradient-to-r from-blue-700 to-indigo-800 hover:from-blue-800 hover:to-indigo-900 text-white text-xs font-black rounded-lg transition-all cursor-pointer shadow-md flex items-center justify-center gap-2"
               >
-                Forgot Password ?
+                {loading ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    <span>Registering Student Account & Dispatching Mail...</span>
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span>Register Student Account & Issue Login Credentials</span>
+                  </>
+                )}
               </button>
-            </div>
-          </form>
+            </form>
+          )}
 
           {/* 1-CLICK TEST PERSONAS BAR */}
           <div className="pt-2 border-t border-slate-100">
@@ -759,22 +1157,25 @@ export default function GSFCDigitalCampusLoginPage({ onLoginSuccess, onGuestBrow
           </div>
 
           {/* GOOGLE SIGN IN CONTAINER */}
-          <div className="pt-1 space-y-1.5">
-            <div id="google-signin-btn-container" className="w-full flex justify-center empty:hidden" />
-            <button
-              type="button"
-              onClick={triggerGoogleSignIn}
-              disabled={loading}
-              className="w-full py-2.5 px-3 bg-white hover:bg-slate-50 active:bg-slate-100 text-slate-700 border border-slate-300 rounded-lg text-xs font-bold flex items-center justify-center gap-2.5 transition-colors cursor-pointer shadow-2xs"
-            >
-              <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
-                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
-                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
-              </svg>
-              <span>Sign in with Google</span>
-            </button>
+          <div className="pt-1">
+            {isRealGoogleClient ? (
+              <div id="google-signin-btn-container" className="w-full flex justify-center min-h-[40px]" />
+            ) : (
+              <button
+                type="button"
+                onClick={() => setGoogleModalOpen(true)}
+                disabled={loading}
+                className="w-full py-2.5 px-3 bg-white hover:bg-slate-50 active:bg-slate-100 text-slate-700 border border-slate-300 rounded-lg text-xs font-bold flex items-center justify-center gap-2.5 transition-colors cursor-pointer shadow-2xs"
+              >
+                <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
+                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+                </svg>
+                <span>Sign in with Google</span>
+              </button>
+            )}
           </div>
         </div>
 

@@ -702,7 +702,9 @@ export default function SettingsModal({ isOpen, onClose, currentUser, theme, onT
           <div className="w-full sm:w-64 bg-slate-50 dark:bg-slate-950/60 p-3 sm:p-4 border-b sm:border-b-0 sm:border-r border-slate-200 dark:border-slate-800 space-y-1.5 shrink-0 overflow-x-auto sm:overflow-y-auto">
             {[
               { id: 'account', label: '👤 Profile & Personal Info', icon: User },
-              { id: 'documents', label: '📜 Documents & Certificates', icon: FileCheck, badge: 'Dossier' },
+              ...((!currentUser?.role || currentUser?.role === 'student' || currentUser?.role === 'alumni')
+                ? [{ id: 'documents', label: '📜 Documents & Certificates', icon: FileCheck, badge: 'Dossier' }]
+                : []),
               { id: 'appearance', label: '🎨 Theme & Display', icon: Moon },
               { id: 'notifications', label: '🔔 Notifications & SMS', icon: Bell },
               { id: 'security', label: '🔒 Security & Access', icon: Shield },
@@ -744,8 +746,24 @@ export default function SettingsModal({ isOpen, onClose, currentUser, theme, onT
             {activeTab === 'account' && (
               <div className="space-y-5 animate-fadeIn">
                 <div>
-                  <h3 className="text-sm font-black uppercase text-slate-400 tracking-wider">Candidate Account & Personal Identity</h3>
-                  <p className="text-xs text-slate-500">Your verified university identity, passport photo, and contact details.</p>
+                  <h3 className="text-sm font-black uppercase text-slate-400 tracking-wider">
+                    {currentUser?.role === 'faculty' 
+                      ? 'Faculty Coordinator Account & Department' 
+                      : (currentUser?.role === 'admin' || currentUser?.role === 'superadmin')
+                      ? 'Administrator Account & Credentials'
+                      : currentUser?.role === 'company'
+                      ? 'Corporate Recruiter Partner Profile'
+                      : 'Candidate Account & Personal Identity'}
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    {currentUser?.role === 'faculty'
+                      ? 'Your verified faculty credentials, academic department affiliation, and institutional contact details.'
+                      : (currentUser?.role === 'admin' || currentUser?.role === 'superadmin')
+                      ? 'University Training & Placement Cell administration credentials and institutional contact.'
+                      : currentUser?.role === 'company'
+                      ? 'Verified corporate partner profile, industry sector, and recruitment representative details.'
+                      : 'Your verified university identity, passport photo, and contact details.'}
+                  </p>
                 </div>
 
                 {/* 📸 PROFESSIONAL PASSPORT PHOTO (PERSONAL IDENTITY) */}
@@ -828,13 +846,21 @@ export default function SettingsModal({ isOpen, onClose, currentUser, theme, onT
                   </div>
                 </div>
 
-                {/* Candidate Credentials Fields */}
+                {/* Role-Aware Credentials & Affiliation Fields */}
                 <div className="p-5 bg-slate-50 dark:bg-slate-800/80 rounded-3xl border border-slate-200 dark:border-slate-700 space-y-4">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                       <div className="flex items-center justify-between mb-1">
-                        <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">Display Candidate Name</label>
-                        {(currentUser?.role === 'admin' || currentUser?.role === 'superadmin' || currentUser?.role === 'faculty') ? (
+                        <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
+                          {currentUser?.role === 'faculty' 
+                            ? 'Faculty Coordinator Full Name' 
+                            : (currentUser?.role === 'admin' || currentUser?.role === 'superadmin')
+                            ? 'Administrator Full Name'
+                            : currentUser?.role === 'company'
+                            ? 'Corporate Recruiter / HR Name'
+                            : 'Display Candidate Name'}
+                        </label>
+                        {(currentUser?.role === 'admin' || currentUser?.role === 'superadmin' || currentUser?.role === 'faculty' || currentUser?.role === 'company') ? (
                           <span className="px-1.5 py-0.5 bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 border border-emerald-300 rounded text-[9px] font-black uppercase">
                             ✏️ Edit Access
                           </span>
@@ -851,7 +877,7 @@ export default function SettingsModal({ isOpen, onClose, currentUser, theme, onT
                           onChange={(e) => setDisplayName(e.target.value)}
                           disabled={!currentUser?.role || currentUser?.role === 'student'}
                           readOnly={!currentUser?.role || currentUser?.role === 'student'}
-                          placeholder="e.g. Om Thakkar"
+                          placeholder={currentUser?.role === 'faculty' ? 'e.g. Dr. Faculty Coordinator' : 'e.g. Om Thakkar'}
                           className={`w-full px-3.5 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-slate-100 focus:outline-none focus:border-blue-900 ${
                             (!currentUser?.role || currentUser?.role === 'student') ? 'bg-slate-100 dark:bg-slate-900/60 text-slate-500 cursor-not-allowed pr-8' : ''
                           }`}
@@ -863,17 +889,52 @@ export default function SettingsModal({ isOpen, onClose, currentUser, theme, onT
                     </div>
 
                     <div>
-                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Target Career Stream</label>
+                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                        {currentUser?.role === 'faculty' 
+                          ? 'Academic Department & School' 
+                          : (currentUser?.role === 'admin' || currentUser?.role === 'superadmin')
+                          ? 'Administrative Directorate'
+                          : currentUser?.role === 'company'
+                          ? 'Corporate Industry & Sector'
+                          : 'Target Career Stream'}
+                      </label>
                       <select
                         value={targetStream}
                         onChange={(e) => setTargetStream(e.target.value)}
                         className="w-full px-3.5 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-slate-100 focus:outline-none focus:border-blue-900"
                       >
-                        <option value="Software Engineering & AI">Software Engineering & AI Systems</option>
-                        <option value="Cloud Architecture & DevOps">Cloud Architecture & DevOps</option>
-                        <option value="Chemical & Petrochemical Core">Chemical & Petrochemical Core</option>
-                        <option value="Mechanical & Manufacturing">Mechanical & Manufacturing Design</option>
-                        <option value="Data Analytics & BI">Data Analytics & Business Intelligence</option>
+                        {currentUser?.role === 'faculty' ? (
+                          <>
+                            <option value="School of Technology — Computer Science & Engineering">School of Technology — Computer Science & Engineering</option>
+                            <option value="School of Technology — Chemical Engineering">School of Technology — Chemical Engineering</option>
+                            <option value="School of Technology — Mechanical Engineering">School of Technology — Mechanical Engineering</option>
+                            <option value="School of Technology — Fire & EHS">School of Technology — Fire & EHS</option>
+                            <option value="School of Science — Biotechnology & Applied Sciences">School of Science — Biotechnology & Applied Sciences</option>
+                            <option value="School of Management — BBA & MBA Programs">School of Management — BBA & MBA Programs</option>
+                          </>
+                        ) : (currentUser?.role === 'admin' || currentUser?.role === 'superadmin') ? (
+                          <>
+                            <option value="Training & Placement Cell (TPC) Directorate">Training & Placement Cell (TPC) Directorate</option>
+                            <option value="Office of Academic Affairs & Dean">Office of Academic Affairs & Dean</option>
+                            <option value="Office of the Registrar & Examinations">Office of the Registrar & Examinations</option>
+                          </>
+                        ) : currentUser?.role === 'company' ? (
+                          <>
+                            <option value="Information Technology & Software Services">Information Technology & Software Services</option>
+                            <option value="Petrochemicals, Oil & Gas / Energy">Petrochemicals, Oil & Gas / Energy</option>
+                            <option value="Manufacturing & Industrial Automation">Manufacturing & Industrial Automation</option>
+                            <option value="Banking, Finance & Fintech">Banking, Finance & Fintech</option>
+                            <option value="Pharmaceuticals & Healthcare">Pharmaceuticals & Healthcare</option>
+                          </>
+                        ) : (
+                          <>
+                            <option value="Software Engineering & AI">Software Engineering & AI Systems</option>
+                            <option value="Cloud Architecture & DevOps">Cloud Architecture & DevOps</option>
+                            <option value="Chemical & Petrochemical Core">Chemical & Petrochemical Core</option>
+                            <option value="Mechanical & Manufacturing">Mechanical & Manufacturing Design</option>
+                            <option value="Data Analytics & BI">Data Analytics & Business Intelligence</option>
+                          </>
+                        )}
                       </select>
                     </div>
                   </div>
@@ -882,11 +943,17 @@ export default function SettingsModal({ isOpen, onClose, currentUser, theme, onT
                   <div>
                     <div className="flex items-center justify-between mb-1">
                       <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
-                        Registered Mobile / WhatsApp
+                        {currentUser?.role === 'faculty' 
+                          ? 'Faculty Coordinator Contact / WhatsApp' 
+                          : (currentUser?.role === 'admin' || currentUser?.role === 'superadmin')
+                          ? 'Administrator Contact / WhatsApp'
+                          : currentUser?.role === 'company'
+                          ? 'Corporate Recruiter Contact / WhatsApp'
+                          : 'Registered Mobile / WhatsApp'}
                       </label>
-                      {(currentUser?.role === 'admin' || currentUser?.role === 'superadmin' || currentUser?.role === 'faculty') ? (
+                      {(currentUser?.role === 'admin' || currentUser?.role === 'superadmin' || currentUser?.role === 'faculty' || currentUser?.role === 'company') ? (
                         <span className="px-2 py-0.5 bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 border border-emerald-300 rounded text-[9px] font-black uppercase">
-                          ✏️ Admin/Faculty Edit Access
+                          ✏️ Authorized Edit Access
                         </span>
                       ) : (
                         <span className="px-2 py-0.5 bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 border border-amber-300 rounded text-[9px] font-black uppercase flex items-center gap-1">
@@ -931,23 +998,26 @@ export default function SettingsModal({ isOpen, onClose, currentUser, theme, onT
                     )}
                   </div>
 
-                  <ToggleSwitch
-                    enabled={publicProfile}
-                    onChange={(val) => {
-                      setPublicProfile(val);
-                      updateSetting('publicProfile', val);
-                      showToast({
-                        type: val ? 'success' : 'default',
-                        title: 'Your changes changed successfully',
-                        message: val ? 'Your profile card is visible to verified recruiters.' : 'Profile hidden from public recruiters.',
-                        triggerCrackles: false
-                      });
-                    }}
-                    label="Recruiter Profile Visibility"
-                    description="Allow verified corporate recruiters to view your parsed ATS skill card"
-                    icon={User}
-                    badge={publicProfile ? 'Public' : 'Private'}
-                  />
+                  {/* Recruiter Visibility Toggle (Students & Alumni only) */}
+                  {(!currentUser?.role || currentUser?.role === 'student' || currentUser?.role === 'alumni') && (
+                    <ToggleSwitch
+                      enabled={publicProfile}
+                      onChange={(val) => {
+                        setPublicProfile(val);
+                        updateSetting('publicProfile', val);
+                        showToast({
+                          type: val ? 'success' : 'default',
+                          title: 'Your changes changed successfully',
+                          message: val ? 'Your profile card is visible to verified recruiters.' : 'Profile hidden from public recruiters.',
+                          triggerCrackles: false
+                        });
+                      }}
+                      label="Recruiter Profile Visibility"
+                      description="Allow verified corporate recruiters to view your parsed ATS skill card"
+                      icon={User}
+                      badge={publicProfile ? 'Public' : 'Private'}
+                    />
+                  )}
                 </div>
               </div>
             )}
