@@ -254,6 +254,7 @@ function normalizeRole(role) {
   if (r === 'superadmin' || r === 'super admin' || r === 'super_admin') return 'superadmin';
   if (r === 'student') return 'student';
   if (r === 'alumni') return 'alumni';
+  if (r === 'fest' || r === 'event' || r === 'guest' || r === 'event_guest') return 'fest';
   return r;
 }
 
@@ -267,6 +268,7 @@ function getRolePortalLabel(role) {
     case 'admin': return 'admin';
     case 'superadmin': return 'super admin';
     case 'alumni': return 'alumni';
+    case 'fest': return 'fest & events visitor';
     default: return role || 'user';
   }
 }

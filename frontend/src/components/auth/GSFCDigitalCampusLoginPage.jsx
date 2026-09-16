@@ -7,6 +7,8 @@ const PORTAL_ROLES = [
     role: 'student',
     label: '🎓 GSFC Student (Placement Candidate)',
     placeholder: 'Enrollment No. (e.g. 24BT04171)',
+    defaultUsername: '24bt04171',
+    defaultPass: 'Student@GSFC2026!',
     requiresGsfcDomain: true,
     badge: 'Student Portal',
     color: 'from-blue-600 to-indigo-700'
@@ -14,17 +16,32 @@ const PORTAL_ROLES = [
   {
     id: 'placed_company',
     role: 'company',
-    label: '🏢 Corporate Recruiter / Hiring Partner',
-    placeholder: 'Official Recruiter Email',
+    label: '🏢 GSFC Ltd (In-Campus Industry Partner)',
+    placeholder: 'GSFC Ltd Recruiter Email',
+    defaultUsername: 'recruiter.gsfc',
+    defaultPass: 'Company@GSFC2026!',
+    requiresGsfcDomain: true,
+    badge: 'GSFC Ltd Recruiter',
+    color: 'from-amber-600 to-orange-700'
+  },
+  {
+    id: 'outside_company',
+    role: 'company',
+    label: '🌐 Outside Corporate Company (External Recruiter)',
+    placeholder: 'Corporate Recruiter Email',
+    defaultUsername: 'corporate.recruiter@industry.com',
+    defaultPass: 'Corporate@2026!',
     requiresGsfcDomain: false,
     badge: 'Corporate Recruiter',
-    color: 'from-amber-600 to-orange-700'
+    color: 'from-sky-600 to-blue-700'
   },
   {
     id: 'faculty',
     role: 'faculty',
     label: '🏛️ Faculty Placement Coordinator',
     placeholder: 'Faculty Username / Email',
+    defaultUsername: 'faculty.coordinator',
+    defaultPass: 'Faculty@GSFC2026!',
     requiresGsfcDomain: true,
     badge: 'Academic Faculty',
     color: 'from-emerald-600 to-teal-700'
@@ -34,36 +51,55 @@ const PORTAL_ROLES = [
     role: 'admin',
     label: '🛡️ TPC Placement Cell Admin',
     placeholder: 'TPC Admin Username / Email',
+    defaultUsername: 'admin',
+    defaultPass: 'Admin@GSFC2026!',
     requiresGsfcDomain: true,
     badge: 'TPC Directorate',
     color: 'from-blue-900 to-slate-900'
-  },
-  {
-    id: 'alumni',
-    role: 'alumni',
-    label: '🎓 GSFC Alumni Mentor',
-    placeholder: 'Alumni Email',
-    requiresGsfcDomain: false,
-    badge: 'Alumni Network',
-    color: 'from-purple-600 to-indigo-800'
-  },
-  {
-    id: 'security',
-    role: 'security',
-    label: '🛡️ Campus Security Officer',
-    placeholder: 'Security Officer Username / Email',
-    requiresGsfcDomain: true,
-    badge: 'Security Desk',
-    color: 'from-slate-700 to-slate-900'
   },
   {
     id: 'superadmin',
     role: 'superadmin',
     label: '👑 TPC Super Administrator',
     placeholder: 'Superadmin Username / Email',
+    defaultUsername: 'superadmin',
+    defaultPass: 'Admin@GSFC2026!',
     requiresGsfcDomain: true,
     badge: 'Apex Authority',
     color: 'from-amber-700 to-yellow-600'
+  },
+  {
+    id: 'alumni',
+    role: 'alumni',
+    label: '🎓 GSFC Alumni Mentor',
+    placeholder: 'Alumni Email',
+    defaultUsername: 'alumni.mentor@gmail.com',
+    defaultPass: 'Alumni@GSFC2026!',
+    requiresGsfcDomain: false,
+    badge: 'Alumni Network',
+    color: 'from-purple-600 to-indigo-800'
+  },
+  {
+    id: 'fest',
+    role: 'fest',
+    label: '🎪 Campus Fest & Event Visitor (Guest Pass)',
+    placeholder: 'Pass ID / Guest Email',
+    defaultUsername: 'fest.guest@gsfcuniversity.ac.in',
+    defaultPass: 'FestPass@2026!',
+    requiresGsfcDomain: false,
+    badge: 'Fest & Events',
+    color: 'from-pink-600 to-rose-700'
+  },
+  {
+    id: 'security',
+    role: 'security',
+    label: '🛡️ Campus Security Officer (Entry Desk)',
+    placeholder: 'Security Officer Username / Email',
+    defaultUsername: 'security.gate1',
+    defaultPass: 'Security@GSFC2026!',
+    requiresGsfcDomain: true,
+    badge: 'Security Desk',
+    color: 'from-slate-700 to-slate-900'
   }
 ];
 
@@ -86,10 +122,11 @@ const createFallbackUser = (roleConfig, fullEmail, username) => {
       ats_score: 85
     };
   } else if (roleConfig.role === 'company') {
+    const isGsfcLtd = roleConfig.id === 'placed_company';
     profile = {
       id: 'c_' + Date.now(),
-      company_name: 'Corporate Recruitment Partner',
-      industry: 'Industry & Technology',
+      company_name: isGsfcLtd ? 'Gujarat State Fertilizers & Chemicals Ltd (GSFC)' : 'Corporate Recruitment Partner',
+      industry: isGsfcLtd ? 'Fertilizers, Petrochemicals & Industrial Materials' : 'Technology & Engineering',
       location: 'Vadodara / Gujarat',
       email: fullEmail,
       verified: 1
@@ -126,6 +163,16 @@ const createFallbackUser = (roleConfig, fullEmail, username) => {
       gate_assigned: 'Main Campus Gate A',
       shift: 'General Shift',
       email: fullEmail
+    };
+  } else if (roleConfig.role === 'fest' || roleConfig.id === 'fest') {
+    profile = {
+      id: 'fest_' + Date.now(),
+      name: username || 'Fest Visitor Guest',
+      event_name: 'GSFC Anantya Tech Fest 2026',
+      ticket_category: 'VIP Access Pass',
+      gate_pass_id: 'PASS-GSFC-' + Math.floor(100000 + Math.random() * 900000),
+      email: fullEmail,
+      status: 'verified'
     };
   }
 
