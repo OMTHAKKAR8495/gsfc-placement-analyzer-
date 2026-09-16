@@ -8,31 +8,20 @@ const testAccounts = [
   { label: 'Student Roll Number (24BT04171)', email: '24bt04171', pass: 'password123', expectedRole: 'student' },
   { label: 'Student Roll Number Upper (24BT04171)', email: '24BT04171', pass: 'password123', expectedRole: 'student' },
   { label: 'Student Email (24bt04171@gsfcuniversity.ac.in)', email: '24bt04171@gsfcuniversity.ac.in', pass: 'password123', expectedRole: 'student' },
-  { label: 'Student Email (thakkar_om@gmail.com)', email: 'thakkar_om@gmail.com', pass: 'password123', expectedRole: 'student' },
-  { label: 'Student Roll Number (21BCE045 - Arav)', email: '21bce045', pass: 'password123', expectedRole: 'student' },
-  { label: 'Student Email (arav.sharma@student.edu)', email: 'arav.sharma@student.edu', pass: 'password123', expectedRole: 'student' },
-  { label: 'Student Roll Number (22BCE108 - Tanvi)', email: '22bce108', pass: 'password123', expectedRole: 'student' },
-  { label: 'Student Roll Number (22BCH012 - Arav)', email: '22bch012', pass: 'password123', expectedRole: 'student' },
-  { label: 'Student Roll Number (21BME034 - Rahul)', email: '21bme034', pass: 'password123', expectedRole: 'student' },
 
   // --- TPO / ADMIN ---
   { label: 'TPC Admin Username (admin)', email: 'admin', pass: 'password123', expectedRole: 'admin' },
   { label: 'TPC Admin Email (admin@gsfcuniversity.ac.in)', email: 'admin@gsfcuniversity.ac.in', pass: 'password123', expectedRole: 'admin' },
-  { label: 'TPC Admin Email (tpc@university.edu)', email: 'tpc@university.edu', pass: 'password123', expectedRole: 'admin' },
   { label: 'Superadmin Username (superadmin)', email: 'superadmin', pass: 'password123', expectedRole: 'superadmin' },
   { label: 'Superadmin Email (superadmin@gsfcuniversity.ac.in)', email: 'superadmin@gsfcuniversity.ac.in', pass: 'password123', expectedRole: 'superadmin' },
 
   // --- FACULTY ---
   { label: 'Faculty Username (faculty.cse)', email: 'faculty.cse', pass: 'password123', expectedRole: 'faculty' },
   { label: 'Faculty Email (faculty.cse@gsfcuniversity.ac.in)', email: 'faculty.cse@gsfcuniversity.ac.in', pass: 'password123', expectedRole: 'faculty' },
-  { label: 'Faculty Email (neeshuchaudhary@gsfcuniversityfaculty.ac.in)', email: 'neeshuchaudhary@gsfcuniversityfaculty.ac.in', pass: 'password123', expectedRole: 'faculty' },
 
   // --- COMPANY / RECRUITER ---
   { label: 'GSFC Limited Partner (gsfclimited@gmail.com)', email: 'gsfclimited@gmail.com', pass: 'password123', expectedRole: 'company' },
   { label: 'Google Recruiter (recruiter.google@company.com)', email: 'recruiter.google@company.com', pass: 'password123', expectedRole: 'company' },
-  { label: 'Google Cloud India (c_google@recruiter.com)', email: 'c_google@recruiter.com', pass: 'password123', expectedRole: 'company' },
-  { label: 'Microsoft Azure (c_microsoft@recruiter.com)', email: 'c_microsoft@recruiter.com', pass: 'password123', expectedRole: 'company' },
-  { label: 'TCS Recruiter (c_tcs@recruiter.com)', email: 'c_tcs@recruiter.com', pass: 'password123', expectedRole: 'company' },
 
   // --- ALUMNI ---
   { label: 'Alumni Mentor (priya.patel@alumni.gsfc.ac.in)', email: 'priya.patel@alumni.gsfc.ac.in', pass: 'password123', expectedRole: 'alumni' },

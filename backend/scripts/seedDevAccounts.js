@@ -17,14 +17,21 @@ const DEV_ACCOUNTS = [
   {
     userId: 'u_dev_admin',
     email: 'admin@gsfcuniversity.ac.in',
-    password: process.env.DEV_ADMIN_PASSWORD || 'GSFC@Admin2026!',
+    password: process.env.DEV_ADMIN_PASSWORD || 'password123',
     role: 'admin',
     name: 'Dr. Neeshu Chaudhary (TPC Director)'
   },
   {
+    userId: 'u_dev_superadmin',
+    email: 'superadmin@gsfcuniversity.ac.in',
+    password: process.env.DEV_SUPERADMIN_PASSWORD || 'password123',
+    role: 'superadmin',
+    name: 'GSFC Super Administrator'
+  },
+  {
     userId: 'u_dev_student',
-    email: 'student.om@gsfcuniversity.ac.in',
-    password: process.env.DEV_STUDENT_PASSWORD || 'GSFC@Student2026!',
+    email: '24bt04171@gsfcuniversity.ac.in',
+    password: process.env.DEV_STUDENT_PASSWORD || 'password123',
     role: 'student',
     name: 'Om Thakkar',
     rollNumber: '24BT04171',
@@ -34,17 +41,25 @@ const DEV_ACCOUNTS = [
     atsScore: 94
   },
   {
+    userId: 'u_dev_gsfc_ltd',
+    email: 'gsfclimited@gmail.com',
+    password: process.env.DEV_GSFC_PASSWORD || 'password123',
+    role: 'company',
+    companyName: 'GSFC Limited',
+    industry: 'Chemicals & Fertilizers'
+  },
+  {
     userId: 'u_dev_recruiter',
     email: 'recruiter.google@company.com',
-    password: process.env.DEV_RECRUITER_PASSWORD || 'GSFC@Recruiter2026!',
+    password: process.env.DEV_RECRUITER_PASSWORD || 'password123',
     role: 'company',
     companyName: 'Google Cloud India',
     industry: 'Cloud & Artificial Intelligence'
   },
   {
     userId: 'u_dev_alumni',
-    email: 'alumni.priya@alumni.gsfc.ac.in',
-    password: process.env.DEV_ALUMNI_PASSWORD || 'GSFC@Alumni2026!',
+    email: 'priya.patel@alumni.gsfc.ac.in',
+    password: process.env.DEV_ALUMNI_PASSWORD || 'password123',
     role: 'alumni',
     name: 'Priya Patel',
     company: 'Amazon AWS',
@@ -53,11 +68,31 @@ const DEV_ACCOUNTS = [
   },
   {
     userId: 'u_dev_faculty',
-    email: 'faculty.neeshu@gsfcuniversity.ac.in',
-    password: process.env.DEV_FACULTY_PASSWORD || 'GSFC@Faculty2026!',
+    email: 'faculty.cse@gsfcuniversity.ac.in',
+    password: process.env.DEV_FACULTY_PASSWORD || 'password123',
     role: 'faculty',
     name: 'Dr. Neeshu Chaudhary',
     department: 'School of Technology'
+  },
+  {
+    userId: 'u_dev_security',
+    email: 'security@gsfcuniversity.ac.in',
+    password: process.env.DEV_SECURITY_PASSWORD || 'password123',
+    role: 'security',
+    name: 'GSFC Campus Security Officer',
+    gate: 'Main Gate 1'
+  },
+  {
+    userId: 'u_dev_fest',
+    email: 'fest_attendee@msu.ac.in',
+    password: process.env.DEV_FEST_PASSWORD || 'password123',
+    role: 'student',
+    name: 'Fest Guest Attendee',
+    rollNumber: 'FEST-2026-001',
+    program: 'B.Tech Inter-College',
+    branch: 'Computer Engineering',
+    cgpa: 8.5,
+    atsScore: 85
   }
 ];
 
@@ -113,6 +148,20 @@ async function seedAccounts() {
         INSERT OR REPLACE INTO faculty_profiles (id, user_id, name, email, department, designation)
         VALUES (?, ?, ?, ?, ?, 'Associate Professor & Placement Coordinator')
       `).run(facId, realUserId, acc.name, acc.email, acc.department);
+    } else if (acc.role === 'security') {
+      const existingSec = db.prepare('SELECT id FROM security_staff_profiles WHERE user_id = ?').get(realUserId);
+      const secId = existingSec?.id || ('sec_dev_' + realUserId);
+      db.prepare(`
+        INSERT OR REPLACE INTO security_staff_profiles (id, user_id, name, gate_assigned, active_status)
+        VALUES (?, ?, ?, ?, 'active')
+      `).run(secId, realUserId, acc.name, acc.gate || 'Main Campus Gate A');
+    }
+
+    if (acc.role === 'student' && acc.rollNumber) {
+      db.prepare(`
+        INSERT OR REPLACE INTO authorized_students (id, email, roll_number, name, access_status)
+        VALUES (?, ?, ?, ?, 'active')
+      `).run('auth_' + acc.rollNumber.toLowerCase(), acc.email, acc.rollNumber, acc.name);
     }
 
     console.log(`   ✅ Seeded ${acc.role.toUpperCase().padEnd(9)}: ${acc.email} (${acc.name || acc.companyName})`);
