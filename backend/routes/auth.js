@@ -6,6 +6,7 @@ import db from '../db/index.js';
 import { validatePasswordPolicy, AuthRateLimiter } from '../middleware/security.js';
 
 import { JWT_SECRET } from '../config/secrets.js';
+import { verifyGoogleIdToken } from '../services/googleAuth.js';
 
 const router = express.Router();
 
@@ -313,29 +314,11 @@ router.post('/login', AuthRateLimiter.loginLimiter, async (req, res) => {
             if (existingProf && existingProf.user_id) {
               user = db.prepare('SELECT * FROM users WHERE id = ?').get(existingProf.user_id);
             }
-            if (!user) {
-              const userId = 'u_stu_' + authStudent.roll_number.toLowerCase().replace(/[^a-z0-9]/g, '_');
-              const passHash = bcrypt.hashSync('password123', 10);
-              db.prepare(`INSERT OR IGNORE INTO users (id, email, password_hash, role) VALUES (?, ?, ?, 'student')`).run(userId, authStudent.email.toLowerCase(), passHash);
-              user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
-
-              if (!existingProf) {
-                db.prepare(`INSERT OR IGNORE INTO student_profiles (id, user_id, name, roll_number, university_email, program, branch, cgpa) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).run(
-                  's_' + authStudent.roll_number.toLowerCase(),
-                  userId,
-                  authStudent.name,
-                  authStudent.roll_number,
-                  authStudent.email,
-                  authStudent.program || 'BTech CSE',
-                  authStudent.branch || 'Computer Science & Engineering',
-                  authStudent.cgpa || 8.5
-                );
-              }
-            }
           }
         }
       }
     }
+
 
     if (!user) {
       return res.status(404).json({
@@ -689,19 +672,126 @@ router.post('/2fa/disable', async (req, res) => {
 });
 
 
-// 🌐 Google Sign-In & Federated Authentication Endpoint (with Role Verification)
-router.post('/google', async (req, res) => {
+// 🌐 Google Sign-In & Federated Authentication Endpoint (with Cryptographic Verification & DB-driven Role Enactment)
+router.post('/google', AuthRateLimiter.loginLimiter, async (req, res) => {
   try {
-    const { email, name, google_id, picture, roll_number, program, selectedRole } = req.body;
-    const targetEmail = email || 'student.google@gsfcuniversity.ac.in';
-    const targetName = name || 'Tanvi Joshi (Google Verified)';
+    const { credential, selectedRole } = req.body;
+    if (!credential) {
+      return res.status(400).json({ error: 'Google credential (ID token) is required.' });
+    }
 
-    let user = db.prepare('SELECT * FROM users WHERE email = ?').get(targetEmail);
-    let ownerId;
-    let profile = null;
+    // 1. Cryptographically verify Google ID token
+    const googleUser = await verifyGoogleIdToken(credential);
+    if (!googleUser || !googleUser.email) {
+      return res.status(401).json({ error: 'Invalid or unverified Google token.' });
+    }
 
-    // Cross-validate selected role if existing user
-    if (user && selectedRole) {
+    const { sub, email, name, picture, email_verified } = googleUser;
+    const cleanEmail = email.toLowerCase().trim();
+
+    // 2. Institutional Domain Validation (if configured)
+    const allowedDomains = (process.env.ALLOWED_GOOGLE_DOMAINS || '')
+      .split(',')
+      .map(d => d.trim().toLowerCase())
+      .filter(Boolean);
+
+    if (allowedDomains.length > 0) {
+      const emailDomain = cleanEmail.split('@')[1];
+      const isAllowedDomain = allowedDomains.includes(emailDomain);
+      if (!isAllowedDomain) {
+        return res.status(403).json({
+          error: `Access Denied: Only institutional Google accounts from @${allowedDomains.join(', @')} are permitted.`,
+          unauthorizedDomain: true
+        });
+      }
+    }
+
+    // 3. Database User Lookup (Stable Google Sub ID or Verified Institutional Email)
+    let user = db.prepare('SELECT * FROM users WHERE google_id = ?').get(sub);
+
+    if (!user) {
+      // Find existing user by verified institutional email
+      user = db.prepare('SELECT * FROM users WHERE lower(email) = ?').get(cleanEmail);
+      if (user) {
+        // Link Google ID to existing verified account
+        const currentProvider = user.auth_provider || 'local';
+        const newProvider = currentProvider === 'local' ? 'both' : currentProvider;
+        db.prepare(`
+          UPDATE users 
+          SET google_id = ?, auth_provider = ?, email_verified = 1, profile_image = COALESCE(?, profile_image), last_login = CURRENT_TIMESTAMP 
+          WHERE id = ?
+        `).run(sub, newProvider, picture || null, user.id);
+        user = db.prepare('SELECT * FROM users WHERE id = ?').get(user.id);
+      }
+    }
+
+    // 4. Pre-authorized Student Check
+    if (!user) {
+      const authStudent = db.prepare('SELECT * FROM authorized_students WHERE lower(email) = ?').get(cleanEmail);
+      if (authStudent) {
+        if (authStudent.access_status === 'blocked') {
+          return res.status(403).json({
+            error: 'Access Denied: Your student portal access has been disabled by TPC Admin. Please contact the Training & Placement Cell.'
+          });
+        }
+
+        const newUserId = 'u_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
+        const studentId = 's_' + Date.now();
+        db.prepare(`
+          INSERT INTO users (id, email, password_hash, role, google_id, auth_provider, email_verified, profile_image, last_login, status)
+          VALUES (?, ?, '', 'student', ?, 'google', 1, ?, CURRENT_TIMESTAMP, 'active')
+        `).run(newUserId, cleanEmail, sub, picture || null);
+
+        db.prepare(`
+          INSERT INTO student_profiles (id, user_id, roll_number, name, phone, program, branch, cgpa, admission_year, passing_year, access_status, is_authorized)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', 1)
+        `).run(
+          studentId,
+          newUserId,
+          authStudent.roll_number,
+          authStudent.name || name || 'GSFC Student',
+          authStudent.phone || '+91 98765 43210',
+          authStudent.program || 'BTech CSE',
+          authStudent.branch || 'Computer Science',
+          parseFloat(authStudent.cgpa || 8.0),
+          authStudent.admission_year || 2022,
+          authStudent.passing_year || 2026
+        );
+
+        user = db.prepare('SELECT * FROM users WHERE id = ?').get(newUserId);
+      }
+    }
+
+    // 5. If still no account, reject unknown user (DO NOT auto-grant roles)
+    if (!user) {
+      return res.status(403).json({
+        error: 'Your account is not registered with the GSFC Placement Portal. Please contact the Training & Placement Cell.',
+        unregistered: true
+      });
+    }
+
+    // 6. Check Account Status (Suspended / Disabled / Blocked)
+    if (user.status === 'suspended' || user.status === 'disabled') {
+      return res.status(403).json({
+        error: 'Your account is currently disabled. Please contact the Training & Placement Cell.',
+        accountDisabled: true
+      });
+    }
+
+    if (user.role === 'student') {
+      const studentProf = db.prepare('SELECT * FROM student_profiles WHERE user_id = ?').get(user.id);
+      const cleanRoll = (studentProf?.roll_number || cleanEmail.split('@')[0]).toLowerCase().trim();
+      const authRec = db.prepare('SELECT * FROM authorized_students WHERE lower(email) = ? OR lower(roll_number) = ?').get(cleanEmail, cleanRoll);
+      if ((studentProf && studentProf.access_status === 'blocked') || (authRec && authRec.access_status === 'blocked')) {
+        return res.status(403).json({
+          error: 'Your account is currently disabled. Please contact the Training & Placement Cell.',
+          accountDisabled: true
+        });
+      }
+    }
+
+    // Cross-validate selected role if provided (informative guard only, DB role governs)
+    if (selectedRole) {
       const normSelected = normalizeRole(selectedRole);
       const normActual = normalizeRole(user.role);
       const isRoleMatch = normSelected === normActual || (normSelected === 'admin' && normActual === 'superadmin');
@@ -717,28 +807,38 @@ router.post('/google', async (req, res) => {
       }
     }
 
-    if (!user) {
-      return res.status(404).json({
-        error: 'No account found for this Google email. Please create a new account to continue.',
-        accountNotFound: true
-      });
-    }
+    // 7. Resolve Owner Profile (Driven strictly by DB role)
+    let ownerId = user.id;
+    let profile = null;
 
-    ownerId = user.id;
     if (user.role === 'student') {
       profile = db.prepare('SELECT * FROM student_profiles WHERE user_id = ?').get(user.id);
       if (profile) ownerId = profile.id;
     } else if (user.role === 'company') {
       profile = db.prepare('SELECT * FROM company_profiles WHERE user_id = ?').get(user.id);
       if (profile) ownerId = profile.id;
+    } else if (user.role === 'faculty') {
+      profile = db.prepare('SELECT * FROM faculty_profiles WHERE user_id = ?').get(user.id);
+      if (profile) ownerId = profile.id;
     } else if (user.role === 'alumni') {
-      profile = db.prepare('SELECT * FROM alumni_profiles WHERE user_id = ?').get(user.id);
+      try {
+        profile = db.prepare('SELECT * FROM alumni_directory WHERE user_id = ?').get(user.id);
+      } catch (e) {
+        profile = null;
+      }
       if (profile) ownerId = profile.id;
     }
 
+    db.prepare('UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?').run(user.id);
     recordUserLoginEvent(user, req, profile);
 
-    const token = jwt.sign({ userId: user.id, email: user.email, role: user.role, owner_id: ownerId }, JWT_SECRET, { expiresIn: '7d' });
+    // 8. Generate Application Session JWT
+    const token = jwt.sign(
+      { userId: user.id, email: user.email, role: user.role, owner_id: ownerId },
+      JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+
     const csrfToken = 'csrf_' + Math.random().toString(36).substring(2);
 
     res.cookie('access_token', token, {
@@ -754,15 +854,22 @@ router.post('/google', async (req, res) => {
       sameSite: 'strict'
     });
 
-    res.json({
+    return res.json({
       message: 'Google Sign-in successful',
       token,
       csrfToken,
-      user: { id: user.id, email: user.email, role: user.role, owner_id: ownerId, profile }
+      user: {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        owner_id: ownerId,
+        profile_image: user.profile_image || picture,
+        profile
+      }
     });
   } catch (err) {
-    console.error('Google Auth Error:', err);
-    res.status(500).json({ error: err.message });
+    console.error('Google Auth Error:', err.message || err);
+    return res.status(401).json({ error: 'Google authentication failed: ' + (err.message || 'Invalid ID token') });
   }
 });
 

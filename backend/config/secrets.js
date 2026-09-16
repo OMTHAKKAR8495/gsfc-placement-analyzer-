@@ -12,9 +12,10 @@ function resolveJwtSecret() {
     throw new Error('CRITICAL SECURITY ERROR: JWT_SECRET environment variable is missing or shorter than 16 characters in production. Refusing to boot.');
   }
 
-  const ephemeralSecret = crypto.randomBytes(48).toString('hex');
-  console.warn('⚠️ [DEV SECURITY WARNING]: JWT_SECRET is not set or < 16 chars. Generated ephemeral random secret for this session. Issued tokens will invalidate on server restart.');
-  return ephemeralSecret;
+  // Stable local development key to prevent token invalidation across dev server restarts
+  const devSecret = process.env.DEV_JWT_SECRET || 'gsfc_placement_local_dev_jwt_secret_key_32bytes_min';
+  return devSecret;
 }
 
 export const JWT_SECRET = resolveJwtSecret();
+

@@ -441,14 +441,16 @@ router.post('/apply', async (req, res) => {
     if (!student) {
       // Auto-provision profile record for newly logged-in student
       const resolvedId = studentId || 's_' + Date.now();
-      const resolvedName = authUser?.name || req.body.candidate_name || 'Om Thakkar';
+      const resolvedName = authUser?.name || req.body.candidate_name || (userEmail ? userEmail.split('@')[0] : 'GSFC Student');
+      const resolvedRoll = req.body.roll_number || (userEmail ? userEmail.split('@')[0].toUpperCase() : 'STUDENT');
       try {
         db.prepare(`
           INSERT INTO student_profiles (id, user_id, name, roll_number, program, branch, passing_year, admission_year, cgpa, backlogs, skills, verified, profile_completion, created_at, updated_at)
-          VALUES (?, ?, ?, '24BCE101', 'BTech CSE', 'Computer Science & Engineering', 2026, 2022, 8.8, 0, 'React, Node.js, Python, SQL', 1, 100, datetime('now'), datetime('now'))
-        `).run(resolvedId, resolvedId, resolvedName);
+          VALUES (?, ?, ?, ?, 'BTech Engineering', 'Engineering & Technology', 2026, 2022, 8.0, 0, 'General Skills', 1, 80, datetime('now'), datetime('now'))
+        `).run(resolvedId, authUser?.id || resolvedId, resolvedName, resolvedRoll);
         student = db.prepare('SELECT * FROM student_profiles WHERE id = ?').get(resolvedId);
       } catch (e) {
+        console.warn('Auto profile insertion notice:', e.message);
         student = db.prepare('SELECT * FROM student_profiles LIMIT 1').get();
       }
     }
@@ -494,7 +496,7 @@ router.post('/apply', async (req, res) => {
     };
 
     const dossierFileName = override.dossierFileName || `${student?.roll_number || 'Candidate'}_Credentials_Dossier.pdf`;
-    const mockBuffer = Buffer.from(`GSFC University Academic Credentials Dossier for ${student?.name || 'Candidate'} (${student?.roll_number || '24BCE101'}). Program: ${student?.program || 'BTech CSE'}. CGPA: ${candidateContext.claimedCgpa}. Verified by GSFC TPC.`);
+    const mockBuffer = Buffer.from(`GSFC University Academic Credentials Dossier for ${student?.name || 'Candidate'} (${student?.roll_number || 'Candidate'}). Program: ${student?.program || 'Academic Program'}. CGPA: ${candidateContext.claimedCgpa}. Verified by GSFC TPC.`);
 
     let authReport = { verified: true, score: 95 };
     try {

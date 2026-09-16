@@ -1,0 +1,15 @@
+# GSFC University Placement Portal - robots.txt
+User-agent: *
+Allow: /
+Allow: /#login
+Allow: /#student
+Allow: /#company
+Allow: /#faculty
+Allow: /#alumni
+
+# Disallow Internal API Routes and Admin Management from Search Crawlers
+Disallow: /api/
+Disallow: /#admin
+Disallow: /#superadmin
+
+Sitemap: https://gsfcuniversity.ac.in/sitemap.xml

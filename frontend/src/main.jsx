@@ -1,6 +1,7 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App.jsx'
+import ErrorBoundary from './components/common/ErrorBoundary.jsx'
 import './index.css'
 
 // Register PWA Service Worker for Offline Caching
@@ -13,8 +14,9 @@ if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
           if (installingWorker) {
             installingWorker.onstatechange = () => {
               if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                console.log('🔄 New GSFC platform update detected. Refreshing app cache...');
-                window.location.reload();
+                console.log('🔄 New GSFC platform update available. Cache ready.');
+                // Dispatch a notification event without forcefully disrupting user workflows with location.reload()
+                window.dispatchEvent(new CustomEvent('pwa-update-available'));
               }
             };
           }
@@ -37,6 +39,9 @@ if (typeof window !== 'undefined') {
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <App />
+    <ErrorBoundary>
+      <App />
+    </ErrorBoundary>
   </React.StrictMode>,
 )
+

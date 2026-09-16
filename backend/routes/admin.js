@@ -87,43 +87,27 @@ router.get('/pending-companies', (req, res) => {
   }
 });
 
-// Reset Demo Pending Companies into SQLite Database
+// Reset Demo Pending Companies into SQLite Database (Demo Mode Only)
 router.post('/reset-pending-companies', (req, res) => {
+  if (process.env.SEED_DEMO_DATA !== 'true') {
+    return res.status(403).json({ error: 'Demo pending companies reset is disabled in production mode.' });
+  }
+
   try {
     const demoPending = [
       {
         id: 'c_google_cloud_pending',
         userId: 'u_comp_google_cloud_pending',
-        email: 'cloud-campus@google.com',
+        email: 'cloud-campus@google.demo',
         name: 'Google Cloud India (AI Infrastructure)',
         industry: 'Cloud Computing & Generative AI',
         website: 'https://cloud.google.com',
         location: 'Bengaluru / Hyderabad (Hybrid)',
         phone: '+91 98251 44556'
-      },
-      {
-        id: 'c_adani_total_pending',
-        userId: 'u_comp_adani_total_pending',
-        email: 'talent@adanitotal.com',
-        name: 'Adani Total Gas & Petrochemicals',
-        industry: 'Energy & Chemical Engineering',
-        website: 'https://www.adanigas.com',
-        location: 'Ahmedabad / Dahej / Hazira',
-        phone: '+91 97245 11223'
-      },
-      {
-        id: 'c_lt_tech_pending',
-        userId: 'u_comp_lt_tech_pending',
-        email: 'campus.hiring@ltts.com',
-        name: 'L&T Technology Services (LTTS)',
-        industry: 'Engineering & Industrial IoT',
-        website: 'https://www.ltts.com',
-        location: 'Vadodara / Mumbai',
-        phone: '+91 99099 88776'
       }
     ];
 
-    const passHash = bcrypt.hashSync('password123', 6);
+    const passHash = bcrypt.hashSync('DemoPass@2026', 10);
 
     for (const c of demoPending) {
       db.prepare(`INSERT OR IGNORE INTO users (id, email, password_hash, role) VALUES (?, ?, ?, 'company')`).run(c.userId, c.email, passHash);
@@ -149,6 +133,7 @@ router.post('/reset-pending-companies', (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
 
 // All Student Candidate Profiles Database (Supports Year Range & Multi-Year Selection)
 router.get('/students', (req, res) => {
@@ -746,7 +731,7 @@ router.post('/security-staff', (req, res) => {
     }
 
     const userId = 'u_sec_' + Date.now();
-    const passHash = bcrypt.hashSync(password || 'password123', 6);
+    const passHash = bcrypt.hashSync(password || 'SecStaff@GSFC2026!', 10);
 
     db.transaction(() => {
       db.prepare(`

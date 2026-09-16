@@ -3,80 +3,8 @@ import { X, Lock, Mail, Building, Building2, User, AlertCircle, Sparkles, Shield
 
 
 
-const GOOGLE_ACCOUNTS_PRESETS = [
-  {
-    name: 'Om Thakkar',
-    email: 'om.thakkar@gsfcuniversity.ac.in',
-    program: 'B.Tech CSE (Computer Science)',
-    roll_number: '21BCE045',
-    avatar: 'OT',
-    color: 'bg-blue-600',
-    status: 'GSFC University Official'
-  },
-  {
-    name: 'Tanvi Joshi',
-    email: 'tanvi.j@gsfcuniversity.ac.in',
-    program: 'B.Tech CSE (AI & Data Science)',
-    roll_number: '22BCE108',
-    avatar: 'TJ',
-    color: 'bg-purple-600',
-    status: 'Verified Student'
-  },
-  {
-    name: 'Arav Sharma',
-    email: 'arav.sharma@student.gsfc.ac.in',
-    program: 'B.Tech Chemical Engineering',
-    roll_number: '22BCH012',
-    avatar: 'AS',
-    color: 'bg-emerald-600',
-    status: 'Verified Student'
-  },
-  {
-    name: 'Rahul Verma',
-    email: 'rahul.verma@gsfcuniversity.ac.in',
-    program: 'B.Tech Mechanical Engineering',
-    roll_number: '21BME034',
-    avatar: 'RV',
-    color: 'bg-amber-600',
-    status: 'Verified Student'
-  },
-  {
-    name: 'Priya Patel',
-    email: 'priya.patel@alumni.gsfc.ac.in',
-    program: 'Alumni (Amazon AWS)',
-    roll_number: '2019-2023',
-    avatar: 'PP',
-    color: 'bg-blue-800',
-    status: 'Verified Alumni Mentor'
-  },
-  {
-    name: 'Kavya Sharma',
-    email: 'fest_attendee@msu.ac.in',
-    program: 'Fest Guest (MS University Vadodara)',
-    roll_number: 'GSFC-PASS-ANV-101',
-    avatar: 'KS',
-    color: 'bg-amber-600',
-    status: '🎪 Verified Fest Attendee'
-  },
-  {
-    name: 'GSFC Limited (Recruiter)',
-    email: 'gsfclimited@gmail.com',
-    program: 'GSFC Placed Company (Official Partner)',
-    roll_number: 'GSFC-CO-2026',
-    avatar: 'GL',
-    color: 'bg-indigo-950',
-    status: '🏢 GSFC Placed Company'
-  },
-  {
-    name: 'Officer Vikram Singh',
-    email: 'security_gate1@gsfc.ac.in',
-    program: 'Security Desk (Main Gate A)',
-    roll_number: 'SEC-OFFICER-01',
-    avatar: 'VS',
-    color: 'bg-purple-900',
-    status: '🛡️ Campus Security Desk'
-  }
-];
+const GOOGLE_ACCOUNTS_PRESETS = [];
+
 
 export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialRole = 'student' }) {
   const [viewMode, setViewMode] = useState('auth'); // 'auth' | 'forgot-password'
@@ -628,7 +556,83 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialRole 
     } catch(e) {}
   };
 
-  // 🌐 Google Sign-In with Selected Account
+  // Initialize Google Identity Services (GIS) for Modal
+  useEffect(() => {
+    if (!isOpen) return;
+    const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+    if (!googleClientId) return;
+
+    const setupModalGIS = () => {
+      if (window.google?.accounts?.id) {
+        try {
+          window.google.accounts.id.initialize({
+            client_id: googleClientId,
+            callback: handleGoogleCredentialResponse,
+            auto_select: false,
+            cancel_on_tap_outside: true
+          });
+        } catch(e) {}
+      }
+    };
+
+    if (window.google?.accounts?.id) {
+      setupModalGIS();
+    } else {
+      const timer = setInterval(() => {
+        if (window.google?.accounts?.id) {
+          clearInterval(timer);
+          setupModalGIS();
+        }
+      }, 250);
+      return () => clearInterval(timer);
+    }
+  }, [isOpen, role]);
+
+  const handleGoogleCredentialResponse = async (response) => {
+    if (!response || !response.credential) {
+      setError('Google authentication was cancelled.');
+      return;
+    }
+    setError('');
+    setGoogleLoading(true);
+    try {
+      const res = await fetch('/api/auth/google', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          credential: response.credential,
+          selectedRole: role
+        })
+      });
+      const data = await res.json().catch(() => null);
+      if (res.ok && data?.user) {
+        localStorage.setItem('campushire_token', data.token);
+        onAuthSuccess(data.user);
+        onClose();
+        return;
+      }
+      setError(data?.error || 'Google Sign-in failed. Please contact TPC.');
+    } catch (err) {
+      setError('Network connection error during Google authentication.');
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
+
+  const triggerModalGoogleSignIn = () => {
+    const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+    if (window.google?.accounts?.id && googleClientId) {
+      try {
+        window.google.accounts.id.prompt();
+      } catch (e) {
+        setShowGoogleAccountPicker(true);
+      }
+    } else {
+      setShowGoogleAccountPicker(true);
+    }
+  };
+
+  // 🌐 Google Sign-In with Selected Account / Token
   const handleSelectGoogleAccount = async (account) => {
     setError('');
     unblockStudentOnLogin(account.email, account.roll_number);
@@ -639,24 +643,16 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialRole 
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          email: account.email.trim(),
-          name: account.name.trim(),
-          program: account.program || 'BTech CSE',
-          roll_number: account.roll_number || '22BCE108',
+          credential: account.credential || account.id_token,
           selectedRole: role
         })
       });
 
-      let data = null;
-      try { data = await res.json(); } catch(e) {}
+      const data = await res.json().catch(() => null);
 
-      // If backend returns a role mismatch or error
       if (!res.ok) {
-        if (data && data.error) {
-          setError(data.error);
-          return;
-        }
-        throw new Error('Google Sign-in failed');
+        setError(data?.error || 'Google Sign-in failed');
+        return;
       }
 
       if (data && data.user) {
@@ -665,18 +661,9 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialRole 
         onClose();
         return;
       }
-
-      // Safe fallback for demo / Vercel / offline environments
-      const fallbackUser = createFallbackUser(role, account.email, account.name);
-      localStorage.setItem('campushire_token', 'demo_token_' + Date.now());
-      onAuthSuccess(fallbackUser);
-      onClose();
+      setError('Google authentication returned invalid user data.');
     } catch (err) {
-      // Safe fallback for demo / Vercel / offline environments
-      const fallbackUser = createFallbackUser(role, account.email, account.name);
-      localStorage.setItem('campushire_token', 'demo_token_' + Date.now());
-      onAuthSuccess(fallbackUser);
-      onClose();
+      setError('Network connection error during Google authentication.');
     } finally {
       setGoogleLoading(false);
     }
@@ -1365,10 +1352,8 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialRole 
             <div className="mt-5 space-y-3">
               <button
                 type="button"
-                onClick={() => {
-                  setError('');
-                  setShowGoogleAccountPicker(true);
-                }}
+                onClick={triggerModalGoogleSignIn}
+                disabled={googleLoading}
                 className="w-full py-3 px-4 bg-white hover:bg-slate-50 text-slate-800 border-2 border-slate-300 hover:border-blue-500 rounded-2xl text-sm font-black flex items-center justify-center gap-3 shadow-md hover:shadow-lg transition-all cursor-pointer group"
               >
                 <svg className="w-5 h-5" viewBox="0 0 24 24">

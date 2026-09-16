@@ -3,6 +3,12 @@ CREATE TABLE IF NOT EXISTS users (
     email TEXT UNIQUE NOT NULL,
     password_hash TEXT NOT NULL,
     role TEXT CHECK(role IN ('student', 'company', 'admin', 'alumni', 'faculty', 'superadmin', 'security')) NOT NULL,
+    google_id TEXT UNIQUE,
+    auth_provider TEXT DEFAULT 'local', -- 'local', 'google', 'both'
+    email_verified INTEGER DEFAULT 0,
+    last_login DATETIME,
+    profile_image TEXT,
+    status TEXT DEFAULT 'active', -- 'active', 'suspended', 'disabled'
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 

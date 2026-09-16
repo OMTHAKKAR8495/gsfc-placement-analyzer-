@@ -12,4 +12,18 @@ export default defineConfig({
       },
     },
   },
+  build: {
+    chunkSizeWarningLimit: 2000,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-tfjs': ['@tensorflow/tfjs', '@tensorflow-models/coco-ssd'],
+          'vendor-motion': ['framer-motion'],
+          'vendor-pdf': ['jspdf'],
+          'vendor-icons': ['lucide-react'],
+        },
+      },
+    },
+  },
 });
+

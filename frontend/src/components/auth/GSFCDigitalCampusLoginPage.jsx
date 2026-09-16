@@ -5,43 +5,26 @@ const PORTAL_ROLES = [
   {
     id: 'student_roll',
     role: 'student',
-    label: '🎓 GSFC Student (24BT04171 — Placement Candidate)',
-    defaultUsername: '24bt04171',
-    defaultEmail: '24bt04171@gsfcuniversity.ac.in',
-    defaultPass: 'password123',
+    label: '🎓 GSFC Student (Placement Candidate)',
+    placeholder: 'Enrollment No. (e.g. 24BT04171)',
     requiresGsfcDomain: true,
-    badge: '24BT04171 Portal',
+    badge: 'Student Portal',
     color: 'from-blue-600 to-indigo-700'
   },
   {
     id: 'placed_company',
     role: 'company',
-    label: '🏢 GSFC Placed Company (Official Partner / Recruiter)',
-    defaultUsername: 'gsfclimited@gmail.com',
-    defaultEmail: 'gsfclimited@gmail.com',
-    defaultPass: 'password123',
+    label: '🏢 Corporate Recruiter / Hiring Partner',
+    placeholder: 'Official Recruiter Email',
     requiresGsfcDomain: false,
-    badge: 'Partner Recruiter',
+    badge: 'Corporate Recruiter',
     color: 'from-amber-600 to-orange-700'
-  },
-  {
-    id: 'outside_company',
-    role: 'company',
-    label: '🌐 Outside Corporate Recruiter (New Hiring Partner)',
-    defaultUsername: 'recruiter.google@company.com',
-    defaultEmail: 'recruiter.google@company.com',
-    defaultPass: 'password123',
-    requiresGsfcDomain: false,
-    badge: 'Corporate Partner',
-    color: 'from-cyan-600 to-blue-700'
   },
   {
     id: 'faculty',
     role: 'faculty',
-    label: '🏛️ Faculty Placement Coordinator (CSE / IT / Engg)',
-    defaultUsername: 'faculty.cse',
-    defaultEmail: 'faculty.cse@gsfcuniversity.ac.in',
-    defaultPass: 'password123',
+    label: '🏛️ Faculty Placement Coordinator',
+    placeholder: 'Faculty Username / Email',
     requiresGsfcDomain: true,
     badge: 'Academic Faculty',
     color: 'from-emerald-600 to-teal-700'
@@ -49,10 +32,8 @@ const PORTAL_ROLES = [
   {
     id: 'admin',
     role: 'admin',
-    label: '🛡️ TPC Placement Cell Admin (Director & Team)',
-    defaultUsername: 'admin',
-    defaultEmail: 'admin@gsfcuniversity.ac.in',
-    defaultPass: 'password123',
+    label: '🛡️ TPC Placement Cell Admin',
+    placeholder: 'TPC Admin Username / Email',
     requiresGsfcDomain: true,
     badge: 'TPC Directorate',
     color: 'from-blue-900 to-slate-900'
@@ -60,32 +41,17 @@ const PORTAL_ROLES = [
   {
     id: 'alumni',
     role: 'alumni',
-    label: '🎓 GSFC Alumni Mentor (Placement Insights)',
-    defaultUsername: 'priya.patel@alumni.gsfc.ac.in',
-    defaultEmail: 'priya.patel@alumni.gsfc.ac.in',
-    defaultPass: 'password123',
+    label: '🎓 GSFC Alumni Mentor',
+    placeholder: 'Alumni Email',
     requiresGsfcDomain: false,
     badge: 'Alumni Network',
     color: 'from-purple-600 to-indigo-800'
   },
   {
-    id: 'fest',
-    role: 'fest',
-    label: '🎪 Fest Guest & External Attendee (TechFest Entry Pass)',
-    defaultUsername: 'fest_attendee@msu.ac.in',
-    defaultEmail: 'fest_attendee@msu.ac.in',
-    defaultPass: 'password123',
-    requiresGsfcDomain: false,
-    badge: 'Fest Entry Pass',
-    color: 'from-rose-600 to-pink-700'
-  },
-  {
     id: 'security',
     role: 'security',
-    label: '🛡️ Campus Security Officer (Gate Pass Scanner)',
-    defaultUsername: 'security',
-    defaultEmail: 'security@gsfcuniversity.ac.in',
-    defaultPass: 'password123',
+    label: '🛡️ Campus Security Officer',
+    placeholder: 'Security Officer Username / Email',
     requiresGsfcDomain: true,
     badge: 'Security Desk',
     color: 'from-slate-700 to-slate-900'
@@ -93,10 +59,8 @@ const PORTAL_ROLES = [
   {
     id: 'superadmin',
     role: 'superadmin',
-    label: '👑 TPC Super Administrator (Full Authority)',
-    defaultUsername: 'superadmin',
-    defaultEmail: 'superadmin@gsfcuniversity.ac.in',
-    defaultPass: 'password123',
+    label: '👑 TPC Super Administrator',
+    placeholder: 'Superadmin Username / Email',
     requiresGsfcDomain: true,
     badge: 'Apex Authority',
     color: 'from-amber-700 to-yellow-600'
@@ -112,68 +76,55 @@ const createFallbackUser = (roleConfig, fullEmail, username) => {
 
   if (roleConfig.role === 'student') {
     profile = {
-      id: 's_omthakkar',
-      user_id: 'u_1787200942427_m1ibh',
-      name: 'Om Thakkar',
-      roll_number: '24BT04171',
+      id: 's_' + Date.now(),
+      name: username || fullEmail.split('@')[0].toUpperCase(),
+      roll_number: username || 'STUDENT',
       email: fullEmail,
-      program: 'BTech CSE',
-      branch: 'Computer Science & Engineering',
-      cgpa: 9.42,
-      ats_score: 98,
-      admission_year: 2024,
-      passing_year: 2028,
-      batch_year: '2024-2028'
+      program: 'B.Tech Engineering',
+      branch: 'Engineering & Technology',
+      cgpa: 8.0,
+      ats_score: 85
     };
   } else if (roleConfig.role === 'company') {
-    const isGsfcPartner = fullEmail.includes('gsfc');
     profile = {
       id: 'c_' + Date.now(),
-      company_name: isGsfcPartner ? 'GSFC Limited' : 'Google Cloud Partner',
-      industry: 'Chemical & Technology Infrastructure',
-      location: 'Vadodara / Hybrid',
+      company_name: 'Corporate Recruitment Partner',
+      industry: 'Industry & Technology',
+      location: 'Vadodara / Gujarat',
       email: fullEmail,
       verified: 1
     };
   } else if (roleConfig.role === 'faculty') {
     profile = {
       id: 'f_' + Date.now(),
-      name: 'Dr. Neeshu Chaudhary',
+      name: 'Faculty Coordinator',
       email: fullEmail,
-      department: 'Computer Science & Engineering',
-      designation: 'Faculty Placement Coordinator (CSE / IT / Engg)'
+      department: 'Engineering & Technology',
+      designation: 'Faculty Placement Coordinator'
     };
   } else if (roleConfig.role === 'admin' || roleConfig.role === 'superadmin') {
     profile = {
       id: 'a_' + Date.now(),
-      name: roleConfig.role === 'superadmin' ? 'Super Administrator' : 'TPC Placement Director',
+      name: roleConfig.role === 'superadmin' ? 'Super Administrator' : 'TPC Placement Officer',
       email: fullEmail,
       department: 'Training & Placement Cell',
-      designation: roleConfig.role === 'superadmin' ? 'Apex Authority' : 'Director TPC'
+      designation: roleConfig.role === 'superadmin' ? 'Apex Authority' : 'Placement Officer'
     };
   } else if (roleConfig.role === 'alumni') {
     profile = {
       id: 'alumni_' + Date.now(),
-      name: 'Priya Patel',
+      name: 'Alumni Mentor',
       batch_year: '2020-2024',
-      company: 'GSFC Limited / Tech Partner',
-      designation: 'Senior Cloud Engineer',
+      company: 'Corporate Partner',
+      designation: 'Professional Mentor',
       email: fullEmail
     };
   } else if (roleConfig.role === 'security') {
     profile = {
       id: 'sec_' + Date.now(),
-      name: 'Officer Vikram Singh',
+      name: 'Campus Security Officer',
       gate_assigned: 'Main Campus Gate A',
-      shift: 'Day Shift (08:00 AM - 04:00 PM)',
-      email: fullEmail
-    };
-  } else if (roleConfig.role === 'fest') {
-    profile = {
-      id: 'fest_' + Date.now(),
-      name: 'External Fest Guest',
-      institution: 'MSU Baroda',
-      pass_code: 'TECHFEST-2026-PASS',
+      shift: 'General Shift',
       email: fullEmail
     };
   }
@@ -196,30 +147,20 @@ export default function GSFCDigitalCampusLoginPage({ onLoginSuccess, onGuestBrow
         const u = JSON.parse(savedUser);
         if (u?.email) {
           const isDomain = u.email.endsWith('@gsfcuniversity.ac.in');
-          const isStudent = u.role === 'student' || u.email.includes('24bt') || u.email.includes('thakkar');
+          const isStudent = u.role === 'student';
           return {
             roleId: isStudent ? 'student_roll' : (u.role || 'student_roll'),
             username: isDomain ? u.email.replace('@gsfcuniversity.ac.in', '') : u.email,
-            password: localStorage.getItem('gsfc_dcs_saved_password') || 'password123',
+            password: '',
             appendDomain: isDomain
           };
         }
       }
-      const savedEmail = localStorage.getItem('gsfc_candidate_email') || localStorage.getItem('gsfc_last_login_username');
-      if (savedEmail) {
-        const isDomain = savedEmail.endsWith('@gsfcuniversity.ac.in');
-        return {
-          roleId: 'student_roll',
-          username: isDomain ? savedEmail.replace('@gsfcuniversity.ac.in', '') : savedEmail,
-          password: localStorage.getItem('gsfc_dcs_saved_password') || 'password123',
-          appendDomain: isDomain
-        };
-      }
     } catch(e) {}
     return {
       roleId: 'student_roll',
-      username: '24bt04171',
-      password: 'password123',
+      username: '',
+      password: '',
       appendDomain: true
     };
   };
@@ -244,13 +185,105 @@ export default function GSFCDigitalCampusLoginPage({ onLoginSuccess, onGuestBrow
 
   const currentRoleConfig = PORTAL_ROLES.find(r => r.id === selectedRoleId) || PORTAL_ROLES[0];
 
+  // Initialize Google Identity Services (GIS)
+  useEffect(() => {
+    const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+    if (!googleClientId) return;
+
+    const setupGIS = () => {
+      if (window.google?.accounts?.id) {
+        try {
+          window.google.accounts.id.initialize({
+            client_id: googleClientId,
+            callback: handleGoogleCredentialResponse,
+            auto_select: false,
+            cancel_on_tap_outside: true
+          });
+
+          const btnEl = document.getElementById('google-signin-btn-container');
+          if (btnEl) {
+            window.google.accounts.id.renderButton(btnEl, {
+              theme: 'outline',
+              size: 'large',
+              type: 'standard',
+              shape: 'rectangular',
+              text: 'signin_with',
+              logo_alignment: 'left',
+              width: 320
+            });
+          }
+        } catch (e) {
+          console.warn('Google Identity Services init notice:', e);
+        }
+      }
+    };
+
+    if (window.google?.accounts?.id) {
+      setupGIS();
+    } else {
+      const interval = setInterval(() => {
+        if (window.google?.accounts?.id) {
+          clearInterval(interval);
+          setupGIS();
+        }
+      }, 250);
+      return () => clearInterval(interval);
+    }
+  }, [selectedRoleId]);
+
+  const handleGoogleCredentialResponse = async (response) => {
+    if (!response || !response.credential) {
+      setError('Google authentication was cancelled or returned no credential.');
+      return;
+    }
+    setError('');
+    setLoading(true);
+    try {
+      const res = await fetch('/api/auth/google', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          credential: response.credential,
+          selectedRole: currentRoleConfig.role
+        })
+      });
+      const data = await res.json().catch(() => null);
+      if (res.ok && data?.user) {
+        localStorage.setItem('campushire_token', data.token);
+        localStorage.setItem('gsfc_last_login_username', data.user.email);
+        localStorage.setItem('gsfc_candidate_email', data.user.email);
+        setLoading(false);
+        if (onLoginSuccess) {
+          onLoginSuccess(data.user);
+        }
+        return;
+      }
+      setError(data?.error || 'Google Sign-in failed. Please verify your institutional account.');
+    } catch (err) {
+      setError('Network connection error during Google authentication. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const triggerGoogleSignIn = () => {
+    if (window.google?.accounts?.id && import.meta.env.VITE_GOOGLE_CLIENT_ID) {
+      try {
+        window.google.accounts.id.prompt();
+      } catch(e) {
+        setError('Google Sign-In prompt unavailable. Please check popup blockers.');
+      }
+    } else {
+      setError('Google Client ID is not configured in VITE_GOOGLE_CLIENT_ID. Please configure environment.');
+    }
+  };
+
+
   const handleRoleChange = (roleId) => {
     setSelectedRoleId(roleId);
     setError('');
     const target = PORTAL_ROLES.find(r => r.id === roleId);
     if (target) {
-      setUsername(target.defaultUsername);
-      setPassword(target.defaultPass);
       setAppendDomain(target.requiresGsfcDomain);
     }
   };
@@ -612,12 +645,14 @@ export default function GSFCDigitalCampusLoginPage({ onLoginSuccess, onGuestBrow
             </div>
           </div>
 
-          {/* GOOGLE SIGN IN BUTTON */}
-          <div className="pt-1">
+          {/* GOOGLE SIGN IN CONTAINER */}
+          <div className="pt-1 space-y-1.5">
+            <div id="google-signin-btn-container" className="w-full flex justify-center empty:hidden" />
             <button
               type="button"
-              onClick={() => fillQuickPersona('student_roll')}
-              className="w-full py-2 px-3 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 rounded-lg text-xs font-bold flex items-center justify-center gap-2.5 transition-colors cursor-pointer shadow-xs"
+              onClick={triggerGoogleSignIn}
+              disabled={loading}
+              className="w-full py-2.5 px-3 bg-white hover:bg-slate-50 active:bg-slate-100 text-slate-700 border border-slate-300 rounded-lg text-xs font-bold flex items-center justify-center gap-2.5 transition-colors cursor-pointer shadow-2xs"
             >
               <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
                 <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -625,7 +660,7 @@ export default function GSFCDigitalCampusLoginPage({ onLoginSuccess, onGuestBrow
                 <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
                 <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
               </svg>
-              <span>Sign in with Google (Student ID: 24BT04171)</span>
+              <span>Sign in with Google</span>
             </button>
           </div>
         </div>
