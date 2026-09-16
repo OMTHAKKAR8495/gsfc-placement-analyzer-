@@ -328,6 +328,41 @@ GSFC University, Vadodara`;
       userProfile = { id: alumniId, name: name || 'GSFC Alumni' };
     }
 
+    // Dual-persist directly to Supabase cloud database
+    try {
+      syncToSupabase('users', {
+        id: userId,
+        email: cleanEmail,
+        password_hash: passwordHash,
+        role: role,
+        auth_provider: 'local',
+        status: 'active',
+        created_at: new Date().toISOString()
+      }, 'email').catch(e => console.warn('Supabase User Sync Notice:', e.message));
+
+      if (role === 'student' && userProfile) {
+        syncToSupabase('student_profiles', {
+          ...userProfile,
+          created_at: new Date().toISOString()
+        }, 'roll_number').catch(e => console.warn('Supabase Student Sync Notice:', e.message));
+      } else if (role === 'company' && userProfile) {
+        syncToSupabase('company_profiles', {
+          id: userProfile.id,
+          user_id: userId,
+          company_name: company_name || 'Recruiter Company',
+          contact_email: cleanEmail,
+          contact_phone: phone || '+91 98765 43210',
+          industry: industry || 'Technology',
+          website: website || 'https://company.com',
+          location: 'Vadodara, Gujarat',
+          approved: 1,
+          created_at: new Date().toISOString()
+        }, 'id').catch(e => console.warn('Supabase Company Sync Notice:', e.message));
+      }
+    } catch(err) {
+      console.warn('Supabase dual-sync warning:', err.message);
+    }
+
     const createdUser = { id: userId, email: cleanEmail, role, profile: userProfile };
     recordUserLoginEvent(createdUser, req);
 
@@ -943,6 +978,17 @@ router.post('/google', AuthRateLimiter.loginLimiter, async (req, res) => {
     }
 
     db.prepare('UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?').run(user.id);
+    try {
+      syncToSupabase('users', {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        auth_provider: user.auth_provider || 'local',
+        email_verified: Boolean(user.email_verified),
+        status: user.status || 'active',
+        last_login: new Date().toISOString()
+      }, 'email').catch(e => {});
+    } catch(e) {}
     recordUserLoginEvent(user, req, profile);
 
     // 8. Generate Application Session JWT
