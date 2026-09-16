@@ -298,9 +298,41 @@ router.post('/login', AuthRateLimiter.loginLimiter, async (req, res) => {
       } else if (prefix === 'superadmin') {
         user = db.prepare("SELECT * FROM users WHERE lower(email) = 'superadmin@gsfcuniversity.ac.in' LIMIT 1").get();
       } else {
-        const studentProf = db.prepare('SELECT user_id FROM student_profiles WHERE lower(roll_number) = ?').get(prefix);
-        if (studentProf) {
+        let studentProf = db.prepare('SELECT user_id FROM student_profiles WHERE lower(roll_number) = ? OR lower(university_email) = ?').get(prefix, cleanEmail);
+        if (!studentProf) {
+          studentProf = db.prepare('SELECT user_id FROM student_profiles WHERE parsed_resume_json LIKE ?').get(`%"email":"${cleanEmail}"%`);
+        }
+        if (studentProf && studentProf.user_id) {
           user = db.prepare('SELECT * FROM users WHERE id = ?').get(studentProf.user_id);
+        }
+        
+        if (!user) {
+          const authStudent = db.prepare('SELECT * FROM authorized_students WHERE lower(roll_number) = ? OR lower(email) = ?').get(prefix, cleanEmail);
+          if (authStudent) {
+            const existingProf = db.prepare('SELECT * FROM student_profiles WHERE lower(roll_number) = ? OR lower(university_email) = ?').get(authStudent.roll_number.toLowerCase(), authStudent.email.toLowerCase());
+            if (existingProf && existingProf.user_id) {
+              user = db.prepare('SELECT * FROM users WHERE id = ?').get(existingProf.user_id);
+            }
+            if (!user) {
+              const userId = 'u_stu_' + authStudent.roll_number.toLowerCase().replace(/[^a-z0-9]/g, '_');
+              const passHash = bcrypt.hashSync('password123', 10);
+              db.prepare(`INSERT OR IGNORE INTO users (id, email, password_hash, role) VALUES (?, ?, ?, 'student')`).run(userId, authStudent.email.toLowerCase(), passHash);
+              user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
+
+              if (!existingProf) {
+                db.prepare(`INSERT OR IGNORE INTO student_profiles (id, user_id, name, roll_number, university_email, program, branch, cgpa) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).run(
+                  's_' + authStudent.roll_number.toLowerCase(),
+                  userId,
+                  authStudent.name,
+                  authStudent.roll_number,
+                  authStudent.email,
+                  authStudent.program || 'BTech CSE',
+                  authStudent.branch || 'Computer Science & Engineering',
+                  authStudent.cgpa || 8.5
+                );
+              }
+            }
+          }
         }
       }
     }
