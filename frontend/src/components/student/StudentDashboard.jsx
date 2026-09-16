@@ -1674,231 +1674,245 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
               </div>
 
               {/* Cards Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                {filteredFeed.map((req) => (
-                  <div key={req.id} className="glass-card p-4 sm:p-5 rounded-3xl flex flex-col justify-between space-y-4 relative overflow-hidden border border-slate-200/90 group">
-                    <div className="space-y-3.5">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex items-center gap-3">
-                          <img
-                            src={req.company_logo_url || req.logo_url || 'https://images.unsplash.com/photo-1542744094-3a31b272c490?w=100&auto=format&fit=crop&q=60'}
-                            alt={req.company_name}
-                            className="w-12 h-12 rounded-2xl object-contain bg-slate-50 p-1.5 border border-slate-200 shadow-sm shrink-0"
-                            onError={(e) => {
-                              e.target.onerror = null;
-                              e.target.src = 'https://images.unsplash.com/photo-1542744094-3a31b272c490?w=100&auto=format&fit=crop&q=60';
-                            }}
-                          />
-                          <div>
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <h3 className="font-black text-sm text-slate-900 group-hover:text-blue-900 transition-colors leading-tight">{req.title}</h3>
-                              {req.applications_open === 0 && (
-                                <span className="px-2 py-0.5 bg-rose-100 text-rose-800 border border-rose-300 text-[10px] font-black rounded-lg flex items-center gap-1 shadow-sm">
-                                  🔒 Applications Closed
-                                </span>
-                              )}
+              {filteredFeed.length === 0 ? (
+                <div className="glass-panel p-10 rounded-3xl border border-slate-200/90 text-center space-y-3 bg-white/80">
+                  <div className="w-14 h-14 rounded-2xl bg-blue-50 border border-blue-200 text-blue-900 flex items-center justify-center mx-auto shadow-xs">
+                    <Briefcase className="w-7 h-7 text-blue-900" />
+                  </div>
+                  <div className="space-y-1">
+                    <h4 className="text-base font-black text-slate-900">No Placement Drives Active</h4>
+                    <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">
+                      There are currently no active placement drives published. As verified hiring partners post campus requirements or TPC releases new opportunities, they will appear here.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  {filteredFeed.map((req) => (
+                    <div key={req.id} className="glass-card p-4 sm:p-5 rounded-3xl flex flex-col justify-between space-y-4 relative overflow-hidden border border-slate-200/90 group">
+                      <div className="space-y-3.5">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex items-center gap-3">
+                            <img
+                              src={req.company_logo_url || req.logo_url || 'https://images.unsplash.com/photo-1542744094-3a31b272c490?w=100&auto=format&fit=crop&q=60'}
+                              alt={req.company_name}
+                              className="w-12 h-12 rounded-2xl object-contain bg-slate-50 p-1.5 border border-slate-200 shadow-sm shrink-0"
+                              onError={(e) => {
+                                e.target.onerror = null;
+                                e.target.src = 'https://images.unsplash.com/photo-1542744094-3a31b272c490?w=100&auto=format&fit=crop&q=60';
+                              }}
+                            />
+                            <div>
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <h3 className="font-black text-sm text-slate-900 group-hover:text-blue-900 transition-colors leading-tight">{req.title}</h3>
+                                {req.applications_open === 0 && (
+                                  <span className="px-2 py-0.5 bg-rose-100 text-rose-800 border border-rose-300 text-[10px] font-black rounded-lg flex items-center gap-1 shadow-sm">
+                                    🔒 Applications Closed
+                                  </span>
+                                )}
+                              </div>
+                              <div className="text-xs text-slate-700 font-black mt-0.5">{req.company_name} • {req.job_type}</div>
                             </div>
-                            <div className="text-xs text-slate-700 font-black mt-0.5">{req.company_name} • {req.job_type}</div>
+                          </div>
+
+                          <div className="flex items-center gap-2 shrink-0">
+                            <button
+                              type="button"
+                              onClick={(e) => handleToggleBookmark(e, req.id)}
+                              className={`p-2 rounded-xl border transition-all cursor-pointer shadow-sm shrink-0 flex items-center justify-center ${
+                                bookmarkedIds.has(req.id) || req.is_bookmarked
+                                  ? 'bg-amber-100 text-amber-900 border-amber-300'
+                                  : 'bg-white text-slate-400 hover:text-amber-600 border-slate-200'
+                              }`}
+                              title={bookmarkedIds.has(req.id) || req.is_bookmarked ? 'Remove Bookmark' : 'Bookmark / Save Drive'}
+                            >
+                              <Bookmark className={`w-4 h-4 ${bookmarkedIds.has(req.id) || req.is_bookmarked ? 'fill-amber-500 text-amber-600' : ''}`} />
+                            </button>
+
+                            {req.matchScore !== null ? (
+                              <div 
+                                onClick={() => setSelectedMatchBreakdown(req)}
+                                className={`px-3 py-1.5 rounded-2xl border text-center font-black text-xs shrink-0 shadow-sm cursor-pointer hover:scale-105 transition-all ${
+                                  !req.eligible
+                                    ? 'bg-red-50 border-red-200 text-red-700'
+                                    : req.matchScore >= 85
+                                    ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                                    : req.matchScore >= 70
+                                    ? 'bg-blue-50 border-blue-200 text-blue-900'
+                                    : 'bg-amber-50 border-amber-200 text-amber-900'
+                                }`}
+                                title="Click to view AI Match Breakdown & Skill Analysis"
+                              >
+                                <div className="text-[9px] uppercase font-black tracking-wider opacity-80 flex items-center gap-1 justify-center">
+                                  <Sparkles className="w-2.5 h-2.5" /> NLP Match
+                                </div>
+                                <div className="text-xs font-black">
+                                  {req.eligible ? `${req.matchScore}% Match` : 'Ineligible'}
+                                </div>
+                              </div>
+                            ) : (
+                              <button 
+                                onClick={() => {
+                                  if (onOpenAuthModal) onOpenAuthModal();
+                                  else showToast({
+                                    type: 'info',
+                                    title: 'Resume Needed',
+                                    message: 'Please upload your resume in the Student Workspace to calculate your personalized NLP match score.',
+                                    triggerCrackles: false
+                                  });
+                                }}
+                                className="px-3 py-1.5 rounded-2xl border border-amber-400/50 bg-amber-50 text-amber-900 font-black text-[11px] shrink-0 shadow-sm hover:bg-amber-100 flex items-center gap-1.5 cursor-pointer transition-all"
+                              >
+                                <Sparkles className="w-3.5 h-3.5 text-amber-600 animate-pulse" />
+                                <span>Match %</span>
+                              </button>
+                            )}
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-2 shrink-0">
-                          <button
-                            type="button"
-                            onClick={(e) => handleToggleBookmark(e, req.id)}
-                            className={`p-2 rounded-xl border transition-all cursor-pointer shadow-sm shrink-0 flex items-center justify-center ${
-                              bookmarkedIds.has(req.id) || req.is_bookmarked
-                                ? 'bg-amber-100 text-amber-900 border-amber-300'
-                                : 'bg-white text-slate-400 hover:text-amber-600 border-slate-200'
-                            }`}
-                            title={bookmarkedIds.has(req.id) || req.is_bookmarked ? 'Remove Bookmark' : 'Bookmark / Save Drive'}
-                          >
-                            <Bookmark className={`w-4 h-4 ${bookmarkedIds.has(req.id) || req.is_bookmarked ? 'fill-amber-500 text-amber-600' : ''}`} />
-                          </button>
+                        <p className="text-xs text-slate-700 leading-relaxed font-semibold line-clamp-2">{req.job_description}</p>
 
-                          {req.matchScore !== null ? (
-                            <div 
-                              onClick={() => setSelectedMatchBreakdown(req)}
-                              className={`px-3 py-1.5 rounded-2xl border text-center font-black text-xs shrink-0 shadow-sm cursor-pointer hover:scale-105 transition-all ${
-                                !req.eligible
-                                  ? 'bg-red-50 border-red-200 text-red-700'
-                                  : req.matchScore >= 85
-                                  ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
-                                  : req.matchScore >= 70
-                                  ? 'bg-blue-50 border-blue-200 text-blue-900'
-                                  : 'bg-amber-50 border-amber-200 text-amber-900'
-                              }`}
-                              title="Click to view AI Match Breakdown & Skill Analysis"
-                            >
-                              <div className="text-[9px] uppercase font-black tracking-wider opacity-80 flex items-center gap-1 justify-center">
-                                <Sparkles className="w-2.5 h-2.5" /> NLP Match
-                              </div>
-                              <div className="text-xs font-black">
-                                {req.eligible ? `${req.matchScore}% Match` : 'Ineligible'}
-                              </div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {safeJsonArray(req.required_skills_json).map((sk, idx) => (
+                            <span key={idx} className="px-2.5 py-1 bg-slate-100/90 border border-slate-200 text-[11px] font-black text-slate-800 rounded-lg">
+                              {sk}
+                            </span>
+                          ))}
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2 text-[11px] text-slate-700 bg-slate-100/90 p-2.5 rounded-2xl border border-slate-200 font-bold">
+                          <div><span className="text-slate-500">Eligible:</span> <span className="text-slate-900 font-black">{safeJsonArray(req.eligible_programs_json).join(', ')}</span></div>
+                          <div><span className="text-slate-500">Min CGPA:</span> <span className="text-slate-900 font-black">{req.min_cgpa}</span></div>
+                          <div><span className="text-slate-500">CTC:</span> <span className="text-blue-900 font-black">{req.ctc_range}</span></div>
+                          <div><span className="text-slate-500">Deadline:</span> <span className="text-slate-900 font-black">{req.deadline}</span></div>
+                          {(req.company_email || req.contact_email) && (
+                            <div className="col-span-2 flex items-center gap-1.5 pt-1 border-t border-slate-200 mt-0.5">
+                              <Mail className="w-3 h-3 text-blue-700 shrink-0" />
+                              <span className="text-slate-500">HR Contact:</span>
+                              <a
+                                href={`mailto:${req.company_email || req.contact_email}`}
+                                className="text-blue-800 font-black hover:underline truncate"
+                                title={`Email ${req.company_name} HR`}
+                              >
+                                {req.company_email || req.contact_email}
+                              </a>
                             </div>
-                          ) : (
-                            <button 
-                              onClick={() => {
-                                if (onOpenAuthModal) onOpenAuthModal();
-                                else showToast({
-                                  type: 'info',
-                                  title: 'Resume Needed',
-                                  message: 'Please upload your resume in the Student Workspace to calculate your personalized NLP match score.',
-                                  triggerCrackles: false
-                                });
-                              }}
-                              className="px-3 py-1.5 rounded-2xl border border-amber-400/50 bg-amber-50 text-amber-900 font-black text-[11px] shrink-0 shadow-sm hover:bg-amber-100 flex items-center gap-1.5 cursor-pointer transition-all"
-                            >
-                              <Sparkles className="w-3.5 h-3.5 text-amber-600 animate-pulse" />
-                              <span>Match %</span>
-                            </button>
                           )}
                         </div>
+
                       </div>
 
-                      <p className="text-xs text-slate-700 leading-relaxed font-semibold line-clamp-2">{req.job_description}</p>
+                      <div className="pt-3 border-t border-slate-200/90 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2">
+                        <button
+                          onClick={() => startMockInterview(req)}
+                          className="flex-1 py-2.5 px-3 bg-slate-100 hover:bg-slate-200/80 border border-slate-200 text-slate-900 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 transition-all shadow-sm shrink-0 min-h-[42px]"
+                        >
+                          <Play className="w-3.5 h-3.5 text-blue-900 shrink-0" />
+                          <span>AI Mock Interview</span>
+                        </button>
 
-                      <div className="flex flex-wrap gap-1.5">
-                        {safeJsonArray(req.required_skills_json).map((sk, idx) => (
-                          <span key={idx} className="px-2.5 py-1 bg-slate-100/90 border border-slate-200 text-[11px] font-black text-slate-800 rounded-lg">
-                            {sk}
-                          </span>
-                        ))}
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-2 text-[11px] text-slate-700 bg-slate-100/90 p-2.5 rounded-2xl border border-slate-200 font-bold">
-                        <div><span className="text-slate-500">Eligible:</span> <span className="text-slate-900 font-black">{safeJsonArray(req.eligible_programs_json).join(', ')}</span></div>
-                        <div><span className="text-slate-500">Min CGPA:</span> <span className="text-slate-900 font-black">{req.min_cgpa}</span></div>
-                        <div><span className="text-slate-500">CTC:</span> <span className="text-blue-900 font-black">{req.ctc_range}</span></div>
-                        <div><span className="text-slate-500">Deadline:</span> <span className="text-slate-900 font-black">{req.deadline}</span></div>
-                        {(req.company_email || req.contact_email) && (
-                          <div className="col-span-2 flex items-center gap-1.5 pt-1 border-t border-slate-200 mt-0.5">
-                            <Mail className="w-3 h-3 text-blue-700 shrink-0" />
-                            <span className="text-slate-500">HR Contact:</span>
-                            <a
-                              href={`mailto:${req.company_email || req.contact_email}`}
-                              className="text-blue-800 font-black hover:underline truncate"
-                              title={`Email ${req.company_name} HR`}
+                        {isCompanyUser ? (
+                          (() => {
+                            const isOwnJob = (req.company_name && currentCompanyName && req.company_name.toLowerCase().trim() === currentCompanyName.toLowerCase().trim()) ||
+                                             (currentUser?.profile?.id && req.company_id === currentUser.profile.id);
+                            return isOwnJob ? (
+                              <button
+                                onClick={() => { window.location.hash = '#company'; }}
+                                className="flex-1 py-2.5 px-3 bg-blue-900 hover:bg-blue-800 text-white rounded-xl text-xs font-black flex items-center justify-center gap-1.5 transition-all shadow-md shrink-0 min-h-[42px] cursor-pointer"
+                                title="You posted this hiring requirement drive. Click to manage it in the Recruiter Portal."
+                              >
+                                <Building2 className="w-3.5 h-3.5 text-amber-300 shrink-0" />
+                                <span>Manage Your Drive</span>
+                              </button>
+                            ) : (
+                              <div
+                                className="flex-1 py-2.5 px-3 bg-slate-100 text-slate-500 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 border border-slate-200 min-h-[42px] select-none text-center"
+                                title="Company / Recruiter accounts cannot apply to other companies' postings"
+                              >
+                                <ShieldCheck className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                                <span>Recruiter View Only</span>
+                              </div>
+                            );
+                          })()
+                        ) : (
+                          <div className="flex items-center gap-2 flex-1">
+                            <button
+                              onClick={() => handleApplyClick(req)}
+                              disabled={!req.eligible || req.applications_open === 0}
+                              className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 transition-all shadow-md shrink-0 min-h-[42px] ${
+                                req.applications_open === 0
+                                  ? 'bg-slate-200 text-slate-500 cursor-not-allowed border border-slate-300'
+                                  : !req.eligible
+                                  ? 'bg-slate-200 text-slate-400 cursor-not-allowed border border-slate-300'
+                                  : 'bg-gradient-to-r from-blue-900 via-indigo-900 to-amber-600 hover:from-blue-800 hover:to-amber-500 text-white shadow-blue-900/20 cursor-pointer'
+                              }`}
                             >
-                              {req.company_email || req.contact_email}
-                            </a>
+                              {req.applications_open === 0 ? (
+                                <span>🔒 Applications Closed</span>
+                              ) : req.eligible ? (
+                                <><span>Apply Now</span> <ArrowRight className="w-3.5 h-3.5 shrink-0" /></>
+                              ) : (
+                                <span>{req.eligibilityReason || 'Ineligible'}</span>
+                              )}
+                            </button>
+
+                            {/* 📅 Add to Calendar Dropdown */}
+                            <div className="relative">
+                              <button
+                                type="button"
+                                onClick={() => setCalendarDropdownReqId(calendarDropdownReqId === req.id ? null : req.id)}
+                                className="p-2.5 bg-slate-100 hover:bg-blue-50 text-slate-700 hover:text-blue-900 border border-slate-200 rounded-xl text-xs font-black flex items-center justify-center cursor-pointer transition shadow-xs min-h-[42px]"
+                                title="Add to Google Calendar or Download .ics file"
+                              >
+                                <Calendar className="w-4 h-4" />
+                              </button>
+
+                              {calendarDropdownReqId === req.id && (
+                                <div className="absolute right-0 bottom-full mb-2 w-48 bg-white rounded-2xl border border-slate-200 shadow-xl p-2 z-30 space-y-1 animate-fadeIn">
+                                  <div className="text-[10px] font-black uppercase text-slate-400 px-2 py-1">
+                                    Sync Drive Deadline
+                                  </div>
+                                  <a
+                                    href={generateGoogleCalendarUrl({
+                                      title: `[Drive Deadline] ${req.company_name} — ${req.title}`,
+                                      description: `Placement Drive by ${req.company_name}.\nRole: ${req.title}\nPackage: ${req.ctc_range || 'Competitive'}\nEligible: ${req.eligible_programs_json || 'BTech'}\nApply via GSFC Placement Portal.`,
+                                      location: 'GSFC University TPC Portal / Campus Placement Hall',
+                                      startDate: req.deadline ? new Date(req.deadline) : new Date(Date.now() + 86400000 * 3)
+                                    })}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    onClick={() => setCalendarDropdownReqId(null)}
+                                    className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-bold text-slate-800 hover:bg-blue-50 hover:text-blue-900 flex items-center gap-2"
+                                  >
+                                    <span>🌐 Google Calendar</span>
+                                  </a>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      downloadIcsFile({
+                                        title: `[Drive Deadline] ${req.company_name} — ${req.title}`,
+                                        description: `Placement Drive by ${req.company_name}.\nRole: ${req.title}\nPackage: ${req.ctc_range || 'Competitive'}`,
+                                        location: 'GSFC University TPC Portal',
+                                        startDate: req.deadline ? new Date(req.deadline) : new Date(Date.now() + 86400000 * 3),
+                                        filename: `${req.company_name.replace(/[^a-z0-9]/gi, '_')}_drive_deadline.ics`
+                                      });
+                                      setCalendarDropdownReqId(null);
+                                    }}
+                                    className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-bold text-slate-800 hover:bg-blue-50 hover:text-blue-900 flex items-center gap-2 cursor-pointer"
+                                  >
+                                    <Download className="w-3.5 h-3.5 text-blue-900" />
+                                    <span>Download (.ics)</span>
+                                  </button>
+                                </div>
+                              )}
+                            </div>
                           </div>
                         )}
                       </div>
-
                     </div>
-
-                    <div className="pt-3 border-t border-slate-200/90 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2">
-                      <button
-                        onClick={() => startMockInterview(req)}
-                        className="flex-1 py-2.5 px-3 bg-slate-100 hover:bg-slate-200/80 border border-slate-200 text-slate-900 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 transition-all shadow-sm shrink-0 min-h-[42px]"
-                      >
-                        <Play className="w-3.5 h-3.5 text-blue-900 shrink-0" />
-                        <span>AI Mock Interview</span>
-                      </button>
-
-                      {isCompanyUser ? (
-                        (() => {
-                          const isOwnJob = (req.company_name && currentCompanyName && req.company_name.toLowerCase().trim() === currentCompanyName.toLowerCase().trim()) ||
-                                           (currentUser?.profile?.id && req.company_id === currentUser.profile.id);
-                          return isOwnJob ? (
-                            <button
-                              onClick={() => { window.location.hash = '#company'; }}
-                              className="flex-1 py-2.5 px-3 bg-blue-900 hover:bg-blue-800 text-white rounded-xl text-xs font-black flex items-center justify-center gap-1.5 transition-all shadow-md shrink-0 min-h-[42px] cursor-pointer"
-                              title="You posted this hiring requirement drive. Click to manage it in the Recruiter Portal."
-                            >
-                              <Building2 className="w-3.5 h-3.5 text-amber-300 shrink-0" />
-                              <span>Manage Your Drive</span>
-                            </button>
-                          ) : (
-                            <div
-                              className="flex-1 py-2.5 px-3 bg-slate-100 text-slate-500 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 border border-slate-200 min-h-[42px] select-none text-center"
-                              title="Company / Recruiter accounts cannot apply to other companies' postings"
-                            >
-                              <ShieldCheck className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                              <span>Recruiter View Only</span>
-                            </div>
-                          );
-                        })()
-                      ) : (
-                        <div className="flex items-center gap-2 flex-1">
-                          <button
-                            onClick={() => handleApplyClick(req)}
-                            disabled={!req.eligible || req.applications_open === 0}
-                            className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 transition-all shadow-md shrink-0 min-h-[42px] ${
-                              req.applications_open === 0
-                                ? 'bg-slate-200 text-slate-500 cursor-not-allowed border border-slate-300'
-                                : !req.eligible
-                                ? 'bg-slate-200 text-slate-400 cursor-not-allowed border border-slate-300'
-                                : 'bg-gradient-to-r from-blue-900 via-indigo-900 to-amber-600 hover:from-blue-800 hover:to-amber-500 text-white shadow-blue-900/20 cursor-pointer'
-                            }`}
-                          >
-                            {req.applications_open === 0 ? (
-                              <span>🔒 Applications Closed</span>
-                            ) : req.eligible ? (
-                              <><span>Apply Now</span> <ArrowRight className="w-3.5 h-3.5 shrink-0" /></>
-                            ) : (
-                              <span>{req.eligibilityReason || 'Ineligible'}</span>
-                            )}
-                          </button>
-
-                          {/* 📅 Add to Calendar Dropdown */}
-                          <div className="relative">
-                            <button
-                              type="button"
-                              onClick={() => setCalendarDropdownReqId(calendarDropdownReqId === req.id ? null : req.id)}
-                              className="p-2.5 bg-slate-100 hover:bg-blue-50 text-slate-700 hover:text-blue-900 border border-slate-200 rounded-xl text-xs font-black flex items-center justify-center cursor-pointer transition shadow-xs min-h-[42px]"
-                              title="Add to Google Calendar or Download .ics file"
-                            >
-                              <Calendar className="w-4 h-4" />
-                            </button>
-
-                            {calendarDropdownReqId === req.id && (
-                              <div className="absolute right-0 bottom-full mb-2 w-48 bg-white rounded-2xl border border-slate-200 shadow-xl p-2 z-30 space-y-1 animate-fadeIn">
-                                <div className="text-[10px] font-black uppercase text-slate-400 px-2 py-1">
-                                  Sync Drive Deadline
-                                </div>
-                                <a
-                                  href={generateGoogleCalendarUrl({
-                                    title: `[Drive Deadline] ${req.company_name} — ${req.title}`,
-                                    description: `Placement Drive by ${req.company_name}.\nRole: ${req.title}\nPackage: ${req.ctc_range || 'Competitive'}\nEligible: ${req.eligible_programs_json || 'BTech'}\nApply via GSFC Placement Portal.`,
-                                    location: 'GSFC University TPC Portal / Campus Placement Hall',
-                                    startDate: req.deadline ? new Date(req.deadline) : new Date(Date.now() + 86400000 * 3)
-                                  })}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  onClick={() => setCalendarDropdownReqId(null)}
-                                  className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-bold text-slate-800 hover:bg-blue-50 hover:text-blue-900 flex items-center gap-2"
-                                >
-                                  <span>🌐 Google Calendar</span>
-                                </a>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    downloadIcsFile({
-                                      title: `[Drive Deadline] ${req.company_name} — ${req.title}`,
-                                      description: `Placement Drive by ${req.company_name}.\nRole: ${req.title}\nPackage: ${req.ctc_range || 'Competitive'}`,
-                                      location: 'GSFC University TPC Portal',
-                                      startDate: req.deadline ? new Date(req.deadline) : new Date(Date.now() + 86400000 * 3),
-                                      filename: `${req.company_name.replace(/[^a-z0-9]/gi, '_')}_drive_deadline.ics`
-                                    });
-                                    setCalendarDropdownReqId(null);
-                                  }}
-                                  className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-bold text-slate-800 hover:bg-blue-50 hover:text-blue-900 flex items-center gap-2 cursor-pointer"
-                                >
-                                  <Download className="w-3.5 h-3.5 text-blue-900" />
-                                  <span>Download (.ics)</span>
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
