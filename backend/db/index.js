@@ -1728,6 +1728,9 @@ function applyMigrations() {
     if (!studProfileCols.includes('profile_completion_pct')) {
       db.exec("ALTER TABLE student_profiles ADD COLUMN profile_completion_pct INTEGER DEFAULT 85");
     }
+    if (!studProfileCols.includes('profile_completion')) {
+      db.exec("ALTER TABLE student_profiles ADD COLUMN profile_completion INTEGER DEFAULT 85");
+    }
     if (!studProfileCols.includes('last_login_at')) {
       db.exec("ALTER TABLE student_profiles ADD COLUMN last_login_at DATETIME");
     }

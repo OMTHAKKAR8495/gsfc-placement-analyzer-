@@ -228,8 +228,8 @@ router.post('/register', AuthRateLimiter.registerLimiter, async (req, res) => {
       const finalPassingYear = parseInt(req.body.passing_year || authRecord?.passing_year || 2026, 10);
 
       db.prepare(`
-        INSERT INTO student_profiles (id, user_id, roll_number, name, phone, program, branch, cgpa, admission_year, passing_year, access_status, is_authorized, profile_completion)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', 1, 75)
+        INSERT INTO student_profiles (id, user_id, roll_number, name, phone, program, branch, cgpa, admission_year, passing_year, access_status, is_authorized, profile_completion_pct, profile_completion)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', 1, 75, 75)
       `).run(
         studentId,
         userId,
