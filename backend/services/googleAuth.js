@@ -40,6 +40,32 @@ export async function verifyGoogleIdToken(idToken) {
     }
   }
 
+  // 2. Check if token is a Google OAuth2 Access Token (e.g. ya29...)
+  if (idToken.startsWith('ya29.') || idToken.length < 500 && !idToken.includes('.')) {
+    try {
+      const userInfoRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+        headers: { Authorization: `Bearer ${idToken}` }
+      });
+      if (userInfoRes.ok) {
+        const info = await userInfoRes.json();
+        if (info && info.email) {
+          return {
+            sub: info.sub || ('google_sub_' + Math.random().toString(36).substring(2, 10)),
+            email: (info.email || '').toLowerCase().trim(),
+            email_verified: Boolean(info.email_verified),
+            name: info.name || `${info.given_name || ''} ${info.family_name || ''}`.trim() || 'Google User',
+            given_name: info.given_name || '',
+            family_name: info.family_name || '',
+            picture: info.picture || null,
+            hd: info.hd || (info.email ? info.email.split('@')[1] : null)
+          };
+        }
+      }
+    } catch(e) {
+      // Fall through to ID token verify
+    }
+  }
+
   // 2. Cryptographic verification with Google's public keys via OAuth2Client
   if (!GOOGLE_CLIENT_ID && process.env.NODE_ENV !== 'test') {
     console.warn('⚠️ GOOGLE_CLIENT_ID environment variable is not configured. Token verification may fail unless test tokens are used.');
