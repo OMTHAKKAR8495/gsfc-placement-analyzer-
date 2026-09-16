@@ -12,6 +12,7 @@
   "dependencies": {
     "@google/generative-ai": "^0.17.1",
     "@libsql/client": "^0.17.4",
+    "@supabase/supabase-js": "^2.116.0",
     "bcryptjs": "^2.4.3",
     "better-sqlite3": "^11.1.2",
     "cookie-parser": "^1.4.7",

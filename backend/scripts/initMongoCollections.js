@@ -274,22 +274,7 @@ export async function initializeMongoDatabase() {
         console.log(`   ✓ Collection "${schema.name}" already exists.`);
       }
 
-      const collection = db.collection(schema.name);
 
-      // Create Indexes
-      if (schema.indexes && schema.indexes.length > 0) {
-        for (const idx of schema.indexes) {
-          try {
-            await collection.createIndex(idx.key, { unique: Boolean(idx.unique) });
-          } catch(ie) {
-            // Index might already exist with different name
-          }
-        }
-        console.log(`   ⚡ Configured ${schema.indexes.length} database indexes.`);
-      }
-
-      // Insert sample initial document if collection is completely empty
-      const count = await collection.countDocuments();
       if (count === 0 && schema.sampleDoc) {
         await collection.insertOne(schema.sampleDoc);
         console.log(`   📄 Inserted initial seed document.`);
