@@ -476,6 +476,7 @@ function App() {
   };
 
   const handleLogout = () => {
+    currentUserRef.current = null;
     localStorage.removeItem('campushire_token');
     localStorage.removeItem('campushire_user');
     localStorage.removeItem('gsfc_active_workspace');
@@ -490,6 +491,7 @@ function App() {
   };
 
   const handleAuthSuccess = (userData) => {
+    currentUserRef.current = userData;
     setIsGuestBrowsing(false);
     const userEmail = (userData?.email || userData?.profile?.email || '').toLowerCase();
     

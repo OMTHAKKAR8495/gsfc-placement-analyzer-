@@ -265,18 +265,22 @@ export default function GSFCDigitalCampusLoginPage({ onLoginSuccess, onGuestBrow
     return raw.toLowerCase();
   };
 
-  const handleLogin = async (e) => {
+  const handleLogin = async (e, customAccount = null) => {
     if (e && e.preventDefault) e.preventDefault();
     setError('');
     setLoading(true);
 
-    const fullEmail = getFullEmail();
+    const fullEmail = customAccount ? customAccount.email : getFullEmail();
+    const loginPass = customAccount ? customAccount.password : password;
+    const activeRoleCfg = customAccount ? (PORTAL_ROLES.find(r => r.id === customAccount.roleId) || currentRoleConfig) : currentRoleConfig;
+    const currentUsername = customAccount ? customAccount.username : username;
+
     if (!fullEmail) {
       setError('Please enter your Username / University Email.');
       setLoading(false);
       return;
     }
-    if (!password) {
+    if (!loginPass) {
       setError('Please enter your Password.');
       setLoading(false);
       return;
@@ -288,8 +292,8 @@ export default function GSFCDigitalCampusLoginPage({ onLoginSuccess, onGuestBrow
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           email: fullEmail,
-          password: password,
-          selectedRole: currentRoleConfig.role
+          password: loginPass,
+          selectedRole: activeRoleCfg.role
         })
       });
 
@@ -298,8 +302,9 @@ export default function GSFCDigitalCampusLoginPage({ onLoginSuccess, onGuestBrow
       if (res.ok && data?.user) {
         localStorage.setItem('campushire_token', data.token);
         localStorage.setItem('gsfc_last_login_username', fullEmail);
-        localStorage.setItem('gsfc_dcs_saved_password', password);
+        localStorage.setItem('gsfc_dcs_saved_password', loginPass);
         localStorage.setItem('gsfc_candidate_email', fullEmail);
+        setLoading(false);
         if (onLoginSuccess) {
           onLoginSuccess(data.user);
         }
@@ -308,25 +313,28 @@ export default function GSFCDigitalCampusLoginPage({ onLoginSuccess, onGuestBrow
 
       if (res.status === 401 && data?.incorrectPassword) {
         setError('Incorrect password. Please check your credentials and try again.');
+        setLoading(false);
         return;
       }
 
       // Fallback for offline / guest persona access
-      const fallbackUser = createFallbackUser(currentRoleConfig, fullEmail, username);
+      const fallbackUser = createFallbackUser(activeRoleCfg, fullEmail, currentUsername);
       localStorage.setItem('campushire_token', 'demo_token_' + Date.now());
       localStorage.setItem('gsfc_last_login_username', fullEmail);
-      localStorage.setItem('gsfc_dcs_saved_password', password);
+      localStorage.setItem('gsfc_dcs_saved_password', loginPass);
       localStorage.setItem('gsfc_candidate_email', fullEmail);
+      setLoading(false);
       if (onLoginSuccess) {
         onLoginSuccess(fallbackUser);
       }
     } catch (err) {
       // Offline fallback
-      const fallbackUser = createFallbackUser(currentRoleConfig, fullEmail, username);
+      const fallbackUser = createFallbackUser(activeRoleCfg, fullEmail, currentUsername);
       localStorage.setItem('campushire_token', 'demo_token_' + Date.now());
       localStorage.setItem('gsfc_last_login_username', fullEmail);
-      localStorage.setItem('gsfc_dcs_saved_password', password);
+      localStorage.setItem('gsfc_dcs_saved_password', loginPass);
       localStorage.setItem('gsfc_candidate_email', fullEmail);
+      setLoading(false);
       if (onLoginSuccess) {
         onLoginSuccess(fallbackUser);
       }
@@ -340,10 +348,16 @@ export default function GSFCDigitalCampusLoginPage({ onLoginSuccess, onGuestBrow
     const target = PORTAL_ROLES.find(r => r.id === roleId);
     if (!target) return;
 
-    setLoading(true);
-    setTimeout(() => {
-      handleLogin();
-    }, 150);
+    const email = target.requiresGsfcDomain 
+      ? `${target.defaultUsername.toLowerCase()}@gsfcuniversity.ac.in`
+      : target.defaultUsername.toLowerCase();
+
+    handleLogin(null, {
+      email,
+      password: target.defaultPass,
+      roleId: target.id,
+      username: target.defaultUsername
+    });
   };
 
   return (

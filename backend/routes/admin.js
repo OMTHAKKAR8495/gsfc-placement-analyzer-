@@ -1885,17 +1885,28 @@ router.post('/approve-company', (req, res) => {
     }
 
     if (action === 'approve') {
-      db.prepare('UPDATE company_profiles SET approved = 1 WHERE id = ?').run(company_id);
-      return res.json({ message: 'Company account approved! Recruiter can now post hiring requirements.' });
+      db.prepare('UPDATE company_profiles SET approved = 1, verified = 1 WHERE id = ?').run(company_id);
+      return res.json({ success: true, message: 'Company account approved! Recruiter can now post hiring requirements.' });
     } else {
       const company = db.prepare('SELECT user_id FROM company_profiles WHERE id = ?').get(company_id);
-      if (company) {
-        db.prepare('DELETE FROM company_profiles WHERE id = ?').run(company_id);
+      
+      // Cascade delete associated records
+      const reqs = db.prepare('SELECT id FROM requirements WHERE company_id = ?').all(company_id);
+      for (const r of reqs) {
+        db.prepare('DELETE FROM applications WHERE requirement_id = ?').run(r.id);
+        db.prepare('DELETE FROM interview_question_sets WHERE requirement_id = ?').run(r.id);
+        db.prepare('DELETE FROM mock_interview_sessions WHERE requirement_id = ?').run(r.id);
+      }
+      db.prepare('DELETE FROM requirements WHERE company_id = ?').run(company_id);
+      db.prepare('DELETE FROM company_student_mails WHERE company_name IN (SELECT company_name FROM company_profiles WHERE id = ?)').run(company_id);
+      db.prepare('DELETE FROM company_profiles WHERE id = ?').run(company_id);
+      if (company && company.user_id) {
         db.prepare('DELETE FROM users WHERE id = ?').run(company.user_id);
       }
-      return res.json({ message: 'Company registration rejected and removed.' });
+      return res.json({ success: true, message: 'Company registration rejected and removed.' });
     }
   } catch (err) {
+    console.error('Error in approve-company route:', err);
     res.status(500).json({ error: err.message });
   }
 });

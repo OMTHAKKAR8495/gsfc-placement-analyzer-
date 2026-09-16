@@ -95,6 +95,13 @@ async function runCrmTests() {
   assert(aicteCsv.includes('GSFC University'), 'AICTE CSV must contain institution name');
   console.log(`   ✅ AICTE-CII Placement Survey Report formatted properly.`);
 
+  // Cleanup test artifacts
+  db.prepare('DELETE FROM applications WHERE id = ?').run(testAppId);
+  db.prepare('DELETE FROM requirements WHERE id = ?').run(testReqId);
+  db.prepare('DELETE FROM company_profiles WHERE id = ?').run(testCompanyId);
+  db.prepare('DELETE FROM student_profiles WHERE id = ?').run(testStudentId);
+  db.prepare('DELETE FROM users WHERE id = ?').run(testUserId);
+
   console.log('\n🎉 Phase 5 Test Suite Passed with 100% Assertion Success!\n');
 }
 

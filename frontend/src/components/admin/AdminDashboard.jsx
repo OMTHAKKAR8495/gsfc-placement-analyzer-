@@ -1211,7 +1211,16 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
       const pendingData = await pendingRes.json();
       const analyticsData = await analyticsRes.json();
 
-      setPendingCompanies(Array.isArray(pendingData) ? pendingData : []);
+      let dismissed = [];
+      try {
+        dismissed = JSON.parse(localStorage.getItem('gsfc_dismissed_pending_companies') || '[]');
+      } catch(e) {}
+
+      const cleanPending = Array.isArray(pendingData) 
+        ? pendingData.filter(c => c && !dismissed.includes(c.id))
+        : [];
+
+      setPendingCompanies(cleanPending);
       setAnalytics(analyticsData && !analyticsData.error ? analyticsData : null);
       fetchPendingAlumni();
     } catch (err) {
@@ -1286,9 +1295,15 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
   const handleApproveRejectCompany = async (companyId, action) => {
     const targetComp = pendingCompanies.find(c => c.id === companyId) || { company_name: 'Recruiter Partner' };
 
-    const updatedPending = pendingCompanies.filter(c => c.id !== companyId);
-    setPendingCompanies(updatedPending);
+    setPendingCompanies(prev => prev.filter(c => c.id !== companyId));
+
     try {
+      const dismissed = JSON.parse(localStorage.getItem('gsfc_dismissed_pending_companies') || '[]');
+      if (!dismissed.includes(companyId)) {
+        dismissed.push(companyId);
+        localStorage.setItem('gsfc_dismissed_pending_companies', JSON.stringify(dismissed));
+      }
+      const updatedPending = pendingCompanies.filter(c => c.id !== companyId);
       localStorage.setItem('gsfc_pending_companies', JSON.stringify(updatedPending));
     } catch(e) {}
 
@@ -1306,29 +1321,35 @@ export default function AdminDashboard({ currentUser, onAdminAuthSuccess }) {
           ...targetComp,
           status: 'Active Verified',
           verified: 1,
+          approved: 1,
           created_at: new Date().toISOString()
         };
         const existing = (prev.companies || []).filter(c => c.id !== companyId);
         return { ...prev, companies: [newApproved, ...existing] };
       });
-    } else {
-      alert(`⚠️ Recruiter registration request for "${targetComp.company_name}" has been declined.`);
     }
 
     try {
-      await fetch('/api/admin/approve-company', {
+      const res = await fetch('/api/admin/approve-company', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ company_id: companyId, action })
       });
-    } catch (err) {}
+      if (res.ok) {
+        fetchAdminDataSilently();
+        fetchMasterData();
+      }
+    } catch (err) {
+      console.error('Error approving/rejecting company:', err);
+    }
   };
 
   const handleResetDemoCompanies = () => {
-    setPendingCompanies(DEFAULT_PENDING_COMPANIES);
     try {
+      localStorage.removeItem('gsfc_dismissed_pending_companies');
       localStorage.setItem('gsfc_pending_companies', JSON.stringify(DEFAULT_PENDING_COMPANIES));
     } catch(e) {}
+    setPendingCompanies(DEFAULT_PENDING_COMPANIES);
   };
 
   const handleDeleteCompany = async (companyId, companyName) => {
