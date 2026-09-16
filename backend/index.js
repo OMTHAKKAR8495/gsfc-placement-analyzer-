@@ -1,3 +1,12 @@
+import path from 'path';
+import { fileURLToPath } from 'url';
+import dotenv from 'dotenv';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+dotenv.config({ path: path.resolve(__dirname, '.env') });
+dotenv.config();
+
 import express from 'express';
 import http from 'http';
 import fs from 'fs';
@@ -5,8 +14,6 @@ import { Server as SocketIOServer } from 'socket.io';
 import cors from 'cors';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
-import path from 'path';
-import { fileURLToPath } from 'url';
 import db, { initDatabase } from './db/index.js';
 import { AuthRateLimiter } from './middleware/security.js';
 import { verifyCsrfToken } from './middleware/authMiddleware.js';
@@ -38,9 +45,6 @@ import subscriptionRoutes from './routes/subscriptions.js';
 import adminSubscriptionRoutes from './routes/adminSubscriptions.js';
 
 
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 const app = express();
 const server = http.createServer(app);
@@ -407,10 +411,15 @@ process.on('uncaughtException', (err) => {
   }
 });
 
+import { connectMongoDB } from './services/mongoDbService.js';
+
 const isMain = process.argv[1] && (fileURLToPath(import.meta.url) === process.argv[1] || process.argv[1].endsWith('backend/index.js') || process.argv[1].endsWith('index.js'));
 if (isMain && !process.env.VERCEL) {
-  server.listen(PORT, () => {
+  server.listen(PORT, async () => {
     console.log(`🚀 CampusHire AI Backend Server running with WebRTC Signaling Hub at http://localhost:${PORT}`);
+    if (process.env.MONGODB_URI) {
+      await connectMongoDB();
+    }
   });
 }
 
