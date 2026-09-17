@@ -108,6 +108,7 @@ export default function GSFCDigitalCampusLoginPage({ onLoginSuccess, onGuestBrow
   // Automatically prefill user's stored ID & password from prior session
   const getInitialAccount = () => {
     try {
+      const savedPass = localStorage.getItem('gsfc_dcs_saved_password');
       const savedUser = localStorage.getItem('campushire_user');
       if (savedUser) {
         const u = JSON.parse(savedUser);
@@ -117,7 +118,7 @@ export default function GSFCDigitalCampusLoginPage({ onLoginSuccess, onGuestBrow
           return {
             roleId: isStudent ? 'student_roll' : (u.role || 'student_roll'),
             username: isDomain ? u.email.replace('@gsfcuniversity.ac.in', '') : u.email,
-            password: '',
+            password: savedPass || 'password123',
             appendDomain: isDomain
           };
         }
@@ -125,8 +126,8 @@ export default function GSFCDigitalCampusLoginPage({ onLoginSuccess, onGuestBrow
     } catch(e) {}
     return {
       roleId: 'student_roll',
-      username: '',
-      password: '',
+      username: '24bt04171',
+      password: 'password123',
       appendDomain: true
     };
   };
