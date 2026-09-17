@@ -9,6 +9,20 @@ on:
 jobs:
   backend-test:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgrespassword
+          POSTGRES_DB: gsfc_test_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - name: Checkout Codebase
         uses: actions/checkout@v4
@@ -24,6 +38,10 @@ jobs:
           npm --prefix backend install
 
       - name: Run Backend Tests & Verification Suite
+        env:
+          DATABASE_URL: postgres://postgres:postgrespassword@localhost:5432/gsfc_test_db
+          NODE_ENV: test
+          JWT_SECRET: test_jwt_secret_gsfc_2026_super_secure
         run: |
           node backend/tests/verify_fixes_and_features.js
           node backend/tests/test_interview_adaptive_engine.js

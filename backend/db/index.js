@@ -10,15 +10,19 @@ const __dirname = path.dirname(__filename);
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
 dotenv.config();
 
+import fs from 'fs';
+
 const connectionString = process.env.DATABASE_URL || process.env.SUPABASE_DB_URL;
 
 if (!connectionString) {
   throw new Error('FATAL: DATABASE_URL (or SUPABASE_DB_URL) is not set in environment. Refusing to boot without Supabase Postgres connection.');
 }
 
+const isLocal = connectionString.includes('localhost') || connectionString.includes('127.0.0.1') || connectionString.includes('sslmode=disable') || connectionString.includes('postgres:5432');
+
 export const pool = new Pool({
   connectionString,
-  ssl: { rejectUnauthorized: false },
+  ssl: isLocal ? false : { rejectUnauthorized: false },
   max: parseInt(process.env.PG_MAX_CONNECTIONS || '20', 10),
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 20000,
@@ -230,8 +234,22 @@ export function getPoolStats() {
   };
 }
 
-export function initDatabase() {
+export async function initDatabase() {
   console.log('🍃 [Supabase Postgres]: Database connection layer initialized with connection pooling.');
+  try {
+    const tableCheck = await pool.query("SELECT to_regclass('public.users') as exists");
+    if (!tableCheck.rows[0]?.exists) {
+      console.log('📦 Database tables not found. Applying backend/db/schema.postgres.sql...');
+      const schemaPath = path.resolve(__dirname, 'schema.postgres.sql');
+      if (fs.existsSync(schemaPath)) {
+        const sql = fs.readFileSync(schemaPath, 'utf8');
+        await pool.query(sql);
+        console.log('✅ Master Postgres schema created successfully.');
+      }
+    }
+  } catch (err) {
+    console.warn('⚠️ [Database Auto-Init]:', err.message);
+  }
 }
 
 export default db;
