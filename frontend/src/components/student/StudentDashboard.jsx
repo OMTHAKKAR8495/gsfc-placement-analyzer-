@@ -253,20 +253,21 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
       if (savedUserStr) {
         const u = JSON.parse(savedUserStr);
         const nameVal = u.profile?.name || u.name;
-        if (nameVal) return ensureString(nameVal, 'Thakkar Om');
+        if (nameVal) return ensureString(nameVal, 'Student');
       }
       const directSaved = localStorage.getItem('gsfc_candidate_name');
-      if (directSaved) return ensureString(directSaved, 'Thakkar Om');
+      if (directSaved) return ensureString(directSaved, 'Student');
     } catch(e) {}
-    return ensureString(student?.name, 'Thakkar Om');
+    return ensureString(student?.name || currentUser?.profile?.name || currentUser?.name, 'Student');
   });
-  const [candidateEmail, setCandidateEmail] = useState('thakkar_om@gmail.com');
+  const [candidateEmail, setCandidateEmail] = useState(() => {
+    return currentUser?.email || student?.email || student?.university_email || 'student@gsfcuniversity.ac.in';
+  });
   const [candidatePhone, setCandidatePhone] = useState(() => {
     if (!currentUser) return '';
     try {
       const savedUserStr = localStorage.getItem('campushire_user');
       const email = (currentUser?.email || student?.email || '').toLowerCase();
-      const isOm = email.includes('24bt04171') || email.includes('thakkar_om');
 
       if (savedUserStr) {
         const u = JSON.parse(savedUserStr);
@@ -281,7 +282,6 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
         }
       }
       if (student?.phone) return ensureString(student.phone, '');
-      return isOm ? '+91 95584 13347' : '';
     } catch(e) {}
     return '';
   });
@@ -1160,12 +1160,14 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
     setMockSessionActive(true);
   };
 
-  // Safe Skills Array Extractor
-  let skillsList = ['C#', 'Go', 'Git', 'GitHub', 'ETL', 'Python', 'SQL'];
-  if (student?.parsed_resume_json) {
+  // Safe Skills Array Extractor - empty by default unless real skills exist in profile or parsed resume
+  let skillsList = [];
+  if (Array.isArray(student?.skills) && student.skills.length > 0) {
+    skillsList = student.skills;
+  } else if (student?.parsed_resume_json) {
     try {
       const parsed = typeof student.parsed_resume_json === 'string' ? JSON.parse(student.parsed_resume_json) : student.parsed_resume_json;
-      if (parsed.skills) {
+      if (parsed?.skills) {
         if (Array.isArray(parsed.skills)) skillsList = parsed.skills;
         else if (typeof parsed.skills === 'string') skillsList = parsed.skills.split(',').map(s=>s.trim()).filter(Boolean);
       }
@@ -1173,6 +1175,16 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
       console.warn('Error parsing skills JSON:', err);
     }
   }
+
+  const hasUploadedResume = Boolean(
+    student?.resume_url || 
+    (student?.parsed_resume_json && (
+      typeof student.parsed_resume_json === 'object' 
+        ? Object.keys(student.parsed_resume_json).length > 0
+        : student.parsed_resume_json.length > 2
+    )) ||
+    skillsList.length > 0
+  );
 
   const filteredFeed = requirementsFeed.filter(r => {
     const titleMatch = (r.title || '').toLowerCase().includes(searchQuery.toLowerCase());
@@ -2119,145 +2131,162 @@ export default function StudentDashboard({ student, currentUser, onUpdateStudent
                 </div>
               )}
 
-              {/* 2. Active Candidate Badge Bar */}
-              <div className="p-4 bg-white/90 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-2xl bg-blue-900 text-white font-black text-base flex items-center justify-center shadow-md">
-                    {String(candidateName || 'T').slice(0, 1).toUpperCase()}
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-black text-sm text-slate-900">{String(candidateName || 'Candidate')}</span>
-                      <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 text-[10px] font-black rounded-md border border-emerald-300">
-                        Active Candidate
-                      </span>
+              {/* 2. Candidate Resume Analysis & Skills (Only shown when a resume has been uploaded / parsed) */}
+              {hasUploadedResume ? (
+                <>
+                  {/* Active Candidate Badge Bar */}
+                  <div className="p-4 bg-white/90 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-2xl bg-blue-900 text-white font-black text-base flex items-center justify-center shadow-md">
+                        {String(candidateName || 'S').slice(0, 1).toUpperCase()}
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-black text-sm text-slate-900">{String(candidateName || 'Candidate')}</span>
+                          <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 text-[10px] font-black rounded-md border border-emerald-300">
+                            Active Candidate
+                          </span>
+                        </div>
+                        <div className="text-xs text-slate-600 font-bold mt-0.5">
+                          {student?.program || 'Placement Candidate'} • {skillsList.length} Technical Skills Extracted
+                        </div>
+                      </div>
                     </div>
-                    <div className="text-xs text-slate-600 font-bold mt-0.5">
-                      Software & Tech Professional • {skillsList.length} Technical Skills Extracted
-                    </div>
-                  </div>
-                </div>
 
-                <div className="px-3 py-1.5 bg-amber-50 border border-amber-200 text-amber-900 text-xs font-black rounded-xl shrink-0">
-                  Experience: <span className="text-amber-800 font-black">~1 Years</span>
-                </div>
-              </div>
-
-              {/* 3. Extracted Candidate Analysis Report Box */}
-              <div className="glass-panel p-5 sm:p-6 rounded-3xl border border-slate-200/90 space-y-5 bg-white/95">
-                {/* Header Title & Action Buttons (Save DB, Download PDF, Mail Report) */}
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b border-slate-200">
-                  <div>
-                    <div className="text-xs font-black text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
-                      <span>Verified Candidate Name:</span>
-                      <span className="px-1.5 py-0.5 bg-emerald-100 text-emerald-800 text-[9px] font-black rounded-md border border-emerald-300 flex items-center gap-1">
-                        <CheckCircle2 className="w-2.5 h-2.5 text-emerald-600" /> TPC Verified
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2 mt-0.5">
-                      <h2 className="text-xl font-black text-slate-900">{candidateName}</h2>
-                      <span className="px-2 py-0.5 bg-slate-100 text-slate-500 text-[10px] font-bold rounded-lg border border-slate-200 flex items-center gap-1">
-                        <Lock className="w-3 h-3 text-slate-400" /> Locked by TPC
-                      </span>
+                    <div className="px-3 py-1.5 bg-amber-50 border border-amber-200 text-amber-900 text-xs font-black rounded-xl shrink-0">
+                      Passing Year: <span className="text-amber-800 font-black">{student?.passing_year || '2026'}</span>
                     </div>
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-2">
-                    <button
-                      onClick={handleDownloadPDF}
-                      className="py-2 px-4 bg-gradient-to-r from-blue-900 to-indigo-900 hover:from-blue-800 hover:to-indigo-800 text-white rounded-xl text-xs font-black flex items-center gap-2 shadow-md hover:scale-105 transition-all min-h-[38px] cursor-pointer"
-                    >
-                      <Printer className="w-4 h-4 text-amber-300 shrink-0" />
-                      <span>Download My ATS PDF Report</span>
-                    </button>
-                  </div>
-                </div>
+                  {/* Extracted Candidate Analysis Report Box */}
+                  <div className="glass-panel p-5 sm:p-6 rounded-3xl border border-slate-200/90 space-y-5 bg-white/95">
+                    {/* Header Title & Action Buttons */}
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b border-slate-200">
+                      <div>
+                        <div className="text-xs font-black text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+                          <span>Verified Candidate Name:</span>
+                          <span className="px-1.5 py-0.5 bg-emerald-100 text-emerald-800 text-[9px] font-black rounded-md border border-emerald-300 flex items-center gap-1">
+                            <CheckCircle2 className="w-2.5 h-2.5 text-emerald-600" /> TPC Verified
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <h2 className="text-xl font-black text-slate-900">{candidateName}</h2>
+                          <span className="px-2 py-0.5 bg-slate-100 text-slate-500 text-[10px] font-bold rounded-lg border border-slate-200 flex items-center gap-1">
+                            <Lock className="w-3 h-3 text-slate-400" /> Locked by TPC
+                          </span>
+                        </div>
+                      </div>
 
-                {dbSaveConfirmation && (
-                  <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-900 text-xs font-black flex items-center justify-between gap-2 animate-fadeIn">
-                    <div className="flex items-center gap-2">
-                      <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
-                      <span>{dbSaveConfirmation.message}</span>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <button
+                          onClick={handleDownloadPDF}
+                          className="py-2 px-4 bg-gradient-to-r from-blue-900 to-indigo-900 hover:from-blue-800 hover:to-indigo-800 text-white rounded-xl text-xs font-black flex items-center gap-2 shadow-md hover:scale-105 transition-all min-h-[38px] cursor-pointer"
+                        >
+                          <Printer className="w-4 h-4 text-amber-300 shrink-0" />
+                          <span>Download My ATS PDF Report</span>
+                        </button>
+                      </div>
                     </div>
-                    <span className="text-[10px] text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded font-mono font-bold">
-                      Record ID: {dbSaveConfirmation.db_record_id}
-                    </span>
-                  </div>
-                )}
 
-                {/* FINAL SELECTION DECISION BANNER */}
-                <div className="p-4 bg-slate-900 text-white rounded-2xl border border-slate-800 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-lg">
-                  <div className="space-y-1">
-                    <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
-                      FINAL SELECTION DECISION FOR {String(candidateName || 'CANDIDATE').toUpperCase()}:
-                    </span>
-                    <div className="flex items-center gap-2">
-                      <span className="px-3 py-1 bg-emerald-500/20 border border-emerald-400 text-emerald-300 font-black text-sm rounded-xl flex items-center gap-1.5">
-                        <Award className="w-4 h-4 text-emerald-400" />
-                        PASS (ELIGIBLE FOR PLACEMENT)
-                      </span>
-                    </div>
-                  </div>
-
-                  <p className="text-xs text-slate-300 font-bold max-w-md leading-relaxed">
-                    Candidate fulfills core foundational requirements. Company condition is favorable for hiring with targeted on-the-job improvement.
-                  </p>
-                </div>
-
-                {/* CANDIDATE INFO & CONTACT DETAILS GRID */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs font-bold">
-                  <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
-                    <span className="text-slate-500 block text-[10px] font-black uppercase">Candidate Name</span>
-                    <span className="text-slate-900 font-black text-sm">{candidateName}</span>
-                  </div>
-
-                  <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
-                    <div className="flex items-center justify-between">
-                      <span className="text-slate-500 block text-[10px] font-black uppercase">Contact Email & Phone</span>
-                      <button onClick={() => setIsEditingEmail(!isEditingEmail)} className="text-[10px] text-blue-900 hover:underline font-black">
-                        {isEditingEmail ? 'Done' : 'Edit Email'}
-                      </button>
-                    </div>
-                    {isEditingEmail ? (
-                      <input
-                        type="email"
-                        value={candidateEmail}
-                        onChange={(e) => setCandidateEmail(e.target.value)}
-                        onBlur={() => setIsEditingEmail(false)}
-                        className="w-full mt-1 px-2 py-1 border border-blue-900 rounded text-xs font-bold text-slate-900"
-                        autoFocus
-                      />
-                    ) : (
-                      <div className="mt-0.5 space-y-0.5">
-                        <span className="text-blue-900 font-black text-xs block truncate">{candidateEmail}</span>
-                        {candidatePhone && (
-                          <span className="text-slate-600 font-bold text-[11px] block">{candidatePhone}</span>
-                        )}
+                    {dbSaveConfirmation && (
+                      <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-900 text-xs font-black flex items-center justify-between gap-2 animate-fadeIn">
+                        <div className="flex items-center gap-2">
+                          <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
+                          <span>{dbSaveConfirmation.message}</span>
+                        </div>
+                        <span className="text-[10px] text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded font-mono font-bold">
+                          Record ID: {dbSaveConfirmation.db_record_id}
+                        </span>
                       </div>
                     )}
-                  </div>
 
-                  <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
-                    <span className="text-slate-500 block text-[10px] font-black uppercase">Professional Title</span>
-                    <span className="text-slate-900 font-black text-sm block mt-0.5">Software & Tech Professional</span>
+                    {/* FINAL SELECTION DECISION BANNER */}
+                    <div className="p-4 bg-slate-900 text-white rounded-2xl border border-slate-800 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-lg">
+                      <div className="space-y-1">
+                        <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                          FINAL SELECTION DECISION FOR {String(candidateName || 'CANDIDATE').toUpperCase()}:
+                        </span>
+                        <div className="flex items-center gap-2">
+                          <span className="px-3 py-1 bg-emerald-500/20 border border-emerald-400 text-emerald-300 font-black text-sm rounded-xl flex items-center gap-1.5">
+                            <Award className="w-4 h-4 text-emerald-400" />
+                            {student?.ats_score && student.ats_score >= 60 ? 'PASS (ELIGIBLE FOR PLACEMENT)' : 'PROFILE IN REVIEW'}
+                          </span>
+                        </div>
+                      </div>
+
+                      <p className="text-xs text-slate-300 font-bold max-w-md leading-relaxed">
+                        Candidate fulfills core foundational requirements. Company condition is favorable for hiring with targeted on-the-job improvement.
+                      </p>
+                    </div>
+
+                    {/* CANDIDATE INFO & CONTACT DETAILS GRID */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs font-bold">
+                      <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
+                        <span className="text-slate-500 block text-[10px] font-black uppercase">Candidate Name</span>
+                        <span className="text-slate-900 font-black text-sm">{candidateName}</span>
+                      </div>
+
+                      <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
+                        <div className="flex items-center justify-between">
+                          <span className="text-slate-500 block text-[10px] font-black uppercase">Contact Email & Phone</span>
+                          <button onClick={() => setIsEditingEmail(!isEditingEmail)} className="text-[10px] text-blue-900 hover:underline font-black">
+                            {isEditingEmail ? 'Done' : 'Edit Email'}
+                          </button>
+                        </div>
+                        {isEditingEmail ? (
+                          <input
+                            type="email"
+                            value={candidateEmail}
+                            onChange={(e) => setCandidateEmail(e.target.value)}
+                            onBlur={() => setIsEditingEmail(false)}
+                            className="w-full mt-1 px-2 py-1 border border-blue-900 rounded text-xs font-bold text-slate-900"
+                            autoFocus
+                          />
+                        ) : (
+                          <div className="mt-0.5 space-y-0.5">
+                            <span className="text-blue-900 font-black text-xs block truncate">{candidateEmail}</span>
+                            {candidatePhone && (
+                              <span className="text-slate-600 font-bold text-[11px] block">{candidatePhone}</span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
+                        <span className="text-slate-500 block text-[10px] font-black uppercase">Branch / Program</span>
+                        <span className="text-slate-900 font-black text-sm block mt-0.5">{student?.program || student?.branch || 'Computer Science & Engineering'}</span>
+                      </div>
+                    </div>
+
+                    {/* EXTRACTED TECHNICAL SKILLS MATRIX */}
+                    <div className="space-y-3 pt-2 border-t border-slate-200">
+                      <h4 className="text-xs font-black uppercase tracking-wider text-slate-700">
+                        EXTRACTED TECHNICAL SKILLS MATRIX ({skillsList.length})
+                      </h4>
+
+                      <div className="flex flex-wrap gap-2">
+                        {skillsList.map((sk, sIdx) => (
+                          <span key={sIdx} className="px-3.5 py-1.5 bg-slate-100 border border-slate-300 text-slate-900 text-xs font-black rounded-xl shadow-sm hover:border-blue-500 transition-all">
+                            {sk}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div className="glass-panel p-8 sm:p-10 rounded-3xl border border-dashed border-slate-300 text-center space-y-4 bg-white/90">
+                  <div className="w-16 h-16 rounded-2xl bg-blue-50 text-blue-800 flex items-center justify-center mx-auto border border-blue-200 shadow-sm">
+                    <FileText className="w-8 h-8" />
+                  </div>
+                  <div className="space-y-1.5 max-w-md mx-auto">
+                    <h3 className="text-base font-black text-slate-900">No Resume Uploaded Yet</h3>
+                    <p className="text-xs text-slate-600 font-medium leading-relaxed">
+                      Upload your PDF / DOCX resume above or click <strong>"Build One & Upload 3 Documents"</strong> to create an ATS-optimized profile. Once uploaded, your technical skills matrix and placement eligibility will be extracted automatically.
+                    </p>
                   </div>
                 </div>
-
-                {/* EXTRACTED TECHNICAL SKILLS MATRIX */}
-                <div className="space-y-3 pt-2 border-t border-slate-200">
-                  <h4 className="text-xs font-black uppercase tracking-wider text-slate-700">
-                    EXTRACTED TECHNICAL SKILLS MATRIX ({skillsList.length})
-                  </h4>
-
-                  <div className="flex flex-wrap gap-2">
-                    {skillsList.map((sk, sIdx) => (
-                      <span key={sIdx} className="px-3.5 py-1.5 bg-slate-100 border border-slate-300 text-slate-900 text-xs font-black rounded-xl shadow-sm hover:border-blue-500 transition-all">
-                        {sk}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              </div>
+              )}
             </div>
           )}
 
