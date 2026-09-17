@@ -1,16 +1,10 @@
-import Database from 'better-sqlite3';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import db, { initDatabase } from '../db/index.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-const dbDir = process.env.DB_DIR || path.join(__dirname, '../db');
-const db = new Database(path.join(dbDir, 'campushire.db'));
-
-const BASE_URL = 'http://localhost:5001';
+const BASE_URL = process.env.TEST_BASE_URL || 'http://localhost:5001';
 
 async function runProductionReadinessAudit() {
+  await initDatabase();
+
   console.log('===========================================================');
   console.log('🏛️ GSFC UNIVERSITY PLACEMENT MANAGEMENT PORTAL');
   console.log('🚀 PRODUCTION READINESS & REAL-DATA INTEGRITY AUDIT SUITE');
@@ -31,14 +25,14 @@ async function runProductionReadinessAudit() {
 
   // 1. Audit Database Tables for Zero Demo Data
   console.log('--- 1. DATABASE DEMO RECORD ZERO-TOLERANCE AUDIT ---');
-  const countStudents = db.prepare('SELECT COUNT(*) as c FROM student_profiles').get().c;
-  const countCompanies = db.prepare('SELECT COUNT(*) as c FROM company_profiles').get().c;
-  const countRequirements = db.prepare('SELECT COUNT(*) as c FROM requirements').get().c;
-  const countApplications = db.prepare('SELECT COUNT(*) as c FROM applications').get().c;
-  const countAlumni = db.prepare('SELECT COUNT(*) as c FROM alumni_profiles').get().c;
-  const countFaculty = db.prepare('SELECT COUNT(*) as c FROM faculty_profiles').get().c;
-  const countMails = db.prepare('SELECT COUNT(*) as c FROM company_student_mails').get()?.c || 0;
-  const countPasses = db.prepare('SELECT COUNT(*) as c FROM pass_tokens').get()?.c || 0;
+  const countStudents = parseInt((await db.prepare('SELECT COUNT(*) as c FROM student_profiles').get())?.c || '0', 10);
+  const countCompanies = parseInt((await db.prepare('SELECT COUNT(*) as c FROM company_profiles').get())?.c || '0', 10);
+  const countRequirements = parseInt((await db.prepare('SELECT COUNT(*) as c FROM requirements').get())?.c || '0', 10);
+  const countApplications = parseInt((await db.prepare('SELECT COUNT(*) as c FROM applications').get())?.c || '0', 10);
+  const countAlumni = parseInt((await db.prepare('SELECT COUNT(*) as c FROM alumni_profiles').get())?.c || '0', 10);
+  const countFaculty = parseInt((await db.prepare('SELECT COUNT(*) as c FROM faculty_profiles').get())?.c || '0', 10);
+  const countMails = parseInt((await db.prepare('SELECT COUNT(*) as c FROM company_student_mails').get())?.c || '0', 10);
+  const countPasses = parseInt((await db.prepare('SELECT COUNT(*) as c FROM pass_tokens').get())?.c || '0', 10);
 
   assert(countStudents === 0, `Zero demo students in database (Found: ${countStudents})`);
   assert(countCompanies === 0, `Zero demo companies in database (Found: ${countCompanies})`);
@@ -51,7 +45,7 @@ async function runProductionReadinessAudit() {
 
   // 2. Audit Admin Bootstrapping
   console.log('\n--- 2. OFFICIAL TPC ADMIN BOOTSTRAP VERIFICATION ---');
-  const adminUsers = db.prepare("SELECT email, role FROM users WHERE role IN ('admin', 'superadmin')").all();
+  const adminUsers = await db.prepare("SELECT email, role FROM users WHERE role IN ('admin', 'superadmin')").all();
   assert(adminUsers.length >= 2, `Production TPC administrative accounts exist (Count: ${adminUsers.length})`);
   
   const adminLoginRes = await fetch(`${BASE_URL}/api/auth/login`, {
@@ -84,7 +78,6 @@ async function runProductionReadinessAudit() {
   const emptyCompJson = await emptyCompRes.json();
   assert(emptyCompRes.status === 200 && Array.isArray(emptyCompJson) && emptyCompJson.length === 0, 'Admin Pending Companies API returns empty array [] on clean DB');
 
-
   const adminMetricsRes = await fetch(`${BASE_URL}/api/admin/analytics`, {
     headers: { 'Authorization': `Bearer ${adminToken}` }
   });
@@ -95,7 +88,7 @@ async function runProductionReadinessAudit() {
   
   // A. Admin pre-authorizes student (Institutional TPC Governance policy)
   const testStudentEmail = `test_student_${Date.now()}@gsfcuniversity.ac.in`;
-  const testRollNumber = '25BT09999';
+  const testRollNumber = `25BT${Math.floor(1000 + Math.random() * 9000)}`;
 
   const authStudentRes = await fetch(`${BASE_URL}/api/admin/authorized-students`, {
     method: 'POST',
@@ -154,9 +147,8 @@ async function runProductionReadinessAudit() {
   const compRegJson = await compRegRes.json();
   assert(compRegRes.status === 200 && compRegJson.token, 'Real recruiter registered company profile');
 
-  const compProf = db.prepare('SELECT id FROM company_profiles WHERE user_id = ?').get(compRegJson.user?.id);
+  const compProf = await db.prepare('SELECT id FROM company_profiles WHERE user_id = ?').get(compRegJson.user?.id);
   const compProfileId = compProf ? compProf.id : (compRegJson.user?.profile?.id || compRegJson.user?.owner_id);
-
 
   // D. Admin approves company & assigns Starter Subscription
   if (compProfileId) {
@@ -171,11 +163,11 @@ async function runProductionReadinessAudit() {
     assert(approveRes.status === 200, 'TPC Admin approved newly registered company');
 
     // Grant Active Subscription to Company
-    db.prepare(`
-      INSERT OR REPLACE INTO company_subscriptions (id, company_id, plan_id, plan_name, started_at, expires_at, postings_used, max_postings, status)
-      VALUES (?, ?, 'plan_gold', 'Gold Enterprise Sovereign', CURRENT_TIMESTAMP, datetime('now', '+60 days'), 0, -1, 'active')
+    await db.prepare(`
+      INSERT INTO company_subscriptions (id, company_id, plan_id, plan_name, started_at, expires_at, postings_used, max_postings, status)
+      VALUES (?, ?, 'plan_gold', 'Gold Enterprise Sovereign', now(), (now() + INTERVAL '60 days'), 0, -1, 'active')
+      ON CONFLICT (id) DO UPDATE SET status = 'active'
     `).run('sub_' + compProfileId, compProfileId);
-
   }
 
   // E. Company Posts Requirement
@@ -211,7 +203,6 @@ async function runProductionReadinessAudit() {
   const requirementId = postReqJson.requirement?.id || postReqJson.id || postReqJson.requirementId;
   assert((postReqRes.status === 200 || postReqRes.status === 201) && requirementId, 'Recruiter posted legitimate placement requirement with 5-question bank');
 
-
   // F. Student Applies
   const studentToken = studentRegJson.token;
   const applyRes = await fetch(`${BASE_URL}/api/student/apply`, {
@@ -224,9 +215,8 @@ async function runProductionReadinessAudit() {
   });
   assert(applyRes.status === 200 || applyRes.status === 201, 'Student applied for active campus placement drive');
 
-
   // G. Verify Persistence & Database Linkage
-  const appRecord = db.prepare(`
+  const appRecord = await db.prepare(`
     SELECT a.id, s.name as student_name, r.title as drive_title, c.company_name
     FROM applications a
     JOIN student_profiles s ON a.student_id = s.id
@@ -239,17 +229,17 @@ async function runProductionReadinessAudit() {
 
   // H. Cleanup Temporary Validation Records
   console.log('\n--- 5. TEMPORARY VALIDATION RECORD TEARDOWN ---');
-  db.prepare('DELETE FROM applications WHERE requirement_id = ?').run(requirementId);
-  db.prepare('DELETE FROM requirements WHERE id = ?').run(requirementId);
-  db.prepare('DELETE FROM company_profiles WHERE user_id = ?').run(compRegJson.user?.id);
-  db.prepare('DELETE FROM student_profiles WHERE user_id = ?').run(studentRegJson.user?.id);
-  db.prepare('DELETE FROM authorized_students WHERE lower(roll_number) = ?').run(testRollNumber.toLowerCase());
-  db.prepare('DELETE FROM users WHERE id IN (?, ?)').run(studentRegJson.user?.id, compRegJson.user?.id);
+  await db.prepare('DELETE FROM applications WHERE requirement_id = ?').run(requirementId);
+  await db.prepare('DELETE FROM requirements WHERE id = ?').run(requirementId);
+  await db.prepare('DELETE FROM company_subscriptions WHERE company_id = ?').run(compProfileId);
+  await db.prepare('DELETE FROM company_profiles WHERE user_id = ?').run(compRegJson.user?.id);
+  await db.prepare('DELETE FROM student_profiles WHERE user_id = ?').run(studentRegJson.user?.id);
+  await db.prepare('DELETE FROM authorized_students WHERE lower(roll_number) = ?').run(testRollNumber.toLowerCase());
+  await db.prepare('DELETE FROM users WHERE id IN (?, ?)').run(studentRegJson.user?.id, compRegJson.user?.id);
 
-  const finalCheckStudents = db.prepare('SELECT COUNT(*) as c FROM student_profiles').get().c;
-  const finalCheckCompanies = db.prepare('SELECT COUNT(*) as c FROM company_profiles').get().c;
+  const finalCheckStudents = parseInt((await db.prepare('SELECT COUNT(*) as c FROM student_profiles').get())?.c || '0', 10);
+  const finalCheckCompanies = parseInt((await db.prepare('SELECT COUNT(*) as c FROM company_profiles').get())?.c || '0', 10);
   assert(finalCheckStudents === 0 && finalCheckCompanies === 0, 'Cleaned temporary validation records; database returned to pristine clean state');
-
 
   console.log('\n===========================================================');
   console.log(`📊 FINAL PRODUCTION AUDIT RESULTS: ${passCount} PASSED / ${failCount} FAILED`);
