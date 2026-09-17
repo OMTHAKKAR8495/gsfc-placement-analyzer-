@@ -447,23 +447,26 @@ router.post('/login', AuthRateLimiter.loginLimiter, async (req, res) => {
         user = await db.prepare("SELECT * FROM users WHERE lower(email) = 'admin@gsfcuniversity.ac.in' LIMIT 1").get();
       } else if (prefix === 'superadmin') {
         user = await db.prepare("SELECT * FROM users WHERE lower(email) = 'superadmin@gsfcuniversity.ac.in' LIMIT 1").get();
-      } else {
-        let studentProf = await db.prepare('SELECT user_id FROM student_profiles WHERE lower(roll_number) = ? OR lower(university_email) = ?').get(prefix, cleanEmail);
-        if (!studentProf) {
-          studentProf = await db.prepare('SELECT user_id FROM student_profiles WHERE parsed_resume_json LIKE ?').get(`%"email":"${cleanEmail}"%`);
-        }
-        if (studentProf && studentProf.user_id) {
-          user = await db.prepare('SELECT * FROM users WHERE id = ?').get(studentProf.user_id);
-        }
+        try {
+          let studentProf = await db.prepare('SELECT user_id FROM student_profiles WHERE lower(roll_number) = ?').get(prefix);
+          if (!studentProf) {
+            studentProf = await db.prepare('SELECT user_id FROM student_profiles WHERE CAST(parsed_resume_json AS TEXT) LIKE ?').get(`%"email":"${cleanEmail}"%`);
+          }
+          if (studentProf && studentProf.user_id) {
+            user = await db.prepare('SELECT * FROM users WHERE id = ?').get(studentProf.user_id);
+          }
+        } catch (e) {}
         
         if (!user) {
-          const authStudent = await db.prepare('SELECT * FROM authorized_students WHERE lower(roll_number) = ? OR lower(email) = ?').get(prefix, cleanEmail);
-          if (authStudent) {
-            const existingProf = await db.prepare('SELECT * FROM student_profiles WHERE lower(roll_number) = ? OR lower(university_email) = ?').get(authStudent.roll_number.toLowerCase(), authStudent.email.toLowerCase());
-            if (existingProf && existingProf.user_id) {
-              user = await db.prepare('SELECT * FROM users WHERE id = ?').get(existingProf.user_id);
+          try {
+            const authStudent = await db.prepare('SELECT * FROM authorized_students WHERE lower(roll_number) = ? OR lower(email) = ?').get(prefix, cleanEmail);
+            if (authStudent) {
+              const existingProf = await db.prepare('SELECT user_id FROM student_profiles WHERE lower(roll_number) = ?').get(authStudent.roll_number.toLowerCase());
+              if (existingProf && existingProf.user_id) {
+                user = await db.prepare('SELECT * FROM users WHERE id = ?').get(existingProf.user_id);
+              }
             }
-          }
+          } catch (e) {}
         }
       }
     }
@@ -1192,7 +1195,7 @@ router.get('/me', async (req, res) => {
 // 🔐 OTP PASSWORD RESET ENDPOINTS
 // =========================================================================
 
-import { sendPasswordResetEmail } from '../services/mailer.js';
+import { sendPasswordResetEmail, sendCompanyCredentialsEmail } from '../services/mailer.js';
 
 // In-memory OTP storage with automatic TTL expiry
 const passwordResetOtpStore = new Map();
@@ -1237,6 +1240,58 @@ router.post('/forgot-password-otp', async (req, res) => {
   } catch (err) {
     console.error('Error generating OTP:', err);
     res.status(500).json({ error: 'Failed to dispatch verification OTP. Please try again.' });
+  }
+});
+
+// 2. Dispatch Official Portal Credentials to Placed Company / Recruiter HR Contact
+router.post('/send-company-credentials', async (req, res) => {
+  try {
+    const { to_email, company_name, portal_email, portal_password } = req.body;
+
+    if (!to_email || !company_name || !portal_email || !portal_password) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required credential fields: to_email, company_name, portal_email, and portal_password are all required.'
+      });
+    }
+
+    const cleanTo = to_email.trim().toLowerCase();
+    const cleanPortalEmail = portal_email.trim().toLowerCase();
+
+    console.log(`\n======================================================`);
+    console.log(`🏢 [GSFC COMPANY CREDENTIALS EMAIL DISPATCH]`);
+    console.log(`Company: ${company_name}`);
+    console.log(`Recipient HR: ${cleanTo}`);
+    console.log(`Portal Login: ${cleanPortalEmail}`);
+    console.log(`======================================================\n`);
+
+    const mailResult = await sendCompanyCredentialsEmail(cleanTo, company_name, cleanPortalEmail, portal_password);
+
+    if (mailResult.success) {
+      try {
+        await db.prepare(`
+          UPDATE company_credentials_vault 
+          SET email_sent = 1, email_sent_at = CURRENT_TIMESTAMP 
+          WHERE lower(contact_email) = ? OR lower(portal_email) = ?
+        `).run(cleanTo, cleanPortalEmail);
+      } catch (e) {
+        console.warn('Vault update notice:', e.message);
+      }
+
+      return res.json({
+        success: true,
+        message: `Official credentials have been successfully emailed to ${cleanTo}`,
+        messageId: mailResult.messageId
+      });
+    } else {
+      return res.status(500).json({
+        success: false,
+        error: mailResult.error || 'Failed to dispatch email via SMTP server. Please verify SMTP_USER and SMTP_PASS.'
+      });
+    }
+  } catch (err) {
+    console.error('Error sending company credentials email:', err);
+    res.status(500).json({ success: false, error: err.message || 'Internal server error while sending credentials.' });
   }
 });
 

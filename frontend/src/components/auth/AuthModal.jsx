@@ -344,192 +344,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialRole 
     setError('');
   };
 
-  // Helper to generate simulated JWT and verified user for offline / Vercel static environments
-  const createFallbackUser = (userRole, userEmail, userName) => {
-    const rawEmail = (userEmail || '').trim().toLowerCase();
-    const emailPrefix = rawEmail.split('@')[0] || 'student';
-    const formattedEmailName = emailPrefix
-      .replace(/[._-]/g, ' ')
-      .split(' ')
-      .filter(Boolean)
-      .map(part => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
-      .join(' ');
-    const effectiveName = userName?.trim() || (formattedEmailName || 'Student Candidate');
 
-    const isFaculty = userRole === 'faculty' || rawEmail.includes('faculty') || rawEmail.includes('gsfcuniversityfaculty') || rawEmail.includes('neeshuchaudhary');
-    const isSuperAdmin = userRole === 'superadmin' || rawEmail.includes('superadmin');
-    const isAlumni = userRole === 'alumni' || rawEmail.includes('alumni');
-    const isCompany = userRole === 'company' || rawEmail.includes('hr') || rawEmail.includes('company') || rawEmail.includes('recruiter') || rawEmail.includes('gsfclimited');
-    const isAdmin = userRole === 'admin' || rawEmail.includes('admin') || rawEmail.includes('tpc');
-    const isSecurity = userRole === 'security' || rawEmail.includes('security') || rawEmail.includes('guard');
-    const isFest = userRole === 'fest' || rawEmail.includes('fest') || rawEmail.includes('guest') || rawEmail.includes('msu') || rawEmail.includes('parul') || rawEmail.includes('external');
-    
-    const resolvedRole = isSuperAdmin ? 'superadmin' : (isAdmin ? 'admin' : (isFaculty ? 'faculty' : (isSecurity ? 'security' : (isFest ? 'fest' : (isAlumni ? 'alumni' : (isCompany ? 'company' : 'student'))))));
-
-    if (resolvedRole === 'fest') {
-      return {
-        id: 'u_fest_' + emailPrefix,
-        name: effectiveName || 'Kavya Sharma',
-        email: userEmail || 'kavya.sharma@msu.ac.in',
-        role: 'fest',
-        owner_id: 'ext_' + emailPrefix,
-        organization: 'MS University Vadodara',
-        profile: {
-          id: 'ext_' + emailPrefix,
-          name: effectiveName || 'Kavya Sharma',
-          organization: 'MS University Vadodara',
-          city: 'Vadodara',
-          phone: '+91 98765 43210'
-        }
-      };
-    }
-
-    if (resolvedRole === 'security') {
-
-      return {
-        id: 'u_' + emailPrefix,
-        name: effectiveName || 'Officer Vikram Singh',
-        email: userEmail || 'security@gsfcuniversity.ac.in',
-        role: 'security',
-        owner_id: 'sec_' + emailPrefix,
-        profile: {
-          id: 'sec_prof_' + emailPrefix,
-          name: effectiveName || 'Officer Vikram Singh',
-          gate_assigned: 'Main Campus Gate A',
-          shift: 'Day Shift (08:00 AM - 04:00 PM)'
-        }
-      };
-    }
-
-    if (resolvedRole === 'superadmin') {
-      return {
-        id: 'u_' + emailPrefix,
-        name: effectiveName || 'Super Administrator',
-        email: userEmail || 'superadmin@gsfcuniversity.ac.in',
-        role: 'superadmin',
-        owner_id: 'a_' + emailPrefix
-      };
-    }
-
-    if (resolvedRole === 'admin') {
-      return {
-        id: 'u_' + emailPrefix,
-        name: effectiveName || 'GSFC TPC Director',
-        email: userEmail || 'admin@gsfcuniversity.ac.in',
-        role: 'admin',
-        owner_id: 'a_' + emailPrefix
-      };
-    }
-
-    if (resolvedRole === 'faculty') {
-      const isNeeshu = rawEmail.includes('neeshuchaudhary');
-      const facultyName = isNeeshu ? 'Dr. Neeshu Chaudhary' : (effectiveName || 'Dr. Faculty Coordinator');
-      const facultyEmail = isNeeshu ? 'neeshuchaudhary@gsfcuniversityfaculty.ac.in' : (userEmail || 'faculty.cse@gsfcuniversity.ac.in');
-      return {
-        id: 'u_' + (isNeeshu ? 'neeshu_chaudhary' : emailPrefix),
-        name: facultyName,
-        email: facultyEmail,
-        role: 'faculty',
-        owner_id: 'f_' + (isNeeshu ? 'neeshu_chaudhary' : emailPrefix),
-        department: 'Computer Science & Engineering',
-        profile: {
-          id: 'f_' + (isNeeshu ? 'neeshu_chaudhary' : emailPrefix),
-          name: facultyName,
-          department: 'Computer Science & Engineering',
-          designation: 'Faculty Placement Coordinator'
-        }
-      };
-    }
-
-    if (resolvedRole === 'alumni') {
-      return {
-        id: 'u_' + emailPrefix,
-        name: effectiveName || 'GSFC Alumni Mentor',
-        email: userEmail || 'alumni@alumni.gsfc.ac.in',
-        role: 'alumni',
-        owner_id: 'alumni_' + emailPrefix,
-        profile: {
-          id: 'alumni_' + emailPrefix,
-          name: effectiveName || 'GSFC Alumni Mentor',
-          company: 'Industry Partner',
-          designation: 'Software Development Engineer',
-          batch_year: '2019-2023',
-          verified: 1
-        }
-      };
-    }
-
-    if (resolvedRole === 'company' || resolvedRole === 'gsfc_company' || userRole === 'gsfc_company') {
-      const isGsfcPlaced = userRole === 'gsfc_company' || rawEmail.includes('gsfc') || rawEmail.includes('placed');
-      
-      // Check if this company exists in the GSFC Placed Companies Registry (created by Faculty/Admin)
-      let registeredCompany = null;
-      try {
-        const registry = JSON.parse(localStorage.getItem('gsfc_placed_companies_registry') || '[]');
-        registeredCompany = registry.find(c => 
-          (c.portal_email && c.portal_email.toLowerCase() === rawEmail) ||
-          (c.contact_email && c.contact_email.toLowerCase() === rawEmail) ||
-          (c.hr_email && c.hr_email.toLowerCase() === rawEmail)
-        );
-      } catch(e) {}
-
-      const compName = registeredCompany?.company_name || effectiveName || (isGsfcPlaced ? 'GSFC Limited' : 'Corporate Partner');
-      const compIndustry = registeredCompany?.industry || (isGsfcPlaced ? 'Chemicals, Fertilizers & Industrial Engineering' : 'Technology & Engineering');
-      const compLocation = registeredCompany?.location || 'Vadodara, Gujarat';
-      const compPhone = registeredCompany?.contact_phone || formData.phone || '';
-
-      return {
-        id: registeredCompany?.id || ('u_' + emailPrefix),
-        name: registeredCompany?.contact_person_name || compName,
-        email: userEmail || (isGsfcPlaced ? 'recruiter@gsfclimited.com' : 'recruiter@company.com'),
-        role: 'company',
-        company_type: isGsfcPlaced || registeredCompany ? 'gsfc_placed_company' : 'outside_recruiter',
-        company_name: compName,
-        phone: compPhone,
-        owner_id: registeredCompany?.id || ('c_' + emailPrefix),
-        profile: {
-          id: registeredCompany?.id || ('c_' + emailPrefix),
-          company_name: compName,
-          industry: compIndustry,
-          location: compLocation,
-          website: registeredCompany?.website || '',
-          phone: compPhone,
-          tier: registeredCompany?.tier || (isGsfcPlaced ? 'GSFC Official Placed Partner' : 'Registered Partner'),
-          approved: 1,
-          roles_offered: registeredCompany?.roles_offered || '',
-          eligible_programs: registeredCompany?.eligible_programs || '',
-          ctc_range: registeredCompany?.ctc_range || ''
-        }
-      };
-    }
-
-    // Default: Dynamic Student Profile
-    const isOmThakkar = rawEmail.includes('24bt04171') || rawEmail.includes('thakkar_om');
-    const studentName = isOmThakkar ? 'Om Thakkar' : (effectiveName || 'Student Candidate');
-    const studentRoll = rawEmail.startsWith('24') || rawEmail.startsWith('23') || rawEmail.startsWith('22') ? rawEmail.split('@')[0].toUpperCase() : '24BT04171';
-    const studentPhone = isOmThakkar ? '+91 95584 13347' : (formData.phone || '');
-
-    return {
-      id: 'u_' + emailPrefix,
-      name: studentName,
-      email: userEmail || '24bt04171@gsfcuniversity.ac.in',
-      role: 'student',
-      phone: studentPhone,
-      owner_id: 's_' + emailPrefix,
-      profile: {
-        id: 's_' + emailPrefix,
-        name: studentName,
-        program: 'BTech CSE',
-        branch: 'Computer Science & Engineering',
-        cgpa: 8.9,
-        roll_number: studentRoll,
-        phone: studentPhone,
-        passing_year: 2026,
-        placement_status: 'Eligible',
-        ats_score: 92
-      }
-    };
-  };
 
   // Helper to ensure authenticated student is active on login
   const unblockStudentOnLogin = (email, roll) => {
@@ -701,6 +516,25 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialRole 
         }
       }
 
+      if (res.ok && data) {
+        if (data.requires2FA) {
+          setTwoFaPending(true);
+          setTemp2faToken(data.tempToken);
+          setTwoFaEmail(data.email || formData.email);
+          setTwoFaRole(data.role || role);
+          setTwoFaError('');
+          setLoading(false);
+          return;
+        }
+
+        if (data.user) {
+          localStorage.setItem('campushire_token', data.token);
+          onAuthSuccess(data.user);
+          onClose();
+          return;
+        }
+      }
+
       // If password incorrect from a live active database
       if (isLogin && res.status === 401 && data?.incorrectPassword) {
         setError('Incorrect password. Please check your password and try again.');
@@ -708,65 +542,53 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialRole 
         return;
       }
 
-      // Fallback for Vercel / offline / static mode
-      const fallbackUser = createFallbackUser(role, formData.email, formData.name);
-      localStorage.setItem('campushire_token', 'demo_token_' + Date.now());
-      onAuthSuccess(fallbackUser);
-      onClose();
+      setError(data?.error || 'Authentication failed. Please check your credentials and selected role.');
+      setLoading(false);
     } catch (err) {
-      // Safe fallback for demo & offline environments
-      const fallbackUser = createFallbackUser(role, formData.email, formData.name);
-      localStorage.setItem('campushire_token', 'demo_token_' + Date.now());
-      onAuthSuccess(fallbackUser);
-      onClose();
+      setError('Unable to reach the authentication server. Please verify backend connectivity.');
+      setLoading(false);
     } finally {
       setLoading(false);
     }
   };
 
-  // Quick Demo Account Auto-Fill & Instant 1-Click Login Helper
+  // Quick Demo Account Auto-Fill Helper (Fills form for real DB login)
   const fillDemoAccount = (demoRole) => {
     setRole(demoRole);
     setIsLogin(true);
     setError('');
     
-    let email = 'thakkar_om@gmail.com';
-    let name = 'Thakkar Om';
+    let email = '24bt04171@gsfcuniversity.ac.in';
+    let name = 'Om Thakkar';
     if (demoRole === 'student') {
-      email = 'thakkar_om@gmail.com';
-      name = 'Thakkar Om';
-      setFormData(prev => ({ ...prev, email, password: 'password123', phone: '+91 98765 43210' }));
+      email = '24bt04171@gsfcuniversity.ac.in';
+      name = 'Om Thakkar';
+      setFormData(prev => ({ ...prev, email, password: 'password123', phone: '+91 95584 13347' }));
     } else if (demoRole === 'gsfc_company' || demoRole === 'company') {
       email = 'gsfclimited@gmail.com';
       name = 'GSFC Limited';
       setFormData(prev => ({ ...prev, email, password: 'password123', phone: '+91 98989 89898' }));
     } else if (demoRole === 'admin') {
       email = 'admin@gsfcuniversity.ac.in';
-      name = 'GSFC TPC Director';
+      name = 'Dr. Neeshu Chaudhary (TPC Director)';
       setFormData(prev => ({ ...prev, email, password: 'password123', phone: '+91 99999 88888' }));
     } else if (demoRole === 'faculty') {
       email = 'faculty.cse@gsfcuniversity.ac.in';
-      name = 'Dr. Rajesh Sharma (Faculty Coordinator)';
+      name = 'Dr. Neeshu Chaudhary';
       setFormData(prev => ({ ...prev, email, password: 'password123', phone: '+91 98888 77777' }));
     } else if (demoRole === 'security') {
       email = 'security@gsfcuniversity.ac.in';
-      name = 'Officer Vikram Singh (Main Gate)';
+      name = 'GSFC Campus Security Officer';
       setFormData(prev => ({ ...prev, email, password: 'password123', phone: '+91 98250 11223' }));
     } else if (demoRole === 'superadmin') {
       email = 'superadmin@gsfcuniversity.ac.in';
-      name = 'Super Administrator';
+      name = 'GSFC Super Administrator';
       setFormData(prev => ({ ...prev, email, password: 'password123', phone: '+91 99999 00000' }));
     } else if (demoRole === 'alumni') {
       email = 'priya.patel@alumni.gsfc.ac.in';
-      name = 'Priya Patel (Amazon AWS)';
+      name = 'Priya Patel';
       setFormData(prev => ({ ...prev, email, password: 'password123', phone: '+91 97777 66666' }));
     }
-
-    // Instantly log in with selected demo persona
-    const fallbackUser = createFallbackUser(demoRole, email, name);
-    localStorage.setItem('campushire_token', 'demo_token_' + Date.now());
-    onAuthSuccess(fallbackUser);
-    onClose();
   };
 
   const handleVerify2FA = async (e) => {

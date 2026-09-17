@@ -1961,6 +1961,114 @@ router.post('/approve-company', async (req, res) => {
   }
 });
 
+// Register New GSFC Placed Company with Generated Portal Credentials & Vault Storage
+router.post('/add-gsfc-company', async (req, res) => {
+  try {
+    const {
+      company_name, industry, tier, location, website, linkedin_url,
+      company_description, contact_person_name, contact_email, contact_phone,
+      hr_email, roles_offered, eligible_programs, ctc_range, openings_count,
+      bond_period, job_type, preferred_skills, notes_for_tpc,
+      portal_email, portal_password, added_by, added_by_role
+    } = req.body;
+
+    if (!company_name || !portal_email || !portal_password) {
+      return res.status(400).json({ error: 'Company name, portal email, and portal password are required.' });
+    }
+
+    const cleanPortalEmail = portal_email.trim().toLowerCase();
+    const cleanContactEmail = (contact_email || hr_email || portal_email).trim().toLowerCase();
+    const cleanName = company_name.trim();
+
+    // 1. Create User account in users table (or update password if exists)
+    let user = await db.prepare('SELECT id FROM users WHERE lower(email) = ?').get(cleanPortalEmail);
+    const passwordHash = await bcrypt.hash(portal_password, 10);
+    let userId = user ? user.id : null;
+
+    if (user) {
+      await db.prepare('UPDATE users SET password_hash = ?, role = ? WHERE id = ?').run(passwordHash, 'company', user.id);
+    } else {
+      userId = 'u_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
+      await db.prepare('INSERT INTO users (id, email, password_hash, role) VALUES (?, ?, ?, ?)').run(userId, cleanPortalEmail, passwordHash, 'company');
+    }
+
+    // 2. Create or Update company_profiles
+    const compProfileId = 'c_' + (cleanName.toLowerCase().replace(/[^a-z0-9]/g, '_').slice(0, 20)) + '_' + Date.now().toString().slice(-4);
+    let existingProfile = await db.prepare('SELECT id FROM company_profiles WHERE user_id = ? OR lower(company_name) = ?').get(userId, cleanName.toLowerCase());
+
+    if (existingProfile) {
+      await db.prepare(`
+        UPDATE company_profiles 
+        SET company_name = ?, industry = ?, tier = ?, website = ?, location = ?, contact_person = ?, contact_email = ?, contact_phone = ?, phone = ?, approved = 1, verified = 1
+        WHERE id = ?
+      `).run(
+        cleanName, industry || 'Technology & Engineering', tier || 'Tier-1 Core Partner', website || '', location || 'Vadodara, Gujarat',
+        contact_person_name || 'HR Team', cleanContactEmail, contact_phone || '', contact_phone || '', existingProfile.id
+      );
+    } else {
+      await db.prepare(`
+        INSERT INTO company_profiles (id, user_id, company_name, industry, tier, website, location, contact_person, contact_email, contact_phone, phone, approved, verified)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 1)
+      `).run(
+        compProfileId, userId, cleanName, industry || 'Technology & Engineering', tier || 'Tier-1 Core Partner',
+        website || '', location || 'Vadodara, Gujarat', contact_person_name || 'HR Team', cleanContactEmail, contact_phone || '', contact_phone || ''
+      );
+    }
+
+    // 3. Store credentials in company_credentials_vault for historical auditing and recovery
+    const vaultId = 'vault_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
+    await db.prepare(`
+      INSERT INTO company_credentials_vault (id, company_id, company_name, industry, tier, contact_person_name, contact_email, contact_phone, portal_email, portal_password_clear, created_by, created_by_role, email_sent, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, CURRENT_TIMESTAMP)
+    `).run(
+      vaultId, existingProfile ? existingProfile.id : compProfileId, cleanName, industry || 'Technology', tier || 'Tier 1',
+      contact_person_name || '', cleanContactEmail, contact_phone || '', cleanPortalEmail, portal_password,
+      added_by || 'TPC Admin', added_by_role || 'admin'
+    );
+
+    // 4. Also store in system_audit_logs
+    try {
+      const auditId = 'aud_' + Date.now();
+      await db.prepare(`
+        INSERT INTO system_audit_logs (id, user_id, action_type, entity_type, entity_id, details_json)
+        VALUES (?, ?, 'ADD_PLACED_COMPANY', 'company_profiles', ?, ?)
+      `).run(userId, existingProfile ? existingProfile.id : compProfileId, JSON.stringify({ company_name: cleanName, portal_email: cleanPortalEmail, vaultId }));
+    } catch(e) {}
+
+    console.log(`🏛️ [Admin Add Company] ${cleanName} created. Portal Login: ${cleanPortalEmail} | Vault ID: ${vaultId}`);
+
+    res.json({
+      success: true,
+      message: `GSFC Placed Partner "${cleanName}" registered successfully with active portal access!`,
+      vaultId,
+      company: {
+        id: existingProfile ? existingProfile.id : compProfileId,
+        company_name: cleanName,
+        portal_email: cleanPortalEmail,
+        contact_email: cleanContactEmail
+      }
+    });
+  } catch (err) {
+    console.error('Error adding GSFC placed company:', err);
+    res.status(500).json({ success: false, error: err.message || 'Failed to register company.' });
+  }
+});
+
+// Retrieve Company Credentials Vault History
+router.get('/company-credentials-vault', async (req, res) => {
+  try {
+    const records = await db.prepare(`
+      SELECT * FROM company_credentials_vault 
+      ORDER BY created_at DESC 
+      LIMIT 200
+    `).all();
+    res.json(records || []);
+  } catch (err) {
+    console.error('Error retrieving credentials vault:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Remove / Delete Company Profile & Associated Drives (Admin Manager Authority)
 router.delete('/companies/:id', async (req, res) => {
   try {

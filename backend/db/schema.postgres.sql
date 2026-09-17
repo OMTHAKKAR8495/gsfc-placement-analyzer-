@@ -1062,12 +1062,28 @@ ALTER TABLE public.student_study_materials ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.placement_risk_alerts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.placement_rag_documents ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.user_login_history ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.user_activity_timeline ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.system_audit_logs ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.ecosystem_colleges ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.ecosystem_pool_drives ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.ecosystem_assessments ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.ecosystem_assessment_submissions ENABLE ROW LEVEL SECURITY;
+-- ----------------------------------------------------------------------------
+-- 23. 🔐 GENERATED COMPANY CREDENTIALS & AUDIT VAULT
+-- ----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS public.company_credentials_vault (
+    id TEXT PRIMARY KEY,
+    company_id TEXT,
+    company_name TEXT NOT NULL,
+    industry TEXT,
+    tier TEXT,
+    contact_person_name TEXT,
+    contact_email TEXT NOT NULL,
+    contact_phone TEXT,
+    portal_email TEXT NOT NULL,
+    portal_password_clear TEXT NOT NULL,
+    created_by TEXT,
+    created_by_role TEXT,
+    email_sent INTEGER DEFAULT 0,
+    email_sent_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+
+ALTER TABLE public.company_credentials_vault ENABLE ROW LEVEL SECURITY;
 
 -- Grant Full Service Role / API Access to all tables
 DO $$ 

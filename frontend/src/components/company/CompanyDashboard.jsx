@@ -21,293 +21,9 @@ import { getStudentMails } from '../../utils/studentMailStorage';
 import { dbVault } from '../../services/dbVault';
 import { useToast, triggerCelebrationCrackles } from '../../context/ToastContext';
 
-const DEFAULT_COMPANY_REQUIREMENTS = [
-  {
-    id: 'req_google_cloud_demo',
-    company_id: 'c_google',
-    company_name: 'Google Cloud India',
-    title: 'Software Development Engineer - Cloud & AI',
-    company_logo_url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/Google_2015_logo.svg/250px-Google_2015_logo.svg.png',
-    logo_url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/Google_2015_logo.svg/250px-Google_2015_logo.svg.png',
-    eligible_programs_json: JSON.stringify(['BTech CSE', 'BTech IT']),
-    min_cgpa: 8.0,
-    required_skills_json: JSON.stringify(['Distributed Systems', 'Python', 'Go', 'Kubernetes', 'Cloud Infrastructure']),
-    preferred_skills_json: JSON.stringify(['GCP Architecture', 'TensorFlow', 'gRPC']),
-    job_type: 'Full-time',
-    ctc_range: '₹28,00,000 - ₹34,00,000 PA',
-    openings: 5,
-    deadline: '2026-11-15',
-    job_description: 'Software Development Engineer in Google Cloud Core Infrastructure, developing scalable distributed backends and AI model deployment telemetry.',
-    application_type: 'internal',
-    question_bank_json: '[]',
-    question_bank_status: 'complete',
-    applications_open: 1,
-    applicant_count: 9,
-    created_at: new Date().toISOString()
-  },
-  {
-    id: 'req_ms_azure_demo',
-    company_id: 'c_microsoft',
-    company_name: 'Microsoft Azure Systems',
-    title: 'Graduate Software Engineer - Cloud Platforms',
-    company_logo_url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/96/Microsoft_logo_%282012%29.svg/250px-Microsoft_logo_%282012%29.svg.png',
-    logo_url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/96/Microsoft_logo_%282012%29.svg/250px-Microsoft_logo_%282012%29.svg.png',
-    eligible_programs_json: JSON.stringify(['BTech CSE', 'BTech IT', 'BTech ECE']),
-    min_cgpa: 7.8,
-    required_skills_json: JSON.stringify(['C#', 'C++', 'Azure SDK', 'Microservices', 'REST APIs']),
-    preferred_skills_json: JSON.stringify(['Docker', 'CI/CD Pipelines', 'Distributed Caching']),
-    job_type: 'Full-time',
-    ctc_range: '₹24,00,000 - ₹28,00,000 PA',
-    openings: 4,
-    deadline: '2026-11-25',
-    job_description: 'Engineering resilient cloud storage platforms and microservices telemetry for global Azure enterprise tenants.',
-    application_type: 'internal',
-    question_bank_json: '[]',
-    question_bank_status: 'complete',
-    applications_open: 1,
-    applicant_count: 8,
-    created_at: new Date().toISOString()
-  },
-  {
-    id: 'req_tcs_digital_demo',
-    company_id: 'c_tcs',
-    company_name: 'Tata Consultancy Services (TCS)',
-    title: 'TCS Digital — Systems & Data Engineering Associate',
-    company_logo_url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b1/Tata_Consultancy_Services_Logo.svg/300px-Tata_Consultancy_Services_Logo.svg.png',
-    logo_url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b1/Tata_Consultancy_Services_Logo.svg/300px-Tata_Consultancy_Services_Logo.svg.png',
-    eligible_programs_json: JSON.stringify(['BTech CSE', 'BTech IT', 'BTech Mechanical', 'BTech Chemical']),
-    min_cgpa: 7.0,
-    required_skills_json: JSON.stringify(['Java', 'Python', 'SQL', 'Data Structures', 'Spring Boot']),
-    preferred_skills_json: JSON.stringify(['Cloud Fundamentals', 'Git', 'Linux']),
-    job_type: 'Full-time',
-    ctc_range: '₹9,00,000 - ₹12,00,000 PA',
-    openings: 12,
-    deadline: '2026-12-05',
-    job_description: 'Digital transformation, full-stack microservices delivery, and automated test frameworks across TCS Digital enterprise clients.',
-    application_type: 'internal',
-    question_bank_json: '[]',
-    question_bank_status: 'complete',
-    applications_open: 1,
-    applicant_count: 14,
-    created_at: new Date().toISOString()
-  },
-  {
-    id: 'req_gsfc_chem_demo',
-    company_id: 'c_gsfc_limited',
-    company_name: 'GSFC Limited',
-    title: 'Graduate Engineer Trainee (GET) - Chemical & Process Operations',
-    company_logo_url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/18/Gujarat_State_Fertilizers_and_Chemicals_logo.svg/300px-Gujarat_State_Fertilizers_and_Chemicals_logo.svg.png',
-    logo_url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/18/Gujarat_State_Fertilizers_and_Chemicals_logo.svg/300px-Gujarat_State_Fertilizers_and_Chemicals_logo.svg.png',
-    eligible_programs_json: JSON.stringify(['BTech Chemical', 'MSc Chemistry', 'BTech Mechanical']),
-    min_cgpa: 7.5,
-    required_skills_json: JSON.stringify(['Chemical Engineering', 'Process Safety', 'Heat & Mass Transfer', 'Petrochemicals']),
-    preferred_skills_json: JSON.stringify(['Aspen Plus', 'MATLAB', 'Process Simulation']),
-    job_type: 'Full-time',
-    ctc_range: '₹14,00,000 - ₹18,00,000 PA',
-    openings: 8,
-    deadline: '2026-11-30',
-    job_description: 'Official core recruitment drive by Gujarat State Fertilizers & Chemicals (GSFC Limited) for Chemical & Process Engineering plant operations, fertilizer production, and quality assurance at Fertilizernagar.',
-    application_type: 'internal',
-    question_bank_json: '[]',
-    question_bank_status: 'complete',
-    applications_open: 1,
-    applicant_count: 7,
-    created_at: new Date().toISOString()
-  },
-  {
-    id: 'req_gsfc_safety_demo',
-    company_id: 'c_gsfc_limited',
-    company_name: 'GSFC Limited',
-    title: 'Executive Trainee - Industrial Safety & Process Engineering',
-    company_logo_url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/18/Gujarat_State_Fertilizers_and_Chemicals_logo.svg/300px-Gujarat_State_Fertilizers_and_Chemicals_logo.svg.png',
-    logo_url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/18/Gujarat_State_Fertilizers_and_Chemicals_logo.svg/300px-Gujarat_State_Fertilizers_and_Chemicals_logo.svg.png',
-    eligible_programs_json: JSON.stringify(['BTech Fire & Safety', 'BTech Chemical', 'BTech Mechanical']),
-    min_cgpa: 7.0,
-    required_skills_json: JSON.stringify(['Industrial Safety', 'Hazard Analysis (HAZOP)', 'Process Safety Management', 'EHS Standards']),
-    preferred_skills_json: JSON.stringify(['Fire Protection Systems', 'Risk Assessment', 'ISO 45001']),
-    job_type: 'Full-time',
-    ctc_range: '₹11,00,000 - ₹14,00,000 PA',
-    openings: 5,
-    deadline: '2026-12-15',
-    job_description: 'Campus hiring drive for industrial safety compliance, risk hazard mitigation, and environmental management across GSFC manufacturing plants.',
-    application_type: 'internal',
-    question_bank_json: '[]',
-    question_bank_status: 'complete',
-    applications_open: 1,
-    applicant_count: 6,
-    created_at: new Date().toISOString()
-  },
-  {
-    id: 'req_gsfc_it_demo',
-    company_id: 'c_gsfc_limited',
-    company_name: 'GSFC Limited',
-    title: 'IT & Industrial Automation Systems Officer',
-    company_logo_url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/18/Gujarat_State_Fertilizers_and_Chemicals_logo.svg/300px-Gujarat_State_Fertilizers_and_Chemicals_logo.svg.png',
-    logo_url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/18/Gujarat_State_Fertilizers_and_Chemicals_logo.svg/300px-Gujarat_State_Fertilizers_and_Chemicals_logo.svg.png',
-    eligible_programs_json: JSON.stringify(['BTech CSE', 'BTech IT']),
-    min_cgpa: 7.5,
-    required_skills_json: JSON.stringify(['Python', 'SQL', 'Industrial Automation', 'SCADA & ERP', 'FastAPI']),
-    preferred_skills_json: JSON.stringify(['React', 'Docker', 'PostgreSQL', 'Telemetry']),
-    job_type: 'Full-time',
-    ctc_range: '₹12,00,000 - ₹16,00,000 PA',
-    openings: 4,
-    deadline: '2026-11-20',
-    job_description: 'Full-stack engineering and data telemetry role building industrial IoT pipelines, plant automation dashboards, and corporate enterprise systems for GSFC.',
-    application_type: 'internal',
-    question_bank_json: '[]',
-    question_bank_status: 'complete',
-    applications_open: 1,
-    applicant_count: 4,
-    created_at: new Date().toISOString()
-  }
-];
+const DEFAULT_COMPANY_REQUIREMENTS = [];
 
-export const DEFAULT_COMPANY_APPLICANTS = [
-  {
-    id: 'app_1',
-    application_id: 'app_1',
-    student_id: 's_om',
-    candidate_name: 'Thakkar Om',
-    candidate_email: 'thakkar_om@gmail.com',
-    candidate_phone: '+91 95584 13347',
-    roll_number: '24BT04171',
-    program: 'BTech CSE',
-    branch: 'Computer Science & Engineering',
-    cgpa: 8.9,
-    ats_score: 95,
-    matchScore: 94,
-    match_score: 94,
-    status: 'applied',
-    attendance_status: 'pending',
-    requirement_id: 'req_gsfc_it_demo',
-    job_title: 'IT & Industrial Automation Systems Officer',
-    company_name: 'GSFC Limited',
-    ctc_range: '₹12,00,000 - ₹16,00,000 PA',
-    applied_via: 'internal',
-    evaluation_notes: 'Exceptional proficiency in full-stack architecture, Python, SCADA automation, and cloud telemetry.',
-    applied_at: new Date(Date.now() - 1000 * 60 * 30).toISOString()
-  },
-  {
-    id: 'app_2',
-    application_id: 'app_2',
-    student_id: 's_tanvi',
-    candidate_name: 'Tanvi Joshi',
-    candidate_email: 'tanvi.j@gsfcuniversity.ac.in',
-    candidate_phone: '+91 98765 43211',
-    roll_number: '22BCE108',
-    program: 'BTech CSE',
-    branch: 'AI & Data Science',
-    cgpa: 8.8,
-    ats_score: 94,
-    matchScore: 90,
-    match_score: 90,
-    status: 'selected',
-    attendance_status: 'present',
-    requirement_id: 'req_gsfc_it_demo',
-    job_title: 'IT & Industrial Automation Systems Officer',
-    company_name: 'GSFC Limited',
-    ctc_range: '₹12,00,000 - ₹16,00,000 PA',
-    applied_via: 'internal',
-    evaluation_notes: 'Strong telemetry data engineering and AI predictive modeling portfolio.',
-    applied_at: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString()
-  },
-  {
-    id: 'app_3',
-    application_id: 'app_3',
-    student_id: 's_arav',
-    candidate_name: 'Arav Sharma',
-    candidate_email: 'arav.sharma@student.gsfc.ac.in',
-    candidate_phone: '+91 98765 43212',
-    roll_number: '22BCH012',
-    program: 'BTech Chemical',
-    branch: 'Chemical Engineering',
-    cgpa: 8.6,
-    ats_score: 92,
-    matchScore: 91,
-    match_score: 91,
-    status: 'interview',
-    attendance_status: 'present',
-    requirement_id: 'req_gsfc_chem_demo',
-    job_title: 'Graduate Engineer Trainee (GET) - Chemical & Process Operations',
-    company_name: 'GSFC Limited',
-    ctc_range: '₹14,00,000 - ₹18,00,000 PA',
-    applied_via: 'internal',
-    evaluation_notes: 'Excellent understanding of fertilizer synthesis, reactor dynamics, and process kinetics.',
-    applied_at: new Date(Date.now() - 1000 * 60 * 60 * 48).toISOString()
-  },
-  {
-    id: 'app_4',
-    application_id: 'app_4',
-    student_id: 's_dhruv',
-    candidate_name: 'Dhruv Solanki',
-    candidate_email: 'dhruv.s@gsfcuniversity.ac.in',
-    candidate_phone: '+91 98765 43213',
-    roll_number: '21BCH088',
-    program: 'BTech Chemical',
-    branch: 'Chemical Engineering',
-    cgpa: 8.7,
-    ats_score: 90,
-    matchScore: 89,
-    match_score: 89,
-    status: 'selected',
-    attendance_status: 'present',
-    requirement_id: 'req_gsfc_chem_demo',
-    job_title: 'Graduate Engineer Trainee (GET) - Chemical & Process Operations',
-    company_name: 'GSFC Limited',
-    ctc_range: '₹14,00,000 - ₹18,00,000 PA',
-    applied_via: 'internal',
-    evaluation_notes: 'Official appointment letter generated for Fertilizernagar operations.',
-    applied_at: new Date(Date.now() - 1000 * 60 * 60 * 72).toISOString()
-  },
-  {
-    id: 'app_5',
-    application_id: 'app_5',
-    student_id: 's_ananya',
-    candidate_name: 'Ananya Desai',
-    candidate_email: 'ananya.desai@gsfcuniversity.ac.in',
-    candidate_phone: '+91 98765 43216',
-    roll_number: '22BFE008',
-    program: 'BTech Fire & Safety',
-    branch: 'Fire & Environment Health Safety',
-    cgpa: 8.7,
-    ats_score: 93,
-    matchScore: 92,
-    match_score: 92,
-    status: 'interview',
-    attendance_status: 'present',
-    requirement_id: 'req_gsfc_safety_demo',
-    job_title: 'Executive Trainee - Industrial Safety & Process Engineering',
-    company_name: 'GSFC Limited',
-    ctc_range: '₹11,00,000 - ₹14,00,000 PA',
-    applied_via: 'internal',
-    evaluation_notes: 'High compliance in HAZOP procedures, plant emergency response, and safety audits.',
-    applied_at: new Date(Date.now() - 1000 * 60 * 60 * 96).toISOString()
-  },
-  {
-    id: 'app_6',
-    application_id: 'app_6',
-    student_id: 's_sneha',
-    candidate_name: 'Sneha Dave',
-    candidate_email: 'sneha.d@gsfcuniversity.ac.in',
-    candidate_phone: '+91 98765 43215',
-    roll_number: '22BIT041',
-    program: 'BTech IT',
-    branch: 'Information Technology',
-    cgpa: 8.8,
-    ats_score: 92,
-    matchScore: 90,
-    match_score: 90,
-    status: 'selected',
-    attendance_status: 'present',
-    requirement_id: 'req_gsfc_it_demo',
-    job_title: 'IT & Industrial Automation Systems Officer',
-    company_name: 'GSFC Limited',
-    ctc_range: '₹12,00,000 - ₹16,00,000 PA',
-    applied_via: 'internal',
-    evaluation_notes: 'Offer letter extended for SCADA telemetry and industrial web systems.',
-    applied_at: new Date(Date.now() - 1000 * 60 * 60 * 120).toISOString()
-  }
-];
+export const DEFAULT_COMPANY_APPLICANTS = [];
 
 export default function CompanyDashboard({ currentUser, company, onCompanyAuthSuccess, onRefreshCompany, openPostModalSignal, openApplicantsFeedSignal }) {
   const { showToast } = useToast();
@@ -393,26 +109,10 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
 
 
   const [requirements, setRequirements] = useState(() => {
-    const compId = company?.id || currentUser?.owner_id || currentUser?.profile?.id || currentUser?.id || 'c_demo';
+    const compId = company?.id || currentUser?.owner_id || currentUser?.profile?.id || currentUser?.id;
+    if (!compId) return [];
     const fromVault = dbVault.getCollection('company_requirements_' + compId, null);
-    if (fromVault && fromVault.length > 0) return fromVault;
-
-    const email = (currentUser?.email || '').toLowerCase();
-    const compName = (company?.company_name || currentUser?.company_name || currentUser?.name || '').toLowerCase();
-    
-    if (email.includes('google') || compName.includes('google')) {
-      return DEFAULT_COMPANY_REQUIREMENTS.filter(r => r.company_id === 'c_google');
-    }
-    if (email.includes('microsoft') || compName.includes('microsoft')) {
-      return DEFAULT_COMPANY_REQUIREMENTS.filter(r => r.company_id === 'c_microsoft');
-    }
-    if (email.includes('tcs') || compName.includes('tcs')) {
-      return DEFAULT_COMPANY_REQUIREMENTS.filter(r => r.company_id === 'c_tcs');
-    }
-    if (compName.includes('gsfc') || isGsfcLimitedDemo) {
-      return DEFAULT_COMPANY_REQUIREMENTS.filter(r => r.company_id === 'c_gsfc_limited');
-    }
-    // For custom registered recruiters (e.g. Oteck, new companies), start clean with their own posted jobs
+    if (fromVault && Array.isArray(fromVault) && fromVault.length > 0) return fromVault;
     return [];
   });
   const [activeReqApplicants, setActiveReqApplicants] = useState(null);
@@ -614,7 +314,13 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
   const [loginError, setLoginError] = useState('');
 
   // Candidate Database View State
-  const [allCompanyApplicants, setAllCompanyApplicants] = useState(DEFAULT_COMPANY_APPLICANTS);
+  const [allCompanyApplicants, setAllCompanyApplicants] = useState(() => {
+    const compId = company?.id || currentUser?.owner_id || currentUser?.profile?.id || currentUser?.id;
+    if (!compId) return [];
+    const fromVault = dbVault.getCollection('company_applicants_' + compId, null);
+    if (fromVault && Array.isArray(fromVault) && fromVault.length > 0) return fromVault;
+    return [];
+  });
   const [allCandidates, setAllCandidates] = useState([]);
   const [searchCandidateQuery, setSearchCandidateQuery] = useState('');
   const [selectedCandidateReport, setSelectedCandidateReport] = useState(null);
@@ -1279,22 +985,12 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
   }, [company, currentUser]);
 
   const fetchCompanyRequirements = async () => {
-    const compId = company?.id || currentUser?.owner_id || currentUser?.profile?.id || currentUser?.id || 'c_demo';
-    const fromVault = dbVault.getCollection('company_requirements_' + compId, null);
-    
-    const email = (currentUser?.email || '').toLowerCase();
-    const compName = (company?.company_name || currentUser?.company_name || currentUser?.name || '').toLowerCase();
-    
-    let defaultReqs = [];
-    if (compName.includes('gsfc') || isGsfcLimitedDemo) {
-      defaultReqs = DEFAULT_COMPANY_REQUIREMENTS.filter(r => r.company_id === 'c_gsfc_limited');
-    } else if (email.includes('google') || compName.includes('google')) {
-      defaultReqs = DEFAULT_COMPANY_REQUIREMENTS.filter(r => r.company_id === 'c_google');
-    } else if (email.includes('microsoft') || compName.includes('microsoft')) {
-      defaultReqs = DEFAULT_COMPANY_REQUIREMENTS.filter(r => r.company_id === 'c_microsoft');
-    } else if (email.includes('tcs') || compName.includes('tcs')) {
-      defaultReqs = DEFAULT_COMPANY_REQUIREMENTS.filter(r => r.company_id === 'c_tcs');
+    const compId = company?.id || currentUser?.owner_id || currentUser?.profile?.id || currentUser?.id;
+    if (!compId) {
+      setRequirements([]);
+      return;
     }
+    const fromVault = dbVault.getCollection('company_requirements_' + compId, null);
 
     try {
       const res = await fetch(`/api/company/requirements?companyId=${compId}`);
@@ -1306,30 +1002,34 @@ export default function CompanyDashboard({ currentUser, company, onCompanyAuthSu
           return;
         }
       }
-      setRequirements(fromVault || defaultReqs);
+      setRequirements(Array.isArray(fromVault) ? fromVault : []);
     } catch (err) {
-      setRequirements(fromVault || defaultReqs);
+      setRequirements(Array.isArray(fromVault) ? fromVault : []);
     }
   };
 
 
   const fetchCandidateDatabase = async () => {
-    const compId = company?.id || currentUser?.owner_id || currentUser?.profile?.id || currentUser?.id || 'c_demo';
+    const compId = company?.id || currentUser?.owner_id || currentUser?.profile?.id || currentUser?.id;
+    if (!compId) {
+      setAllCompanyApplicants([]);
+      return;
+    }
     const fromVault = dbVault.getCollection('company_applicants_' + compId, null);
 
     try {
       const res = await fetch(`/api/company/all-applicants?companyId=${compId}`);
       if (res.ok) {
         const data = await res.json();
-        if (Array.isArray(data) && data.length > 0) {
+        if (Array.isArray(data)) {
           setAllCompanyApplicants(data);
           dbVault.saveCollection('company_applicants_' + compId, data);
           return;
         }
       }
-      setAllCompanyApplicants(fromVault || DEFAULT_COMPANY_APPLICANTS);
+      setAllCompanyApplicants(Array.isArray(fromVault) ? fromVault : []);
     } catch (err) {
-      setAllCompanyApplicants(fromVault || DEFAULT_COMPANY_APPLICANTS);
+      setAllCompanyApplicants(Array.isArray(fromVault) ? fromVault : []);
     }
   };
 

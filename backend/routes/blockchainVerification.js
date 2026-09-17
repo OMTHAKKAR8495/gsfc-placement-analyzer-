@@ -34,8 +34,8 @@ try {
 }
 
 // Helper: Compute SHA-256 Hash of data string or buffer
-export async function computeSha256(data) {
-  return crypto.createHash('sha256').update(data).digest('hex');
+export function computeSha256(data) {
+  return crypto.createHash('sha256').update(String(data)).digest('hex');
 }
 
 // Seed initial Genesis Block and sample anchored credentials
@@ -98,6 +98,11 @@ export async function seedGenesisLedger() {
           INSERT INTO blockchain_anchored_documents 
           (id, document_type, document_title, student_id, student_name, roll_number, company_name, job_title, ctc_range, document_hash, previous_block_hash, merkle_root, block_number, issuer_name, issuer_role)
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Dr. Neeshu Chaudhary', 'TPC Placement Director')
+          ON CONFLICT (id) DO UPDATE SET 
+            document_hash = EXCLUDED.document_hash,
+            previous_block_hash = EXCLUDED.previous_block_hash,
+            merkle_root = EXCLUDED.merkle_root,
+            block_number = EXCLUDED.block_number
         `).run(d.id, d.type, d.title, d.student_id, d.student_name, d.roll, d.company, d.role, d.ctc, docHash, lastHash, merkleRoot, d.block_number);
 
         lastHash = docHash;

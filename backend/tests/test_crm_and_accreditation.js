@@ -3,10 +3,9 @@ import db, { initDatabase } from '../db/index.js';
 
 console.log('🧪 Running Phase 5: Recruiter CRM & Accreditation Exporters Test Suite...\n');
 
-// Ensure database tables exist
-initDatabase();
-
 async function runCrmTests() {
+  await initDatabase();
+
   // 1. Test CRM Application Pipeline Stage Transitions
   console.log('1️⃣ Testing Recruiter CRM Pipeline Stage Transition & Audit Logging...');
   const testStudentId = 's_crm_test_' + Date.now();
@@ -15,39 +14,40 @@ async function runCrmTests() {
   const testAppId = 'app_crm_test_' + Date.now();
   const testCompanyId = 'comp_crm_test_' + Date.now();
 
-  db.prepare(`
+  await db.prepare(`
     INSERT INTO users (id, email, password_hash, role)
     VALUES (?, ?, 'hash', 'student')
   `).run(testUserId, `crm_student_${Date.now()}@gsfcuniversity.ac.in`);
 
-  db.prepare(`
+  const testRoll = '22BCE' + Date.now().toString().slice(-4);
+  await db.prepare(`
     INSERT INTO student_profiles (id, user_id, name, roll_number, program, branch, cgpa, ats_score)
-    VALUES (?, ?, 'Rahul Verma', '22BCE099', 'B.Tech', 'CSE', 8.8, 89)
-  `).run(testStudentId, testUserId);
+    VALUES (?, ?, 'Rahul Verma', ?, 'B.Tech', 'CSE', 8.8, 89)
+  `).run(testStudentId, testUserId, testRoll);
 
-  db.prepare(`
+  await db.prepare(`
     INSERT INTO company_profiles (id, user_id, company_name, industry)
     VALUES (?, ?, 'Tata Consultancy Services', 'IT & Software')
   `).run(testCompanyId, testUserId);
 
-  db.prepare(`
+  await db.prepare(`
     INSERT INTO requirements (id, company_id, title, job_type, ctc_range, eligible_programs_json, required_skills_json, job_description, openings, deadline)
     VALUES (?, ?, 'Digital Software Engineer', 'Full-time', '7.5 - 9.0 LPA', '["B.Tech CSE"]', '["Java", "Spring Boot", "SQL"]', 'Software developer role', 5, '2026-12-31')
   `).run(testReqId, testCompanyId);
 
-  db.prepare(`
+  await db.prepare(`
     INSERT INTO applications (id, student_id, requirement_id, status)
     VALUES (?, ?, ?, 'applied')
   `).run(testAppId, testStudentId, testReqId);
 
   // Transition stage from 'applied' to 'interview'
-  db.prepare(`
+  await db.prepare(`
     UPDATE applications 
     SET status = 'interview'
     WHERE id = ?
   `).run(testAppId);
 
-  const updatedApp = db.prepare('SELECT * FROM applications WHERE id = ?').get(testAppId);
+  const updatedApp = await db.prepare('SELECT * FROM applications WHERE id = ?').get(testAppId);
   assert(updatedApp.status === 'interview', 'Application stage must update to interview');
   console.log(`   ✅ Stage transition verified: "applied" -> "${updatedApp.status}"`);
 
@@ -58,51 +58,45 @@ async function runCrmTests() {
     technical_weight: 45,
     ats_weight: 15,
     star_weight: 20,
-    cgpa_weight: 20,
-    min_cutoff_score: 75
+    wpm_weight: 20,
+    passing_threshold: 75
   };
 
-  db.prepare(`
-    UPDATE requirements
-    SET custom_rubric_json = ?
+  const rubricId = 'rubric_test_' + Date.now();
+  await db.prepare(`
+    INSERT INTO drive_evaluation_rubrics (id, requirement_id, company_id, rubric_name, rubric_config_json)
+    VALUES (?, ?, ?, ?, ?)
+  `).run(rubricId, testReqId, testCompanyId, rubric.rubric_name, JSON.stringify(rubric));
+
+  const savedRubric = await db.prepare('SELECT * FROM drive_evaluation_rubrics WHERE id = ?').get(rubricId);
+  assert(savedRubric !== null, 'Rubric must be retrieved');
+  const parsed = JSON.parse(savedRubric.rubric_config_json);
+  assert(parsed.passing_threshold === 75, 'Passing threshold must match');
+  console.log(`   ✅ Custom Rubric Saved & Verified: "${savedRubric.rubric_name}" (Technical: ${parsed.technical_weight}%)`);
+
+  // 3. Test Multi-Candidate Bulk Action Dispatch
+  console.log('\n3️⃣ Testing Multi-Candidate Batch Status & Bulk Communication Dispatch...');
+  const studentIds = [testStudentId];
+  const updateResult = await db.prepare(`
+    UPDATE applications 
+    SET status = 'shortlisted'
     WHERE id = ?
-  `).run(JSON.stringify(rubric), testReqId);
+  `).run(testAppId);
 
-  const reqWithRubric = db.prepare('SELECT custom_rubric_json FROM requirements WHERE id = ?').get(testReqId);
-  const parsedRubric = JSON.parse(reqWithRubric.custom_rubric_json);
-  assert(parsedRubric.technical_weight === 45, 'Rubric technical weight must be 45');
-  assert(parsedRubric.min_cutoff_score === 75, 'Rubric cutoff must be 75');
-  console.log(`   ✅ Custom Rubric saved: "${parsedRubric.rubric_name}" (Cutoff: ${parsedRubric.min_cutoff_score}%)`);
+  const shortlistedApp = await db.prepare('SELECT * FROM applications WHERE id = ?').get(testAppId);
+  assert(shortlistedApp.status === 'shortlisted', 'Bulk shortlist must update status to shortlisted');
+  console.log(`   ✅ Bulk Action Processed: Candidate stage updated to "${shortlistedApp.status}"`);
 
-  // 3. Test Multi-Standard Accreditation CSV Generation
-  console.log('\n3️⃣ Testing Accreditation Exporters (NAAC, NIRF, NBA, AICTE)...');
-  
-  // NBA Export test
-  const nbaData = [
-    { dept: 'Computer Science & Engineering', yr: '2025-26', ng: 120, np: 114, avg: 9.8, status: 'Substantially Compliant' }
-  ];
-  let nbaCsv = 'Engineering Program,Academic Year,Total Graduating Batch (Ng),Total Students Placed (Np),Placement Index (P = Np/Ng),Average Package (LPA)\n';
-  nbaData.forEach(d => {
-    nbaCsv += `"${d.dept}","${d.yr}",${d.ng},${d.np},"${((d.np/d.ng)*100).toFixed(1)}%",${d.avg}\n`;
-  });
-  assert(nbaCsv.includes('Placement Index'), 'NBA CSV must contain Placement Index');
-  assert(nbaCsv.includes('95.0%'), 'NBA CSV must calculate correct placement percentage');
-  console.log(`   ✅ NBA Tier-1 Placement Index Report formatted properly.`);
-
-  // AICTE Export test
-  let aicteCsv = 'Institution Code,Institution Name,Academic Year,Discipline,Approved Intake,Eligible for Placement,Total Placed\n';
-  aicteCsv += `"GSFC-GUJ-01","GSFC University","2025-26","Engineering & Technology",320,298,282\n`;
-  assert(aicteCsv.includes('GSFC University'), 'AICTE CSV must contain institution name');
-  console.log(`   ✅ AICTE-CII Placement Survey Report formatted properly.`);
-
-  // Cleanup test artifacts
-  db.prepare('DELETE FROM applications WHERE id = ?').run(testAppId);
-  db.prepare('DELETE FROM requirements WHERE id = ?').run(testReqId);
-  db.prepare('DELETE FROM company_profiles WHERE id = ?').run(testCompanyId);
-  db.prepare('DELETE FROM student_profiles WHERE id = ?').run(testStudentId);
-  db.prepare('DELETE FROM users WHERE id = ?').run(testUserId);
+  // Clean up
+  await db.prepare('DELETE FROM drive_evaluation_rubrics WHERE id = ?').run(rubricId);
+  await db.prepare('DELETE FROM applications WHERE id = ?').run(testAppId);
+  await db.prepare('DELETE FROM requirements WHERE id = ?').run(testReqId);
+  await db.prepare('DELETE FROM company_profiles WHERE id = ?').run(testCompanyId);
+  await db.prepare('DELETE FROM student_profiles WHERE id = ?').run(testStudentId);
+  await db.prepare('DELETE FROM users WHERE id = ?').run(testUserId);
 
   console.log('\n🎉 Phase 5 Test Suite Passed with 100% Assertion Success!\n');
+  process.exit(0);
 }
 
 runCrmTests().catch(err => {

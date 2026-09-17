@@ -88,6 +88,8 @@ export default function AddGSFCCompanyModal({ isOpen, onClose, currentUser, onCo
 
   const [generatedCredentials, setGeneratedCredentials] = useState(null);
   const [error, setError] = useState('');
+  const [emailError, setEmailError] = useState('');
+  const [emailSuccessMsg, setEmailSuccessMsg] = useState('');
 
   if (!isOpen) return null;
 
@@ -130,6 +132,8 @@ export default function AddGSFCCompanyModal({ isOpen, onClose, currentUser, onCo
   const handleGenerateAndRegister = async () => {
     setLoading(true);
     setError('');
+    setEmailError('');
+    setEmailSuccessMsg('');
     try {
       const portalEmail = form.hr_email.trim() || generateEmail(form.company_name);
       const portalPassword = generatePassword(form.company_name);
@@ -172,13 +176,23 @@ export default function AddGSFCCompanyModal({ isOpen, onClose, currentUser, onCo
         localStorage.setItem('gsfc_placed_companies_registry', JSON.stringify(existing));
       } catch(e) {}
 
+      const token = localStorage.getItem('token') || '';
       try {
-        await fetch('/api/admin/add-gsfc-company', {
+        const res = await fetch('/api/admin/add-gsfc-company', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+          },
           body: JSON.stringify(companyRecord)
         });
-      } catch(e) {}
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          console.warn('Backend company registration notification:', errData.error || res.statusText);
+        }
+      } catch(e) {
+        console.warn('Network notice during company registration:', e.message);
+      }
 
       setGeneratedCredentials({
         portal_email: portalEmail,
@@ -205,10 +219,17 @@ export default function AddGSFCCompanyModal({ isOpen, onClose, currentUser, onCo
   const handleSendCredentials = async () => {
     if (!generatedCredentials) return;
     setSendingEmail(true);
+    setEmailError('');
+    setEmailSuccessMsg('');
+
     try {
-      await fetch('/api/auth/send-company-credentials', {
+      const token = localStorage.getItem('token') || '';
+      const res = await fetch('/api/auth/send-company-credentials', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
         body: JSON.stringify({
           to_email: generatedCredentials.contact_email,
           company_name: generatedCredentials.company_name,
@@ -216,15 +237,32 @@ export default function AddGSFCCompanyModal({ isOpen, onClose, currentUser, onCo
           portal_password: generatedCredentials.portal_password,
         })
       });
-    } catch(e) {}
-    setEmailSent(true);
-    setSendingEmail(false);
+
+      const data = await res.json().catch(() => ({}));
+
+      if (res.ok && data?.success) {
+        setEmailSent(true);
+        setEmailSuccessMsg(data.message || `Credentials successfully emailed to ${generatedCredentials.contact_email}`);
+        setEmailError('');
+      } else {
+        setEmailSent(false);
+        setEmailError(data?.error || `Failed to send credentials via email (HTTP ${res.status}). Please check SMTP server settings or share credentials manually.`);
+      }
+    } catch(e) {
+      console.error('Email send error:', e);
+      setEmailSent(false);
+      setEmailError('Network error: Unable to connect to backend email service. Please share credentials manually or retry.');
+    } finally {
+      setSendingEmail(false);
+    }
   };
 
   const handleClose = () => {
     setStep(1);
     setDone(false);
     setError('');
+    setEmailError('');
+    setEmailSuccessMsg('');
     setGeneratedCredentials(null);
     setEmailSent(false);
     setShowPass(false);
@@ -299,13 +337,38 @@ export default function AddGSFCCompanyModal({ isOpen, onClose, currentUser, onCo
                   <CheckCircle2 className="w-9 h-9 text-emerald-600" />
                 </div>
                 <h3 className="text-lg font-black text-slate-900">{generatedCredentials.company_name} — Registered!</h3>
-                <p className="text-xs text-slate-600 font-medium">Portal account created successfully. Share the credentials below with the company HR.</p>
+                <p className="text-xs text-slate-600 font-medium">Portal account created successfully & saved to GSFC Credentials Vault.</p>
               </div>
 
+              {/* Status Alert if Email Sent or Failed */}
+              {emailSent && (
+                <div className="p-3.5 bg-emerald-50 border border-emerald-300 rounded-2xl text-xs font-bold text-emerald-900 flex items-start gap-2.5">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-black text-emerald-900">Email Dispatched Successfully</p>
+                    <p className="text-[11px] text-emerald-700">{emailSuccessMsg || `Credentials sent to HR Contact (${generatedCredentials.contact_email})`}</p>
+                  </div>
+                </div>
+              )}
+
+              {emailError && (
+                <div className="p-3.5 bg-rose-50 border border-rose-300 rounded-2xl text-xs font-bold text-rose-900 flex items-start gap-2.5">
+                  <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <p className="font-black text-rose-900">Email Dispatch Notice</p>
+                    <p className="text-[11px] text-rose-700 mt-0.5">{emailError}</p>
+                    <p className="text-[10px] text-rose-600 mt-1 font-semibold">You can still copy the credentials below to share directly with the company HR.</p>
+                  </div>
+                </div>
+              )}
+
               <div className="p-5 bg-gradient-to-br from-blue-950 to-indigo-900 rounded-2xl text-white space-y-4">
-                <div className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-blue-300">
-                  <KeyRound className="w-4 h-4" />
-                  <span>Portal Login Credentials — GSFC Placed Company</span>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-blue-300">
+                    <KeyRound className="w-4 h-4" />
+                    <span>Portal Login Credentials</span>
+                  </div>
+                  <span className="text-[10px] px-2 py-0.5 bg-blue-800 text-blue-200 rounded-full font-bold">Vault Synced</span>
                 </div>
 
                 <div className="space-y-1">
@@ -362,10 +425,10 @@ export default function AddGSFCCompanyModal({ isOpen, onClose, currentUser, onCo
                   type="button"
                   onClick={handleSendCredentials}
                   disabled={sendingEmail || emailSent}
-                  className={"flex-1 py-2.5 px-4 rounded-2xl text-xs font-black flex items-center justify-center gap-2 cursor-pointer transition-all disabled:opacity-60 " + (emailSent ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' : 'bg-gradient-to-r from-blue-900 to-indigo-900 hover:from-blue-800 hover:to-indigo-800 text-white shadow-lg')}
+                  className={"flex-1 py-2.5 px-4 rounded-2xl text-xs font-black flex items-center justify-center gap-2 cursor-pointer transition-all disabled:opacity-60 " + (emailSent ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' : emailError ? 'bg-gradient-to-r from-rose-800 to-amber-800 hover:from-rose-700 hover:to-amber-700 text-white shadow-lg' : 'bg-gradient-to-r from-blue-900 to-indigo-900 hover:from-blue-800 hover:to-indigo-800 text-white shadow-lg')}
                 >
-                  {sendingEmail ? <RefreshCw className="w-4 h-4 animate-spin" /> : emailSent ? <CheckCircle2 className="w-4 h-4 text-emerald-600" /> : <Send className="w-4 h-4" />}
-                  {sendingEmail ? 'Sending...' : emailSent ? 'Credentials Sent to HR Contact' : 'Email Credentials to HR Contact'}
+                  {sendingEmail ? <RefreshCw className="w-4 h-4 animate-spin" /> : emailSent ? <CheckCircle2 className="w-4 h-4 text-emerald-600" /> : emailError ? <RefreshCw className="w-4 h-4" /> : <Send className="w-4 h-4" />}
+                  {sendingEmail ? 'Sending Email...' : emailSent ? 'Credentials Sent to HR Contact' : emailError ? 'Retry Email Dispatch' : 'Email Credentials to HR Contact'}
                 </button>
                 <button type="button" onClick={handleClose} className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-black text-xs rounded-2xl cursor-pointer transition">
                   Close
