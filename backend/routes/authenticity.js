@@ -34,7 +34,7 @@ router.post('/analyze', upload.single('document'), async (req, res) => {
 
     // Save report to database
     const reportId = report.id || ('auth_' + crypto.randomUUID().substring(0, 8));
-    db.prepare(`
+    await db.prepare(`
       INSERT OR REPLACE INTO document_authenticity_reports 
       (id, application_id, student_id, file_name, file_type, file_size, risk_level, risk_score, summary_verdict, metadata_signals_json, signals_list_json, disclaimer)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -54,7 +54,7 @@ router.post('/analyze', upload.single('document'), async (req, res) => {
     );
 
     if (applicationId) {
-      db.prepare(`
+      await db.prepare(`
         UPDATE applications 
         SET authenticity_report_json = ? 
         WHERE id = ?
@@ -77,7 +77,7 @@ router.get('/report/:applicationId', async (req, res) => {
     const { applicationId } = req.params;
     
     // Check if stored in applications table
-    const app = db.prepare(`
+    const app = await db.prepare(`
       SELECT a.*, s.name as student_name, s.roll_number, s.program, s.branch, s.cgpa, s.admission_year, s.passing_year,
              r.title as job_title, c.company_name
       FROM applications a
@@ -114,7 +114,7 @@ router.get('/report/:applicationId', async (req, res) => {
     );
 
     // Cache to DB
-    db.prepare(`UPDATE applications SET authenticity_report_json = ? WHERE id = ?`).run(JSON.stringify(report), applicationId);
+    await db.prepare(`UPDATE applications SET authenticity_report_json = ? WHERE id = ?`).run(JSON.stringify(report), applicationId);
 
     res.json({ success: true, report, application: app });
   } catch (err) {

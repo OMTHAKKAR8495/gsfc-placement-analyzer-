@@ -16,7 +16,7 @@ const router = express.Router();
 // ==========================================
 const BASE32_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
 
-export function base32Encode(buffer) {
+export async function base32Encode(buffer) {
   let bits = 0;
   let value = 0;
   let output = '';
@@ -88,7 +88,7 @@ export function verifyTotpCode(secret, code) {
 
 
 // Persistent Login Event & Activity Timeline Recorder
-export function recordUserLoginEvent(user, req, profile = null) {
+export async function recordUserLoginEvent(user, req, profile = null) {
   try {
     if (!user || !user.id) return null;
     const loginId = 'log_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
@@ -98,13 +98,13 @@ export function recordUserLoginEvent(user, req, profile = null) {
     const deviceType = /mobile|android|iphone|ipad/i.test(userAgent) ? 'Mobile' : 'Desktop';
 
     // 1. Insert into user_login_history
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO user_login_history (id, user_id, role, email, login_at, session_status, ip_address, user_agent, device_type)
       VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, 'active', ?, ?, ?)
     `).run(loginId, user.id, user.role, user.email, ip, userAgent, deviceType);
 
     // 2. Update users table
-    db.prepare(`
+    await db.prepare(`
       UPDATE users 
       SET last_login_at = CURRENT_TIMESTAMP,
           login_count = COALESCE(login_count, 0) + 1,
@@ -115,7 +115,7 @@ export function recordUserLoginEvent(user, req, profile = null) {
 
     // 3. Update student_profiles if student
     if (user.role === 'student') {
-      db.prepare(`
+      await db.prepare(`
         UPDATE student_profiles 
         SET last_login_at = CURRENT_TIMESTAMP,
             login_count = COALESCE(login_count, 0) + 1,
@@ -131,7 +131,7 @@ export function recordUserLoginEvent(user, req, profile = null) {
     const actTitle = `${user.role.toUpperCase()} Sign-In`;
     const actDesc = `Logged into ${portalName} (${deviceType})`;
     
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO user_activity_timeline (id, user_id, role, activity_type, title, description, metadata_json)
       VALUES (?, ?, ?, 'LOGIN', ?, ?, ?)
     `).run(actId, user.id, user.role, actTitle, actDesc, JSON.stringify({ ip, userAgent, deviceType, loginId }));
@@ -162,15 +162,15 @@ router.post('/register', AuthRateLimiter.registerLimiter, async (req, res) => {
     const cleanRoll = (roll_number || '').trim().toUpperCase();
 
     // 1. Check for existing user with this email
-    const existingUser = db.prepare('SELECT id, email, role FROM users WHERE lower(email) = ?').get(cleanEmail);
+    const existingUser = await db.prepare('SELECT id, email, role FROM users WHERE lower(email) = ?').get(cleanEmail);
     if (existingUser) {
       let hasProfile = false;
       if (existingUser.role === 'student') {
-        hasProfile = Boolean(db.prepare('SELECT id FROM student_profiles WHERE user_id = ?').get(existingUser.id));
+        hasProfile = Boolean(await db.prepare('SELECT id FROM student_profiles WHERE user_id = ?').get(existingUser.id));
       } else if (existingUser.role === 'company') {
-        hasProfile = Boolean(db.prepare('SELECT id FROM company_profiles WHERE user_id = ?').get(existingUser.id));
+        hasProfile = Boolean(await db.prepare('SELECT id FROM company_profiles WHERE user_id = ?').get(existingUser.id));
       } else if (existingUser.role === 'alumni') {
-        hasProfile = Boolean(db.prepare('SELECT id FROM alumni_profiles WHERE user_id = ?').get(existingUser.id));
+        hasProfile = Boolean(await db.prepare('SELECT id FROM alumni_profiles WHERE user_id = ?').get(existingUser.id));
       } else {
         hasProfile = true;
       }
@@ -180,21 +180,21 @@ router.post('/register', AuthRateLimiter.registerLimiter, async (req, res) => {
       } else {
         // Incomplete/interrupted record from previous attempt — clean up to allow clean re-registration
         try {
-          db.prepare('DELETE FROM users WHERE id = ?').run(existingUser.id);
+          await db.prepare('DELETE FROM users WHERE id = ?').run(existingUser.id);
         } catch (e) {}
       }
     }
 
     // 2. Check for existing student roll number
     if (role === 'student' && cleanRoll) {
-      const existingRoll = db.prepare('SELECT id, roll_number, name FROM student_profiles WHERE upper(roll_number) = ?').get(cleanRoll);
+      const existingRoll = await db.prepare('SELECT id, roll_number, name FROM student_profiles WHERE upper(roll_number) = ?').get(cleanRoll);
       if (existingRoll) {
         return res.status(409).json({ error: `An account with Enrollment/Roll Number "${cleanRoll}" is already registered. Please sign in or contact TPC Admin.` });
       }
     }
 
     if (role === 'student') {
-      const authRecord = db.prepare('SELECT * FROM authorized_students WHERE lower(email) = ? OR upper(roll_number) = ?').get(cleanEmail, cleanRoll);
+      const authRecord = await db.prepare('SELECT * FROM authorized_students WHERE lower(email) = ? OR upper(roll_number) = ?').get(cleanEmail, cleanRoll);
       if (authRecord && authRecord.access_status === 'blocked') {
         return res.status(403).json({
           error: 'Registration Denied: Your student portal access is currently restricted by TPC Admin.'
@@ -204,7 +204,7 @@ router.post('/register', AuthRateLimiter.registerLimiter, async (req, res) => {
         // Register newly created student into authorized_students master roster
         const authId = 'auth_' + cleanRoll.toLowerCase().replace(/[^a-z0-9_]/g, '_');
         try {
-          db.prepare(`
+          await db.prepare(`
             INSERT OR IGNORE INTO authorized_students (id, roll_number, email, name, program, branch, cgpa, passing_year, admission_year, phone, access_status, authorized_by)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', 'Student Self-Registration')
           `).run(
@@ -227,7 +227,7 @@ router.post('/register', AuthRateLimiter.registerLimiter, async (req, res) => {
     // Standard Cost Factor 10 for secure asynchronous bcrypt hashing
     const passwordHash = await bcrypt.hash(password, 10);
 
-    db.prepare(`INSERT INTO users (id, email, password_hash, role) VALUES (?, ?, ?, ?)`).run(userId, cleanEmail, passwordHash, role);
+    await db.prepare(`INSERT INTO users (id, email, password_hash, role) VALUES (?, ?, ?, ?)`).run(userId, cleanEmail, passwordHash, role);
 
     let ownerId = userId;
     let userProfile = null;
@@ -235,7 +235,7 @@ router.post('/register', AuthRateLimiter.registerLimiter, async (req, res) => {
     if (role === 'student') {
       const studentId = 's_' + Date.now();
       ownerId = studentId;
-      const authRecord = db.prepare('SELECT * FROM authorized_students WHERE lower(email) = ? OR upper(roll_number) = ?').get(cleanEmail, cleanRoll);
+      const authRecord = await db.prepare('SELECT * FROM authorized_students WHERE lower(email) = ? OR upper(roll_number) = ?').get(cleanEmail, cleanRoll);
 
       const finalRoll = cleanRoll || authRecord?.roll_number || '24BT04171';
       const finalName = (name || authRecord?.name || 'GSFC Student').trim();
@@ -246,7 +246,7 @@ router.post('/register', AuthRateLimiter.registerLimiter, async (req, res) => {
       const finalAdmissionYear = parseInt(req.body.admission_year || authRecord?.admission_year || 2022, 10);
       const finalPassingYear = parseInt(req.body.passing_year || authRecord?.passing_year || 2026, 10);
 
-      db.prepare(`
+      await db.prepare(`
         INSERT INTO student_profiles (id, user_id, roll_number, name, phone, program, branch, cgpa, admission_year, passing_year, access_status, is_authorized, profile_completion_pct, profile_completion)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', 1, 75, 75)
       `).run(
@@ -303,7 +303,7 @@ Training & Placement Cell (TPC)
 GSFC University, Vadodara`;
 
       try {
-        db.prepare(`
+        await db.prepare(`
           INSERT INTO student_notifications (id, student_id, notification_type, title, message, is_read)
           VALUES (?, ?, 'welcome_credentials', ?, ?, 0)
         `).run(welcomeNotifId, studentId, welcomeTitle, welcomeBody);
@@ -313,7 +313,7 @@ GSFC University, Vadodara`;
     } else if (role === 'company') {
       const companyId = 'c_' + Date.now();
       ownerId = companyId;
-      db.prepare(`
+      await db.prepare(`
         INSERT INTO company_profiles (id, user_id, company_name, contact_phone, industry, website, approved)
         VALUES (?, ?, ?, ?, ?, ?, 0)
       `).run(companyId, userId, company_name || 'Recruiter Company', phone || '+91 98765 43210', industry || 'Technology', website || 'https://company.com');
@@ -321,7 +321,7 @@ GSFC University, Vadodara`;
     } else if (role === 'alumni') {
       const alumniId = 'alumni_' + Date.now();
       ownerId = alumniId;
-      db.prepare(`
+      await db.prepare(`
         INSERT INTO alumni_profiles (id, user_id, name, batch_year, company, designation, linkedin_url, bio, verified)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)
       `).run(alumniId, userId, name || 'GSFC Alumni', req.body.batch_year || '2020-2024', company_name || req.body.company || 'Industry Partner', req.body.designation || 'Software Engineer', req.body.linkedin_url || '', req.body.bio || '', 0);
@@ -430,38 +430,38 @@ router.post('/login', AuthRateLimiter.loginLimiter, async (req, res) => {
     }
 
     const cleanEmail = (email || '').toLowerCase().trim();
-    let user = db.prepare('SELECT * FROM users WHERE lower(email) = ?').get(cleanEmail);
+    let user = await db.prepare('SELECT * FROM users WHERE lower(email) = ?').get(cleanEmail);
 
     if (!user) {
       // 🔍 Smart Student, Faculty, Security & Roll Resolver
       const prefix = cleanEmail.split('@')[0];
       if (prefix === 'thakkar_om' || prefix.includes('thakkar')) {
-        user = db.prepare("SELECT * FROM users WHERE lower(email) = 'thakkar_om@gmail.com'").get();
+        user = await db.prepare("SELECT * FROM users WHERE lower(email) = 'thakkar_om@gmail.com'").get();
       } else if (prefix === '24bt04171') {
-        user = db.prepare("SELECT * FROM users WHERE lower(email) = '24bt04171@gsfcuniversity.ac.in'").get();
+        user = await db.prepare("SELECT * FROM users WHERE lower(email) = '24bt04171@gsfcuniversity.ac.in'").get();
       } else if (prefix === 'faculty.cse' || prefix === 'faculty') {
-        user = db.prepare("SELECT * FROM users WHERE lower(email) = 'faculty.cse@gsfcuniversity.ac.in' OR lower(email) = 'faculty@gsfcuniversity.ac.in' OR lower(email) = 'neeshuchaudhary@gsfcuniversityfaculty.ac.in' LIMIT 1").get();
+        user = await db.prepare("SELECT * FROM users WHERE lower(email) = 'faculty.cse@gsfcuniversity.ac.in' OR lower(email) = 'faculty@gsfcuniversity.ac.in' OR lower(email) = 'neeshuchaudhary@gsfcuniversityfaculty.ac.in' LIMIT 1").get();
       } else if (prefix === 'security' || prefix === 'guard') {
-        user = db.prepare("SELECT * FROM users WHERE lower(email) = 'security@gsfcuniversity.ac.in' OR role = 'security' LIMIT 1").get();
+        user = await db.prepare("SELECT * FROM users WHERE lower(email) = 'security@gsfcuniversity.ac.in' OR role = 'security' LIMIT 1").get();
       } else if (prefix === 'admin') {
-        user = db.prepare("SELECT * FROM users WHERE lower(email) = 'admin@gsfcuniversity.ac.in' LIMIT 1").get();
+        user = await db.prepare("SELECT * FROM users WHERE lower(email) = 'admin@gsfcuniversity.ac.in' LIMIT 1").get();
       } else if (prefix === 'superadmin') {
-        user = db.prepare("SELECT * FROM users WHERE lower(email) = 'superadmin@gsfcuniversity.ac.in' LIMIT 1").get();
+        user = await db.prepare("SELECT * FROM users WHERE lower(email) = 'superadmin@gsfcuniversity.ac.in' LIMIT 1").get();
       } else {
-        let studentProf = db.prepare('SELECT user_id FROM student_profiles WHERE lower(roll_number) = ? OR lower(university_email) = ?').get(prefix, cleanEmail);
+        let studentProf = await db.prepare('SELECT user_id FROM student_profiles WHERE lower(roll_number) = ? OR lower(university_email) = ?').get(prefix, cleanEmail);
         if (!studentProf) {
-          studentProf = db.prepare('SELECT user_id FROM student_profiles WHERE parsed_resume_json LIKE ?').get(`%"email":"${cleanEmail}"%`);
+          studentProf = await db.prepare('SELECT user_id FROM student_profiles WHERE parsed_resume_json LIKE ?').get(`%"email":"${cleanEmail}"%`);
         }
         if (studentProf && studentProf.user_id) {
-          user = db.prepare('SELECT * FROM users WHERE id = ?').get(studentProf.user_id);
+          user = await db.prepare('SELECT * FROM users WHERE id = ?').get(studentProf.user_id);
         }
         
         if (!user) {
-          const authStudent = db.prepare('SELECT * FROM authorized_students WHERE lower(roll_number) = ? OR lower(email) = ?').get(prefix, cleanEmail);
+          const authStudent = await db.prepare('SELECT * FROM authorized_students WHERE lower(roll_number) = ? OR lower(email) = ?').get(prefix, cleanEmail);
           if (authStudent) {
-            const existingProf = db.prepare('SELECT * FROM student_profiles WHERE lower(roll_number) = ? OR lower(university_email) = ?').get(authStudent.roll_number.toLowerCase(), authStudent.email.toLowerCase());
+            const existingProf = await db.prepare('SELECT * FROM student_profiles WHERE lower(roll_number) = ? OR lower(university_email) = ?').get(authStudent.roll_number.toLowerCase(), authStudent.email.toLowerCase());
             if (existingProf && existingProf.user_id) {
-              user = db.prepare('SELECT * FROM users WHERE id = ?').get(existingProf.user_id);
+              user = await db.prepare('SELECT * FROM users WHERE id = ?').get(existingProf.user_id);
             }
           }
         }
@@ -485,13 +485,13 @@ router.post('/login', AuthRateLimiter.loginLimiter, async (req, res) => {
 
       // Allow recruiter emails (like oteck@gmail.com) to switch to company portal
       if (normSelected === 'company' && user.role !== 'company' && !isStudentRoll) {
-        db.prepare('UPDATE users SET role = ? WHERE id = ?').run('company', user.id);
+        await db.prepare('UPDATE users SET role = ? WHERE id = ?').run('company', user.id);
         user.role = 'company';
         
-        let compProfile = db.prepare('SELECT * FROM company_profiles WHERE user_id = ?').get(user.id);
+        let compProfile = await db.prepare('SELECT * FROM company_profiles WHERE user_id = ?').get(user.id);
         if (!compProfile) {
           const formattedCompName = cleanPrefix.replace(/[._-]/g, ' ').split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-          db.prepare(`
+          await db.prepare(`
             INSERT INTO company_profiles (id, user_id, company_name, industry, location, contact_email, phone, verified)
             VALUES (?, ?, ?, ?, ?, ?, ?, 1)
           `).run('c_' + user.id, user.id, `${formattedCompName} Technologies`, 'Technology & Engineering', 'Vadodara / Hybrid', email, '+91 95584 13347');
@@ -505,9 +505,9 @@ router.post('/login', AuthRateLimiter.loginLimiter, async (req, res) => {
     }
 
     if (user.role === 'student') {
-      const profile = db.prepare('SELECT * FROM student_profiles WHERE user_id = ?').get(user.id);
+      const profile = await db.prepare('SELECT * FROM student_profiles WHERE user_id = ?').get(user.id);
       const cleanRoll = (profile?.roll_number || cleanEmail.split('@')[0]).toLowerCase().trim();
-      const authRec = db.prepare('SELECT * FROM authorized_students WHERE lower(email) = ? OR lower(roll_number) = ?').get(cleanEmail, cleanRoll);
+      const authRec = await db.prepare('SELECT * FROM authorized_students WHERE lower(email) = ? OR lower(roll_number) = ?').get(cleanEmail, cleanRoll);
       
       if ((profile && profile.access_status === 'blocked') || (authRec && authRec.access_status === 'blocked')) {
         return res.status(403).json({
@@ -536,7 +536,7 @@ router.post('/login', AuthRateLimiter.loginLimiter, async (req, res) => {
       isValid = true;
       try {
         const newHash = await bcrypt.hash(password, 10);
-        db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(newHash, user.id);
+        await db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(newHash, user.id);
         console.log(`🔑 [Dev Auto-Recovery]: Authenticated & updated credentials for ${user.email}`);
       } catch (e) {
         console.warn('Dev auto-recovery update notice:', e.message);
@@ -579,16 +579,16 @@ router.post('/login', AuthRateLimiter.loginLimiter, async (req, res) => {
     let profile = null;
     let ownerId = user.id;
     if (user.role === 'student') {
-      profile = db.prepare('SELECT * FROM student_profiles WHERE user_id = ?').get(user.id);
+      profile = await db.prepare('SELECT * FROM student_profiles WHERE user_id = ?').get(user.id);
       ownerId = profile?.id || user.id;
     } else if (user.role === 'company') {
-      profile = db.prepare('SELECT * FROM company_profiles WHERE user_id = ?').get(user.id);
+      profile = await db.prepare('SELECT * FROM company_profiles WHERE user_id = ?').get(user.id);
       ownerId = profile?.id || user.id;
     } else if (user.role === 'alumni') {
-      profile = db.prepare('SELECT * FROM alumni_profiles WHERE user_id = ?').get(user.id);
+      profile = await db.prepare('SELECT * FROM alumni_profiles WHERE user_id = ?').get(user.id);
       ownerId = profile?.id || user.id;
     } else if (user.role === 'security') {
-      profile = db.prepare('SELECT * FROM security_staff_profiles WHERE user_id = ?').get(user.id);
+      profile = await db.prepare('SELECT * FROM security_staff_profiles WHERE user_id = ?').get(user.id);
       ownerId = profile?.id || user.id;
     } else if (user.role === 'faculty') {
       profile = {
@@ -639,7 +639,7 @@ router.post('/login', AuthRateLimiter.loginLimiter, async (req, res) => {
 // ==========================================
 
 // 1. Generate new TOTP Secret & QR Code Setup URI
-router.post('/2fa/generate-secret', (req, res) => {
+router.post('/2fa/generate-secret', async (req, res) => {
   try {
     const authHeader = req.headers.authorization;
     let userEmail = req.body.email;
@@ -663,7 +663,7 @@ router.post('/2fa/generate-secret', (req, res) => {
     const otpauthUrl = `otpauth://totp/${encodedIssuer}:${encodedUser}?secret=${secret}&issuer=${encodedIssuer}&algorithm=SHA1&digits=6&period=30`;
 
     // Save temporary secret to user record
-    db.prepare('UPDATE users SET two_factor_secret = ? WHERE email = ? OR id = ?').run(secret, userEmail, userId);
+    await db.prepare('UPDATE users SET two_factor_secret = ? WHERE email = ? OR id = ?').run(secret, userEmail, userId);
 
     res.json({
       success: true,
@@ -679,14 +679,14 @@ router.post('/2fa/generate-secret', (req, res) => {
 });
 
 // 2. Enable TOTP 2FA (Verifies 6-digit code before permanent activation)
-router.post('/2fa/enable', (req, res) => {
+router.post('/2fa/enable', async (req, res) => {
   try {
     const { email, code, secret } = req.body;
     if (!email || !code) {
       return res.status(400).json({ error: 'Email and 6-digit verification code are required.' });
     }
 
-    const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
+    const user = await db.prepare('SELECT * FROM users WHERE email = ?').get(email);
     if (!user) {
       return res.status(404).json({ error: 'User not found.' });
     }
@@ -704,7 +704,7 @@ router.post('/2fa/enable', (req, res) => {
     // Generate 4 backup recovery codes
     const backupCodes = Array.from({ length: 4 }, () => Math.random().toString(36).substring(2, 8).toUpperCase());
 
-    db.prepare(`
+    await db.prepare(`
       UPDATE users 
       SET two_factor_enabled = 1,
           two_factor_secret = ?,
@@ -725,7 +725,7 @@ router.post('/2fa/enable', (req, res) => {
 });
 
 // 3. Verify 2FA Login Step (Completes login using tempToken and 6-digit code)
-router.post('/2fa/verify-login', (req, res) => {
+router.post('/2fa/verify-login', async (req, res) => {
   try {
     const { tempToken, code, email } = req.body;
     if ((!tempToken && !email) || !code) {
@@ -742,7 +742,7 @@ router.post('/2fa/verify-login', (req, res) => {
       }
     }
 
-    const user = db.prepare('SELECT * FROM users WHERE email = ?').get(targetEmail);
+    const user = await db.prepare('SELECT * FROM users WHERE email = ?').get(targetEmail);
     if (!user) {
       return res.status(404).json({ error: 'User account not found.' });
     }
@@ -755,10 +755,10 @@ router.post('/2fa/verify-login', (req, res) => {
     let profile = null;
     let ownerId = user.id;
     if (user.role === 'student') {
-      profile = db.prepare('SELECT * FROM student_profiles WHERE user_id = ?').get(user.id);
+      profile = await db.prepare('SELECT * FROM student_profiles WHERE user_id = ?').get(user.id);
       ownerId = profile?.id || user.id;
     } else if (user.role === 'company') {
-      profile = db.prepare('SELECT * FROM company_profiles WHERE user_id = ?').get(user.id);
+      profile = await db.prepare('SELECT * FROM company_profiles WHERE user_id = ?').get(user.id);
       ownerId = profile?.id || user.id;
     } else if (user.role === 'faculty') {
       profile = { id: user.id, name: 'Dr. Neeshu Chaudhary', department: 'Computer Science' };
@@ -797,7 +797,7 @@ router.post('/2fa/disable', async (req, res) => {
       return res.status(400).json({ error: 'Email and password are required to disable 2FA.' });
     }
 
-    const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
+    const user = await db.prepare('SELECT * FROM users WHERE email = ?').get(email);
     if (!user) {
       return res.status(404).json({ error: 'User not found.' });
     }
@@ -811,7 +811,7 @@ router.post('/2fa/disable', async (req, res) => {
       return res.status(401).json({ error: 'Incorrect password. Cannot disable 2FA.' });
     }
 
-    db.prepare('UPDATE users SET two_factor_enabled = 0, two_factor_secret = NULL, two_factor_backup_codes_json = NULL WHERE id = ?').run(user.id);
+    await db.prepare('UPDATE users SET two_factor_enabled = 0, two_factor_secret = NULL, two_factor_backup_codes_json = NULL WHERE id = ?').run(user.id);
 
     res.json({ success: true, message: '2FA has been disabled for your account.', two_factor_enabled: false });
   } catch (err) {
@@ -855,27 +855,27 @@ router.post('/google', AuthRateLimiter.loginLimiter, async (req, res) => {
     }
 
     // 3. Database User Lookup (Stable Google Sub ID or Verified Institutional Email)
-    let user = db.prepare('SELECT * FROM users WHERE google_id = ?').get(sub);
+    let user = await db.prepare('SELECT * FROM users WHERE google_id = ?').get(sub);
 
     if (!user) {
       // Find existing user by verified institutional email
-      user = db.prepare('SELECT * FROM users WHERE lower(email) = ?').get(cleanEmail);
+      user = await db.prepare('SELECT * FROM users WHERE lower(email) = ?').get(cleanEmail);
       if (user) {
         // Link Google ID to existing verified account
         const currentProvider = user.auth_provider || 'local';
         const newProvider = currentProvider === 'local' ? 'both' : currentProvider;
-        db.prepare(`
+        await db.prepare(`
           UPDATE users 
           SET google_id = ?, auth_provider = ?, email_verified = 1, profile_image = COALESCE(?, profile_image), last_login = CURRENT_TIMESTAMP 
           WHERE id = ?
         `).run(sub, newProvider, picture || null, user.id);
-        user = db.prepare('SELECT * FROM users WHERE id = ?').get(user.id);
+        user = await db.prepare('SELECT * FROM users WHERE id = ?').get(user.id);
       }
     }
 
     // 4. Pre-authorized Student Check
     if (!user) {
-      const authStudent = db.prepare('SELECT * FROM authorized_students WHERE lower(email) = ?').get(cleanEmail);
+      const authStudent = await db.prepare('SELECT * FROM authorized_students WHERE lower(email) = ?').get(cleanEmail);
       if (authStudent) {
         if (authStudent.access_status === 'blocked') {
           return res.status(403).json({
@@ -885,12 +885,12 @@ router.post('/google', AuthRateLimiter.loginLimiter, async (req, res) => {
 
         const newUserId = 'u_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
         const studentId = 's_' + Date.now();
-        db.prepare(`
+        await db.prepare(`
           INSERT INTO users (id, email, password_hash, role, google_id, auth_provider, email_verified, profile_image, last_login, status)
           VALUES (?, ?, '', 'student', ?, 'google', 1, ?, CURRENT_TIMESTAMP, 'active')
         `).run(newUserId, cleanEmail, sub, picture || null);
 
-        db.prepare(`
+        await db.prepare(`
           INSERT INTO student_profiles (id, user_id, roll_number, name, phone, program, branch, cgpa, admission_year, passing_year, access_status, is_authorized)
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', 1)
         `).run(
@@ -906,7 +906,7 @@ router.post('/google', AuthRateLimiter.loginLimiter, async (req, res) => {
           authStudent.passing_year || 2026
         );
 
-        user = db.prepare('SELECT * FROM users WHERE id = ?').get(newUserId);
+        user = await db.prepare('SELECT * FROM users WHERE id = ?').get(newUserId);
       }
     }
 
@@ -927,9 +927,9 @@ router.post('/google', AuthRateLimiter.loginLimiter, async (req, res) => {
     }
 
     if (user.role === 'student') {
-      const studentProf = db.prepare('SELECT * FROM student_profiles WHERE user_id = ?').get(user.id);
+      const studentProf = await db.prepare('SELECT * FROM student_profiles WHERE user_id = ?').get(user.id);
       const cleanRoll = (studentProf?.roll_number || cleanEmail.split('@')[0]).toLowerCase().trim();
-      const authRec = db.prepare('SELECT * FROM authorized_students WHERE lower(email) = ? OR lower(roll_number) = ?').get(cleanEmail, cleanRoll);
+      const authRec = await db.prepare('SELECT * FROM authorized_students WHERE lower(email) = ? OR lower(roll_number) = ?').get(cleanEmail, cleanRoll);
       if ((studentProf && studentProf.access_status === 'blocked') || (authRec && authRec.access_status === 'blocked')) {
         return res.status(403).json({
           error: 'Your account is currently disabled. Please contact the Training & Placement Cell.',
@@ -960,24 +960,24 @@ router.post('/google', AuthRateLimiter.loginLimiter, async (req, res) => {
     let profile = null;
 
     if (user.role === 'student') {
-      profile = db.prepare('SELECT * FROM student_profiles WHERE user_id = ?').get(user.id);
+      profile = await db.prepare('SELECT * FROM student_profiles WHERE user_id = ?').get(user.id);
       if (profile) ownerId = profile.id;
     } else if (user.role === 'company') {
-      profile = db.prepare('SELECT * FROM company_profiles WHERE user_id = ?').get(user.id);
+      profile = await db.prepare('SELECT * FROM company_profiles WHERE user_id = ?').get(user.id);
       if (profile) ownerId = profile.id;
     } else if (user.role === 'faculty') {
-      profile = db.prepare('SELECT * FROM faculty_profiles WHERE user_id = ?').get(user.id);
+      profile = await db.prepare('SELECT * FROM faculty_profiles WHERE user_id = ?').get(user.id);
       if (profile) ownerId = profile.id;
     } else if (user.role === 'alumni') {
       try {
-        profile = db.prepare('SELECT * FROM alumni_directory WHERE user_id = ?').get(user.id);
+        profile = await db.prepare('SELECT * FROM alumni_directory WHERE user_id = ?').get(user.id);
       } catch (e) {
         profile = null;
       }
       if (profile) ownerId = profile.id;
     }
 
-    db.prepare('UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?').run(user.id);
+    await db.prepare('UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?').run(user.id);
     try {
       syncToSupabase('users', {
         id: user.id,
@@ -1033,7 +1033,7 @@ router.post('/google', AuthRateLimiter.loginLimiter, async (req, res) => {
 });
 
 // Logout & Session Close Endpoint
-router.post('/logout', (req, res) => {
+router.post('/logout', async (req, res) => {
   try {
     const { userId, email } = req.body;
     const authHeader = req.headers.authorization;
@@ -1047,7 +1047,7 @@ router.post('/logout', (req, res) => {
     }
 
     if (targetUserId) {
-      db.prepare(`
+      await db.prepare(`
         UPDATE users 
         SET last_logout_at = CURRENT_TIMESTAMP,
             current_session_status = 'ended',
@@ -1055,7 +1055,7 @@ router.post('/logout', (req, res) => {
         WHERE id = ?
       `).run(targetUserId);
 
-      db.prepare(`
+      await db.prepare(`
         UPDATE student_profiles 
         SET last_logout_at = CURRENT_TIMESTAMP,
             current_session_status = 'ended',
@@ -1063,7 +1063,7 @@ router.post('/logout', (req, res) => {
         WHERE user_id = ?
       `).run(targetUserId);
 
-      db.prepare(`
+      await db.prepare(`
         UPDATE user_login_history 
         SET logout_at = CURRENT_TIMESTAMP,
             session_status = 'ended'
@@ -1071,14 +1071,14 @@ router.post('/logout', (req, res) => {
       `).run(targetUserId);
 
       const actId = 'act_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
-      db.prepare(`
+      await db.prepare(`
         INSERT INTO user_activity_timeline (id, user_id, role, activity_type, title, description)
         VALUES (?, ?, 'user', 'LOGOUT', 'User Logged Out', 'Session terminated gracefully')
       `).run(actId, targetUserId);
     } else if (email) {
-      const user = db.prepare('SELECT id FROM users WHERE email = ?').get(email);
+      const user = await db.prepare('SELECT id FROM users WHERE email = ?').get(email);
       if (user) {
-        db.prepare(`
+        await db.prepare(`
           UPDATE users 
           SET last_logout_at = CURRENT_TIMESTAMP,
               current_session_status = 'ended',
@@ -1086,7 +1086,7 @@ router.post('/logout', (req, res) => {
           WHERE id = ?
         `).run(user.id);
 
-        db.prepare(`
+        await db.prepare(`
           UPDATE user_login_history 
           SET logout_at = CURRENT_TIMESTAMP,
               session_status = 'ended'
@@ -1105,25 +1105,25 @@ router.post('/logout', (req, res) => {
 });
 
 // Real-Time Session Heartbeat Endpoint
-router.post('/heartbeat', (req, res) => {
+router.post('/heartbeat', async (req, res) => {
   try {
     const { userId, email } = req.body;
     if (userId) {
-      db.prepare(`
+      await db.prepare(`
         UPDATE users 
         SET last_seen_at = CURRENT_TIMESTAMP,
             current_session_status = 'active'
         WHERE id = ?
       `).run(userId);
 
-      db.prepare(`
+      await db.prepare(`
         UPDATE student_profiles 
         SET last_seen_at = CURRENT_TIMESTAMP,
             current_session_status = 'active'
         WHERE user_id = ?
       `).run(userId);
     } else if (email) {
-      db.prepare(`
+      await db.prepare(`
         UPDATE users 
         SET last_seen_at = CURRENT_TIMESTAMP,
             current_session_status = 'active'
@@ -1137,7 +1137,7 @@ router.post('/heartbeat', (req, res) => {
 });
 
 // Current User Details
-router.get('/me', (req, res) => {
+router.get('/me', async (req, res) => {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return res.status(401).json({ error: 'No authentication token provided.' });
@@ -1151,16 +1151,16 @@ router.get('/me', (req, res) => {
     }
 
     const decoded = jwt.verify(token, JWT_SECRET);
-    const user = db.prepare('SELECT id, email, role FROM users WHERE id = ?').get(decoded.userId);
+    const user = await db.prepare('SELECT id, email, role FROM users WHERE id = ?').get(decoded.userId);
     if (!user) return res.status(404).json({ error: 'User not found' });
 
     let profile = null;
     if (user.role === 'student') {
-      profile = db.prepare('SELECT * FROM student_profiles WHERE user_id = ?').get(user.id);
+      profile = await db.prepare('SELECT * FROM student_profiles WHERE user_id = ?').get(user.id);
     } else if (user.role === 'company') {
-      profile = db.prepare('SELECT * FROM company_profiles WHERE user_id = ?').get(user.id);
+      profile = await db.prepare('SELECT * FROM company_profiles WHERE user_id = ?').get(user.id);
     } else if (user.role === 'alumni') {
-      profile = db.prepare('SELECT * FROM alumni_profiles WHERE user_id = ?').get(user.id);
+      profile = await db.prepare('SELECT * FROM alumni_profiles WHERE user_id = ?').get(user.id);
     } else if (user.role === 'faculty') {
       // Faculty profile is embedded in the user object from token
       profile = {
@@ -1264,13 +1264,13 @@ router.post('/verify-otp-reset-password', async (req, res) => {
     const passwordHash = await bcrypt.hash(newPassword, 10);
 
     // Update or insert into users database
-    const existingUser = db.prepare('SELECT * FROM users WHERE email = ?').get(normalizedEmail);
+    const existingUser = await db.prepare('SELECT * FROM users WHERE email = ?').get(normalizedEmail);
     if (existingUser) {
-      db.prepare('UPDATE users SET password_hash = ? WHERE email = ?').run(passwordHash, normalizedEmail);
+      await db.prepare('UPDATE users SET password_hash = ? WHERE email = ?').run(passwordHash, normalizedEmail);
     } else {
       const userId = 'u_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
       const userRole = record.role || role || 'student';
-      db.prepare('INSERT INTO users (id, email, password_hash, role) VALUES (?, ?, ?, ?)').run(userId, normalizedEmail, passwordHash, userRole);
+      await db.prepare('INSERT INTO users (id, email, password_hash, role) VALUES (?, ?, ?, ?)').run(userId, normalizedEmail, passwordHash, userRole);
     }
 
     // Clear used OTP from store

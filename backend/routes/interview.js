@@ -16,17 +16,17 @@ router.post('/generate', AuthRateLimiter.aiFeatureLimiter, async (req, res) => {
       return res.status(400).json({ error: 'requirement_id is required.' });
     }
 
-    const requirement = db.prepare('SELECT * FROM requirements WHERE id = ?').get(requirement_id);
+    const requirement = await db.prepare('SELECT * FROM requirements WHERE id = ?').get(requirement_id);
     if (!requirement) {
       return res.status(404).json({ error: 'Requirement not found.' });
     }
 
-    const student = student_id ? db.prepare('SELECT * FROM student_profiles WHERE id = ?').get(student_id) : null;
+    const student = student_id ? await db.prepare('SELECT * FROM student_profiles WHERE id = ?').get(student_id) : null;
 
     const questions = await generateInterviewQuestions(requirement, student);
 
     const setId = 'qset_' + Date.now();
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO interview_question_sets (id, requirement_id, student_id, questions_json)
       VALUES (?, ?, ?, ?)
     `).run(setId, requirement_id, student_id || null, JSON.stringify(questions));
@@ -51,8 +51,8 @@ router.post('/mock/start', async (req, res) => {
       return res.status(400).json({ error: 'student_id is required.' });
     }
 
-    let requirement = requirement_id ? db.prepare('SELECT * FROM requirements WHERE id = ?').get(requirement_id) : null;
-    const student = db.prepare('SELECT * FROM student_profiles WHERE id = ?').get(student_id);
+    let requirement = requirement_id ? await db.prepare('SELECT * FROM requirements WHERE id = ?').get(requirement_id) : null;
+    const student = await db.prepare('SELECT * FROM student_profiles WHERE id = ?').get(student_id);
 
     if (!requirement) {
       requirement = {
@@ -130,7 +130,7 @@ router.post('/mock/start', async (req, res) => {
       feedback: null
     }));
 
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO mock_interview_sessions (id, student_id, requirement_id, qa_pairs_json, status)
       VALUES (?, ?, ?, ?, 'in_progress')
     `).run(sessionId, student_id, requirement.id || requirement_id || 'req_custom', JSON.stringify(qaPairs));
@@ -154,7 +154,7 @@ router.post('/mock/answer', async (req, res) => {
   try {
     const { session_id, question_index, answer_text, speech_metrics = {} } = req.body;
 
-    const session = db.prepare('SELECT * FROM mock_interview_sessions WHERE id = ?').get(session_id);
+    const session = await db.prepare('SELECT * FROM mock_interview_sessions WHERE id = ?').get(session_id);
     if (!session) {
       return res.status(404).json({ error: 'Mock interview session not found.' });
     }
@@ -177,7 +177,7 @@ router.post('/mock/answer', async (req, res) => {
     targetQuestion.feedback = feedback;
     qaPairs[question_index] = targetQuestion;
 
-    db.prepare(`
+    await db.prepare(`
       UPDATE mock_interview_sessions 
       SET qa_pairs_json = ? 
       WHERE id = ?
@@ -198,7 +198,7 @@ router.post('/mock/answer', async (req, res) => {
 router.post('/mock/adaptive-next', async (req, res) => {
   try {
     const { session_id, current_category } = req.body;
-    const session = db.prepare('SELECT * FROM mock_interview_sessions WHERE id = ?').get(session_id);
+    const session = await db.prepare('SELECT * FROM mock_interview_sessions WHERE id = ?').get(session_id);
     if (!session) {
       return res.status(404).json({ error: 'Mock interview session not found.' });
     }
@@ -211,7 +211,7 @@ router.post('/mock/adaptive-next', async (req, res) => {
     const previousScore = answeredPairs.length > 0 ? answeredPairs[answeredPairs.length - 1].feedback.score : 75;
 
     const requirement = session.requirement_id
-      ? db.prepare('SELECT * FROM requirements WHERE id = ?').get(session.requirement_id)
+      ? await db.prepare('SELECT * FROM requirements WHERE id = ?').get(session.requirement_id)
       : { title: 'Enterprise Software Engineer' };
 
     const { generateAdaptiveNextQuestion } = await import('../ai/modules/interviewGenerator.js');
@@ -236,7 +236,7 @@ router.post('/mock/adaptive-next', async (req, res) => {
 
     qaPairs.push(newPair);
 
-    db.prepare(`
+    await db.prepare(`
       UPDATE mock_interview_sessions 
       SET qa_pairs_json = ? 
       WHERE id = ?
@@ -255,16 +255,16 @@ router.post('/mock/adaptive-next', async (req, res) => {
 });
 
 // Finish session and return multi-dimensional scorecard & study sprint
-router.post('/mock/finish', (req, res) => {
+router.post('/mock/finish', async (req, res) => {
   try {
     const { session_id } = req.body;
-    const session = db.prepare('SELECT * FROM mock_interview_sessions WHERE id = ?').get(session_id);
+    const session = await db.prepare('SELECT * FROM mock_interview_sessions WHERE id = ?').get(session_id);
     if (!session) {
       return res.status(404).json({ error: 'Mock interview session not found.' });
     }
 
     const requirement = session.requirement_id
-      ? db.prepare('SELECT r.*, c.company_name FROM requirements r LEFT JOIN company_profiles c ON r.company_id = c.id WHERE r.id = ?').get(session.requirement_id)
+      ? await db.prepare('SELECT r.*, c.company_name FROM requirements r LEFT JOIN company_profiles c ON r.company_id = c.id WHERE r.id = ?').get(session.requirement_id)
       : null;
 
     const qaPairs = JSON.parse(session.qa_pairs_json || '[]');
@@ -272,7 +272,7 @@ router.post('/mock/finish', (req, res) => {
       target_company: requirement?.company_name || 'Tier-1 Hiring Partner'
     });
 
-    db.prepare(`
+    await db.prepare(`
       UPDATE mock_interview_sessions
       SET feedback_json = ?, overall_score = ?, status = 'completed'
       WHERE id = ?
@@ -281,7 +281,7 @@ router.post('/mock/finish', (req, res) => {
     // Save to student_assessments for persistent unified assessment history
     try {
       const asmtId = 'asmt_mock_' + session_id;
-      db.prepare(`
+      await db.prepare(`
         INSERT OR REPLACE INTO student_assessments (
           id, student_id, assessment_title, assessment_type, requirement_id,
           score, percentage, questions_attempted, correct_answers, incorrect_answers,
@@ -310,7 +310,7 @@ router.post('/mock/finish', (req, res) => {
  * TRAINED DYNAMIC AI INTENT MATCHING ENGINE
  * Analyzes exact user questions and generates specific answers
  */
-function getTrainedResponseForQuestion(msg) {
+async function getTrainedResponseForQuestion(msg) {
   const query = msg.toLowerCase().trim();
 
   // Topic 1: Recruiter Requirement Posting
@@ -433,7 +433,7 @@ router.post('/evaluate-answer', AuthRateLimiter.aiFeatureLimiter, async (req, re
     // Persistent Database Logging for TPC Admin Analytics
     try {
       const evalId = 'eval_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
-      db.prepare(`
+      await db.prepare(`
         INSERT INTO interview_evaluations (
           id, student_id, requirement_id, question_text, category, difficulty, verdict, score, concepts_covered_json, concepts_missing_json, attempt_count
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -462,9 +462,9 @@ router.post('/evaluate-answer', AuthRateLimiter.aiFeatureLimiter, async (req, re
 });
 
 // TPC Admin Analytics: Fail/Pass rates by category and company drive
-router.get('/evaluation-analytics', (req, res) => {
+router.get('/evaluation-analytics', async (req, res) => {
   try {
-    const categoryStats = db.prepare(`
+    const categoryStats = await db.prepare(`
       SELECT category,
              COUNT(*) as total_evaluations,
              SUM(CASE WHEN verdict = 'pass' THEN 1 ELSE 0 END) as pass_count,
@@ -475,7 +475,7 @@ router.get('/evaluation-analytics', (req, res) => {
       GROUP BY category
     `).all();
 
-    const weakestCategory = db.prepare(`
+    const weakestCategory = await db.prepare(`
       SELECT category, COUNT(*) as fail_count
       FROM interview_evaluations
       WHERE verdict IN ('fail', 'needs_improvement')

@@ -4,7 +4,7 @@ dotenv.config();
 /**
  * Robust JSON extraction helper from LLM output
  */
-export function cleanJsonOutput(rawText) {
+export async function cleanJsonOutput(rawText) {
   let cleaned = rawText.trim();
   if (cleaned.startsWith('```json')) {
     cleaned = cleaned.replace(/^```json/, '').replace(/```$/, '').trim();

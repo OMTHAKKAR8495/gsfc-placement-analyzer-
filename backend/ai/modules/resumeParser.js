@@ -59,7 +59,7 @@ ${rawText}
   };
 }
 
-function generateSmartParsedFallback(rawText) {
+async function generateSmartParsedFallback(rawText) {
   // Deterministic smart extraction rules for fallback across all GSFC branches
   const lines = rawText.split('\n').map(l => l.trim()).filter(Boolean);
   const name = lines[0] || 'Candidate Student';

@@ -20,9 +20,9 @@ try {
 } catch (e) {}
 
 // 1. Get System Audit Logs
-router.get('/logs', (req, res) => {
+router.get('/logs', async (req, res) => {
   try {
-    const logs = db.prepare('SELECT * FROM system_audit_logs ORDER BY created_at DESC LIMIT 50').all();
+    const logs = await db.prepare('SELECT * FROM system_audit_logs ORDER BY created_at DESC LIMIT 50').all();
     
     // Seed default sample log entries if empty
     if (logs.length === 0) {
@@ -41,12 +41,12 @@ router.get('/logs', (req, res) => {
 });
 
 // 2. Record New Audit Log
-router.post('/record', (req, res) => {
+router.post('/record', async (req, res) => {
   try {
     const { userEmail, userRole, actionType, entityAffected, details } = req.body;
     const logId = `aud_${Date.now()}`;
 
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO system_audit_logs (id, user_email, user_role, action_type, entity_affected, details)
       VALUES (?, ?, ?, ?, ?, ?)
     `).run(

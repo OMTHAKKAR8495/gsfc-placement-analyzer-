@@ -14,13 +14,13 @@ const buildWhatsAppUrl = (phone, text) => {
 };
 
 // 1. Broadcast Placement Drive Alert to All Eligible Students
-router.post('/broadcast-drive', (req, res) => {
+router.post('/broadcast-drive', async (req, res) => {
   try {
     const { requirementId, companyName, jobTitle, ctcRange, minCgpa, deadline } = req.body;
     
     let targetRequirement = null;
     if (requirementId) {
-      targetRequirement = db.prepare('SELECT * FROM requirements WHERE id = ?').get(requirementId);
+      targetRequirement = await db.prepare('SELECT * FROM requirements WHERE id = ?').get(requirementId);
     }
 
     const title = jobTitle || targetRequirement?.title || 'Campus Placement Drive';
@@ -30,7 +30,7 @@ router.post('/broadcast-drive', (req, res) => {
     const driveDeadline = deadline || targetRequirement?.deadline || 'Upcoming';
 
     // Find all eligible students with matching CGPA
-    const eligibleStudents = db.prepare(`
+    const eligibleStudents = await db.prepare(`
       SELECT s.id, s.name, s.roll_number, s.program, s.branch, s.cgpa, u.email
       FROM student_profiles s
       JOIN users u ON s.user_id = u.id
@@ -38,7 +38,7 @@ router.post('/broadcast-drive', (req, res) => {
       ORDER BY s.cgpa DESC
     `).all(cgpa);
 
-    const logStmt = db.prepare(`
+    const logStmt = await db.prepare(`
       INSERT INTO notifications_log (id, recipient_name, recipient_email, recipient_phone, channel, notification_type, title, message, metadata_json, status)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
@@ -114,7 +114,7 @@ router.post('/broadcast-drive', (req, res) => {
 });
 
 // 2. Send Automated Interview Venue & Time Reminder
-router.post('/send-interview-reminder', (req, res) => {
+router.post('/send-interview-reminder', async (req, res) => {
   try {
     const { 
       applicationId, 
@@ -166,7 +166,7 @@ router.post('/send-interview-reminder', (req, res) => {
     );
 
     // Also record email reminder
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO notifications_log (id, recipient_name, recipient_email, recipient_phone, channel, notification_type, title, message, metadata_json, status)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
@@ -198,7 +198,7 @@ router.post('/send-interview-reminder', (req, res) => {
 });
 
 // 3. 1-Click Official Offer Letter Generator & Auto-Dispatch
-router.post('/send-offer-letter', (req, res) => {
+router.post('/send-offer-letter', async (req, res) => {
   try {
     const {
       applicationId,
@@ -245,7 +245,7 @@ router.post('/send-offer-letter', (req, res) => {
 
     // Update application in DB with offer letter metadata and status = selected
     if (applicationId) {
-      db.prepare(`
+      await db.prepare(`
         UPDATE applications 
         SET status = 'selected',
             offer_letter_data_json = ?
@@ -269,7 +269,7 @@ router.post('/send-offer-letter', (req, res) => {
 
     // Log notification in audit table
     const logId = uuidv4();
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO notifications_log (id, recipient_name, recipient_email, recipient_phone, channel, notification_type, title, message, metadata_json, status)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
@@ -286,7 +286,7 @@ router.post('/send-offer-letter', (req, res) => {
     );
 
     // Email dispatch log
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO notifications_log (id, recipient_name, recipient_email, recipient_phone, channel, notification_type, title, message, metadata_json, status)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
@@ -319,9 +319,9 @@ router.post('/send-offer-letter', (req, res) => {
 });
 
 // 4. Get System-Wide Communication Audit Logs
-router.get('/logs', (req, res) => {
+router.get('/logs', async (req, res) => {
   try {
-    const logs = db.prepare(`
+    const logs = await db.prepare(`
       SELECT * FROM notifications_log 
       ORDER BY created_at DESC 
       LIMIT 100
@@ -333,16 +333,16 @@ router.get('/logs', (req, res) => {
 });
 
 // 5. Get Student-Specific Placement Notifications & Offer Letters
-router.get('/student/:studentId', (req, res) => {
+router.get('/student/:studentId', async (req, res) => {
   try {
     const { studentId } = req.params;
-    const student = db.prepare('SELECT s.*, u.email FROM student_profiles s JOIN users u ON s.user_id = u.id WHERE s.id = ?').get(studentId);
+    const student = await db.prepare('SELECT s.*, u.email FROM student_profiles s JOIN users u ON s.user_id = u.id WHERE s.id = ?').get(studentId);
     
     if (!student) {
       return res.json([]);
     }
 
-    const logs = db.prepare(`
+    const logs = await db.prepare(`
       SELECT * FROM notifications_log 
       WHERE recipient_email = ? OR recipient_name = ?
       ORDER BY created_at DESC 
@@ -356,13 +356,13 @@ router.get('/student/:studentId', (req, res) => {
 });
 
 // 6. Real-Time Unified Notification Feed (For Navbar Bell & Live In-App Alerts)
-router.get('/feed', (req, res) => {
+router.get('/feed', async (req, res) => {
   try {
     const { email, role } = req.query;
 
     let rows = [];
     if (email && email !== 'undefined') {
-      rows = db.prepare(`
+      rows = await db.prepare(`
         SELECT id, recipient_name, recipient_email, channel, notification_type as type, title, message, status, created_at
         FROM notifications_log
         WHERE recipient_email = ? OR recipient_name = 'All Students' OR channel = 'broadcast' OR notification_type = 'drive_alert'
@@ -370,7 +370,7 @@ router.get('/feed', (req, res) => {
         LIMIT 30
       `).all(email);
     } else {
-      rows = db.prepare(`
+      rows = await db.prepare(`
         SELECT id, recipient_name, recipient_email, channel, notification_type as type, title, message, status, created_at
         FROM notifications_log
         ORDER BY created_at DESC
@@ -400,7 +400,7 @@ router.get('/feed', (req, res) => {
 });
 
 // 7. Send Custom Announcement / Message from TPC Admin or Recruiter
-router.post('/send-message', (req, res) => {
+router.post('/send-message', async (req, res) => {
   try {
     const { title, message, senderName, senderRole, targetGroup } = req.body;
     if (!title || !message) {
@@ -410,7 +410,7 @@ router.post('/send-message', (req, res) => {
     const logId = uuidv4();
     const sender = senderName || (senderRole === 'admin' ? 'TPC Directorate' : 'Corporate Recruiter');
 
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO notifications_log (id, recipient_name, recipient_email, recipient_phone, channel, notification_type, title, message, metadata_json, status)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
@@ -442,7 +442,7 @@ router.post('/send-message', (req, res) => {
 // ==========================================
 
 // 8. Direct WhatsApp Dispatch with Template Engine
-router.post('/whatsapp/send-direct', (req, res) => {
+router.post('/whatsapp/send-direct', async (req, res) => {
   try {
     const { studentId, recipientPhone, recipientName, templateType, customMessage, metadata } = req.body;
 
@@ -467,7 +467,7 @@ router.post('/whatsapp/send-direct', (req, res) => {
     const logId = uuidv4();
     const deepLinkUrl = buildWhatsAppUrl(phone, text);
 
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO notifications_log (id, recipient_name, recipient_email, recipient_phone, channel, notification_type, title, message, metadata_json, status)
       VALUES (?, ?, ?, ?, 'whatsapp', ?, ?, ?, ?, 'delivered')
     `).run(
@@ -496,9 +496,9 @@ router.post('/whatsapp/send-direct', (req, res) => {
 });
 
 // 9. Get WhatsApp Delivery Logs
-router.get('/whatsapp/logs', (req, res) => {
+router.get('/whatsapp/logs', async (req, res) => {
   try {
-    const logs = db.prepare(`
+    const logs = await db.prepare(`
       SELECT * FROM notifications_log 
       WHERE channel = 'whatsapp'
       ORDER BY created_at DESC 
@@ -513,7 +513,7 @@ router.get('/whatsapp/logs', (req, res) => {
 
 
 // 10. Student WhatsApp Notification Opt-In Toggle
-router.post('/whatsapp/opt-in', (req, res) => {
+router.post('/whatsapp/opt-in', async (req, res) => {
   try {
     const { studentId, optIn, phone } = req.body;
     if (!studentId) {
@@ -521,7 +521,7 @@ router.post('/whatsapp/opt-in', (req, res) => {
     }
 
     const optInVal = optIn ? 1 : 0;
-    db.prepare(`
+    await db.prepare(`
       UPDATE student_profiles 
       SET whatsapp_opt_in = ?,
           whatsapp_number = COALESCE(?, whatsapp_number)

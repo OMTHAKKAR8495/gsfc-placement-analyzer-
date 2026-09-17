@@ -71,9 +71,9 @@ const DEFAULT_RULES = [
 ];
 
 // Seed default rules on startup
-export function seedGamificationRules() {
+export async function seedGamificationRules() {
   try {
-    const insertStmt = db.prepare(`
+    const insertStmt = await db.prepare(`
       INSERT OR IGNORE INTO gamification_rules (action_key, label, points_reward, badge_code, badge_name, badge_icon, badge_desc, threshold)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `);
@@ -87,7 +87,7 @@ export function seedGamificationRules() {
 seedGamificationRules();
 
 // Helper: Calculate Level from Total Points
-export function calculateLevel(points) {
+export async function calculateLevel(points) {
   if (points >= 900) return { level: 5, title: 'Placement Grandmaster', nextLevelPoints: 1200, progress: 100 };
   if (points >= 600) return { level: 4, title: 'Interview Pro', nextLevelPoints: 900, progress: Math.round(((points - 600) / 300) * 100) };
   if (points >= 350) return { level: 3, title: 'Career Candidate', nextLevelPoints: 600, progress: Math.round(((points - 350) / 250) * 100) };
@@ -96,34 +96,34 @@ export function calculateLevel(points) {
 }
 
 // Core Function: Award Points & Badges to a Student
-export function awardGamificationPoints(studentId, actionKey, customDesc = null, metadata = {}) {
+export async function awardGamificationPoints(studentId, actionKey, customDesc = null, metadata = {}) {
   try {
     if (!studentId) return null;
 
     // Resolve student record
-    let student = db.prepare('SELECT id, name, roll_number, program, branch FROM student_profiles WHERE id = ? OR user_id = ?').get(studentId, studentId);
+    let student = await db.prepare('SELECT id, name, roll_number, program, branch FROM student_profiles WHERE id = ? OR user_id = ?').get(studentId, studentId);
     if (!student) {
-      student = db.prepare('SELECT id, name, roll_number, program, branch FROM student_profiles LIMIT 1').get();
+      student = await db.prepare('SELECT id, name, roll_number, program, branch FROM student_profiles LIMIT 1').get();
     }
     if (!student) return null;
 
     const realStudentId = student.id;
 
     // Get rule definition
-    const rule = db.prepare('SELECT * FROM gamification_rules WHERE action_key = ?').get(actionKey);
+    const rule = await db.prepare('SELECT * FROM gamification_rules WHERE action_key = ?').get(actionKey);
     const pointsAwarded = rule?.points_reward || 25;
     const desc = customDesc || rule?.label || `Earned points for ${actionKey}`;
 
     // 1. Log Points Transaction
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO gamification_points_log (id, student_id, action_key, points_awarded, description, metadata_json)
       VALUES (?, ?, ?, ?, ?, ?)
     `).run('pt_' + uuidv4().slice(0, 8), realStudentId, actionKey, pointsAwarded, desc, JSON.stringify(metadata));
 
     // 2. Update or Insert student_gamification
-    let gamRec = db.prepare('SELECT * FROM student_gamification WHERE student_id = ?').get(realStudentId);
+    let gamRec = await db.prepare('SELECT * FROM student_gamification WHERE student_id = ?').get(realStudentId);
     if (!gamRec) {
-      db.prepare(`
+      await db.prepare(`
         INSERT INTO student_gamification (student_id, points_total, level, current_streak, nickname)
         VALUES (?, ?, 1, 1, ?)
       `).run(realStudentId, pointsAwarded, student.name.split(' ')[0] + '_' + Math.floor(100 + Math.random() * 900));
@@ -131,7 +131,7 @@ export function awardGamificationPoints(studentId, actionKey, customDesc = null,
     } else {
       const newTotal = (gamRec.points_total || 0) + pointsAwarded;
       const levelInfo = calculateLevel(newTotal);
-      db.prepare(`
+      await db.prepare(`
         UPDATE student_gamification 
         SET points_total = ?, level = ?, updated_at = CURRENT_TIMESTAMP
         WHERE student_id = ?
@@ -143,10 +143,10 @@ export function awardGamificationPoints(studentId, actionKey, customDesc = null,
     // 3. Check & Unlock Badge if rule has associated badge
     let newlyUnlockedBadge = null;
     if (rule?.badge_code) {
-      const existingBadge = db.prepare('SELECT id FROM student_badges WHERE student_id = ? AND badge_code = ?').get(realStudentId, rule.badge_code);
+      const existingBadge = await db.prepare('SELECT id FROM student_badges WHERE student_id = ? AND badge_code = ?').get(realStudentId, rule.badge_code);
       if (!existingBadge) {
         const badgeId = 'bdg_' + uuidv4().slice(0, 8);
-        db.prepare(`
+        await db.prepare(`
           INSERT INTO student_badges (id, student_id, badge_code, badge_name, badge_icon, badge_desc, category)
           VALUES (?, ?, ?, ?, ?, ?, 'Achievements')
         `).run(badgeId, realStudentId, rule.badge_code, rule.badge_name || rule.label, rule.badge_icon || 'Award', rule.badge_desc || desc);
@@ -167,41 +167,41 @@ export function awardGamificationPoints(studentId, actionKey, customDesc = null,
 }
 
 // 1. Get Gamification Summary for a Student
-router.get('/summary/:studentId', (req, res) => {
+router.get('/summary/:studentId', async (req, res) => {
   try {
     const { studentId } = req.params;
     
-    let student = db.prepare('SELECT id, name, roll_number, program, branch, cgpa, ats_score FROM student_profiles WHERE id = ? OR user_id = ?').get(studentId, studentId);
+    let student = await db.prepare('SELECT id, name, roll_number, program, branch, cgpa, ats_score FROM student_profiles WHERE id = ? OR user_id = ?').get(studentId, studentId);
     if (!student) {
-      student = db.prepare('SELECT id, name, roll_number, program, branch, cgpa, ats_score FROM student_profiles LIMIT 1').get();
+      student = await db.prepare('SELECT id, name, roll_number, program, branch, cgpa, ats_score FROM student_profiles LIMIT 1').get();
     }
     if (!student) {
       return res.status(404).json({ error: 'Student profile not found.' });
     }
 
-    let gamRec = db.prepare('SELECT * FROM student_gamification WHERE student_id = ?').get(student.id);
+    let gamRec = await db.prepare('SELECT * FROM student_gamification WHERE student_id = ?').get(student.id);
     if (!gamRec) {
       // Auto-calculate initial points based on student achievements
       let initialPoints = 150;
       if (student.ats_score && student.ats_score >= 80) initialPoints += 175;
       
-      const appsCount = db.prepare('SELECT count(*) as count FROM applications WHERE student_id = ?').get(student.id)?.count || 0;
+      const appsCount = await db.prepare('SELECT count(*) as count FROM applications WHERE student_id = ?').get(student.id)?.count || 0;
       initialPoints += appsCount * 40;
 
       const levelInfo = calculateLevel(initialPoints);
-      db.prepare(`
+      await db.prepare(`
         INSERT OR IGNORE INTO student_gamification (student_id, points_total, level, current_streak, nickname)
         VALUES (?, ?, ?, 3, ?)
       `).run(student.id, initialPoints, levelInfo.level, student.name.split(' ')[0] + '_Explorer');
       
       // Auto-grant initial badge
-      db.prepare(`
+      await db.prepare(`
         INSERT OR IGNORE INTO student_badges (id, student_id, badge_code, badge_name, badge_icon, badge_desc)
         VALUES (?, ?, 'badge_resume_ready', 'Resume Ready 📄', 'FileText', 'Uploaded an ATS-compliant resume with extracted skills.')
       `).run('bdg_init_' + student.id, student.id);
 
       if (appsCount > 0) {
-        db.prepare(`
+        await db.prepare(`
           INSERT OR IGNORE INTO student_badges (id, student_id, badge_code, badge_name, badge_icon, badge_desc)
           VALUES (?, ?, 'badge_first_app', 'First Application 🚀', 'Send', 'Submitted official application to a campus placement drive.')
         `).run('bdg_app_' + student.id, student.id);
@@ -214,10 +214,10 @@ router.get('/summary/:studentId', (req, res) => {
     const levelInfo = calculateLevel(points);
 
     // Get all unlocked badges
-    const badges = db.prepare('SELECT * FROM student_badges WHERE student_id = ? ORDER BY unlocked_at DESC').all(student.id);
+    const badges = await db.prepare('SELECT * FROM student_badges WHERE student_id = ? ORDER BY unlocked_at DESC').all(student.id);
 
     // Get all available system badges
-    const allRules = db.prepare('SELECT * FROM gamification_rules ORDER BY points_reward ASC').all();
+    const allRules = await db.prepare('SELECT * FROM gamification_rules ORDER BY points_reward ASC').all();
     const badgeCatalog = allRules.map(r => {
       const isUnlocked = badges.some(b => b.badge_code === r.badge_code);
       return {
@@ -231,10 +231,10 @@ router.get('/summary/:studentId', (req, res) => {
     });
 
     // Recent Activity Log
-    const recentLogs = db.prepare('SELECT * FROM gamification_points_log WHERE student_id = ? ORDER BY created_at DESC LIMIT 8').all(student.id);
+    const recentLogs = await db.prepare('SELECT * FROM gamification_points_log WHERE student_id = ? ORDER BY created_at DESC LIMIT 8').all(student.id);
 
     // Leaderboard Rank
-    const higherCount = db.prepare('SELECT count(*) as count FROM student_gamification WHERE points_total > ?').get(points)?.count || 0;
+    const higherCount = await db.prepare('SELECT count(*) as count FROM student_gamification WHERE points_total > ?').get(points)?.count || 0;
     const rank = higherCount + 1;
 
     res.json({
@@ -260,7 +260,7 @@ router.get('/summary/:studentId', (req, res) => {
 });
 
 // 2. Placement Readiness Leaderboard
-router.get('/leaderboard', (req, res) => {
+router.get('/leaderboard', async (req, res) => {
   try {
     const { department, year, limit = 50 } = req.query;
 
@@ -315,7 +315,7 @@ router.get('/leaderboard', (req, res) => {
     query += ` ORDER BY points_total DESC, s.cgpa DESC LIMIT ?`;
     params.push(parseInt(limit, 10) || 50);
 
-    const rows = db.prepare(query).all(...params);
+    const rows = await db.prepare(query).all(...params);
 
     const formatted = rows.map((r, idx) => {
       const levelInfo = calculateLevel(r.points_total);
@@ -349,7 +349,7 @@ router.get('/leaderboard', (req, res) => {
 });
 
 // 3. Trigger Points Award for Action
-router.post('/award', (req, res) => {
+router.post('/award', async (req, res) => {
   try {
     const { studentId, actionKey, customDesc, metadata } = req.body;
     if (!studentId || !actionKey) {
@@ -373,14 +373,14 @@ router.post('/award', (req, res) => {
 });
 
 // 4. Toggle Leaderboard Anonymity Setting
-router.post('/toggle-anonymity', (req, res) => {
+router.post('/toggle-anonymity', async (req, res) => {
   try {
     const { studentId, isAnonymous, nickname } = req.body;
     if (!studentId) {
       return res.status(400).json({ error: 'studentId is required.' });
     }
 
-    let student = db.prepare('SELECT id, name FROM student_profiles WHERE id = ? OR user_id = ?').get(studentId, studentId);
+    let student = await db.prepare('SELECT id, name FROM student_profiles WHERE id = ? OR user_id = ?').get(studentId, studentId);
     if (!student) {
       return res.status(404).json({ error: 'Student not found.' });
     }
@@ -388,7 +388,7 @@ router.post('/toggle-anonymity', (req, res) => {
     const anonVal = isAnonymous ? 1 : 0;
     const nickVal = nickname || (student.name.split(' ')[0] + '_' + Math.floor(100 + Math.random() * 900));
 
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO student_gamification (student_id, is_anonymous, nickname, points_total, level)
       VALUES (?, ?, ?, 150, 1)
       ON CONFLICT(student_id) DO UPDATE SET
@@ -410,9 +410,9 @@ router.post('/toggle-anonymity', (req, res) => {
 });
 
 // 5. Admin: Get all Gamification Rules
-router.get('/admin/rules', (req, res) => {
+router.get('/admin/rules', async (req, res) => {
   try {
-    const rules = db.prepare('SELECT * FROM gamification_rules ORDER BY points_reward ASC').all();
+    const rules = await db.prepare('SELECT * FROM gamification_rules ORDER BY points_reward ASC').all();
     res.json(rules);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -420,12 +420,12 @@ router.get('/admin/rules', (req, res) => {
 });
 
 // 6. Admin: Update Gamification Rule Points & Thresholds
-router.put('/admin/rules/:actionKey', (req, res) => {
+router.put('/admin/rules/:actionKey', async (req, res) => {
   try {
     const { actionKey } = req.params;
     const { points_reward, label, badge_name, badge_desc } = req.body;
 
-    db.prepare(`
+    await db.prepare(`
       UPDATE gamification_rules 
       SET points_reward = COALESCE(?, points_reward),
           label = COALESCE(?, label),

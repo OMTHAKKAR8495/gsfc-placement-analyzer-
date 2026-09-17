@@ -10,7 +10,7 @@ const router = express.Router();
 /**
  * Extracts and verifies the authenticated user from JWT token (Authorization header or Cookie)
  */
-function getAuthenticatedUser(req) {
+async function getAuthenticatedUser(req) {
   try {
     const authHeader = req.headers.authorization;
     let token = null;
@@ -27,9 +27,9 @@ function getAuthenticatedUser(req) {
     if (token.startsWith('demo_token_') || token.startsWith('offline_')) {
       const email = req.headers['x-student-email'] || req.query.email || '';
       if (email) {
-        const u = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
+        const u = await db.prepare('SELECT * FROM users WHERE email = ?').get(email);
         if (u) {
-          const profile = db.prepare('SELECT * FROM student_profiles WHERE user_id = ?').get(u.id);
+          const profile = await db.prepare('SELECT * FROM student_profiles WHERE user_id = ?').get(u.id);
           return { ...u, owner_id: profile?.id || u.id, profile };
         }
       }
@@ -39,16 +39,16 @@ function getAuthenticatedUser(req) {
     const decoded = jwt.verify(token, JWT_SECRET);
     if (!decoded || !decoded.userId) return null;
 
-    const user = db.prepare('SELECT id, email, role FROM users WHERE id = ?').get(decoded.userId);
+    const user = await db.prepare('SELECT id, email, role FROM users WHERE id = ?').get(decoded.userId);
     if (!user) return null;
 
     let profile = null;
     if (user.role === 'student') {
-      profile = db.prepare('SELECT * FROM student_profiles WHERE user_id = ?').get(user.id);
+      profile = await db.prepare('SELECT * FROM student_profiles WHERE user_id = ?').get(user.id);
     } else if (user.role === 'company') {
-      profile = db.prepare('SELECT * FROM company_profiles WHERE user_id = ?').get(user.id);
+      profile = await db.prepare('SELECT * FROM company_profiles WHERE user_id = ?').get(user.id);
     } else if (user.role === 'alumni') {
-      profile = db.prepare('SELECT * FROM alumni_profiles WHERE user_id = ?').get(user.id);
+      profile = await db.prepare('SELECT * FROM alumni_profiles WHERE user_id = ?').get(user.id);
     }
 
     return {
@@ -62,7 +62,7 @@ function getAuthenticatedUser(req) {
 }
 
 // 1. Get Q&A Threads (Supports Community Questions & My Questions)
-router.get('/threads', (req, res) => {
+router.get('/threads', async (req, res) => {
   try {
     const { category, status, search, mine, student_id } = req.query;
     const authUser = getAuthenticatedUser(req);
@@ -123,7 +123,7 @@ router.get('/threads', (req, res) => {
 
     query += ` ORDER BY CASE WHEN t.status = 'open' THEN 0 ELSE 1 END, t.created_at DESC`;
 
-    const threads = db.prepare(query).all(...params);
+    const threads = await db.prepare(query).all(...params);
     res.json(threads);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -131,7 +131,7 @@ router.get('/threads', (req, res) => {
 });
 
 // 2. Dedicated "My Questions" Endpoint (Strict Student Authorization)
-router.get('/my-questions', (req, res) => {
+router.get('/my-questions', async (req, res) => {
   try {
     const authUser = getAuthenticatedUser(req);
     const { student_id, status, category, search } = req.query;
@@ -181,7 +181,7 @@ router.get('/my-questions', (req, res) => {
 
     query += ` ORDER BY t.created_at DESC`;
 
-    const threads = db.prepare(query).all(...params);
+    const threads = await db.prepare(query).all(...params);
     res.json(threads);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -189,10 +189,10 @@ router.get('/my-questions', (req, res) => {
 });
 
 // 3. Get Single Thread with Full Replies
-router.get('/threads/:id', (req, res) => {
+router.get('/threads/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const thread = db.prepare(`
+    const thread = await db.prepare(`
       SELECT 
         t.*,
         (SELECT COUNT(*) FROM qa_replies r WHERE r.thread_id = t.id) as replies_count
@@ -204,7 +204,7 @@ router.get('/threads/:id', (req, res) => {
       return res.status(404).json({ error: 'Question thread not found.' });
     }
 
-    const replies = db.prepare(`
+    const replies = await db.prepare(`
       SELECT * FROM qa_replies
       WHERE thread_id = ?
       ORDER BY created_at ASC
@@ -220,7 +220,7 @@ router.get('/threads/:id', (req, res) => {
 });
 
 // 4. Create New Question Thread (Enforces Authenticated Student Identity)
-router.post('/threads', AuthRateLimiter.generalApiLimiter, (req, res) => {
+router.post('/threads', AuthRateLimiter.generalApiLimiter, async (req, res) => {
   try {
     const { title, body, category, student_id, student_name } = req.body;
     if (!title || !body) {
@@ -234,7 +234,7 @@ router.post('/threads', AuthRateLimiter.generalApiLimiter, (req, res) => {
     const effectiveStudentName = authUser?.profile?.name || authUser?.name || student_name || 'GSFC Student';
 
     const threadId = 'thread_' + Date.now();
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO qa_threads (id, student_id, student_name, title, body, category, status)
       VALUES (?, ?, ?, ?, ?, ?, 'open')
     `).run(
@@ -246,7 +246,7 @@ router.post('/threads', AuthRateLimiter.generalApiLimiter, (req, res) => {
       sanitizeXss(category || 'General Placement Query')
     );
 
-    const created = db.prepare(`
+    const created = await db.prepare(`
       SELECT 
         t.*,
         0 as replies_count,
@@ -263,7 +263,7 @@ router.post('/threads', AuthRateLimiter.generalApiLimiter, (req, res) => {
 });
 
 // 5. Post Reply to Thread
-router.post('/threads/:id/replies', AuthRateLimiter.generalApiLimiter, (req, res) => {
+router.post('/threads/:id/replies', AuthRateLimiter.generalApiLimiter, async (req, res) => {
   try {
     const { id: threadId } = req.params;
     const { body, author_id, author_name, author_role } = req.body;
@@ -272,7 +272,7 @@ router.post('/threads/:id/replies', AuthRateLimiter.generalApiLimiter, (req, res
       return res.status(400).json({ error: 'threadId and reply body are required.' });
     }
 
-    const thread = db.prepare('SELECT id FROM qa_threads WHERE id = ?').get(threadId);
+    const thread = await db.prepare('SELECT id FROM qa_threads WHERE id = ?').get(threadId);
     if (!thread) {
       return res.status(404).json({ error: 'Question thread not found.' });
     }
@@ -283,7 +283,7 @@ router.post('/threads/:id/replies', AuthRateLimiter.generalApiLimiter, (req, res
     const effectiveAuthorRole = authUser?.role || (['student', 'alumni', 'admin', 'company', 'tpo', 'faculty', 'superadmin'].includes(author_role) ? author_role : 'student');
 
     const replyId = 'reply_' + Date.now();
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO qa_replies (id, thread_id, author_id, author_name, author_role, body)
       VALUES (?, ?, ?, ?, ?, ?)
     `).run(
@@ -295,7 +295,7 @@ router.post('/threads/:id/replies', AuthRateLimiter.generalApiLimiter, (req, res
       sanitizeXss(body.trim())
     );
 
-    const created = db.prepare('SELECT * FROM qa_replies WHERE id = ?').get(replyId);
+    const created = await db.prepare('SELECT * FROM qa_replies WHERE id = ?').get(replyId);
     res.status(201).json({ success: true, reply: created });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -303,18 +303,18 @@ router.post('/threads/:id/replies', AuthRateLimiter.generalApiLimiter, (req, res
 });
 
 // 6. Mark Thread as Resolved / Reopen
-router.put('/threads/:id/resolve', (req, res) => {
+router.put('/threads/:id/resolve', async (req, res) => {
   try {
     const { id: threadId } = req.params;
     const { status } = req.body; // 'resolved' or 'open'
 
-    const thread = db.prepare('SELECT * FROM qa_threads WHERE id = ?').get(threadId);
+    const thread = await db.prepare('SELECT * FROM qa_threads WHERE id = ?').get(threadId);
     if (!thread) {
       return res.status(404).json({ error: 'Question thread not found.' });
     }
 
     const newStatus = status === 'open' ? 'open' : 'resolved';
-    db.prepare('UPDATE qa_threads SET status = ? WHERE id = ?').run(newStatus, threadId);
+    await db.prepare('UPDATE qa_threads SET status = ? WHERE id = ?').run(newStatus, threadId);
 
     res.json({ success: true, status: newStatus, message: `Thread marked as ${newStatus}.` });
   } catch (err) {
@@ -323,19 +323,19 @@ router.put('/threads/:id/resolve', (req, res) => {
 });
 
 // 7. Delete Question Thread (Author / Admin / TPO)
-router.delete('/threads/:id', (req, res) => {
+router.delete('/threads/:id', async (req, res) => {
   try {
     const { id: threadId } = req.params;
 
-    const thread = db.prepare('SELECT * FROM qa_threads WHERE id = ?').get(threadId);
+    const thread = await db.prepare('SELECT * FROM qa_threads WHERE id = ?').get(threadId);
     if (!thread) {
       return res.status(404).json({ error: 'Question thread not found.' });
     }
 
     // Cascade delete replies
-    db.prepare('DELETE FROM qa_replies WHERE thread_id = ?').run(threadId);
+    await db.prepare('DELETE FROM qa_replies WHERE thread_id = ?').run(threadId);
     // Delete thread
-    db.prepare('DELETE FROM qa_threads WHERE id = ?').run(threadId);
+    await db.prepare('DELETE FROM qa_threads WHERE id = ?').run(threadId);
 
     res.json({ success: true, message: 'Question and associated replies deleted successfully.', deletedId: threadId });
   } catch (err) {

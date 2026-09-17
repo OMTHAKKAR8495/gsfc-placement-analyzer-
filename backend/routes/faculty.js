@@ -4,7 +4,7 @@ import db from '../db/index.js';
 const router = express.Router();
 
 // 1. Department-Level Placement Analytics & Advanced Student Filter for Faculty
-router.get('/department-analytics', (req, res) => {
+router.get('/department-analytics', async (req, res) => {
   try {
     const { 
       department = 'ALL', 
@@ -21,7 +21,7 @@ router.get('/department-analytics', (req, res) => {
     const skillLower = (skill || '').toLowerCase().trim();
 
     // Fetch all student profiles with user details
-    const students = db.prepare(`
+    const students = await db.prepare(`
       SELECT s.*, u.email 
       FROM student_profiles s
       JOIN users u ON s.user_id = u.id
@@ -29,7 +29,7 @@ router.get('/department-analytics', (req, res) => {
     `).all();
 
     // Fetch all applications for activity tracking
-    const applications = db.prepare(`
+    const applications = await db.prepare(`
       SELECT a.*, r.title as requirement_title, c.company_name, r.ctc_range
       FROM applications a
       JOIN requirements r ON a.requirement_id = r.id
@@ -133,13 +133,13 @@ router.get('/department-analytics', (req, res) => {
 });
 
 // 2. Individual Student Full Activity Timeline for Faculty & Recruiters
-router.get('/student-activity/:studentId', (req, res) => {
+router.get('/student-activity/:studentId', async (req, res) => {
   try {
     const { studentId } = req.params;
-    const student = db.prepare('SELECT * FROM student_profiles WHERE id = ? OR user_id = ?').get(studentId, studentId);
+    const student = await db.prepare('SELECT * FROM student_profiles WHERE id = ? OR user_id = ?').get(studentId, studentId);
     if (!student) return res.status(404).json({ error: 'Student not found' });
 
-    const applications = db.prepare(`
+    const applications = await db.prepare(`
       SELECT a.*, r.title as requirement_title, c.company_name, r.ctc_range, r.job_type
       FROM applications a
       JOIN requirements r ON a.requirement_id = r.id
@@ -180,7 +180,7 @@ router.get('/student-activity/:studentId', (req, res) => {
 });
 
 // 3. Assign Training / Remedial Intervention to Student
-router.post('/assign-training', (req, res) => {
+router.post('/assign-training', async (req, res) => {
   try {
     const { studentId, studentName, trainingModule, deadlineDays = 14 } = req.body;
 
@@ -199,7 +199,7 @@ router.post('/assign-training', (req, res) => {
 // ============================================================================
 
 // A. List Internships with Filters & Search
-router.get('/internships', (req, res) => {
+router.get('/internships', async (req, res) => {
   try {
     const { 
       department = 'ALL', 
@@ -234,7 +234,7 @@ router.get('/internships', (req, res) => {
 
     query += ' ORDER BY created_at DESC';
 
-    const internships = db.prepare(query).all(...params);
+    const internships = await db.prepare(query).all(...params);
     res.json(internships || []);
   } catch (err) {
     console.error('Error fetching faculty internships:', err);
@@ -243,9 +243,9 @@ router.get('/internships', (req, res) => {
 });
 
 // B. Internship Module Summary KPIs
-router.get('/internships/stats', (req, res) => {
+router.get('/internships/stats', async (req, res) => {
   try {
-    const allInternships = db.prepare('SELECT * FROM internships').all() || [];
+    const allInternships = await db.prepare('SELECT * FROM internships').all() || [];
     const total = allInternships.length;
     const ongoing = allInternships.filter(i => i.completion_status === 'ongoing' || i.status === 'in_progress').length;
     const completed = allInternships.filter(i => i.completion_status === 'completed').length;
@@ -271,13 +271,13 @@ router.get('/internships/stats', (req, res) => {
 });
 
 // C. Log / Register New Internship Record
-router.post('/internships', (req, res) => {
+router.post('/internships', async (req, res) => {
   try {
     const body = req.body;
     const id = body.id || `intern_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
     const now = new Date().toISOString();
 
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO internships (
         id, student_id, student_name, roll_number, program, branch,
         company_name, role, duration, start_date, end_date, stipend, location,
@@ -315,7 +315,7 @@ router.post('/internships', (req, res) => {
       now
     );
 
-    const created = db.prepare('SELECT * FROM internships WHERE id = ?').get(id);
+    const created = await db.prepare('SELECT * FROM internships WHERE id = ?').get(id);
     res.status(201).json({ message: 'Internship logged successfully', internship: created });
   } catch (err) {
     console.error('Error creating internship:', err);
@@ -324,16 +324,16 @@ router.post('/internships', (req, res) => {
 });
 
 // D. Update Internship Record
-router.put('/internships/:id', (req, res) => {
+router.put('/internships/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const body = req.body;
     const now = new Date().toISOString();
 
-    const existing = db.prepare('SELECT * FROM internships WHERE id = ?').get(id);
+    const existing = await db.prepare('SELECT * FROM internships WHERE id = ?').get(id);
     if (!existing) return res.status(404).json({ error: 'Internship record not found' });
 
-    db.prepare(`
+    await db.prepare(`
       UPDATE internships SET
         student_name = COALESCE(?, student_name),
         roll_number = COALESCE(?, roll_number),
@@ -368,7 +368,7 @@ router.put('/internships/:id', (req, res) => {
       now, id
     );
 
-    const updated = db.prepare('SELECT * FROM internships WHERE id = ?').get(id);
+    const updated = await db.prepare('SELECT * FROM internships WHERE id = ?').get(id);
     res.json({ message: 'Internship updated successfully', internship: updated });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -376,16 +376,16 @@ router.put('/internships/:id', (req, res) => {
 });
 
 // E. Quick Status / Approval / NOC Update
-router.patch('/internships/:id/status', (req, res) => {
+router.patch('/internships/:id/status', async (req, res) => {
   try {
     const { id } = req.params;
     const { status, completion_status, noc_status, performance_rating, evaluation_notes } = req.body;
     const now = new Date().toISOString();
 
-    const existing = db.prepare('SELECT * FROM internships WHERE id = ?').get(id);
+    const existing = await db.prepare('SELECT * FROM internships WHERE id = ?').get(id);
     if (!existing) return res.status(404).json({ error: 'Internship record not found' });
 
-    db.prepare(`
+    await db.prepare(`
       UPDATE internships SET
         status = COALESCE(?, status),
         completion_status = COALESCE(?, completion_status),
@@ -400,7 +400,7 @@ router.patch('/internships/:id/status', (req, res) => {
       evaluation_notes ?? null, now, id
     );
 
-    const updated = db.prepare('SELECT * FROM internships WHERE id = ?').get(id);
+    const updated = await db.prepare('SELECT * FROM internships WHERE id = ?').get(id);
     res.json({ message: 'Internship status updated successfully', internship: updated });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -408,10 +408,10 @@ router.patch('/internships/:id/status', (req, res) => {
 });
 
 // F. Delete Internship Record
-router.delete('/internships/:id', (req, res) => {
+router.delete('/internships/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    db.prepare('DELETE FROM internships WHERE id = ?').run(id);
+    await db.prepare('DELETE FROM internships WHERE id = ?').run(id);
     res.json({ message: 'Internship record removed successfully', id });
   } catch (err) {
     res.status(500).json({ error: err.message });

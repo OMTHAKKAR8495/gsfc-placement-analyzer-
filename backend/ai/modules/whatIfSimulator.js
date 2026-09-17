@@ -3,7 +3,7 @@ import db from '../../db/index.js';
 /**
  * Simulates policy and training impact on university placement outcomes
  */
-export function simulatePlacementScenario(scenarioInput = {}) {
+export async function simulatePlacementScenario(scenarioInput = {}) {
   const {
     dsaTrainingStudents = 150,
     companyParticipationIncreasePct = 15,
@@ -12,8 +12,8 @@ export function simulatePlacementScenario(scenarioInput = {}) {
   } = scenarioInput;
 
   // Base institutional metrics
-  const totalStudents = db.prepare('SELECT COUNT(*) as count FROM student_profiles').get().count || 24;
-  const currentPlacedCount = db.prepare("SELECT COUNT(DISTINCT student_id) as count FROM applications WHERE status = 'selected'").get().count || 18;
+  const totalStudents = await db.prepare('SELECT COUNT(*) as count FROM student_profiles').get().count || 24;
+  const currentPlacedCount = await db.prepare("SELECT COUNT(DISTINCT student_id) as count FROM applications WHERE status = 'selected'").get().count || 18;
   
   const basePlacementRate = Number(((currentPlacedCount / totalStudents) * 100).toFixed(1));
   const baseAvgCtcLpa = 8.4;

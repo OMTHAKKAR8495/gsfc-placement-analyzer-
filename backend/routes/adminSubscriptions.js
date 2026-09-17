@@ -6,28 +6,28 @@ const router = express.Router();
 const uuidv4 = () => crypto.randomUUID();
 
 // 1. Get Revenue & Subscription Overview Metrics
-router.get('/overview', (req, res) => {
+router.get('/overview', async (req, res) => {
   try {
-    const totalRevenue = db.prepare(`
+    const totalRevenue = await db.prepare(`
       SELECT SUM(amount_inr) as total FROM payment_transactions WHERE status = 'paid'
     `).get()?.total || 0;
 
-    const totalTransactions = db.prepare(`
+    const totalTransactions = await db.prepare(`
       SELECT count(*) as count FROM payment_transactions WHERE status = 'paid'
     `).get()?.count || 0;
 
-    const activeSubsCount = db.prepare(`
+    const activeSubsCount = await db.prepare(`
       SELECT count(*) as count FROM company_subscriptions WHERE status = 'active' AND expires_at > datetime('now')
     `).get()?.count || 0;
 
-    const expiringSoonCount = db.prepare(`
+    const expiringSoonCount = await db.prepare(`
       SELECT count(*) as count FROM company_subscriptions 
       WHERE status = 'active' 
         AND expires_at > datetime('now') 
         AND expires_at <= datetime('now', '+15 days')
     `).get()?.count || 0;
 
-    const tierBreakdown = db.prepare(`
+    const tierBreakdown = await db.prepare(`
       SELECT plan_name, count(*) as count, SUM(price_inr) as revenue
       FROM (
         SELECT cs.plan_name, sp.price_inr 
@@ -38,7 +38,7 @@ router.get('/overview', (req, res) => {
       GROUP BY plan_name
     `).all();
 
-    const recentTransactions = db.prepare(`
+    const recentTransactions = await db.prepare(`
       SELECT * FROM payment_transactions ORDER BY created_at DESC LIMIT 10
     `).all();
 
@@ -58,9 +58,9 @@ router.get('/overview', (req, res) => {
 });
 
 // 2. Get All Subscription Plans for Admin Management
-router.get('/plans', (req, res) => {
+router.get('/plans', async (req, res) => {
   try {
-    const plans = db.prepare(`
+    const plans = await db.prepare(`
       SELECT * FROM subscription_plans ORDER BY display_order ASC, price_inr ASC
     `).all();
 
@@ -76,12 +76,12 @@ router.get('/plans', (req, res) => {
 });
 
 // 3. Update Existing Subscription Plan (Price, Duration, Limits, Features)
-router.put('/plans/:planId', (req, res) => {
+router.put('/plans/:planId', async (req, res) => {
   try {
     const { planId } = req.params;
     const { name, badge_title, price_inr, duration_days, max_postings, description, features, is_active } = req.body;
 
-    const existing = db.prepare('SELECT * FROM subscription_plans WHERE id = ?').get(planId);
+    const existing = await db.prepare('SELECT * FROM subscription_plans WHERE id = ?').get(planId);
     if (!existing) {
       return res.status(404).json({ error: 'Subscription plan not found.' });
     }
@@ -89,7 +89,7 @@ router.put('/plans/:planId', (req, res) => {
     const featuresJson = typeof features === 'object' ? JSON.stringify(features) : (features || existing.features_json);
     const activeVal = is_active !== undefined ? (is_active ? 1 : 0) : existing.is_active;
 
-    db.prepare(`
+    await db.prepare(`
       UPDATE subscription_plans
       SET name = COALESCE(?, name),
           badge_title = COALESCE(?, badge_title),
@@ -108,7 +108,7 @@ router.put('/plans/:planId', (req, res) => {
       description ?? null, featuresJson, activeVal, planId
     );
 
-    const updated = db.prepare('SELECT * FROM subscription_plans WHERE id = ?').get(planId);
+    const updated = await db.prepare('SELECT * FROM subscription_plans WHERE id = ?').get(planId);
     res.json({
       success: true,
       message: `✅ Plan "${updated.name}" updated successfully.`,
@@ -124,7 +124,7 @@ router.put('/plans/:planId', (req, res) => {
 });
 
 // 4. Create New Custom Subscription Plan
-router.post('/plans', (req, res) => {
+router.post('/plans', async (req, res) => {
   try {
     const { id, name, badge_title, price_inr, duration_days, max_postings, description, features } = req.body;
     
@@ -135,7 +135,7 @@ router.post('/plans', (req, res) => {
     const planId = id || ('plan_' + name.toLowerCase().replace(/[^a-z0-9]/g, '_'));
     const featuresJson = typeof features === 'object' ? JSON.stringify(features) : JSON.stringify(features || {});
     
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO subscription_plans 
       (id, name, badge_title, price_inr, duration_days, max_postings, description, features_json, display_order)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 99)
@@ -144,7 +144,7 @@ router.post('/plans', (req, res) => {
       max_postings !== undefined ? parseInt(max_postings) : 5, description || '', featuresJson
     );
 
-    const created = db.prepare('SELECT * FROM subscription_plans WHERE id = ?').get(planId);
+    const created = await db.prepare('SELECT * FROM subscription_plans WHERE id = ?').get(planId);
     res.status(201).json({
       success: true,
       message: `✅ New plan "${created.name}" created.`,
@@ -160,7 +160,7 @@ router.post('/plans', (req, res) => {
 });
 
 // 5. Get All Payment Transactions & Invoices (with Search / Filters)
-router.get('/transactions', (req, res) => {
+router.get('/transactions', async (req, res) => {
   try {
     const { status, search, planId, limit = 50, offset = 0 } = req.query;
     
@@ -184,7 +184,7 @@ router.get('/transactions', (req, res) => {
     query += ` ORDER BY created_at DESC LIMIT ? OFFSET ?`;
     params.push(parseInt(limit), parseInt(offset));
 
-    const transactions = db.prepare(query).all(...params);
+    const transactions = await db.prepare(query).all(...params);
     res.json(transactions);
   } catch (err) {
     console.error('Error fetching admin transactions:', err);
@@ -193,23 +193,23 @@ router.get('/transactions', (req, res) => {
 });
 
 // 6. Manual Subscription Grant for MoU Partners / Special Companies
-router.post('/manual-grant', (req, res) => {
+router.post('/manual-grant', async (req, res) => {
   try {
     const { companyId, planId, durationDays, notes } = req.body;
 
-    let company = db.prepare('SELECT * FROM company_profiles WHERE id = ? OR user_id = ?').get(companyId, companyId);
+    let company = await db.prepare('SELECT * FROM company_profiles WHERE id = ? OR user_id = ?').get(companyId, companyId);
     if (!company) {
-      company = db.prepare('SELECT * FROM company_profiles WHERE id LIKE ? OR company_name LIKE ? LIMIT 1').get(`%${companyId}%`, `%${companyId}%`);
+      company = await db.prepare('SELECT * FROM company_profiles WHERE id LIKE ? OR company_name LIKE ? LIMIT 1').get(`%${companyId}%`, `%${companyId}%`);
     }
     if (!company) {
-      company = db.prepare('SELECT * FROM company_profiles LIMIT 1').get();
+      company = await db.prepare('SELECT * FROM company_profiles LIMIT 1').get();
     }
     if (!company) {
       return res.status(404).json({ error: 'Company profile not found.' });
     }
 
 
-    const plan = db.prepare('SELECT * FROM subscription_plans WHERE id = ?').get(planId || 'plan_gold');
+    const plan = await db.prepare('SELECT * FROM subscription_plans WHERE id = ?').get(planId || 'plan_gold');
     if (!plan) {
       return res.status(404).json({ error: 'Plan not found.' });
     }
@@ -221,7 +221,7 @@ router.post('/manual-grant', (req, res) => {
     const receiptNum = 'GSFC-MOU-' + now.getFullYear() + '-' + Math.floor(10000 + Math.random() * 90000);
 
     // Create grant transaction
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO payment_transactions 
       (id, company_id, company_name, plan_id, plan_name, amount_inr, currency, gateway, gateway_order_id, gateway_payment_id, status, receipt_number, billing_email, invoice_data_json, paid_at)
       VALUES (?, ?, ?, ?, ?, 0, 'INR', 'TPC Admin Grant', ?, ?, 'paid', ?, ?, ?, CURRENT_TIMESTAMP)
@@ -232,7 +232,7 @@ router.post('/manual-grant', (req, res) => {
     );
 
     // Insert active subscription
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO company_subscriptions 
       (id, company_id, plan_id, plan_name, started_at, expires_at, postings_used, max_postings, status, last_payment_id)
       VALUES (?, ?, ?, ?, ?, ?, 0, ?, 'active', 'mou_grant')

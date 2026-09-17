@@ -20,7 +20,7 @@ const MODEL_WEIGHTS = {
  * Computes individual candidate placement probability & explainable at-risk breakdown
  * Uses a standardized, feature-centered logistic regression function.
  */
-export function computeStudentPlacementProbability(student = {}, context = {}) {
+export async function computeStudentPlacementProbability(student = {}, context = {}) {
   const cgpa = Number(student.cgpa) || 7.0;
   const atsScore = Number(student.ats_score) || 70;
   const mockScore = Number(student.mock_interview_score || student.overall_score) || 68;

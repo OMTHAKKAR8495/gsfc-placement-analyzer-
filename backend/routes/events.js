@@ -8,7 +8,7 @@ import { JWT_SECRET } from '../config/secrets.js';
 const router = express.Router();
 
 // Helper to generate a clean, secure unique pass token
-function generatePassToken(prefix = 'ANV') {
+async function generatePassToken(prefix = 'ANV') {
   const randomHex = crypto.randomBytes(3).toString('hex').toUpperCase();
   return `GSFC-PASS-${prefix}-${randomHex}`;
 }
@@ -28,9 +28,9 @@ function getAuthUser(req) {
 // ============================================================================
 // 🌐 1. Public List of Active/Upcoming Fests & Events
 // ============================================================================
-router.get('/all', (req, res) => {
+router.get('/all', async (req, res) => {
   try {
-    const events = db.prepare(`
+    const events = await db.prepare(`
       SELECT e.*, 
              (SELECT COUNT(*) FROM external_candidates WHERE event_id = e.id) as total_external_registered,
              (SELECT COUNT(*) FROM pass_tokens WHERE event_id = e.id) as total_passes_issued,
@@ -47,7 +47,7 @@ router.get('/all', (req, res) => {
 // ============================================================================
 // 📋 2. Scanner User Scan History (Faculty / Security Duty Shift Logs)
 // ============================================================================
-router.get('/my-scans', (req, res) => {
+router.get('/my-scans', async (req, res) => {
   try {
     const authUser = getAuthUser(req);
     let userId = req.query.user_id || authUser?.userId || authUser?.id;
@@ -56,7 +56,7 @@ router.get('/my-scans', (req, res) => {
       return res.status(400).json({ error: 'User ID or valid authentication token is required.' });
     }
 
-    const scans = db.prepare(`
+    const scans = await db.prepare(`
       SELECT l.*, e.title as event_title, e.venue as event_venue
       FROM entry_logs l
       LEFT JOIN events e ON l.event_id = e.id
@@ -65,7 +65,7 @@ router.get('/my-scans', (req, res) => {
       LIMIT 100
     `).all(userId, `%${userId}%`);
 
-    const summary = db.prepare(`
+    const summary = await db.prepare(`
       SELECT 
         COUNT(*) as total_scanned,
         COUNT(DISTINCT event_id) as active_events,
@@ -87,7 +87,7 @@ router.get('/my-scans', (req, res) => {
 // ============================================================================
 // 📱 3. Public Pass Details Lookup by Token
 // ============================================================================
-router.get('/pass/:token', (req, res) => {
+router.get('/pass/:token', async (req, res) => {
   try {
     const { token } = req.params;
     let cleanToken = (token || '').trim();
@@ -98,10 +98,10 @@ router.get('/pass/:token', (req, res) => {
       cleanToken = cleanToken.split('/pass/')[1].split('?')[0].split('&')[0];
     }
 
-    let pass = db.prepare('SELECT * FROM pass_tokens WHERE token = ? OR lower(token) = lower(?)').get(cleanToken, cleanToken);
+    let pass = await db.prepare('SELECT * FROM pass_tokens WHERE token = ? OR lower(token) = lower(?)').get(cleanToken, cleanToken);
     
     if (!pass) {
-      const extCand = db.prepare('SELECT * FROM external_candidates WHERE id = ? OR token = ? OR lower(email) = lower(?)').get(cleanToken, cleanToken, cleanToken);
+      const extCand = await db.prepare('SELECT * FROM external_candidates WHERE id = ? OR token = ? OR lower(email) = lower(?)').get(cleanToken, cleanToken, cleanToken);
       if (extCand) {
         pass = {
           token: extCand.token || cleanToken,
@@ -116,9 +116,9 @@ router.get('/pass/:token', (req, res) => {
       return res.status(404).json({ error: 'Digital QR Pass token is invalid or does not exist.' });
     }
 
-    let event = db.prepare('SELECT * FROM events WHERE id = ?').get(pass.event_id);
+    let event = await db.prepare('SELECT * FROM events WHERE id = ?').get(pass.event_id);
     if (!event) {
-      event = db.prepare('SELECT * FROM events ORDER BY created_at DESC LIMIT 1').get() || {
+      event = await db.prepare('SELECT * FROM events ORDER BY created_at DESC LIMIT 1').get() || {
         id: 'evt_anveshan_2026',
         title: 'GSFC Anveshan 2026 Tech & Career Fest',
         start_date: '2026-09-18',
@@ -129,9 +129,9 @@ router.get('/pass/:token', (req, res) => {
 
     let candidateData = null;
     if (pass.candidate_type === 'external') {
-      candidateData = db.prepare('SELECT * FROM external_candidates WHERE id = ?').get(pass.candidate_id);
+      candidateData = await db.prepare('SELECT * FROM external_candidates WHERE id = ?').get(pass.candidate_id);
     } else {
-      const student = db.prepare(`
+      const student = await db.prepare(`
         SELECT s.*, u.email as user_email 
         FROM student_profiles s
         JOIN users u ON s.user_id = u.id
@@ -154,7 +154,7 @@ router.get('/pass/:token', (req, res) => {
     }
 
     // Check entry logs for previous check-ins
-    const entryLogs = db.prepare('SELECT * FROM entry_logs WHERE token = ? ORDER BY scanned_at DESC').all(cleanToken);
+    const entryLogs = await db.prepare('SELECT * FROM entry_logs WHERE token = ? ORDER BY scanned_at DESC').all(cleanToken);
 
     res.json({
       pass,
@@ -171,7 +171,7 @@ router.get('/pass/:token', (req, res) => {
 // ============================================================================
 // 🔍 4. Universal Scanner Token Lookup (Camera QR or Manual Code)
 // ============================================================================
-router.post('/scan/lookup', (req, res) => {
+router.post('/scan/lookup', async (req, res) => {
   try {
     const { token, event_id } = req.body;
     if (!token) {
@@ -194,11 +194,11 @@ router.post('/scan/lookup', (req, res) => {
       } catch(e) {}
     }
 
-    let pass = db.prepare('SELECT * FROM pass_tokens WHERE token = ? OR lower(token) = lower(?)').get(cleanToken, cleanToken);
+    let pass = await db.prepare('SELECT * FROM pass_tokens WHERE token = ? OR lower(token) = lower(?)').get(cleanToken, cleanToken);
     
     // Fallback: check if external candidate registered directly
     if (!pass) {
-      const extCand = db.prepare('SELECT * FROM external_candidates WHERE id = ? OR token = ? OR lower(email) = lower(?)').get(cleanToken, cleanToken, cleanToken);
+      const extCand = await db.prepare('SELECT * FROM external_candidates WHERE id = ? OR token = ? OR lower(email) = lower(?)').get(cleanToken, cleanToken, cleanToken);
       if (extCand) {
         pass = {
           token: extCand.token || cleanToken,
@@ -216,9 +216,9 @@ router.post('/scan/lookup', (req, res) => {
       });
     }
 
-    let event = db.prepare('SELECT * FROM events WHERE id = ?').get(pass.event_id);
+    let event = await db.prepare('SELECT * FROM events WHERE id = ?').get(pass.event_id);
     if (!event) {
-      event = db.prepare('SELECT * FROM events ORDER BY created_at DESC LIMIT 1').get() || {
+      event = await db.prepare('SELECT * FROM events ORDER BY created_at DESC LIMIT 1').get() || {
         id: 'evt_anveshan_2026',
         title: 'GSFC Anveshan 2026 Tech & Career Fest',
         start_date: '2026-09-18',
@@ -229,9 +229,9 @@ router.post('/scan/lookup', (req, res) => {
 
     let candidate = null;
     if (pass.candidate_type === 'external') {
-      candidate = db.prepare('SELECT * FROM external_candidates WHERE id = ?').get(pass.candidate_id);
+      candidate = await db.prepare('SELECT * FROM external_candidates WHERE id = ?').get(pass.candidate_id);
     } else {
-      const student = db.prepare(`
+      const student = await db.prepare(`
         SELECT s.*, u.email as user_email 
         FROM student_profiles s
         JOIN users u ON s.user_id = u.id
@@ -261,7 +261,7 @@ router.post('/scan/lookup', (req, res) => {
     }
 
     // Check if this pass was already checked into this event (Duplicate Alert)
-    const existingCheckIn = db.prepare(`
+    const existingCheckIn = await db.prepare(`
       SELECT * FROM entry_logs 
       WHERE token = ? AND event_id = ?
       ORDER BY scanned_at DESC LIMIT 1
@@ -285,7 +285,7 @@ router.post('/scan/lookup', (req, res) => {
 // ============================================================================
 // ⚡ 5. Gate Check-in Action ("Mark Present")
 // ============================================================================
-router.post('/scan/checkin', (req, res) => {
+router.post('/scan/checkin', async (req, res) => {
   try {
     const { token, gateName, scanned_by_id, scanned_by_name, scanned_by_role } = req.body;
     if (!token) {
@@ -306,13 +306,13 @@ router.post('/scan/checkin', (req, res) => {
     const scannerRole = scanned_by_role || authUser?.role || 'security';
     const gate_name = gateName || 'Main Campus Gate A';
 
-    const pass = db.prepare('SELECT * FROM pass_tokens WHERE token = ?').get(cleanToken);
+    const pass = await db.prepare('SELECT * FROM pass_tokens WHERE token = ?').get(cleanToken);
     if (!pass) {
       return res.status(404).json({ error: `Invalid pass token "${cleanToken}". Entry cannot be authorized.` });
     }
 
     // Check for duplicate entry
-    const existingCheckIn = db.prepare(`
+    const existingCheckIn = await db.prepare(`
       SELECT * FROM entry_logs 
       WHERE token = ? AND event_id = ?
       ORDER BY scanned_at DESC LIMIT 1
@@ -333,7 +333,7 @@ router.post('/scan/checkin', (req, res) => {
     let candidatePhoto = '';
 
     if (pass.candidate_type === 'external') {
-      const ext = db.prepare('SELECT * FROM external_candidates WHERE id = ?').get(pass.candidate_id);
+      const ext = await db.prepare('SELECT * FROM external_candidates WHERE id = ?').get(pass.candidate_id);
       if (ext) {
         candidateName = ext.name;
         candidateEmail = ext.email;
@@ -342,7 +342,7 @@ router.post('/scan/checkin', (req, res) => {
         candidatePhoto = ext.photo_url || '';
       }
     } else {
-      const stud = db.prepare(`
+      const stud = await db.prepare(`
         SELECT s.*, u.email as user_email 
         FROM student_profiles s
         JOIN users u ON s.user_id = u.id
@@ -361,7 +361,7 @@ router.post('/scan/checkin', (req, res) => {
     const logId = 'entry_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
     const now = new Date().toISOString().replace('T', ' ').substring(0, 19);
 
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO entry_logs (
         id, token, event_id, candidate_type, candidate_id, 
         candidate_name, candidate_email, candidate_phone, candidate_org, candidate_photo,
@@ -386,7 +386,7 @@ router.post('/scan/checkin', (req, res) => {
     );
 
     // Fetch updated count
-    const stats = db.prepare(`
+    const stats = await db.prepare(`
       SELECT 
         (SELECT COUNT(*) FROM entry_logs WHERE event_id = ?) as total_scans_event,
         (SELECT COUNT(*) FROM entry_logs WHERE scanned_by_user_id = ?) as total_scans_by_user
@@ -416,7 +416,7 @@ router.post('/scan/checkin', (req, res) => {
 // ============================================================================
 // 🎟️ 6. Public Self-Registration for External / Guest Candidates
 // ============================================================================
-router.post('/:slug/register', (req, res) => {
+router.post('/:slug/register', async (req, res) => {
   try {
     const { slug } = req.params;
     const { name, email, phone, organization, city, photo_url, id_proof_url, custom_data } = req.body;
@@ -425,7 +425,7 @@ router.post('/:slug/register', (req, res) => {
       return res.status(400).json({ error: 'Name, email, phone number, and organization/college are required.' });
     }
 
-    const event = db.prepare('SELECT * FROM events WHERE slug = ? OR id = ?').get(slug, slug);
+    const event = await db.prepare('SELECT * FROM events WHERE slug = ? OR id = ?').get(slug, slug);
     if (!event) {
       return res.status(404).json({ error: 'Event not found.' });
     }
@@ -438,7 +438,7 @@ router.post('/:slug/register', (req, res) => {
     const cleanPhone = phone.trim();
 
     // Check if already registered for this specific event
-    const existing = db.prepare(`
+    const existing = await db.prepare(`
       SELECT * FROM external_candidates 
       WHERE event_id = ? AND (lower(email) = ? OR phone = ?)
     `).get(event.id, cleanEmail, cleanPhone);
@@ -465,7 +465,7 @@ router.post('/:slug/register', (req, res) => {
     const tokenPrefix = (event.slug || 'EVT').substring(0, 3).toUpperCase();
     const passToken = generatePassToken(tokenPrefix);
 
-    const insertCandidate = db.prepare(`
+    const insertCandidate = await db.prepare(`
       INSERT INTO external_candidates (id, event_id, name, email, phone, organization, city, photo_url, id_proof_url, pass_token, custom_data_json)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
@@ -550,12 +550,12 @@ router.post('/send-pass-email', async (req, res) => {
       return res.status(400).json({ error: 'Pass token and recipient email are required.' });
     }
 
-    const pass = db.prepare('SELECT * FROM pass_tokens WHERE token = ?').get(passToken);
+    const pass = await db.prepare('SELECT * FROM pass_tokens WHERE token = ?').get(passToken);
     if (!pass) {
       return res.status(404).json({ error: 'Pass token not found.' });
     }
 
-    const event = db.prepare('SELECT * FROM events WHERE id = ?').get(pass.event_id);
+    const event = await db.prepare('SELECT * FROM events WHERE id = ?').get(pass.event_id);
     const passUrl = `https://gsfc-placement-analyzer.vercel.app/#pass/${passToken}`;
 
     console.log(`[PASS DISPATCH CONFIRMATION] Digital Pass [${passToken}] sent to ${email} for event "${event?.title || 'GSFC Fest'}". Open Link: ${passUrl}`);
@@ -576,9 +576,9 @@ router.post('/send-pass-email', async (req, res) => {
 // ============================================================================
 // 📅 6.5. BACKEND-SYNCED PLACEMENT & CORPORATE DRIVES CALENDAR
 // ============================================================================
-router.get('/calendar', (req, res) => {
+router.get('/calendar', async (req, res) => {
   try {
-    const rawEvents = db.prepare('SELECT * FROM placement_calendar_events ORDER BY date ASC').all();
+    const rawEvents = await db.prepare('SELECT * FROM placement_calendar_events ORDER BY date ASC').all();
     const parsedEvents = (rawEvents || []).map(e => ({
       ...e,
       eligible_batches: typeof e.eligible_batches_json === 'string' ? JSON.parse(e.eligible_batches_json || '[]') : (e.eligible_batches_json || []),
@@ -591,7 +591,7 @@ router.get('/calendar', (req, res) => {
   }
 });
 
-router.post('/calendar', (req, res) => {
+router.post('/calendar', async (req, res) => {
   try {
     const ev = req.body;
     const id = ev.id || `evt_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
@@ -605,7 +605,7 @@ router.post('/calendar', (req, res) => {
       ? JSON.stringify(ev.eligible_branches)
       : JSON.stringify((ev.eligible_branches || 'CSE, IT').split(',').map(s => s.trim()));
 
-    db.prepare(`
+    await db.prepare(`
       INSERT OR REPLACE INTO placement_calendar_events (
         id, company_name, role, ctc, date, time, stage, location,
         eligible_batches_json, eligible_branches_json, status, updated_by, updated_at
@@ -626,7 +626,7 @@ router.post('/calendar', (req, res) => {
       now
     );
 
-    const saved = db.prepare('SELECT * FROM placement_calendar_events WHERE id = ?').get(id);
+    const saved = await db.prepare('SELECT * FROM placement_calendar_events WHERE id = ?').get(id);
     if (saved) {
       saved.eligible_batches = JSON.parse(saved.eligible_batches_json || '[]');
       saved.eligible_branches = JSON.parse(saved.eligible_branches_json || '[]');
@@ -639,13 +639,13 @@ router.post('/calendar', (req, res) => {
   }
 });
 
-router.put('/calendar/:id', (req, res) => {
+router.put('/calendar/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const ev = req.body;
     const now = new Date().toISOString();
 
-    const existing = db.prepare('SELECT * FROM placement_calendar_events WHERE id = ?').get(id);
+    const existing = await db.prepare('SELECT * FROM placement_calendar_events WHERE id = ?').get(id);
     if (!existing) return res.status(404).json({ error: 'Placement event not found' });
 
     const batchesJson = ev.eligible_batches !== undefined
@@ -656,7 +656,7 @@ router.put('/calendar/:id', (req, res) => {
       ? (Array.isArray(ev.eligible_branches) ? JSON.stringify(ev.eligible_branches) : JSON.stringify(ev.eligible_branches.split(',').map(s => s.trim())))
       : existing.eligible_branches_json;
 
-    db.prepare(`
+    await db.prepare(`
       UPDATE placement_calendar_events SET
         company_name = COALESCE(?, company_name),
         role = COALESCE(?, role),
@@ -676,7 +676,7 @@ router.put('/calendar/:id', (req, res) => {
       batchesJson, branchesJson, ev.status ?? null, ev.updated_by ?? null, now, id
     );
 
-    const updated = db.prepare('SELECT * FROM placement_calendar_events WHERE id = ?').get(id);
+    const updated = await db.prepare('SELECT * FROM placement_calendar_events WHERE id = ?').get(id);
     if (updated) {
       updated.eligible_batches = JSON.parse(updated.eligible_batches_json || '[]');
       updated.eligible_branches = JSON.parse(updated.eligible_branches_json || '[]');
@@ -688,10 +688,10 @@ router.put('/calendar/:id', (req, res) => {
   }
 });
 
-router.delete('/calendar/:id', (req, res) => {
+router.delete('/calendar/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    db.prepare('DELETE FROM placement_calendar_events WHERE id = ?').run(id);
+    await db.prepare('DELETE FROM placement_calendar_events WHERE id = ?').run(id);
     res.json({ message: 'Calendar event deleted successfully', id });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -701,10 +701,10 @@ router.delete('/calendar/:id', (req, res) => {
 // ============================================================================
 // 🌐 7. Public Event Details by Slug
 // ============================================================================
-router.get('/:slug', (req, res) => {
+router.get('/:slug', async (req, res) => {
   try {
     const { slug } = req.params;
-    const event = db.prepare(`
+    const event = await db.prepare(`
       SELECT e.*, 
              (SELECT COUNT(*) FROM external_candidates WHERE event_id = e.id) as total_external_registered,
              (SELECT COUNT(*) FROM entry_logs WHERE event_id = e.id) as total_attendees_checked_in

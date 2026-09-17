@@ -55,19 +55,19 @@ async function runGoogleAuthTestSuite() {
   ];
 
   for (const email of cleanupEmails) {
-    const u = db.prepare('SELECT id FROM users WHERE lower(email) = ?').get(email);
+    const u = await db.prepare('SELECT id FROM users WHERE lower(email) = ?').get(email);
     if (u) {
-      try { db.prepare('DELETE FROM student_profiles WHERE user_id = ?').run(u.id); } catch(e) {}
-      try { db.prepare('DELETE FROM company_profiles WHERE user_id = ?').run(u.id); } catch(e) {}
-      try { db.prepare('DELETE FROM faculty_profiles WHERE user_id = ?').run(u.id); } catch(e) {}
-      try { db.prepare('DELETE FROM users WHERE id = ?').run(u.id); } catch(e) {}
+      try { await db.prepare('DELETE FROM student_profiles WHERE user_id = ?').run(u.id); } catch(e) {}
+      try { await db.prepare('DELETE FROM company_profiles WHERE user_id = ?').run(u.id); } catch(e) {}
+      try { await db.prepare('DELETE FROM faculty_profiles WHERE user_id = ?').run(u.id); } catch(e) {}
+      try { await db.prepare('DELETE FROM users WHERE id = ?').run(u.id); } catch(e) {}
     }
-    try { db.prepare('DELETE FROM authorized_students WHERE lower(email) = ?').run(email); } catch(e) {}
+    try { await db.prepare('DELETE FROM authorized_students WHERE lower(email) = ?').run(email); } catch(e) {}
   }
 
   // Setup Test Fixtures:
   // 1. Authorized Student for new sign-in
-  db.prepare(`
+  await db.prepare(`
     INSERT OR REPLACE INTO authorized_students (roll_number, name, email, program, branch, cgpa, admission_year, passing_year, access_status)
     VALUES ('24BT04999', 'Pooja Patel', 'test.student.gis@gsfcuniversity.ac.in', 'BTech CSE', 'Computer Science', 8.9, 2022, 2026, 'active')
   `).run();
@@ -75,11 +75,11 @@ async function runGoogleAuthTestSuite() {
   // 2. Existing Faculty with email/password
   const facultyUserId = 'u_fac_test_' + Date.now();
   const facHash = bcrypt.hashSync('Faculty@GSFC2026!', 6);
-  db.prepare(`
+  await db.prepare(`
     INSERT INTO users (id, email, password_hash, role, auth_provider, status)
     VALUES (?, 'existing.faculty.gis@gsfcuniversity.ac.in', ?, 'faculty', 'local', 'active')
   `).run(facultyUserId, facHash);
-  db.prepare(`
+  await db.prepare(`
     INSERT INTO faculty_profiles (id, user_id, name, department, designation, email)
     VALUES ('f_test_gis', ?, 'Dr. Ramesh Shah', 'Chemical Technology', 'Associate Professor', 'existing.faculty.gis@gsfcuniversity.ac.in')
   `).run(facultyUserId);
@@ -87,14 +87,14 @@ async function runGoogleAuthTestSuite() {
   // 3. Existing TPC Admin with email/password
   const adminUserId = 'u_adm_test_' + Date.now();
   const adminHash = bcrypt.hashSync('Admin@GSFC2026!', 6);
-  db.prepare(`
+  await db.prepare(`
     INSERT INTO users (id, email, password_hash, role, auth_provider, status)
     VALUES (?, 'existing.tpc.gis@gsfcuniversity.ac.in', ?, 'admin', 'local', 'active')
   `).run(adminUserId, adminHash);
 
   // 4. Suspended User
   const suspUserId = 'u_susp_test_' + Date.now();
-  db.prepare(`
+  await db.prepare(`
     INSERT INTO users (id, email, password_hash, role, auth_provider, status)
     VALUES (?, 'suspended.student.gis@gsfcuniversity.ac.in', 'dummy', 'student', 'local', 'suspended')
   `).run(suspUserId);
@@ -153,7 +153,7 @@ async function runGoogleAuthTestSuite() {
   );
 
   // Verify DB state for student
-  const dbStudent = db.prepare('SELECT * FROM users WHERE email = ?').get('test.student.gis@gsfcuniversity.ac.in');
+  const dbStudent = await db.prepare('SELECT * FROM users WHERE email = ?').get('test.student.gis@gsfcuniversity.ac.in');
   testAssert(
     dbStudent && dbStudent.google_id === 'google_sub_pooja_patel_9999' && dbStudent.auth_provider === 'google',
     'Database accurately mapped stable google_id and provider for new student'
@@ -178,7 +178,7 @@ async function runGoogleAuthTestSuite() {
     'Links Google identity to existing faculty account without role corruption'
   );
 
-  const dbFac = db.prepare('SELECT * FROM users WHERE email = ?').get('existing.faculty.gis@gsfcuniversity.ac.in');
+  const dbFac = await db.prepare('SELECT * FROM users WHERE email = ?').get('existing.faculty.gis@gsfcuniversity.ac.in');
   testAssert(
     dbFac && dbFac.google_id === 'google_sub_ramesh_shah_4444' && dbFac.auth_provider === 'both',
     'Provider updated to "both" preserving existing password credentials'
@@ -266,14 +266,14 @@ async function runGoogleAuthTestSuite() {
 
   // Cleanup Test Fixtures
   for (const email of cleanupEmails) {
-    const u = db.prepare('SELECT id FROM users WHERE lower(email) = ?').get(email);
+    const u = await db.prepare('SELECT id FROM users WHERE lower(email) = ?').get(email);
     if (u) {
-      try { db.prepare('DELETE FROM student_profiles WHERE user_id = ?').run(u.id); } catch(e) {}
-      try { db.prepare('DELETE FROM company_profiles WHERE user_id = ?').run(u.id); } catch(e) {}
-      try { db.prepare('DELETE FROM faculty_profiles WHERE user_id = ?').run(u.id); } catch(e) {}
-      try { db.prepare('DELETE FROM users WHERE id = ?').run(u.id); } catch(e) {}
+      try { await db.prepare('DELETE FROM student_profiles WHERE user_id = ?').run(u.id); } catch(e) {}
+      try { await db.prepare('DELETE FROM company_profiles WHERE user_id = ?').run(u.id); } catch(e) {}
+      try { await db.prepare('DELETE FROM faculty_profiles WHERE user_id = ?').run(u.id); } catch(e) {}
+      try { await db.prepare('DELETE FROM users WHERE id = ?').run(u.id); } catch(e) {}
     }
-    try { db.prepare('DELETE FROM authorized_students WHERE lower(email) = ?').run(email); } catch(e) {}
+    try { await db.prepare('DELETE FROM authorized_students WHERE lower(email) = ?').run(email); } catch(e) {}
   }
 
   console.log('\n===========================================================');

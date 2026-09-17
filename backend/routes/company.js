@@ -7,7 +7,7 @@ import appCache from '../services/cacheService.js';
 const router = express.Router();
 
 // Get Company Requirements
-router.get('/requirements', (req, res) => {
+router.get('/requirements', async (req, res) => {
   try {
     const { companyId } = req.query;
     let query = `
@@ -25,7 +25,7 @@ router.get('/requirements', (req, res) => {
     }
     query += ` ORDER BY r.created_at DESC`;
 
-    const requirements = db.prepare(query).all(...params);
+    const requirements = await db.prepare(query).all(...params);
     res.json(requirements || []);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -34,7 +34,7 @@ router.get('/requirements', (req, res) => {
 
 
 // Post New Job Requirement (With Compulsory Logo & Contact Verification)
-router.post('/requirements', (req, res) => {
+router.post('/requirements', async (req, res) => {
   try {
     const {
       company_id, title, eligible_programs, min_cgpa,
@@ -44,31 +44,31 @@ router.post('/requirements', (req, res) => {
       company_logo_url, company_website, company_email, company_phone
     } = req.body;
 
-    let company = db.prepare('SELECT * FROM company_profiles WHERE id = ? OR user_id = ?').get(company_id, company_id);
+    let company = await db.prepare('SELECT * FROM company_profiles WHERE id = ? OR user_id = ?').get(company_id, company_id);
     if (!company) {
-      let user = db.prepare('SELECT * FROM users WHERE id = ?').get(company_id);
+      let user = await db.prepare('SELECT * FROM users WHERE id = ?').get(company_id);
       let userId = user ? user.id : null;
       if (!userId) {
         userId = 'u_' + String(company_id || Date.now()).replace(/[^a-zA-Z0-9_]/g, '_');
         const uEmail = `recruiter_${Date.now()}_${Math.floor(Math.random()*10000)}@company.com`;
         try {
-          db.prepare("INSERT INTO users (id, email, password_hash, role) VALUES (?, ?, 'demo_hash', 'company')")
+          await db.prepare("INSERT INTO users (id, email, password_hash, role) VALUES (?, ?, 'demo_hash', 'company')")
             .run(userId, uEmail);
         } catch (e) {
-          const uExist = db.prepare("SELECT id FROM users WHERE id = ?").get(userId);
+          const uExist = await db.prepare("SELECT id FROM users WHERE id = ?").get(userId);
           if (uExist) userId = uExist.id;
         }
       }
       const compProfileId = company_id && company_id.startsWith('c_') ? company_id : 'c_' + Date.now();
       try {
-        db.prepare(`
+        await db.prepare(`
           INSERT INTO company_profiles (id, user_id, company_name, logo_url, industry, website, approved, contact_email, contact_phone)
           VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?)
         `).run(compProfileId, userId, company_name || ('Corporate Recruiter ' + compProfileId), company_logo_url || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=100', 'Technology & Engineering', company_website || 'https://company.com', company_email || 'hr@company.com', company_phone || '+91 98765 43210');
       } catch (e) {
         console.error('Error auto-creating company profile:', e.message);
       }
-      company = db.prepare('SELECT * FROM company_profiles WHERE id = ? OR user_id = ?').get(compProfileId, userId);
+      company = await db.prepare('SELECT * FROM company_profiles WHERE id = ? OR user_id = ?').get(compProfileId, userId);
     }
 
     if (!company) {
@@ -110,7 +110,7 @@ router.post('/requirements', (req, res) => {
     }
 
     // Update Company Master Profile with contact details
-    db.prepare(`
+    await db.prepare(`
       UPDATE company_profiles 
       SET logo_url = ?, website = ?, contact_email = ?, contact_phone = ?
       WHERE id = ?
@@ -119,7 +119,7 @@ router.post('/requirements', (req, res) => {
     // ==========================================
     // 💳 Subscription Plan & Posting Limit Gating
     // ==========================================
-    let sub = db.prepare(`
+    let sub = await db.prepare(`
       SELECT * FROM company_subscriptions 
       WHERE company_id = ? OR company_id = ? OR company_id = ?
       ORDER BY expires_at DESC 
@@ -146,7 +146,7 @@ router.post('/requirements', (req, res) => {
       });
     }
 
-    const postedCount = db.prepare(`
+    const postedCount = await db.prepare(`
       SELECT count(*) as count FROM requirements 
       WHERE company_id = ? OR company_id = ?
     `).get(company.id, company.user_id || company.id)?.count || 0;
@@ -171,7 +171,7 @@ router.post('/requirements', (req, res) => {
     const qBankJson = JSON.stringify(qBank);
     const qBankStatus = qBank.length >= 5 ? 'complete' : 'pending';
 
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO requirements 
       (id, company_id, title, eligible_programs_json, min_cgpa, required_skills_json, preferred_skills_json, job_type, ctc_range, openings, deadline, job_description, application_type, external_apply_url, application_instructions, question_bank_json, question_bank_status, company_logo_url, company_website, company_email, company_phone)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -187,13 +187,13 @@ router.post('/requirements', (req, res) => {
     if (sub && sub.id) {
 
       try {
-        db.prepare('UPDATE company_subscriptions SET postings_used = postings_used + 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(sub.id);
+        await db.prepare('UPDATE company_subscriptions SET postings_used = postings_used + 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(sub.id);
       } catch (subErr) {
         console.error('Notice updating sub quota:', subErr.message);
       }
     }
 
-    const createdReq = db.prepare('SELECT * FROM requirements WHERE id = ?').get(reqId);
+    const createdReq = await db.prepare('SELECT * FROM requirements WHERE id = ?').get(reqId);
     res.status(201).json({ message: 'Requirement posted successfully', requirement: createdReq });
 
   } catch (err) {
@@ -203,19 +203,19 @@ router.post('/requirements', (req, res) => {
 });
 
 // Update Question Bank for a Requirement (Edit / Add / Delete questions)
-router.put('/requirements/:id/question-bank', (req, res) => {
+router.put('/requirements/:id/question-bank', async (req, res) => {
   const { id } = req.params;
   const { question_bank } = req.body;
   const qBank = Array.isArray(question_bank) ? question_bank : [];
   const qBankJson = JSON.stringify(qBank);
   const qBankStatus = qBank.length >= 5 ? 'complete' : 'pending';
 
-  db.prepare('UPDATE requirements SET question_bank_json = ?, question_bank_status = ? WHERE id = ?').run(qBankJson, qBankStatus, id);
+  await db.prepare('UPDATE requirements SET question_bank_json = ?, question_bank_status = ? WHERE id = ?').run(qBankJson, qBankStatus, id);
   res.json({ message: 'Question bank updated', id });
 });
 
 // Edit / Update Existing Requirement Drive (Recruiter Authority)
-router.put('/requirements/:id', (req, res) => {
+router.put('/requirements/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const {
@@ -226,7 +226,7 @@ router.put('/requirements/:id', (req, res) => {
       company_logo_url, company_website, company_email, company_phone
     } = req.body;
 
-    const existingReq = db.prepare('SELECT * FROM requirements WHERE id = ?').get(id);
+    const existingReq = await db.prepare('SELECT * FROM requirements WHERE id = ?').get(id);
     if (!existingReq) {
       return res.status(404).json({ error: 'Job requirement not found.' });
     }
@@ -251,7 +251,7 @@ router.put('/requirements/:id', (req, res) => {
     const qBankJson = JSON.stringify(qBank);
     const qBankStatus = qBank.length >= 5 ? 'complete' : 'pending';
 
-    db.prepare(`
+    await db.prepare(`
       UPDATE requirements
       SET title = ?, eligible_programs_json = ?, min_cgpa = ?, required_skills_json = ?, preferred_skills_json = ?,
           job_type = ?, ctc_range = ?, openings = ?, deadline = ?, job_description = ?,
@@ -271,18 +271,17 @@ router.put('/requirements/:id', (req, res) => {
       id
     );
 
-    const updated = db.prepare('SELECT * FROM requirements WHERE id = ?').get(id);
+    const updated = await db.prepare('SELECT * FROM requirements WHERE id = ?').get(id);
     res.json({ message: 'Requirement drive updated successfully!', requirement: updated });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// Toggle Accepting Applications on a Requirement (Stop / Reopen)
-router.all('/requirements/:id/toggle-applications', (req, res) => {
+    // Toggle Accepting Applications on a Requirement
+router.all('/requirements/:id/toggle-applications', async (req, res) => {
   try {
-    const { id } = req.params;
-    const reqItem = db.prepare('SELECT * FROM requirements WHERE id = ?').get(id);
+    const reqItem = await db.prepare('SELECT * FROM requirements WHERE id = ?').get(id);
     if (!reqItem) {
       return res.status(404).json({ error: 'Requirement drive not found.' });
     }
@@ -290,9 +289,9 @@ router.all('/requirements/:id/toggle-applications', (req, res) => {
     const currentOpen = reqItem.applications_open !== undefined ? reqItem.applications_open : 1;
     const newStatus = currentOpen === 1 ? 0 : 1;
 
-    db.prepare('UPDATE requirements SET applications_open = ? WHERE id = ?').run(newStatus, id);
+    await db.prepare('UPDATE requirements SET applications_open = ? WHERE id = ?').run(newStatus, id);
 
-    const updated = db.prepare('SELECT * FROM requirements WHERE id = ?').get(id);
+    const updated = await db.prepare('SELECT * FROM requirements WHERE id = ?').get(id);
     res.json({
       message: newStatus === 1 ? 'Applications reopened successfully!' : 'Applications closed successfully! Students can no longer apply.',
       requirement: updated,
@@ -304,7 +303,7 @@ router.all('/requirements/:id/toggle-applications', (req, res) => {
 });
 
 // Update Candidate Attendance Status (Present / Absent / Pending)
-router.all('/applications/:id/attendance', (req, res) => {
+router.all('/applications/:id/attendance', async (req, res) => {
   try {
     const { id } = req.params;
     const { attendance_status } = req.body || req.query;
@@ -313,12 +312,12 @@ router.all('/applications/:id/attendance', (req, res) => {
       return res.status(400).json({ error: "Invalid attendance_status. Must be 'present', 'absent', or 'pending'." });
     }
 
-    const app = db.prepare('SELECT * FROM applications WHERE id = ?').get(id);
+    const app = await db.prepare('SELECT * FROM applications WHERE id = ?').get(id);
     if (!app) {
       return res.status(404).json({ error: 'Application record not found.' });
     }
 
-    db.prepare('UPDATE applications SET attendance_status = ? WHERE id = ?').run(attendance_status, id);
+    await db.prepare('UPDATE applications SET attendance_status = ? WHERE id = ?').run(attendance_status, id);
 
     res.json({
       message: `Attendance marked as '${attendance_status}' successfully!`,
@@ -331,14 +330,14 @@ router.all('/applications/:id/attendance', (req, res) => {
 });
 
 // Bulk Save All Candidate Attendance & Status Records
-router.all(['/applications/bulk-save-attendance', '/bulk-save-attendance'], (req, res) => {
+router.all(['/applications/bulk-save-attendance', '/bulk-save-attendance'], async (req, res) => {
   try {
     const { updates } = req.body || {};
     if (!Array.isArray(updates) || updates.length === 0) {
       return res.status(400).json({ error: 'Updates array is required.' });
     }
 
-    const updateStmt = db.prepare(`
+    const updateStmt = await db.prepare(`
       UPDATE applications 
       SET attendance_status = COALESCE(?, attendance_status),
           status = COALESCE(?, status),
@@ -371,12 +370,12 @@ router.all(['/applications/bulk-save-attendance', '/bulk-save-attendance'], (req
 });
 
 // Update Single Candidate Evaluation (Attendance, Status, Notes, Interview Score)
-router.post('/applications/:id/update-evaluation', (req, res) => {
+router.post('/applications/:id/update-evaluation', async (req, res) => {
   try {
     const { id } = req.params;
     const { attendance_status, status, evaluation_notes, evaluation_score } = req.body;
 
-    const app = db.prepare('SELECT * FROM applications WHERE id = ?').get(id);
+    const app = await db.prepare('SELECT * FROM applications WHERE id = ?').get(id);
     if (!app) {
       return res.status(404).json({ error: 'Application record not found.' });
     }
@@ -384,7 +383,7 @@ router.post('/applications/:id/update-evaluation', (req, res) => {
     let cleanStatus = status || app.status;
     if (cleanStatus === 'newly_applied') cleanStatus = 'applied';
 
-    db.prepare(`
+    await db.prepare(`
       UPDATE applications 
       SET attendance_status = COALESCE(?, attendance_status),
           status = COALESCE(?, status),
@@ -399,7 +398,7 @@ router.post('/applications/:id/update-evaluation', (req, res) => {
       id
     );
 
-    const updated = db.prepare('SELECT * FROM applications WHERE id = ?').get(id);
+    const updated = await db.prepare('SELECT * FROM applications WHERE id = ?').get(id);
 
     res.json({
       success: true,
@@ -412,15 +411,15 @@ router.post('/applications/:id/update-evaluation', (req, res) => {
 });
 
 // View Ranked Shortlist of Applicants for a Requirement
-router.get('/requirements/:id/applicants', (req, res) => {
+router.get('/requirements/:id/applicants', async (req, res) => {
   try {
     const { id } = req.params;
-    const requirement = db.prepare('SELECT * FROM requirements WHERE id = ?').get(id);
+    const requirement = await db.prepare('SELECT * FROM requirements WHERE id = ?').get(id);
     if (!requirement) {
       return res.status(404).json({ error: 'Requirement not found.' });
     }
 
-    const applicants = db.prepare(`
+    const applicants = await db.prepare(`
       SELECT a.id as application_id, a.match_score, a.status, a.applied_at, a.applied_via,
              COALESCE(a.attendance_status, 'pending') as attendance_status,
              COALESCE(a.evaluation_notes, '') as evaluation_notes,
@@ -466,14 +465,14 @@ router.get('/requirements/:id/applicants', (req, res) => {
 });
 
 // Get All Master Applied Candidates for a Company (Across all hiring requirements)
-router.get('/all-applicants', (req, res) => {
+router.get('/all-applicants', async (req, res) => {
   try {
     const { companyId } = req.query;
     if (!companyId) {
       return res.status(400).json({ error: 'companyId is required.' });
     }
 
-    const rawApps = db.prepare(`
+    const rawApps = await db.prepare(`
       SELECT a.id as application_id, a.match_score, a.status, a.applied_at, a.applied_via,
              COALESCE(a.attendance_status, 'pending') as attendance_status,
              COALESCE(a.evaluation_notes, '') as evaluation_notes,
@@ -531,7 +530,7 @@ router.get('/all-applicants', (req, res) => {
 });
 
 // Update Application Status (e.g. 'applied', 'shortlisted', 'interview', 'selected', 'rejected')
-router.post('/update-application-status', (req, res) => {
+router.post('/update-application-status', async (req, res) => {
   try {
     let { application_id, status } = req.body;
     if (!application_id || !status) {
@@ -542,14 +541,14 @@ router.post('/update-application-status', (req, res) => {
       status = 'applied';
     }
 
-    db.prepare('UPDATE applications SET status = ? WHERE id = ?').run(status, application_id);
+    await db.prepare('UPDATE applications SET status = ? WHERE id = ?').run(status, application_id);
 
     // Invalidate caches
     appCache.invalidate('accreditation');
     appCache.invalidate('analytics');
 
     // Fetch context for automated notification
-    const appInfo = db.prepare(`
+    const appInfo = await db.prepare(`
       SELECT r.title as job_title, c.company_name
       FROM applications a
       JOIN requirements r ON a.requirement_id = r.id
@@ -572,13 +571,13 @@ router.post('/update-application-status', (req, res) => {
 });
 
 // Delete Requirement Drive
-router.delete('/requirements/:id', (req, res) => {
+router.delete('/requirements/:id', async (req, res) => {
   try {
     const reqId = req.params.id;
     // Delete associated applications first
-    db.prepare('DELETE FROM applications WHERE requirement_id = ?').run(reqId);
+    await db.prepare('DELETE FROM applications WHERE requirement_id = ?').run(reqId);
     // Delete requirement
-    db.prepare('DELETE FROM requirements WHERE id = ?').run(reqId);
+    await db.prepare('DELETE FROM requirements WHERE id = ?').run(reqId);
     res.json({ message: 'Placement requirement drive deleted successfully.', id: reqId });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -586,10 +585,10 @@ router.delete('/requirements/:id', (req, res) => {
 });
 
 // Delete Candidate Application
-router.delete('/applications/:id', (req, res) => {
+router.delete('/applications/:id', async (req, res) => {
   try {
     const appId = req.params.id;
-    db.prepare('DELETE FROM applications WHERE id = ?').run(appId);
+    await db.prepare('DELETE FROM applications WHERE id = ?').run(appId);
     res.json({ message: 'Application deleted successfully.', id: appId });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -629,7 +628,7 @@ try {
 }
 
 // 1. Get Student Mails for a Company
-router.get('/student-mails', (req, res) => {
+router.get('/student-mails', async (req, res) => {
   try {
     const { companyName, companyId } = req.query;
     let query = 'SELECT * FROM company_student_mails';
@@ -641,7 +640,7 @@ router.get('/student-mails', (req, res) => {
     }
     query += ' ORDER BY created_at DESC';
 
-    const mails = db.prepare(query).all(...params);
+    const mails = await db.prepare(query).all(...params);
     res.json(mails || []);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -649,12 +648,12 @@ router.get('/student-mails', (req, res) => {
 });
 
 // 2. Post new Student Mail to Company
-router.post('/student-mails', (req, res) => {
+router.post('/student-mails', async (req, res) => {
   try {
     const mail = req.body;
     const id = mail.id || 'mail_' + Date.now();
     
-    db.prepare(`
+    await db.prepare(`
       INSERT OR REPLACE INTO company_student_mails 
       (id, company_name, company_id, sender_name, sender_email, sender_phone, roll_number, program, branch, cgpa, type, subject, message, meeting_id, room_id, meeting_title, drive_title, status, recruiter_reply, replied_at, replied_by, created_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -690,13 +689,13 @@ router.post('/student-mails', (req, res) => {
 });
 
 // 3. Reply to Student Mail
-router.patch('/student-mails/:id/reply', (req, res) => {
+router.patch('/student-mails/:id/reply', async (req, res) => {
   try {
     const { id } = req.params;
     const { reply, recruiterName } = req.body;
     const now = new Date().toISOString();
 
-    db.prepare(`
+    await db.prepare(`
       UPDATE company_student_mails
       SET recruiter_reply = ?, replied_by = ?, replied_at = ?, status = 'replied'
       WHERE id = ?
@@ -709,12 +708,12 @@ router.patch('/student-mails/:id/reply', (req, res) => {
 });
 
 // 4. Update Student Mail Status (Mark read/unread)
-router.patch('/student-mails/:id/status', (req, res) => {
+router.patch('/student-mails/:id/status', async (req, res) => {
   try {
     const { id } = req.params;
     const { status } = req.body;
 
-    db.prepare(`
+    await db.prepare(`
       UPDATE company_student_mails
       SET status = ?
       WHERE id = ?
@@ -734,7 +733,7 @@ router.patch('/student-mails/:id/status', (req, res) => {
 const VALID_CRM_STAGES = ['applied', 'shortlisted', 'assessment', 'interview', 'offered', 'joined', 'rejected'];
 
 // Update Application CRM Stage with Audit Trail & Notifications
-router.patch('/applications/:id/stage', (req, res) => {
+router.patch('/applications/:id/stage', async (req, res) => {
   try {
     const { id } = req.params;
     const { stage, notes, recruiter_name } = req.body;
@@ -746,7 +745,7 @@ router.patch('/applications/:id/stage', (req, res) => {
       });
     }
 
-    const application = db.prepare(`
+    const application = await db.prepare(`
       SELECT a.*, r.title as requirement_title, c.company_name, s.name as student_name, s.id as student_profile_id, u.id as user_id
       FROM applications a
       JOIN requirements r ON a.requirement_id = r.id
@@ -761,7 +760,7 @@ router.patch('/applications/:id/stage', (req, res) => {
     }
 
     const prevStage = application.status;
-    db.prepare(`
+    await db.prepare(`
       UPDATE applications 
       SET status = ?
       WHERE id = ?
@@ -769,7 +768,7 @@ router.patch('/applications/:id/stage', (req, res) => {
 
     // Audit log
     try {
-      db.prepare(`
+      await db.prepare(`
         INSERT INTO audit_logs (id, user_id, action, entity_type, entity_id, details_json)
         VALUES (?, ?, 'stage_transition', 'application', ?, ?)
       `).run(
@@ -809,7 +808,7 @@ router.patch('/applications/:id/stage', (req, res) => {
 });
 
 // Bulk Candidate Stage Transition
-router.post('/applications/bulk-stage', (req, res) => {
+router.post('/applications/bulk-stage', async (req, res) => {
   try {
     const { application_ids = [], target_stage, notes, recruiter_name } = req.body;
 
@@ -824,7 +823,7 @@ router.post('/applications/bulk-stage', (req, res) => {
       return res.status(400).json({ error: 'application_ids must be a non-empty array' });
     }
 
-    const updateStmt = db.prepare(`UPDATE applications SET status = ? WHERE id = ?`);
+    const updateStmt = await db.prepare(`UPDATE applications SET status = ? WHERE id = ?`);
     const bulkTx = db.transaction((ids) => {
       let updatedCount = 0;
       for (const appId of ids) {
@@ -849,7 +848,7 @@ router.post('/applications/bulk-stage', (req, res) => {
 });
 
 // Custom Evaluation Rubrics API
-router.post('/rubrics', (req, res) => {
+router.post('/rubrics', async (req, res) => {
   try {
     const { requirement_id, rubric_name, technical_weight = 40, ats_weight = 20, star_weight = 20, cgpa_weight = 20, min_cutoff_score = 70 } = req.body;
     if (!requirement_id) {
@@ -873,7 +872,7 @@ router.post('/rubrics', (req, res) => {
     };
 
     // Store in requirement metadata
-    db.prepare(`
+    await db.prepare(`
       UPDATE requirements
       SET custom_rubric_json = ?
       WHERE id = ?
@@ -889,10 +888,10 @@ router.post('/rubrics', (req, res) => {
   }
 });
 
-router.get('/rubrics/:requirementId', (req, res) => {
+router.get('/rubrics/:requirementId', async (req, res) => {
   try {
     const { requirementId } = req.params;
-    const reqRow = db.prepare('SELECT custom_rubric_json, title FROM requirements WHERE id = ?').get(requirementId);
+    const reqRow = await db.prepare('SELECT custom_rubric_json, title FROM requirements WHERE id = ?').get(requirementId);
     if (!reqRow) {
       return res.status(404).json({ error: 'Requirement not found' });
     }

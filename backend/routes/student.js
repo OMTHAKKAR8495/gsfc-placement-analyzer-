@@ -15,7 +15,7 @@ import { sanitizeXss } from '../middleware/security.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-function getUploadsDir() {
+async function getUploadsDir() {
   const dir = process.env.DB_DIR ? path.join(process.env.DB_DIR, 'uploads') : path.join(__dirname, '../uploads');
   if (!fs.existsSync(dir)) {
     try {
@@ -32,7 +32,7 @@ const upload = multer({ storage: multer.memoryStorage() });
 /**
  * Robust Auth Helper: Extracts and verifies the authenticated student from JWT
  */
-export function getAuthenticatedStudent(req) {
+export async function getAuthenticatedStudent(req) {
   try {
     const authHeader = req.headers.authorization;
     let token = null;
@@ -48,9 +48,9 @@ export function getAuthenticatedStudent(req) {
     if (token.startsWith('demo_token_') || token.startsWith('offline_')) {
       const email = req.headers['x-student-email'] || req.query.email || '';
       if (email) {
-        const u = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
+        const u = await db.prepare('SELECT * FROM users WHERE email = ?').get(email);
         if (u) {
-          const profile = db.prepare('SELECT * FROM student_profiles WHERE user_id = ?').get(u.id);
+          const profile = await db.prepare('SELECT * FROM student_profiles WHERE user_id = ?').get(u.id);
           return { ...u, student_id: profile?.id || u.id, owner_id: profile?.id || u.id, profile };
         }
       }
@@ -60,12 +60,12 @@ export function getAuthenticatedStudent(req) {
     const decoded = jwt.verify(token, JWT_SECRET);
     if (!decoded || !decoded.userId) return null;
 
-    const user = db.prepare('SELECT id, email, role FROM users WHERE id = ?').get(decoded.userId);
+    const user = await db.prepare('SELECT id, email, role FROM users WHERE id = ?').get(decoded.userId);
     if (!user) return null;
 
-    let profile = db.prepare('SELECT * FROM student_profiles WHERE user_id = ?').get(user.id);
+    let profile = await db.prepare('SELECT * FROM student_profiles WHERE user_id = ?').get(user.id);
     if (!profile && user.role === 'student') {
-      profile = db.prepare('SELECT * FROM student_profiles WHERE id = ?').get(decoded.owner_id);
+      profile = await db.prepare('SELECT * FROM student_profiles WHERE id = ?').get(decoded.owner_id);
     }
 
     const effectiveStudentId = profile?.id || decoded.owner_id || user.id;
@@ -84,10 +84,10 @@ export function getAuthenticatedStudent(req) {
 /**
  * Log student activity helper
  */
-function logStudentActivity(studentId, activityType, title, description = '', relatedId = null) {
+async function logStudentActivity(studentId, activityType, title, description = '', relatedId = null) {
   try {
     const id = 'act_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO student_activity_history (id, student_id, activity_type, title, description, related_id)
       VALUES (?, ?, ?, ?, ?, ?)
     `).run(id, studentId, activityType, title, description, relatedId);
@@ -99,7 +99,7 @@ function logStudentActivity(studentId, activityType, title, description = '', re
 /**
  * Compute real Profile Completion % from persistent student record
  */
-function calculateProfileCompletion(student) {
+async function calculateProfileCompletion(student) {
   if (!student) return 0;
   let score = 0;
   // 1. Personal & Basic details (20%)
@@ -129,7 +129,7 @@ function calculateProfileCompletion(student) {
 // 1. STUDENT PROFILE MANAGEMENT (GET & UPDATE)
 // -------------------------------------------------------------
 
-router.get('/profile', (req, res) => {
+router.get('/profile', async (req, res) => {
   try {
     const authUser = getAuthenticatedStudent(req);
     const targetStudentId = authUser?.student_id || req.query.studentId || req.query.student_id;
@@ -137,10 +137,10 @@ router.get('/profile', (req, res) => {
 
     let student = null;
     if (targetStudentId) {
-      student = db.prepare('SELECT * FROM student_profiles WHERE id = ?').get(targetStudentId);
+      student = await db.prepare('SELECT * FROM student_profiles WHERE id = ?').get(targetStudentId);
     }
     if (!student && targetUserId) {
-      student = db.prepare('SELECT * FROM student_profiles WHERE user_id = ?').get(targetUserId);
+      student = await db.prepare('SELECT * FROM student_profiles WHERE user_id = ?').get(targetUserId);
     }
 
     if (!student) {
@@ -157,7 +157,7 @@ router.get('/profile', (req, res) => {
   }
 });
 
-router.put('/profile', (req, res) => {
+router.put('/profile', async (req, res) => {
   try {
     const authUser = getAuthenticatedStudent(req);
     const studentId = authUser?.student_id || req.body.student_id;
@@ -171,7 +171,7 @@ router.put('/profile', (req, res) => {
       passing_year, admission_year, linkedin_url, github_url, photo_url, summary
     } = req.body;
 
-    const existing = db.prepare('SELECT * FROM student_profiles WHERE id = ?').get(studentId);
+    const existing = await db.prepare('SELECT * FROM student_profiles WHERE id = ?').get(studentId);
     if (!existing) {
       return res.status(404).json({ error: 'Student profile not found.' });
     }
@@ -184,7 +184,7 @@ router.put('/profile', (req, res) => {
     const targetRoll = isPrivilegedAdmin ? (roll_number ? sanitizeXss(roll_number) : null) : null;
     const targetPhone = isPrivilegedAdmin ? (phone ? sanitizeXss(phone) : null) : null;
 
-    db.prepare(`
+    await db.prepare(`
       UPDATE student_profiles
       SET name = COALESCE(?, name),
           roll_number = COALESCE(?, roll_number),
@@ -216,7 +216,7 @@ router.put('/profile', (req, res) => {
     // Name is stored in student_profiles only (users table has no name column)
     logStudentActivity(studentId, 'profile_updated', 'Updated Student Profile', `Updated academic and personal information`);
 
-    const updated = db.prepare('SELECT * FROM student_profiles WHERE id = ?').get(studentId);
+    const updated = await db.prepare('SELECT * FROM student_profiles WHERE id = ?').get(studentId);
     res.json({
       success: true,
       message: 'Profile updated successfully!',
@@ -234,7 +234,7 @@ router.put('/profile', (req, res) => {
 // 2. DASHBOARD AGGREGATE SUMMARY
 // -------------------------------------------------------------
 
-router.get('/dashboard-summary', (req, res) => {
+router.get('/dashboard-summary', async (req, res) => {
   try {
     const authUser = getAuthenticatedStudent(req);
     const studentId = authUser?.student_id || req.query.student_id;
@@ -243,25 +243,25 @@ router.get('/dashboard-summary', (req, res) => {
       return res.status(401).json({ error: 'Authentication required for student dashboard summary.' });
     }
 
-    const student = db.prepare('SELECT * FROM student_profiles WHERE id = ?').get(studentId);
+    const student = await db.prepare('SELECT * FROM student_profiles WHERE id = ?').get(studentId);
     
     // Resolve all profile alias IDs sharing same roll number (e.g. Om Thakkar batch and dev accounts)
     let studentIds = [studentId];
     if (student?.roll_number) {
-      const aliases = db.prepare('SELECT id FROM student_profiles WHERE roll_number = ?').all(student.roll_number);
+      const aliases = await db.prepare('SELECT id FROM student_profiles WHERE roll_number = ?').all(student.roll_number);
       studentIds = Array.from(new Set([...studentIds, ...aliases.map(a => a.id)]));
     }
     const idPlaceholders = studentIds.map(() => '?').join(',');
 
     // Counts
-    const applicationsCount = db.prepare(`SELECT COUNT(DISTINCT requirement_id) as c FROM applications WHERE student_id IN (${idPlaceholders})`).get(...studentIds)?.c || 0;
-    const shortlistedCount = db.prepare(`SELECT COUNT(DISTINCT requirement_id) as c FROM applications WHERE student_id IN (${idPlaceholders}) AND status IN ('shortlisted', 'interview', 'selected')`).get(...studentIds)?.c || 0;
-    const selectedCount = db.prepare(`SELECT COUNT(DISTINCT requirement_id) as c FROM applications WHERE student_id IN (${idPlaceholders}) AND status = 'selected'`).get(...studentIds)?.c || 0;
-    const bookmarksCount = db.prepare(`SELECT COUNT(DISTINCT entity_id) as c FROM student_bookmarks WHERE student_id IN (${idPlaceholders})`).get(...studentIds)?.c || 0;
-    const assessmentsCount = db.prepare(`SELECT COUNT(*) as c FROM student_assessments WHERE student_id IN (${idPlaceholders})`).get(...studentIds)?.c || 0;
-    const mockInterviewsCount = db.prepare(`SELECT COUNT(*) as c FROM mock_interview_sessions WHERE student_id IN (${idPlaceholders})`).get(...studentIds)?.c || 0;
-    const unreadNotificationsCount = db.prepare('SELECT COUNT(*) as c FROM student_notifications WHERE student_id = ? AND is_read = 0').get(studentId)?.c || 0;
-    const myQuestionsCount = db.prepare('SELECT COUNT(*) as c FROM qa_threads WHERE student_id = ?').get(studentId)?.c || 0;
+    const applicationsCount = await db.prepare(`SELECT COUNT(DISTINCT requirement_id) as c FROM applications WHERE student_id IN (${idPlaceholders})`).get(...studentIds)?.c || 0;
+    const shortlistedCount = await db.prepare(`SELECT COUNT(DISTINCT requirement_id) as c FROM applications WHERE student_id IN (${idPlaceholders}) AND status IN ('shortlisted', 'interview', 'selected')`).get(...studentIds)?.c || 0;
+    const selectedCount = await db.prepare(`SELECT COUNT(DISTINCT requirement_id) as c FROM applications WHERE student_id IN (${idPlaceholders}) AND status = 'selected'`).get(...studentIds)?.c || 0;
+    const bookmarksCount = await db.prepare(`SELECT COUNT(DISTINCT entity_id) as c FROM student_bookmarks WHERE student_id IN (${idPlaceholders})`).get(...studentIds)?.c || 0;
+    const assessmentsCount = await db.prepare(`SELECT COUNT(*) as c FROM student_assessments WHERE student_id IN (${idPlaceholders})`).get(...studentIds)?.c || 0;
+    const mockInterviewsCount = await db.prepare(`SELECT COUNT(*) as c FROM mock_interview_sessions WHERE student_id IN (${idPlaceholders})`).get(...studentIds)?.c || 0;
+    const unreadNotificationsCount = await db.prepare('SELECT COUNT(*) as c FROM student_notifications WHERE student_id = ? AND is_read = 0').get(studentId)?.c || 0;
+    const myQuestionsCount = await db.prepare('SELECT COUNT(*) as c FROM qa_threads WHERE student_id = ?').get(studentId)?.c || 0;
 
     res.json({
       student_id: studentId,
@@ -289,18 +289,18 @@ router.get('/dashboard-summary', (req, res) => {
 // 3. PLACEMENT DRIVES FEED & MATCH SCORES
 // -------------------------------------------------------------
 
-router.get('/requirements', (req, res) => {
+router.get('/requirements', async (req, res) => {
   try {
     const authUser = getAuthenticatedStudent(req);
     const studentId = authUser?.student_id || req.query.studentId || req.query.student_id;
     const { showAll } = req.query;
 
-    const student = studentId ? db.prepare('SELECT * FROM student_profiles WHERE id = ?').get(studentId) : null;
+    const student = studentId ? await db.prepare('SELECT * FROM student_profiles WHERE id = ?').get(studentId) : null;
 
     // Load Bookmarks for this student to attach bookmarked flag
     let bookmarkedReqIds = new Set();
     if (studentId) {
-      const bmarks = db.prepare("SELECT entity_id FROM student_bookmarks WHERE student_id = ? AND entity_type = 'requirement'").all(studentId);
+      const bmarks = await db.prepare("SELECT entity_id FROM student_bookmarks WHERE student_id = ? AND entity_type = 'requirement'").all(studentId);
       bmarks.forEach(b => bookmarkedReqIds.add(b.entity_id));
     }
 
@@ -309,15 +309,15 @@ router.get('/requirements', (req, res) => {
     if (studentId) {
       let studentIds = [studentId];
       if (student?.roll_number) {
-        const aliases = db.prepare('SELECT id FROM student_profiles WHERE roll_number = ?').all(student.roll_number);
+        const aliases = await db.prepare('SELECT id FROM student_profiles WHERE roll_number = ?').all(student.roll_number);
         studentIds = Array.from(new Set([...studentIds, ...aliases.map(a => a.id)]));
       }
       const idPlaceholders = studentIds.map(() => '?').join(',');
-      const apps = db.prepare(`SELECT requirement_id, status, applied_at FROM applications WHERE student_id IN (${idPlaceholders})`).all(...studentIds);
+      const apps = await db.prepare(`SELECT requirement_id, status, applied_at FROM applications WHERE student_id IN (${idPlaceholders})`).all(...studentIds);
       apps.forEach(a => appliedReqIds.set(a.requirement_id, a));
     }
 
-    const requirements = db.prepare(`
+    const requirements = await db.prepare(`
       SELECT r.*, c.company_name, c.logo_url, c.industry, c.website
       FROM requirements r
       JOIN company_profiles c ON r.company_id = c.id
@@ -371,14 +371,14 @@ router.get('/requirements', (req, res) => {
 // 4. JOB APPLICATIONS ("MY APPLICATIONS")
 // -------------------------------------------------------------
 
-router.get('/applications', (req, res) => {
+router.get('/applications', async (req, res) => {
   try {
     const authUser = getAuthenticatedStudent(req);
     const rawStudentId = authUser?.student_id || req.query.studentId || req.query.student_id;
     const queryEmail = (req.query.email || authUser?.email || '').toLowerCase();
     const derivedLocalId = queryEmail ? ('s_' + queryEmail.split('@')[0].replace(/[^a-z0-9_]/g, '_')) : '';
 
-    const apps = db.prepare(`
+    const apps = await db.prepare(`
       SELECT 
         a.*, 
         r.title as job_title, 
@@ -436,7 +436,7 @@ router.post('/apply', async (req, res) => {
       return res.status(400).json({ error: 'requirement_id is required.' });
     }
 
-    let student = db.prepare(`
+    let student = await db.prepare(`
       SELECT sp.*, u.email FROM student_profiles sp
       LEFT JOIN users u ON sp.user_id = u.id
       WHERE sp.id = ? OR sp.user_id = ? OR u.email = ?
@@ -452,18 +452,18 @@ router.post('/apply', async (req, res) => {
       const resolvedName = authUser?.name || req.body.candidate_name || (userEmail ? userEmail.split('@')[0] : 'GSFC Student');
       const resolvedRoll = req.body.roll_number || (userEmail ? userEmail.split('@')[0].toUpperCase() : 'STUDENT');
       try {
-        db.prepare(`
+        await db.prepare(`
           INSERT INTO student_profiles (id, user_id, name, roll_number, program, branch, passing_year, admission_year, cgpa, backlogs, skills, verified, profile_completion, created_at, updated_at)
           VALUES (?, ?, ?, ?, 'BTech Engineering', 'Engineering & Technology', 2026, 2022, 8.0, 0, 'General Skills', 1, 80, datetime('now'), datetime('now'))
         `).run(resolvedId, authUser?.id || resolvedId, resolvedName, resolvedRoll);
-        student = db.prepare('SELECT * FROM student_profiles WHERE id = ?').get(resolvedId);
+        student = await db.prepare('SELECT * FROM student_profiles WHERE id = ?').get(resolvedId);
       } catch (e) {
         console.warn('Auto profile insertion notice:', e.message);
-        student = db.prepare('SELECT * FROM student_profiles LIMIT 1').get();
+        student = await db.prepare('SELECT * FROM student_profiles LIMIT 1').get();
       }
     }
 
-    const requirement = db.prepare('SELECT * FROM requirements WHERE id = ?').get(requirement_id);
+    const requirement = await db.prepare('SELECT * FROM requirements WHERE id = ?').get(requirement_id);
     if (!requirement) {
       return res.status(404).json({ error: 'Placement requirement not found.' });
     }
@@ -476,7 +476,7 @@ router.post('/apply', async (req, res) => {
     }
 
     const effectiveStudentId = student?.id || studentId;
-    const existingApp = db.prepare('SELECT * FROM applications WHERE student_id = ? AND requirement_id = ?').get(effectiveStudentId, requirement_id);
+    const existingApp = await db.prepare('SELECT * FROM applications WHERE student_id = ? AND requirement_id = ?').get(effectiveStudentId, requirement_id);
     if (existingApp) {
       return res.json({ 
         success: true, 
@@ -492,7 +492,7 @@ router.post('/apply', async (req, res) => {
 
     if (override.phone && student) {
       try {
-        db.prepare('UPDATE student_profiles SET phone = ? WHERE id = ?').run(override.phone, effectiveStudentId);
+        await db.prepare('UPDATE student_profiles SET phone = ? WHERE id = ?').run(override.phone, effectiveStudentId);
       } catch (e) {}
     }
 
@@ -514,7 +514,7 @@ router.post('/apply', async (req, res) => {
     authReport.student_id = effectiveStudentId;
 
     try {
-      db.prepare(`
+      await db.prepare(`
         INSERT INTO applications (id, student_id, requirement_id, match_score, status, applied_via, combined_dossier_url, authenticity_report_json)
         VALUES (?, ?, ?, ?, 'applied', ?, ?, ?)
       `).run(appId, effectiveStudentId, requirement_id, matchRes.matchScore || 88, appliedVia, override.dossierUrl || null, JSON.stringify(authReport));
@@ -529,7 +529,7 @@ router.post('/apply', async (req, res) => {
 
     // Create Notification
     const notifId = 'notif_' + Date.now();
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO student_notifications (id, student_id, notification_type, title, message, related_id)
       VALUES (?, ?, 'application_submitted', ?, ?, ?)
     `).run(notifId, studentId, `Application Submitted: ${requirement.title}`, `Your application for ${requirement.title} has been received by the TPC cell.`, appId);
@@ -547,16 +547,16 @@ router.post('/apply', async (req, res) => {
   }
 });
 
-router.delete('/applications/:id', (req, res) => {
+router.delete('/applications/:id', async (req, res) => {
   try {
     const authUser = getAuthenticatedStudent(req);
     const studentId = authUser?.student_id;
     const appId = req.params.id;
 
     if (studentId) {
-      db.prepare('DELETE FROM applications WHERE id = ? AND student_id = ?').run(appId, studentId);
+      await db.prepare('DELETE FROM applications WHERE id = ? AND student_id = ?').run(appId, studentId);
     } else {
-      db.prepare('DELETE FROM applications WHERE id = ?').run(appId);
+      await db.prepare('DELETE FROM applications WHERE id = ?').run(appId);
     }
 
     res.json({ message: 'Application withdrawn/deleted successfully.', id: appId });
@@ -569,7 +569,7 @@ router.delete('/applications/:id', (req, res) => {
 // 5. STUDENT BOOKMARKS / SAVED DRIVES
 // -------------------------------------------------------------
 
-router.get('/bookmarks', (req, res) => {
+router.get('/bookmarks', async (req, res) => {
   try {
     const authUser = getAuthenticatedStudent(req);
     const studentId = authUser?.student_id || req.query.student_id;
@@ -578,7 +578,7 @@ router.get('/bookmarks', (req, res) => {
       return res.status(401).json({ error: 'Authentication required to view bookmarks.' });
     }
 
-    const bookmarks = db.prepare(`
+    const bookmarks = await db.prepare(`
       SELECT b.*, r.title as requirement_title, r.ctc_range, r.job_type, c.company_name, c.logo_url
       FROM student_bookmarks b
       LEFT JOIN requirements r ON b.entity_id = r.id AND b.entity_type = 'requirement'
@@ -593,7 +593,7 @@ router.get('/bookmarks', (req, res) => {
   }
 });
 
-router.post('/bookmarks', (req, res) => {
+router.post('/bookmarks', async (req, res) => {
   try {
     const authUser = getAuthenticatedStudent(req);
     const studentId = authUser?.student_id || req.body.student_id;
@@ -603,15 +603,15 @@ router.post('/bookmarks', (req, res) => {
       return res.status(400).json({ error: 'student_id and entity_id are required.' });
     }
 
-    const existing = db.prepare('SELECT * FROM student_bookmarks WHERE student_id = ? AND entity_type = ? AND entity_id = ?').get(studentId, entity_type, entity_id);
+    const existing = await db.prepare('SELECT * FROM student_bookmarks WHERE student_id = ? AND entity_type = ? AND entity_id = ?').get(studentId, entity_type, entity_id);
 
     if (existing) {
       // Toggle off / remove
-      db.prepare('DELETE FROM student_bookmarks WHERE id = ?').run(existing.id);
+      await db.prepare('DELETE FROM student_bookmarks WHERE id = ?').run(existing.id);
       return res.json({ success: true, is_bookmarked: false, message: 'Bookmark removed.' });
     } else {
       const bId = 'bmark_' + Date.now();
-      db.prepare(`
+      await db.prepare(`
         INSERT INTO student_bookmarks (id, student_id, entity_type, entity_id, notes)
         VALUES (?, ?, ?, ?, ?)
       `).run(bId, studentId, entity_type, entity_id, sanitizeXss(notes));
@@ -624,16 +624,16 @@ router.post('/bookmarks', (req, res) => {
   }
 });
 
-router.delete('/bookmarks/:id', (req, res) => {
+router.delete('/bookmarks/:id', async (req, res) => {
   try {
     const authUser = getAuthenticatedStudent(req);
     const studentId = authUser?.student_id;
     const bId = req.params.id;
 
     if (studentId) {
-      db.prepare('DELETE FROM student_bookmarks WHERE id = ? AND student_id = ?').run(bId, studentId);
+      await db.prepare('DELETE FROM student_bookmarks WHERE id = ? AND student_id = ?').run(bId, studentId);
     } else {
-      db.prepare('DELETE FROM student_bookmarks WHERE id = ?').run(bId);
+      await db.prepare('DELETE FROM student_bookmarks WHERE id = ?').run(bId);
     }
 
     res.json({ success: true, message: 'Bookmark deleted.' });
@@ -646,7 +646,7 @@ router.delete('/bookmarks/:id', (req, res) => {
 // 6. STUDENT ASSESSMENTS & TEST RESULTS ("MY ASSESSMENTS")
 // -------------------------------------------------------------
 
-router.get('/assessments', (req, res) => {
+router.get('/assessments', async (req, res) => {
   try {
     const authUser = getAuthenticatedStudent(req);
     const studentId = authUser?.student_id || req.query.student_id;
@@ -655,7 +655,7 @@ router.get('/assessments', (req, res) => {
       return res.status(401).json({ error: 'Authentication required to view assessment history.' });
     }
 
-    const assessments = db.prepare(`
+    const assessments = await db.prepare(`
       SELECT a.*, r.title as requirement_title, c.company_name
       FROM student_assessments a
       LEFT JOIN requirements r ON a.requirement_id = r.id
@@ -670,7 +670,7 @@ router.get('/assessments', (req, res) => {
   }
 });
 
-router.post('/assessments', (req, res) => {
+router.post('/assessments', async (req, res) => {
   try {
     const authUser = getAuthenticatedStudent(req);
     const studentId = authUser?.student_id || req.body.student_id;
@@ -685,7 +685,7 @@ router.post('/assessments', (req, res) => {
     }
 
     const testId = 'asmt_' + Date.now();
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO student_assessments (
         id, student_id, assessment_title, assessment_type, requirement_id,
         score, percentage, questions_attempted, correct_answers, incorrect_answers,
@@ -702,7 +702,7 @@ router.post('/assessments', (req, res) => {
 
     logStudentActivity(studentId, 'assessment_completed', `Completed Assessment: ${assessment_title}`, `Scored ${percentage}% (${score} points)`, testId);
 
-    const saved = db.prepare('SELECT * FROM student_assessments WHERE id = ?').get(testId);
+    const saved = await db.prepare('SELECT * FROM student_assessments WHERE id = ?').get(testId);
     res.status(201).json({ success: true, assessment: saved, message: 'Assessment results saved to permanent history!' });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -713,7 +713,7 @@ router.post('/assessments', (req, res) => {
 // 7. STUDENT INTERVIEWS ("MY INTERVIEWS")
 // -------------------------------------------------------------
 
-router.get('/interviews', (req, res) => {
+router.get('/interviews', async (req, res) => {
   try {
     const authUser = getAuthenticatedStudent(req);
     const studentId = authUser?.student_id || req.query.student_id;
@@ -722,7 +722,7 @@ router.get('/interviews', (req, res) => {
       return res.status(401).json({ error: 'Authentication required to view interview history.' });
     }
 
-    const sessions = db.prepare(`
+    const sessions = await db.prepare(`
       SELECT s.*, r.title as requirement_title, r.ctc_range, c.company_name, c.logo_url
       FROM mock_interview_sessions s
       LEFT JOIN requirements r ON s.requirement_id = r.id
@@ -741,7 +741,7 @@ router.get('/interviews', (req, res) => {
 // 8. STUDENT NOTIFICATIONS
 // -------------------------------------------------------------
 
-router.get('/notifications', (req, res) => {
+router.get('/notifications', async (req, res) => {
   try {
     const authUser = getAuthenticatedStudent(req);
     const studentId = authUser?.student_id || req.query.student_id;
@@ -750,7 +750,7 @@ router.get('/notifications', (req, res) => {
       return res.status(401).json({ error: 'Authentication required for notifications.' });
     }
 
-    const notifications = db.prepare(`
+    const notifications = await db.prepare(`
       SELECT * FROM student_notifications
       WHERE student_id = ?
       ORDER BY created_at DESC
@@ -763,16 +763,16 @@ router.get('/notifications', (req, res) => {
   }
 });
 
-router.put('/notifications/:id/read', (req, res) => {
+router.put('/notifications/:id/read', async (req, res) => {
   try {
     const authUser = getAuthenticatedStudent(req);
     const studentId = authUser?.student_id;
     const notifId = req.params.id;
 
     if (studentId) {
-      db.prepare('UPDATE student_notifications SET is_read = 1 WHERE id = ? AND student_id = ?').run(notifId, studentId);
+      await db.prepare('UPDATE student_notifications SET is_read = 1 WHERE id = ? AND student_id = ?').run(notifId, studentId);
     } else {
-      db.prepare('UPDATE student_notifications SET is_read = 1 WHERE id = ?').run(notifId);
+      await db.prepare('UPDATE student_notifications SET is_read = 1 WHERE id = ?').run(notifId);
     }
 
     res.json({ success: true, message: 'Notification marked as read.' });
@@ -785,7 +785,7 @@ router.put('/notifications/:id/read', (req, res) => {
 // 9. STUDENT ACTIVITY HISTORY STREAM
 // -------------------------------------------------------------
 
-router.get('/activities', (req, res) => {
+router.get('/activities', async (req, res) => {
   try {
     const authUser = getAuthenticatedStudent(req);
     const studentId = authUser?.student_id || req.query.student_id;
@@ -794,7 +794,7 @@ router.get('/activities', (req, res) => {
       return res.status(401).json({ error: 'Authentication required for activity history.' });
     }
 
-    const activities = db.prepare(`
+    const activities = await db.prepare(`
       SELECT * FROM student_activity_history
       WHERE student_id = ?
       ORDER BY created_at DESC
@@ -811,7 +811,7 @@ router.get('/activities', (req, res) => {
 // 10. RESUME MANAGEMENT & VERSION HISTORY
 // -------------------------------------------------------------
 
-router.get('/resumes', (req, res) => {
+router.get('/resumes', async (req, res) => {
   try {
     const authUser = getAuthenticatedStudent(req);
     const studentId = authUser?.student_id || req.query.student_id;
@@ -820,7 +820,7 @@ router.get('/resumes', (req, res) => {
       return res.status(401).json({ error: 'Authentication required to view resumes.' });
     }
 
-    const resumes = db.prepare(`
+    const resumes = await db.prepare(`
       SELECT * FROM student_resumes
       WHERE student_id = ?
       ORDER BY created_at DESC
@@ -844,7 +844,7 @@ router.post('/resume/upload', upload.single('resume'), async (req, res) => {
 
     let targetReq = null;
     if (target_requirement_id) {
-      targetReq = db.prepare(`
+      targetReq = await db.prepare(`
         SELECT r.*, c.company_name, c.logo_url
         FROM requirements r
         JOIN company_profiles c ON r.company_id = c.id
@@ -879,7 +879,7 @@ router.post('/resume/upload', upload.single('resume'), async (req, res) => {
     const atsResult = await computeATSScore(parseOutput.parsedJson, parseOutput.rawText, targetReq);
 
     // Update active student profile
-    db.prepare(`
+    await db.prepare(`
       UPDATE student_profiles 
       SET name = COALESCE(?, name), 
           program = COALESCE(?, program), 
@@ -903,9 +903,9 @@ router.post('/resume/upload', upload.single('resume'), async (req, res) => {
     );
 
     // Store in resume history table
-    const versionCount = db.prepare('SELECT COUNT(*) as c FROM student_resumes WHERE student_id = ?').get(student_id)?.c || 0;
+    const versionCount = await db.prepare('SELECT COUNT(*) as c FROM student_resumes WHERE student_id = ?').get(student_id)?.c || 0;
     const resumeVerId = 'rver_' + Date.now();
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO student_resumes (id, student_id, version_name, resume_url, parsed_json, ats_score, ats_feedback_json, is_active)
       VALUES (?, ?, ?, ?, ?, ?, ?, 1)
     `).run(
@@ -915,7 +915,7 @@ router.post('/resume/upload', upload.single('resume'), async (req, res) => {
 
     logStudentActivity(student_id, 'resume_uploaded', 'Uploaded and Analyzed Resume', `ATS Score evaluated: ${atsResult.atsScore}/100`, resumeVerId);
 
-    const updatedStudent = db.prepare('SELECT * FROM student_profiles WHERE id = ?').get(student_id);
+    const updatedStudent = await db.prepare('SELECT * FROM student_profiles WHERE id = ?').get(student_id);
 
     res.json({
       message: 'Resume parsed & selection status evaluated!',
@@ -1053,7 +1053,7 @@ router.post('/builder/save', upload.fields([
 
     let targetReq = null;
     if (target_requirement_id) {
-      targetReq = db.prepare('SELECT * FROM requirements WHERE id = ?').get(target_requirement_id);
+      targetReq = await db.prepare('SELECT * FROM requirements WHERE id = ?').get(target_requirement_id);
     }
 
     const rawTextRepresentation = `
@@ -1069,9 +1069,9 @@ Soft Skills: ${(synthesizedResumeJson.skills.soft || []).join(', ')}
     const atsResult = await computeATSScore(synthesizedResumeJson, rawTextRepresentation, targetReq);
 
     // Upsert student_profile
-    const existing = db.prepare('SELECT * FROM student_profiles WHERE id = ?').get(student_id);
+    const existing = await db.prepare('SELECT * FROM student_profiles WHERE id = ?').get(student_id);
     if (!existing) {
-      db.prepare(`
+      await db.prepare(`
         INSERT INTO student_profiles (
           id, name, roll_number, program, branch, cgpa, passing_year, admission_year, phone,
           parsed_resume_json, ats_score, ats_feedback_json, marksheets_url, certifications_url, id_document_url, photo_url, linkedin_url, github_url
@@ -1084,7 +1084,7 @@ Soft Skills: ${(synthesizedResumeJson.skills.soft || []).join(', ')}
         marksheetsUrl, certificationsUrl, idDocumentUrl, uploadedPhotoUrl, synthesizedResumeJson.linkedin_url, synthesizedResumeJson.github_url
       );
     } else {
-      db.prepare(`
+      await db.prepare(`
         UPDATE student_profiles 
         SET name = ?, roll_number = ?, program = ?, branch = ?, cgpa = ?, 
             passing_year = ?, phone = ?, parsed_resume_json = ?, ats_score = ?, ats_feedback_json = ?,
@@ -1105,7 +1105,7 @@ Soft Skills: ${(synthesizedResumeJson.skills.soft || []).join(', ')}
 
     logStudentActivity(student_id, 'resume_built', 'Built Interactive Resume & Profile', `Updated CV with score ${atsResult.atsScore}/100`);
 
-    const updatedStudent = db.prepare('SELECT * FROM student_profiles WHERE id = ?').get(student_id);
+    const updatedStudent = await db.prepare('SELECT * FROM student_profiles WHERE id = ?').get(student_id);
 
     res.json({
       success: true,
@@ -1125,7 +1125,7 @@ Soft Skills: ${(synthesizedResumeJson.skills.soft || []).join(', ')}
 });
 
 // Direct Email Candidate Placement Report Route
-router.post('/send-email-report', (req, res) => {
+router.post('/send-email-report', async (req, res) => {
   try {
     const { recipient_email, candidate_name, ats_score } = req.body;
     if (!recipient_email) {

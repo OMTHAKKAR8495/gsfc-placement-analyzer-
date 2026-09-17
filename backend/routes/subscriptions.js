@@ -9,7 +9,7 @@ const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID || 'rzp_test_gsfc_campushire
 const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET || 'gsfc_tpc_secret_razorpay_key_2026';
 
 // Helper: Ensure Subscription & Payment Tables Exist
-function ensureTables() {
+async function ensureTables() {
   try {
     db.exec(`
       CREATE TABLE IF NOT EXISTS subscription_plans (
@@ -73,7 +73,7 @@ function ensureTables() {
 ensureTables();
 
 // Helper: Resolve company profile
-function getCompany(companyId, fallbackData = {}) {
+async function getCompany(companyId, fallbackData = {}) {
   if (!companyId) {
     return {
       id: 'c_' + Date.now(),
@@ -82,27 +82,27 @@ function getCompany(companyId, fallbackData = {}) {
       contact_phone: fallbackData.phone || '+91 95584 13347'
     };
   }
-  let comp = db.prepare('SELECT * FROM company_profiles WHERE id = ? OR user_id = ?').get(companyId, companyId);
+  let comp = await db.prepare('SELECT * FROM company_profiles WHERE id = ? OR user_id = ?').get(companyId, companyId);
   if (!comp) {
-    const u = db.prepare('SELECT * FROM users WHERE id = ? OR email = ?').get(companyId, companyId);
+    const u = await db.prepare('SELECT * FROM users WHERE id = ? OR email = ?').get(companyId, companyId);
     if (u) {
-      comp = db.prepare('SELECT * FROM company_profiles WHERE user_id = ?').get(u.id);
+      comp = await db.prepare('SELECT * FROM company_profiles WHERE user_id = ?').get(u.id);
     }
   }
   if (!comp && (typeof companyId === 'string' && (companyId.includes('gsfc') || companyId === 'c_gsfc_limited'))) {
-    comp = db.prepare("SELECT * FROM company_profiles WHERE id = 'c_gsfc' OR company_name LIKE '%GSFC%' LIMIT 1").get();
+    comp = await db.prepare("SELECT * FROM company_profiles WHERE id = 'c_gsfc' OR company_name LIKE '%GSFC%' LIMIT 1").get();
   }
   if (!comp) {
-    comp = db.prepare('SELECT * FROM company_profiles WHERE id LIKE ? OR company_name LIKE ? LIMIT 1').get(`%${companyId}%`, `%${companyId}%`);
+    comp = await db.prepare('SELECT * FROM company_profiles WHERE id LIKE ? OR company_name LIKE ? LIMIT 1').get(`%${companyId}%`, `%${companyId}%`);
   }
   if (!comp) {
     try {
       const newId = typeof companyId === 'string' && companyId.startsWith('c_') ? companyId : ('c_' + companyId);
-      db.prepare(`
+      await db.prepare(`
         INSERT OR IGNORE INTO company_profiles (id, user_id, company_name, contact_email, contact_phone, created_at)
         VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
       `).run(newId, companyId, fallbackData.name || 'Corporate Partner', fallbackData.email || 'recruiter@company.com', fallbackData.phone || '+91 95584 13347');
-      comp = db.prepare('SELECT * FROM company_profiles WHERE id = ? OR user_id = ?').get(newId, companyId);
+      comp = await db.prepare('SELECT * FROM company_profiles WHERE id = ? OR user_id = ?').get(newId, companyId);
     } catch(e) {
       comp = {
         id: companyId,
@@ -117,9 +117,9 @@ function getCompany(companyId, fallbackData = {}) {
 
 
 // 1. Get All Active Subscription Plans
-router.get('/plans', (req, res) => {
+router.get('/plans', async (req, res) => {
   try {
-    const plans = db.prepare(`
+    const plans = await db.prepare(`
       SELECT id, name, badge_title, price_inr, duration_days, max_postings, description, features_json, is_active, display_order
       FROM subscription_plans
       WHERE is_active = 1
@@ -139,7 +139,7 @@ router.get('/plans', (req, res) => {
 });
 
 // 2. Get Current Subscription Status for a Recruiter
-router.get('/current/:companyId', (req, res) => {
+router.get('/current/:companyId', async (req, res) => {
   try {
     const { companyId } = req.params;
     const company = getCompany(companyId);
@@ -148,7 +148,7 @@ router.get('/current/:companyId', (req, res) => {
     }
 
     // Check existing subscription
-    let sub = db.prepare(`
+    let sub = await db.prepare(`
       SELECT * FROM company_subscriptions 
       WHERE company_id = ? OR company_id = ?
       ORDER BY expires_at DESC 
@@ -156,7 +156,7 @@ router.get('/current/:companyId', (req, res) => {
     `).get(company.id, company.user_id || company.id);
 
     // Count actual requirements posted
-    const postedCount = db.prepare(`
+    const postedCount = await db.prepare(`
       SELECT count(*) as count FROM requirements 
       WHERE company_id = ? OR company_id = ?
     `).get(company.id, company.user_id || company.id)?.count || 0;
@@ -183,7 +183,7 @@ router.get('/current/:companyId', (req, res) => {
     const daysRemaining = Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
 
     // Get plan details
-    const plan = db.prepare('SELECT * FROM subscription_plans WHERE id = ?').get(sub.plan_id);
+    const plan = await db.prepare('SELECT * FROM subscription_plans WHERE id = ?').get(sub.plan_id);
     const features = plan?.features_json ? JSON.parse(plan.features_json) : {};
     const maxPostings = sub.max_postings !== undefined ? sub.max_postings : (plan?.max_postings || 2);
     
@@ -223,13 +223,13 @@ router.get('/current/:companyId', (req, res) => {
 });
 
 // 3. Create Payment Gateway Order (Razorpay)
-router.post('/create-order', (req, res) => {
+router.post('/create-order', async (req, res) => {
   try {
     const { companyId, planId, billingDetails } = req.body;
     
     const company = getCompany(companyId, billingDetails);
 
-    const plan = db.prepare('SELECT * FROM subscription_plans WHERE id = ?').get(planId) || {
+    const plan = await db.prepare('SELECT * FROM subscription_plans WHERE id = ?').get(planId) || {
       id: planId || 'plan_bronze',
       name: 'Bronze Recruiter Plan',
       badge_title: 'Bronze Tier',
@@ -244,7 +244,7 @@ router.post('/create-order', (req, res) => {
 
     // Record created transaction in database
     try {
-      db.prepare(`
+      await db.prepare(`
         INSERT INTO payment_transactions 
         (id, company_id, company_name, plan_id, plan_name, amount_inr, currency, gateway, gateway_order_id, status, receipt_number, billing_email, billing_phone, gst_number)
         VALUES (?, ?, ?, ?, ?, ?, 'INR', 'Razorpay', ?, 'created', ?, ?, ?, ?)
@@ -296,7 +296,7 @@ router.post('/create-order', (req, res) => {
 });
 
 // 4. Verify Payment Signature & Activate Plan (Server-Side Cryptographic Verification)
-router.post('/verify-payment', (req, res) => {
+router.post('/verify-payment', async (req, res) => {
   try {
     const { 
       companyId, planId, orderId, paymentId, signature, 
@@ -305,7 +305,7 @@ router.post('/verify-payment', (req, res) => {
 
     const company = getCompany(companyId, billingDetails);
 
-    const plan = db.prepare('SELECT * FROM subscription_plans WHERE id = ?').get(planId);
+    const plan = await db.prepare('SELECT * FROM subscription_plans WHERE id = ?').get(planId);
     if (!plan) {
       return res.status(404).json({ error: 'Subscription plan not found.' });
     }
@@ -338,7 +338,7 @@ router.post('/verify-payment', (req, res) => {
     const receiptNum = 'GSFC-REC-' + now.getFullYear() + '-' + Math.floor(10000 + Math.random() * 90000);
 
     // 1. Update or create transaction record
-    const existingTx = db.prepare('SELECT id FROM payment_transactions WHERE gateway_order_id = ?').get(orderId);
+    const existingTx = await db.prepare('SELECT id FROM payment_transactions WHERE gateway_order_id = ?').get(orderId);
     const txId = existingTx?.id || ('tx_' + uuidv4().slice(0, 12));
 
     const invoiceData = {
@@ -363,7 +363,7 @@ router.post('/verify-payment', (req, res) => {
     };
 
     if (existingTx) {
-      db.prepare(`
+      await db.prepare(`
         UPDATE payment_transactions 
         SET status = 'paid', 
             gateway_payment_id = ?, 
@@ -374,7 +374,7 @@ router.post('/verify-payment', (req, res) => {
         WHERE id = ?
       `).run(actualPaymentId, signature || 'verified_demo_sig', paymentMethod || 'UPI', JSON.stringify(invoiceData), txId);
     } else {
-      db.prepare(`
+      await db.prepare(`
         INSERT INTO payment_transactions 
         (id, company_id, company_name, plan_id, plan_name, amount_inr, currency, gateway, gateway_order_id, gateway_payment_id, gateway_signature, payment_method, status, receipt_number, billing_email, billing_phone, gst_number, invoice_data_json, paid_at)
         VALUES (?, ?, ?, ?, ?, ?, 'INR', 'Razorpay', ?, ?, ?, ?, 'paid', ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
@@ -388,7 +388,7 @@ router.post('/verify-payment', (req, res) => {
 
     // 2. Activate or Extend Company Subscription
     const subId = 'sub_' + uuidv4().slice(0, 12);
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO company_subscriptions 
       (id, company_id, plan_id, plan_name, started_at, expires_at, postings_used, max_postings, status, last_payment_id)
       VALUES (?, ?, ?, ?, ?, ?, 0, ?, 'active', ?)
@@ -405,7 +405,7 @@ router.post('/verify-payment', (req, res) => {
 
     // 3. Log notification for TPC and Company
     try {
-      db.prepare(`
+      await db.prepare(`
         INSERT INTO notifications_log (id, recipient_name, recipient_email, recipient_phone, channel, notification_type, title, message, status)
         VALUES (?, ?, ?, ?, 'email', 'general', ?, ?, 'delivered')
       `).run(
@@ -450,7 +450,7 @@ router.post('/verify-payment', (req, res) => {
 });
 
 // 5. Get Company Billing History & Invoices
-router.get('/invoices/:companyId', (req, res) => {
+router.get('/invoices/:companyId', async (req, res) => {
   try {
     const { companyId } = req.params;
     const company = getCompany(companyId);
@@ -458,7 +458,7 @@ router.get('/invoices/:companyId', (req, res) => {
       return res.status(404).json({ error: 'Company profile not found.' });
     }
 
-    const invoices = db.prepare(`
+    const invoices = await db.prepare(`
       SELECT id, company_id, company_name, plan_id, plan_name, amount_inr, currency, gateway, gateway_order_id, gateway_payment_id, payment_method, status, receipt_number, billing_email, created_at, paid_at, invoice_data_json
       FROM payment_transactions
       WHERE company_id = ? OR company_id = ?
@@ -478,10 +478,10 @@ router.get('/invoices/:companyId', (req, res) => {
 });
 
 // 6. Get Single Printable Invoice Detail
-router.get('/invoice/:transactionId', (req, res) => {
+router.get('/invoice/:transactionId', async (req, res) => {
   try {
     const { transactionId } = req.params;
-    const tx = db.prepare('SELECT * FROM payment_transactions WHERE id = ? OR receipt_number = ? OR gateway_order_id = ?').get(transactionId, transactionId, transactionId);
+    const tx = await db.prepare('SELECT * FROM payment_transactions WHERE id = ? OR receipt_number = ? OR gateway_order_id = ?').get(transactionId, transactionId, transactionId);
     
     if (!tx) {
       return res.status(404).json({ error: 'Invoice not found.' });

@@ -8,9 +8,9 @@ import { forecastPlacementTrends } from '../ai/modules/placementForecaster.js';
 const router = express.Router();
 
 // Pending Alumni Approval List
-router.get('/pending-alumni', (req, res) => {
+router.get('/pending-alumni', async (req, res) => {
   try {
-    const pending = db.prepare(`
+    const pending = await db.prepare(`
       SELECT a.*, u.email, u.created_at as user_registered_at
       FROM alumni_profiles a
       JOIN users u ON a.user_id = u.id
@@ -25,7 +25,7 @@ router.get('/pending-alumni', (req, res) => {
 });
 
 // Approve or Reject Alumni Profile (POST)
-router.post('/approve-alumni', (req, res) => {
+router.post('/approve-alumni', async (req, res) => {
   try {
     const { alumni_id, action } = req.body; // 'approve' or 'reject'
     if (!alumni_id || !action) {
@@ -33,13 +33,13 @@ router.post('/approve-alumni', (req, res) => {
     }
 
     if (action === 'approve' || action === 1) {
-      db.prepare('UPDATE alumni_profiles SET verified = 1 WHERE id = ?').run(alumni_id);
+      await db.prepare('UPDATE alumni_profiles SET verified = 1 WHERE id = ?').run(alumni_id);
       return res.json({ success: true, message: 'Alumni profile verified and approved for mentorship!' });
     } else {
-      const alumni = db.prepare('SELECT user_id FROM alumni_profiles WHERE id = ?').get(alumni_id);
+      const alumni = await db.prepare('SELECT user_id FROM alumni_profiles WHERE id = ?').get(alumni_id);
       if (alumni) {
-        db.prepare('DELETE FROM alumni_profiles WHERE id = ?').run(alumni_id);
-        db.prepare('DELETE FROM users WHERE id = ?').run(alumni.user_id);
+        await db.prepare('DELETE FROM alumni_profiles WHERE id = ?').run(alumni_id);
+        await db.prepare('DELETE FROM users WHERE id = ?').run(alumni.user_id);
       }
       return res.json({ success: true, message: 'Alumni profile registration rejected and removed.' });
     }
@@ -49,19 +49,19 @@ router.post('/approve-alumni', (req, res) => {
 });
 
 // Approve or Reject Alumni Profile (PUT)
-router.put('/approve-alumni/:id', (req, res) => {
+router.put('/approve-alumni/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const { verified } = req.body; // 1 or 0
 
     if (verified === 1) {
-      db.prepare('UPDATE alumni_profiles SET verified = 1 WHERE id = ?').run(id);
+      await db.prepare('UPDATE alumni_profiles SET verified = 1 WHERE id = ?').run(id);
       return res.json({ success: true, message: 'Alumni mentor verified!' });
     } else {
-      const alumni = db.prepare('SELECT user_id FROM alumni_profiles WHERE id = ?').get(id);
+      const alumni = await db.prepare('SELECT user_id FROM alumni_profiles WHERE id = ?').get(id);
       if (alumni) {
-        db.prepare('DELETE FROM alumni_profiles WHERE id = ?').run(id);
-        db.prepare('DELETE FROM users WHERE id = ?').run(alumni.user_id);
+        await db.prepare('DELETE FROM alumni_profiles WHERE id = ?').run(id);
+        await db.prepare('DELETE FROM users WHERE id = ?').run(alumni.user_id);
       }
       return res.json({ success: true, message: 'Alumni verification rejected.' });
     }
@@ -71,9 +71,9 @@ router.put('/approve-alumni/:id', (req, res) => {
 });
 
 // Pending Company Approval List
-router.get('/pending-companies', (req, res) => {
+router.get('/pending-companies', async (req, res) => {
   try {
-    const pending = db.prepare(`
+    const pending = await db.prepare(`
       SELECT c.*, u.email, u.created_at as user_registered_at
       FROM company_profiles c
       JOIN users u ON c.user_id = u.id
@@ -88,7 +88,7 @@ router.get('/pending-companies', (req, res) => {
 });
 
 // Reset Demo Pending Companies into SQLite Database (Demo Mode Only)
-router.post('/reset-pending-companies', (req, res) => {
+router.post('/reset-pending-companies', async (req, res) => {
   if (process.env.SEED_DEMO_DATA !== 'true') {
     return res.status(403).json({ error: 'Demo pending companies reset is disabled in production mode.' });
   }
@@ -110,16 +110,16 @@ router.post('/reset-pending-companies', (req, res) => {
     const passHash = bcrypt.hashSync('DemoPass@2026', 10);
 
     for (const c of demoPending) {
-      db.prepare(`INSERT OR IGNORE INTO users (id, email, password_hash, role) VALUES (?, ?, ?, 'company')`).run(c.userId, c.email, passHash);
-      db.prepare(`UPDATE users SET password_hash = ?, role = 'company' WHERE id = ?`).run(passHash, c.userId);
-      db.prepare(`DELETE FROM company_profiles WHERE id = ?`).run(c.id);
-      db.prepare(`
+      await db.prepare(`INSERT OR IGNORE INTO users (id, email, password_hash, role) VALUES (?, ?, ?, 'company')`).run(c.userId, c.email, passHash);
+      await db.prepare(`UPDATE users SET password_hash = ?, role = 'company' WHERE id = ?`).run(passHash, c.userId);
+      await db.prepare(`DELETE FROM company_profiles WHERE id = ?`).run(c.id);
+      await db.prepare(`
         INSERT INTO company_profiles (id, user_id, company_name, industry, website, location, phone, contact_phone, approved, verified)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, 0)
       `).run(c.id, c.userId, c.name, c.industry, c.website, c.location, c.phone, c.phone);
     }
 
-    const pending = db.prepare(`
+    const pending = await db.prepare(`
       SELECT c.*, u.email, u.created_at as user_registered_at
       FROM company_profiles c
       JOIN users u ON c.user_id = u.id
@@ -136,7 +136,7 @@ router.post('/reset-pending-companies', (req, res) => {
 
 
 // All Student Candidate Profiles Database (Supports Year Range & Multi-Year Selection)
-router.get('/students', (req, res) => {
+router.get('/students', async (req, res) => {
   try {
     const { startYear, endYear, years, passingYear, admissionYear, program, search } = req.query;
 
@@ -187,7 +187,7 @@ router.get('/students', (req, res) => {
 
     query += ` ORDER BY s.passing_year DESC, s.cgpa DESC`;
 
-    const students = db.prepare(query).all(...params);
+    const students = await db.prepare(query).all(...params);
     res.json(students);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -195,9 +195,9 @@ router.get('/students', (req, res) => {
 });
 
 // 🎓 TPC Admin Student Authorization Management Endpoints
-router.get('/authorized-students', (req, res) => {
+router.get('/authorized-students', async (req, res) => {
   try {
-    const list = db.prepare(`
+    const list = await db.prepare(`
       SELECT a.*, 
              u.id as user_id,
              u.last_login_at,
@@ -214,7 +214,7 @@ router.get('/authorized-students', (req, res) => {
 });
 
 // Add Single Authorized Student
-router.post('/authorized-students', (req, res) => {
+router.post('/authorized-students', async (req, res) => {
   try {
     const { roll_number, email, name, program, branch, cgpa, passing_year, admission_year, phone, access_status, password } = req.body;
 
@@ -227,7 +227,7 @@ router.post('/authorized-students', (req, res) => {
     const authId = 'auth_' + cleanRoll.toLowerCase();
 
     // Insert or update in authorized_students table
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO authorized_students (id, roll_number, email, name, program, branch, cgpa, passing_year, admission_year, phone, access_status, authorized_by)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'TPC Admin Governance')
       ON CONFLICT(roll_number) DO UPDATE SET
@@ -256,9 +256,9 @@ router.post('/authorized-students', (req, res) => {
     );
 
     // If user already exists in users table, update student_profiles
-    const existingUser = db.prepare('SELECT * FROM users WHERE lower(email) = ?').get(cleanEmail);
+    const existingUser = await db.prepare('SELECT * FROM users WHERE lower(email) = ?').get(cleanEmail);
     if (existingUser) {
-      db.prepare(`
+      await db.prepare(`
         UPDATE student_profiles 
         SET roll_number = ?, name = ?, program = ?, branch = ?, cgpa = ?, passing_year = ?, admission_year = ?, phone = ?, access_status = ?
         WHERE user_id = ?
@@ -289,7 +289,7 @@ router.post('/authorized-students', (req, res) => {
 });
 
 // Bulk Authorize Students (JSON List / CSV Rows)
-router.post('/authorized-students/bulk', (req, res) => {
+router.post('/authorized-students/bulk', async (req, res) => {
   try {
     const { students } = req.body;
     if (!Array.isArray(students) || students.length === 0) {
@@ -297,7 +297,7 @@ router.post('/authorized-students/bulk', (req, res) => {
     }
 
     let addedCount = 0;
-    const stmt = db.prepare(`
+    const stmt = await db.prepare(`
       INSERT INTO authorized_students (id, roll_number, email, name, program, branch, cgpa, passing_year, admission_year, phone, access_status, authorized_by)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', 'TPC Admin Batch Import')
       ON CONFLICT(roll_number) DO UPDATE SET
@@ -313,7 +313,7 @@ router.post('/authorized-students/bulk', (req, res) => {
         updated_at = CURRENT_TIMESTAMP
     `);
 
-    db.transaction(() => {
+    await db.transaction(async () => {
       for (const s of students) {
         if (!s.roll_number || !s.email || !s.name) continue;
         const cleanRoll = s.roll_number.trim().toUpperCase();
@@ -347,7 +347,7 @@ router.post('/authorized-students/bulk', (req, res) => {
 });
 
 // Toggle Student Access Status ('active' <-> 'blocked')
-router.put('/authorized-students/:id/status', (req, res) => {
+router.put('/authorized-students/:id/status', async (req, res) => {
   try {
     const { id } = req.params;
     const { status } = req.body; // 'active' or 'blocked'
@@ -363,7 +363,7 @@ router.put('/authorized-students/:id/status', (req, res) => {
     `).run(status, id, id, id);
 
     // Also update student_profiles if user exists
-    db.prepare(`
+    await db.prepare(`
       UPDATE student_profiles 
       SET access_status = ? 
       WHERE roll_number = ? OR user_id IN (SELECT id FROM users WHERE lower(email) = lower(?))
@@ -381,10 +381,10 @@ router.put('/authorized-students/:id/status', (req, res) => {
 });
 
 // Delete Student Authorization
-router.delete('/authorized-students/:id', (req, res) => {
+router.delete('/authorized-students/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    db.prepare(`
+    await db.prepare(`
       DELETE FROM authorized_students 
       WHERE id = ? OR roll_number = ? OR lower(email) = lower(?)
     `).run(id, id, id);
@@ -403,9 +403,9 @@ router.delete('/authorized-students/:id', (req, res) => {
 // 🎪 --- FEST / EVENT MANAGEMENT ENDPOINTS ---
 
 // 1. Get All Events (Admin view with comprehensive stats)
-router.get('/events', (req, res) => {
+router.get('/events', async (req, res) => {
   try {
-    const events = db.prepare(`
+    const events = await db.prepare(`
       SELECT 
         e.*,
         (SELECT COUNT(*) FROM external_candidates WHERE event_id = e.id) as total_external_registered,
@@ -423,7 +423,7 @@ router.get('/events', (req, res) => {
 });
 
 // 2. Create Event / Fest
-router.post('/events', (req, res) => {
+router.post('/events', async (req, res) => {
   try {
     const { title, slug, description, category, event_date, end_date, venue, banner_url, is_registration_open, max_registrations, custom_fields } = req.body;
 
@@ -436,7 +436,7 @@ router.post('/events', (req, res) => {
       ? slug.trim().toLowerCase().replace(/[^a-z0-9-]/g, '-')
       : title.trim().toLowerCase().replace(/[^a-z0-9-]/g, '-');
 
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO events (
         id, title, slug, description, category, event_date, end_date, 
         venue, banner_url, is_registration_open, max_registrations, custom_fields_json, created_by
@@ -474,17 +474,17 @@ router.post('/events', (req, res) => {
 });
 
 // 3. Update Event (Details & Open/Close Toggle)
-router.put('/events/:id', (req, res) => {
+router.put('/events/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const { title, description, category, event_date, end_date, venue, banner_url, is_registration_open, max_registrations } = req.body;
 
-    const existing = db.prepare('SELECT * FROM events WHERE id = ?').get(id);
+    const existing = await db.prepare('SELECT * FROM events WHERE id = ?').get(id);
     if (!existing) {
       return res.status(404).json({ error: 'Event not found.' });
     }
 
-    db.prepare(`
+    await db.prepare(`
       UPDATE events 
       SET title = COALESCE(?, title),
           description = COALESCE(?, description),
@@ -522,10 +522,10 @@ router.put('/events/:id', (req, res) => {
 });
 
 // 4. Delete Event
-router.delete('/events/:id', (req, res) => {
+router.delete('/events/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    db.prepare('DELETE FROM events WHERE id = ?').run(id);
+    await db.prepare('DELETE FROM events WHERE id = ?').run(id);
     logAdminAuditAction(req, 'DELETE_EVENT', 'event', id);
 
     res.json({
@@ -538,7 +538,7 @@ router.delete('/events/:id', (req, res) => {
 });
 
 // 🎟️ --- EXTERNAL CANDIDATES DATABASE WITH AUTOMATED ATTENDANCE LIFECYCLE ---
-router.get('/external-candidates', (req, res) => {
+router.get('/external-candidates', async (req, res) => {
   try {
     const { event_id = '', search = '', status = 'All' } = req.query;
     const todayStr = new Date().toISOString().split('T')[0];
@@ -567,7 +567,7 @@ router.get('/external-candidates', (req, res) => {
 
     query += ` ORDER BY c.created_at DESC`;
 
-    const candidates = db.prepare(query).all(...params);
+    const candidates = await db.prepare(query).all(...params);
 
     // Compute dynamic live attendance lifecycle for every candidate
     const enriched = candidates.map(c => {
@@ -603,31 +603,31 @@ router.get('/external-candidates', (req, res) => {
 });
 
 // Manual Attendance Override / Toggle Route (Mark Present / Mark Absent / Reset to Pending)
-router.post('/external-candidates/:id/attendance', (req, res) => {
+router.post('/external-candidates/:id/attendance', async (req, res) => {
   try {
     const { id } = req.params;
     const { status, officerName = 'TPC Admin' } = req.body; // 'present', 'absent', 'pending'
 
-    const candidate = db.prepare('SELECT * FROM external_candidates WHERE id = ?').get(id);
+    const candidate = await db.prepare('SELECT * FROM external_candidates WHERE id = ?').get(id);
     if (!candidate) {
       return res.status(404).json({ error: 'Candidate not found.' });
     }
 
     if (status === 'present') {
       // Ensure an entry log exists
-      const existingLog = db.prepare('SELECT * FROM entry_logs WHERE token = ?').get(candidate.pass_token);
+      const existingLog = await db.prepare('SELECT * FROM entry_logs WHERE token = ?').get(candidate.pass_token);
       if (!existingLog) {
         const logId = 'log_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
-        db.prepare(`
+        await db.prepare(`
           INSERT INTO entry_logs (id, token, event_id, candidate_type, candidate_id, candidate_name, candidate_email, candidate_org, scanned_by_user_id, scanned_by_name, scanned_by_role, gate_name, scanned_at)
           VALUES (?, ?, ?, 'external', ?, ?, ?, ?, 'u_admin_01', ?, 'admin', 'Main Academic Gate', datetime('now'))
         `).run(logId, candidate.pass_token, candidate.event_id, candidate.id, candidate.name, candidate.email, candidate.organization, officerName);
       }
-      db.prepare('UPDATE pass_tokens SET status = ? WHERE token = ?').run('checked_in', candidate.pass_token);
+      await db.prepare('UPDATE pass_tokens SET status = ? WHERE token = ?').run('checked_in', candidate.pass_token);
     } else if (status === 'absent' || status === 'pending') {
       // Remove any check-in logs
-      db.prepare('DELETE FROM entry_logs WHERE token = ?').run(candidate.pass_token);
-      db.prepare('UPDATE pass_tokens SET status = ? WHERE token = ?').run('issued', candidate.pass_token);
+      await db.prepare('DELETE FROM entry_logs WHERE token = ?').run(candidate.pass_token);
+      await db.prepare('UPDATE pass_tokens SET status = ? WHERE token = ?').run('issued', candidate.pass_token);
     }
 
     res.json({
@@ -642,7 +642,7 @@ router.post('/external-candidates/:id/attendance', (req, res) => {
 });
 
 // ⚡ --- SCANNED / ENTRY RECORDS DATABASE ---
-router.get('/entry-logs', (req, res) => {
+router.get('/entry-logs', async (req, res) => {
   try {
     const { event_id = '', search = '', candidate_type = '', scanned_by = '' } = req.query;
 
@@ -677,10 +677,10 @@ router.get('/entry-logs', (req, res) => {
 
     query += ` ORDER BY l.scanned_at DESC`;
 
-    const logs = db.prepare(query).all(...params);
+    const logs = await db.prepare(query).all(...params);
 
     // Compute live summary stats
-    const stats = db.prepare(`
+    const stats = await db.prepare(`
       SELECT 
         COUNT(*) as total_entries,
         COUNT(CASE WHEN candidate_type = 'student' THEN 1 END) as student_entries,
@@ -696,9 +696,9 @@ router.get('/entry-logs', (req, res) => {
 });
 
 // 🛡️ --- SECURITY STAFF ACCOUNT MANAGEMENT ---
-router.get('/security-staff', (req, res) => {
+router.get('/security-staff', async (req, res) => {
   try {
-    const list = db.prepare(`
+    const list = await db.prepare(`
       SELECT 
         p.*, 
         u.email, 
@@ -716,7 +716,7 @@ router.get('/security-staff', (req, res) => {
   }
 });
 
-router.post('/security-staff', (req, res) => {
+router.post('/security-staff', async (req, res) => {
   try {
     const { name, email, phone, gate_assigned, shift, password } = req.body;
 
@@ -725,7 +725,7 @@ router.post('/security-staff', (req, res) => {
     }
 
     const cleanEmail = email.trim().toLowerCase();
-    const existing = db.prepare('SELECT * FROM users WHERE lower(email) = ?').get(cleanEmail);
+    const existing = await db.prepare('SELECT * FROM users WHERE lower(email) = ?').get(cleanEmail);
     if (existing) {
       return res.status(400).json({ error: 'A user account with this email already exists.' });
     }
@@ -733,13 +733,13 @@ router.post('/security-staff', (req, res) => {
     const userId = 'u_sec_' + Date.now();
     const passHash = bcrypt.hashSync(password || 'SecStaff@GSFC2026!', 10);
 
-    db.transaction(() => {
-      db.prepare(`
+    await db.transaction(async () => {
+      await db.prepare(`
         INSERT INTO users (id, email, password_hash, role)
         VALUES (?, ?, ?, 'security')
       `).run(userId, cleanEmail, passHash);
 
-      db.prepare(`
+      await db.prepare(`
         INSERT INTO security_staff_profiles (id, user_id, name, phone, gate_assigned, shift, active_status)
         VALUES (?, ?, ?, ?, ?, ?, 'active')
       `).run(
@@ -763,12 +763,12 @@ router.post('/security-staff', (req, res) => {
   }
 });
 
-router.put('/security-staff/:id/status', (req, res) => {
+router.put('/security-staff/:id/status', async (req, res) => {
   try {
     const { id } = req.params;
     const { active_status } = req.body;
 
-    db.prepare(`
+    await db.prepare(`
       UPDATE security_staff_profiles 
       SET active_status = ? 
       WHERE id = ? OR user_id = ?
@@ -785,11 +785,11 @@ router.put('/security-staff/:id/status', (req, res) => {
 
 
 // Helper to log Admin Audit Actions
-function logAdminAuditAction(req, action, targetType, targetId, details = {}) {
+async function logAdminAuditAction(req, action, targetType, targetId, details = {}) {
   try {
     const adminUser = req.user || { userId: 'admin_session', email: 'admin@gsfcuniversity.ac.in' };
     const auditId = 'aud_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO admin_audit_logs (id, admin_user_id, admin_email, action, target_entity_type, target_entity_id, details_json)
       VALUES (?, ?, ?, ?, ?, ?, ?)
     `).run(
@@ -807,7 +807,7 @@ function logAdminAuditAction(req, action, targetType, targetId, details = {}) {
 }
 
 // 🎓 Logged Student Directory & Login Activity (Persistent Database Query with Pagination & Filters)
-router.get('/logged-students', (req, res) => {
+router.get('/logged-students', async (req, res) => {
   try {
     const { search = '', program = '', batch = '', page = 1, limit = 50, status = '' } = req.query;
     const offset = (parseInt(page, 10) - 1) * parseInt(limit, 10);
@@ -853,12 +853,12 @@ router.get('/logged-students', (req, res) => {
 
     // Count Total Matching
     const countSql = `SELECT COUNT(*) as count FROM (${query})`;
-    const totalCount = db.prepare(countSql).get(...params)?.count || 0;
+    const totalCount = await db.prepare(countSql).get(...params)?.count || 0;
 
     query += ` ORDER BY s.passing_year DESC, total_logins DESC, s.name ASC LIMIT ? OFFSET ?`;
     params.push(parseInt(limit, 10), offset);
 
-    const students = db.prepare(query).all(...params);
+    const students = await db.prepare(query).all(...params);
 
     res.json({
       total: totalCount,
@@ -874,12 +874,12 @@ router.get('/logged-students', (req, res) => {
 });
 
 // 📄 Full Comprehensive Student Profile Dossier Modal API (All 9 Authorized Tabs)
-router.get('/students/:id/details', (req, res) => {
+router.get('/students/:id/details', async (req, res) => {
   try {
     const { id } = req.params;
 
     // Retrieve Student Profile & User Record
-    const student = db.prepare(`
+    const student = await db.prepare(`
       SELECT 
         s.*, 
         u.id as user_id, 
@@ -956,7 +956,7 @@ router.get('/students/:id/details', (req, res) => {
     };
 
     // Tab 4: Placement Applications & Drives
-    const applications = db.prepare(`
+    const applications = await db.prepare(`
       SELECT 
         a.id as application_id,
         a.match_score,
@@ -979,12 +979,12 @@ router.get('/students/:id/details', (req, res) => {
     `).all(student.id);
 
     // Tab 5: Assessments & Practice Tests
-    const assessments = db.prepare(`
+    const assessments = await db.prepare(`
       SELECT * FROM student_assessments WHERE student_id = ? ORDER BY created_at DESC
     `).all(student.id);
 
     // Tab 6: Mock Interviews & Evaluations
-    const interviews = db.prepare(`
+    const interviews = await db.prepare(`
       SELECT m.*, r.title as requirement_title, c.company_name
       FROM mock_interview_sessions m
       LEFT JOIN requirements r ON m.requirement_id = r.id
@@ -994,21 +994,21 @@ router.get('/students/:id/details', (req, res) => {
     `).all(student.id);
 
     // Tab 7: Q&A Activity
-    const qaQuestions = db.prepare(`
+    const qaQuestions = await db.prepare(`
       SELECT id, title, category, status, created_at FROM qa_threads WHERE student_id = ? ORDER BY created_at DESC
     `).all(student.id);
 
-    const qaReplies = db.prepare(`
+    const qaReplies = await db.prepare(`
       SELECT r.*, t.title as thread_title FROM qa_replies r JOIN qa_threads t ON r.thread_id = t.id WHERE r.author_id = ? ORDER BY r.created_at DESC
     `).all(student.id);
 
     // Tab 8: User Activity Timeline
-    const activityTimeline = db.prepare(`
+    const activityTimeline = await db.prepare(`
       SELECT * FROM user_activity_timeline WHERE user_id = ? OR user_id = ? ORDER BY created_at DESC LIMIT 30
     `).all(student.user_id, student.id);
 
     // Tab 9: Persistent Login History Events
-    const loginHistory = db.prepare(`
+    const loginHistory = await db.prepare(`
       SELECT * FROM user_login_history WHERE user_id = ? OR email = ? ORDER BY login_at DESC LIMIT 50
     `).all(student.user_id, student.email);
 
@@ -1037,7 +1037,7 @@ router.get('/students/:id/details', (req, res) => {
 });
 
 // 👩‍🏫 Logged Faculty Directory & Login Activity (Persistent Database Query)
-router.get('/logged-faculty', (req, res) => {
+router.get('/logged-faculty', async (req, res) => {
   try {
     const { search = '', department = '', page = 1, limit = 50 } = req.query;
     const offset = (parseInt(page, 10) - 1) * parseInt(limit, 10);
@@ -1080,12 +1080,12 @@ router.get('/logged-faculty', (req, res) => {
     }
 
     const countSql = `SELECT COUNT(*) as count FROM (${query})`;
-    const totalCount = db.prepare(countSql).get(...params)?.count || 0;
+    const totalCount = await db.prepare(countSql).get(...params)?.count || 0;
 
     query += ` ORDER BY total_logins DESC, f.name ASC LIMIT ? OFFSET ?`;
     params.push(parseInt(limit, 10), offset);
 
-    const faculty = db.prepare(query).all(...params);
+    const faculty = await db.prepare(query).all(...params);
 
     res.json({
       total: totalCount,
@@ -1101,11 +1101,11 @@ router.get('/logged-faculty', (req, res) => {
 });
 
 // 📄 Full Comprehensive Faculty Details Modal API
-router.get('/faculty/:id/details', (req, res) => {
+router.get('/faculty/:id/details', async (req, res) => {
   try {
     const { id } = req.params;
 
-    const faculty = db.prepare(`
+    const faculty = await db.prepare(`
       SELECT 
         f.*,
         u.role,
@@ -1145,7 +1145,7 @@ router.get('/faculty/:id/details', (req, res) => {
     };
 
     // Mentorship Q&A Activities
-    const mentorshipReplies = db.prepare(`
+    const mentorshipReplies = await db.prepare(`
       SELECT r.*, t.title as thread_title, t.category
       FROM qa_replies r
       JOIN qa_threads t ON r.thread_id = t.id
@@ -1154,12 +1154,12 @@ router.get('/faculty/:id/details', (req, res) => {
     `).all(faculty.user_id);
 
     // User Activity Timeline
-    const activityTimeline = db.prepare(`
+    const activityTimeline = await db.prepare(`
       SELECT * FROM user_activity_timeline WHERE user_id = ? OR user_id = ? ORDER BY created_at DESC LIMIT 30
     `).all(faculty.user_id, faculty.id);
 
     // Login History Events
-    const loginHistory = db.prepare(`
+    const loginHistory = await db.prepare(`
       SELECT * FROM user_login_history WHERE user_id = ? OR email = ? ORDER BY login_at DESC LIMIT 50
     `).all(faculty.user_id, faculty.email);
 
@@ -1183,7 +1183,7 @@ router.get('/faculty/:id/details', (req, res) => {
 });
 
 // 📜 Master User Login History Audit Trail & Session Analytics
-router.get('/login-history', (req, res) => {
+router.get('/login-history', async (req, res) => {
   try {
     const { 
       role = '', 
@@ -1245,20 +1245,20 @@ router.get('/login-history', (req, res) => {
     }
 
     const countSql = `SELECT COUNT(*) as count FROM (${query})`;
-    const totalCount = db.prepare(countSql).get(...params)?.count || 0;
+    const totalCount = await db.prepare(countSql).get(...params)?.count || 0;
 
     // Summary Statistics for KPI Cards
-    const totalLoginsCount = db.prepare("SELECT count(*) as c FROM user_login_history").get()?.c || 0;
-    const activeSessionsCount = db.prepare("SELECT count(*) as c FROM user_login_history WHERE session_status = 'active'").get()?.c || 0;
-    const todayLoginsCount = db.prepare("SELECT count(*) as c FROM user_login_history WHERE date(login_at) = date('now')").get()?.c || 0;
-    const uniqueUsersCount = db.prepare("SELECT count(DISTINCT email) as c FROM user_login_history").get()?.c || 0;
-    const desktopCount = db.prepare("SELECT count(*) as c FROM user_login_history WHERE device_type = 'Desktop'").get()?.c || 0;
-    const mobileCount = db.prepare("SELECT count(*) as c FROM user_login_history WHERE device_type = 'Mobile'").get()?.c || 0;
+    const totalLoginsCount = await db.prepare("SELECT count(*) as c FROM user_login_history").get()?.c || 0;
+    const activeSessionsCount = await db.prepare("SELECT count(*) as c FROM user_login_history WHERE session_status = 'active'").get()?.c || 0;
+    const todayLoginsCount = await db.prepare("SELECT count(*) as c FROM user_login_history WHERE date(login_at) = date('now')").get()?.c || 0;
+    const uniqueUsersCount = await db.prepare("SELECT count(DISTINCT email) as c FROM user_login_history").get()?.c || 0;
+    const desktopCount = await db.prepare("SELECT count(*) as c FROM user_login_history WHERE device_type = 'Desktop'").get()?.c || 0;
+    const mobileCount = await db.prepare("SELECT count(*) as c FROM user_login_history WHERE device_type = 'Mobile'").get()?.c || 0;
 
     query += ` ORDER BY login_at DESC LIMIT ? OFFSET ?`;
     params.push(parseInt(limit, 10), offset);
 
-    const history = db.prepare(query).all(...params);
+    const history = await db.prepare(query).all(...params);
 
     res.json({
       total: totalCount,
@@ -1282,7 +1282,7 @@ router.get('/login-history', (req, res) => {
 });
 
 // 📥 Export Login History to CSV
-router.get('/login-history/export-csv', (req, res) => {
+router.get('/login-history/export-csv', async (req, res) => {
   try {
     const { role = '', session_status = '', search = '' } = req.query;
     let query = `SELECT * FROM user_login_history WHERE 1=1`;
@@ -1304,7 +1304,7 @@ router.get('/login-history/export-csv', (req, res) => {
     }
 
     query += ` ORDER BY login_at DESC LIMIT 5000`;
-    const logs = db.prepare(query).all(...params);
+    const logs = await db.prepare(query).all(...params);
 
     const headers = ['Log ID', 'User ID', 'Email', 'Role', 'Session Status', 'IP Address', 'Device Type', 'Login Time', 'Logout Time', 'User Agent'];
     const rows = logs.map(l => [
@@ -1334,9 +1334,9 @@ router.get('/login-history/export-csv', (req, res) => {
 // =========================================================================
 
 // 1. Get All System Tables & Metadata
-router.get('/database/tables', (req, res) => {
+router.get('/database/tables', async (req, res) => {
   try {
-    const rawTables = db.prepare(`
+    const rawTables = await db.prepare(`
       SELECT name FROM sqlite_master 
       WHERE type='table' 
         AND name NOT LIKE 'sqlite_%' 
@@ -1345,15 +1345,16 @@ router.get('/database/tables', (req, res) => {
       ORDER BY name ASC
     `).all();
 
-    const tables = rawTables.map(t => {
+    const tables = [];
+    for (const t of rawTables) {
       let count = 0;
       try {
-        count = db.prepare(`SELECT COUNT(*) as c FROM "${t.name}"`).get()?.c || 0;
+        count = await db.prepare(`SELECT COUNT(*) as c FROM "${t.name}"`).get()?.c || 0;
       } catch (e) {}
 
       let columns = [];
       try {
-        columns = db.prepare(`PRAGMA table_info("${t.name}")`).all().map(col => ({
+        columns = await db.prepare(`PRAGMA table_info("${t.name}")`).all().map(col => ({
           name: col.name,
           type: col.type,
           notnull: col.notnull === 1,
@@ -1362,13 +1363,13 @@ router.get('/database/tables', (req, res) => {
         }));
       } catch (e) {}
 
-      return {
+      tables.push({
         name: t.name,
         rowCount: count,
         columnsCount: columns.length,
         columns
-      };
-    });
+      });
+    }
 
     const totalDatabaseRows = tables.reduce((acc, t) => acc + t.rowCount, 0);
 
@@ -1385,7 +1386,7 @@ router.get('/database/tables', (req, res) => {
 });
 
 // 2. Query Specific Table Data with Live Searching, Sorting & Pagination
-router.get('/database/table/:tableName', (req, res) => {
+router.get('/database/table/:tableName', async (req, res) => {
   try {
     const { tableName } = req.params;
     const { 
@@ -1397,12 +1398,12 @@ router.get('/database/table/:tableName', (req, res) => {
     } = req.query;
 
     // Whitelist verification against sqlite_master
-    const tableExists = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name = ?").get(tableName);
+    const tableExists = await db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name = ?").get(tableName);
     if (!tableExists) {
       return res.status(404).json({ error: `Table '${tableName}' does not exist in the database.` });
     }
 
-    const columnsInfo = db.prepare(`PRAGMA table_info("${tableName}")`).all();
+    const columnsInfo = await db.prepare(`PRAGMA table_info("${tableName}")`).all();
     const columnNames = columnsInfo.map(c => c.name);
 
     let query = `SELECT * FROM "${tableName}" WHERE 1=1`;
@@ -1424,7 +1425,7 @@ router.get('/database/table/:tableName', (req, res) => {
     }
 
     const countSql = `SELECT COUNT(*) as count FROM (${query})`;
-    const totalRows = db.prepare(countSql).get(...params)?.count || 0;
+    const totalRows = await db.prepare(countSql).get(...params)?.count || 0;
 
     // Sorting
     const safeSortDir = sortDirection.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
@@ -1444,7 +1445,7 @@ router.get('/database/table/:tableName', (req, res) => {
     const offset = (pageNum - 1) * limitNum;
     params.push(limitNum, offset);
 
-    const rawRows = db.prepare(query).all(...params);
+    const rawRows = await db.prepare(query).all(...params);
 
     // Sanitize sensitive columns (passwords / secrets)
     const sanitizedRows = rawRows.map(row => {
@@ -1481,17 +1482,17 @@ router.get('/database/table/:tableName', (req, res) => {
 });
 
 // 3. Export Any Table Data to CSV
-router.get('/database/table/:tableName/export-csv', (req, res) => {
+router.get('/database/table/:tableName/export-csv', async (req, res) => {
   try {
     const { tableName } = req.params;
     const { search = '' } = req.query;
 
-    const tableExists = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name = ?").get(tableName);
+    const tableExists = await db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name = ?").get(tableName);
     if (!tableExists) {
       return res.status(404).json({ error: `Table '${tableName}' not found.` });
     }
 
-    const columnsInfo = db.prepare(`PRAGMA table_info("${tableName}")`).all();
+    const columnsInfo = await db.prepare(`PRAGMA table_info("${tableName}")`).all();
     const columnNames = columnsInfo.map(c => c.name);
 
     let query = `SELECT * FROM "${tableName}" WHERE 1=1`;
@@ -1512,7 +1513,7 @@ router.get('/database/table/:tableName/export-csv', (req, res) => {
     }
 
     query += ` LIMIT 10000`;
-    const rawRows = db.prepare(query).all(...params);
+    const rawRows = await db.prepare(query).all(...params);
 
     const headers = columnNames.map(col => `"${col}"`).join(',');
     const rows = rawRows.map(r => {
@@ -1547,7 +1548,7 @@ router.get('/database/table/:tableName/export-csv', (req, res) => {
 // =========================================================================
 
 // 1. Get Unified Signups Across All Roles with Advanced Multi-Dimensional Filtering
-router.get('/signups', (req, res) => {
+router.get('/signups', async (req, res) => {
   try {
     const { 
       role = '', 
@@ -1664,26 +1665,26 @@ router.get('/signups', (req, res) => {
     }
 
     const countSql = `SELECT COUNT(*) as count FROM (${baseSql})`;
-    const totalCount = db.prepare(countSql).get(...params)?.count || 0;
+    const totalCount = await db.prepare(countSql).get(...params)?.count || 0;
 
     // Calculate Summary Statistics
-    const totalSignups = db.prepare("SELECT count(*) as c FROM users").get()?.c || 0;
-    const todaySignups = db.prepare("SELECT count(*) as c FROM users WHERE date(created_at) = date('now')").get()?.c || 0;
-    const weekSignups = db.prepare("SELECT count(*) as c FROM users WHERE created_at >= datetime('now', '-7 days')").get()?.c || 0;
-    const pendingCompanies = db.prepare("SELECT count(*) as c FROM company_profiles WHERE approved = 0").get()?.c || 0;
-    const pendingAlumni = db.prepare("SELECT count(*) as c FROM alumni_profiles WHERE verified = 0").get()?.c || 0;
+    const totalSignups = await db.prepare("SELECT count(*) as c FROM users").get()?.c || 0;
+    const todaySignups = await db.prepare("SELECT count(*) as c FROM users WHERE date(created_at) = date('now')").get()?.c || 0;
+    const weekSignups = await db.prepare("SELECT count(*) as c FROM users WHERE created_at >= datetime('now', '-7 days')").get()?.c || 0;
+    const pendingCompanies = await db.prepare("SELECT count(*) as c FROM company_profiles WHERE approved = 0").get()?.c || 0;
+    const pendingAlumni = await db.prepare("SELECT count(*) as c FROM alumni_profiles WHERE verified = 0").get()?.c || 0;
     const pendingApprovals = pendingCompanies + pendingAlumni;
 
-    const studentSignups = db.prepare("SELECT count(*) as c FROM users WHERE role = 'student'").get()?.c || 0;
-    const companySignups = db.prepare("SELECT count(*) as c FROM users WHERE role = 'company'").get()?.c || 0;
-    const facultySignups = db.prepare("SELECT count(*) as c FROM users WHERE role = 'faculty'").get()?.c || 0;
-    const alumniSignups = db.prepare("SELECT count(*) as c FROM users WHERE role = 'alumni'").get()?.c || 0;
-    const securitySignups = db.prepare("SELECT count(*) as c FROM users WHERE role = 'security'").get()?.c || 0;
+    const studentSignups = await db.prepare("SELECT count(*) as c FROM users WHERE role = 'student'").get()?.c || 0;
+    const companySignups = await db.prepare("SELECT count(*) as c FROM users WHERE role = 'company'").get()?.c || 0;
+    const facultySignups = await db.prepare("SELECT count(*) as c FROM users WHERE role = 'faculty'").get()?.c || 0;
+    const alumniSignups = await db.prepare("SELECT count(*) as c FROM users WHERE role = 'alumni'").get()?.c || 0;
+    const securitySignups = await db.prepare("SELECT count(*) as c FROM users WHERE role = 'security'").get()?.c || 0;
 
     baseSql += ` ORDER BY u.created_at DESC LIMIT ? OFFSET ?`;
     params.push(parseInt(limit, 10), offset);
 
-    const signups = db.prepare(baseSql).all(...params);
+    const signups = await db.prepare(baseSql).all(...params);
 
     res.json({
       success: true,
@@ -1713,7 +1714,7 @@ router.get('/signups', (req, res) => {
 });
 
 // 2. Export Signups to CSV
-router.get('/signups/export-csv', (req, res) => {
+router.get('/signups/export-csv', async (req, res) => {
   try {
     const { role = '', status = '', search = '' } = req.query;
 
@@ -1775,7 +1776,7 @@ router.get('/signups/export-csv', (req, res) => {
     }
 
     baseSql += ` ORDER BY u.created_at DESC LIMIT 10000`;
-    const signups = db.prepare(baseSql).all(...params);
+    const signups = await db.prepare(baseSql).all(...params);
 
     const headers = ['User ID', 'Registered At', 'Email', 'Role', 'Full Name / Company', 'Contact Phone', 'Branch / Organization', 'Roll Number', 'Status', 'Total Logins', 'Last Login'];
     const rows = signups.map(s => [
@@ -1802,7 +1803,7 @@ router.get('/signups/export-csv', (req, res) => {
 });
 
 // 3. Update User Status / Approval Action Directly from Signups Hub
-router.post('/signups/:userId/status', (req, res) => {
+router.post('/signups/:userId/status', async (req, res) => {
   try {
     const { userId } = req.params;
     const { action, role } = req.body; // 'approve', 'reject', 'block', 'unblock'
@@ -1811,7 +1812,7 @@ router.post('/signups/:userId/status', (req, res) => {
       return res.status(400).json({ error: 'userId and action are required.' });
     }
 
-    const user = db.prepare("SELECT * FROM users WHERE id = ?").get(userId);
+    const user = await db.prepare("SELECT * FROM users WHERE id = ?").get(userId);
     if (!user) {
       return res.status(404).json({ error: 'User not found.' });
     }
@@ -1820,33 +1821,33 @@ router.post('/signups/:userId/status', (req, res) => {
 
     if (userRole === 'company') {
       if (action === 'approve') {
-        db.prepare("UPDATE company_profiles SET approved = 1 WHERE user_id = ?").run(userId);
+        await db.prepare("UPDATE company_profiles SET approved = 1 WHERE user_id = ?").run(userId);
         logAdminAuditAction(req, 'APPROVE_COMPANY_SIGNUP', 'company', userId, { email: user.email });
         return res.json({ success: true, message: `Company recruiter ${user.email} approved successfully!` });
       } else if (action === 'reject' || action === 'block') {
-        db.prepare("UPDATE company_profiles SET approved = 0 WHERE user_id = ?").run(userId);
+        await db.prepare("UPDATE company_profiles SET approved = 0 WHERE user_id = ?").run(userId);
         logAdminAuditAction(req, 'REVOKE_COMPANY_APPROVAL', 'company', userId, { email: user.email });
         return res.json({ success: true, message: `Company recruiter ${user.email} access revoked.` });
       }
     } else if (userRole === 'alumni') {
       if (action === 'approve') {
-        db.prepare("UPDATE alumni_profiles SET verified = 1 WHERE user_id = ?").run(userId);
+        await db.prepare("UPDATE alumni_profiles SET verified = 1 WHERE user_id = ?").run(userId);
         logAdminAuditAction(req, 'APPROVE_ALUMNI_SIGNUP', 'alumni', userId, { email: user.email });
         return res.json({ success: true, message: `Alumni mentor ${user.email} verified successfully!` });
       } else if (action === 'reject' || action === 'block') {
-        db.prepare("UPDATE alumni_profiles SET verified = 0 WHERE user_id = ?").run(userId);
+        await db.prepare("UPDATE alumni_profiles SET verified = 0 WHERE user_id = ?").run(userId);
         logAdminAuditAction(req, 'REVOKE_ALUMNI_APPROVAL', 'alumni', userId, { email: user.email });
         return res.json({ success: true, message: `Alumni mentor ${user.email} verification revoked.` });
       }
     } else if (userRole === 'student') {
       const newStatus = action === 'block' ? 'blocked' : 'active';
-      db.prepare("UPDATE student_profiles SET access_status = ? WHERE user_id = ?").run(newStatus, userId);
-      db.prepare("UPDATE authorized_students SET access_status = ? WHERE email = ?").run(newStatus, user.email);
+      await db.prepare("UPDATE student_profiles SET access_status = ? WHERE user_id = ?").run(newStatus, userId);
+      await db.prepare("UPDATE authorized_students SET access_status = ? WHERE email = ?").run(newStatus, user.email);
       logAdminAuditAction(req, action === 'block' ? 'BLOCK_STUDENT' : 'UNBLOCK_STUDENT', 'student', userId, { email: user.email });
       return res.json({ success: true, message: `Student ${user.email} access set to ${newStatus}.` });
     } else if (userRole === 'faculty') {
       const newStatus = action === 'block' ? 'blocked' : 'active';
-      db.prepare("UPDATE faculty_profiles SET access_status = ? WHERE user_id = ?").run(newStatus, userId);
+      await db.prepare("UPDATE faculty_profiles SET access_status = ? WHERE user_id = ?").run(newStatus, userId);
       logAdminAuditAction(req, action === 'block' ? 'BLOCK_FACULTY' : 'UNBLOCK_FACULTY', 'faculty', userId, { email: user.email });
       return res.json({ success: true, message: `Faculty ${user.email} access set to ${newStatus}.` });
     }
@@ -1859,7 +1860,7 @@ router.post('/signups/:userId/status', (req, res) => {
 });
 
 // 🛡️ Master Admin Compliance Audit Logs
-router.get('/audit-logs', (req, res) => {
+router.get('/audit-logs', async (req, res) => {
   try {
     const { action = '', search = '', page = 1, limit = 50 } = req.query;
     const offset = (parseInt(page, 10) - 1) * parseInt(limit, 10);
@@ -1882,12 +1883,12 @@ router.get('/audit-logs', (req, res) => {
     }
 
     const countSql = `SELECT COUNT(*) as count FROM (${query})`;
-    const totalCount = db.prepare(countSql).get(...params)?.count || 0;
+    const totalCount = await db.prepare(countSql).get(...params)?.count || 0;
 
     query += ` ORDER BY created_at DESC LIMIT ? OFFSET ?`;
     params.push(parseInt(limit, 10), offset);
 
-    const auditLogs = db.prepare(query).all(...params);
+    const auditLogs = await db.prepare(query).all(...params);
 
     res.json({
       total: totalCount,
@@ -1903,7 +1904,7 @@ router.get('/audit-logs', (req, res) => {
 });
 
 // 🔒 Secure Password Reset Dispatcher (Sends OTP/Ticket without Password Exposure)
-router.post('/trigger-password-reset', (req, res) => {
+router.post('/trigger-password-reset', async (req, res) => {
   try {
     const { email, role, target_name } = req.body;
     if (!email) {
@@ -1926,7 +1927,7 @@ router.post('/trigger-password-reset', (req, res) => {
 });
 
 // Approve or Reject Company
-router.post('/approve-company', (req, res) => {
+router.post('/approve-company', async (req, res) => {
   try {
     const { company_id, action } = req.body; // action: 'approve' or 'reject'
     if (!company_id || !action) {
@@ -1934,23 +1935,23 @@ router.post('/approve-company', (req, res) => {
     }
 
     if (action === 'approve') {
-      db.prepare('UPDATE company_profiles SET approved = 1, verified = 1 WHERE id = ?').run(company_id);
+      await db.prepare('UPDATE company_profiles SET approved = 1, verified = 1 WHERE id = ?').run(company_id);
       return res.json({ success: true, message: 'Company account approved! Recruiter can now post hiring requirements.' });
     } else {
-      const company = db.prepare('SELECT user_id FROM company_profiles WHERE id = ?').get(company_id);
+      const company = await db.prepare('SELECT user_id FROM company_profiles WHERE id = ?').get(company_id);
       
       // Cascade delete associated records
-      const reqs = db.prepare('SELECT id FROM requirements WHERE company_id = ?').all(company_id);
+      const reqs = await db.prepare('SELECT id FROM requirements WHERE company_id = ?').all(company_id);
       for (const r of reqs) {
-        db.prepare('DELETE FROM applications WHERE requirement_id = ?').run(r.id);
-        db.prepare('DELETE FROM interview_question_sets WHERE requirement_id = ?').run(r.id);
-        db.prepare('DELETE FROM mock_interview_sessions WHERE requirement_id = ?').run(r.id);
+        await db.prepare('DELETE FROM applications WHERE requirement_id = ?').run(r.id);
+        await db.prepare('DELETE FROM interview_question_sets WHERE requirement_id = ?').run(r.id);
+        await db.prepare('DELETE FROM mock_interview_sessions WHERE requirement_id = ?').run(r.id);
       }
-      db.prepare('DELETE FROM requirements WHERE company_id = ?').run(company_id);
-      db.prepare('DELETE FROM company_student_mails WHERE company_name IN (SELECT company_name FROM company_profiles WHERE id = ?)').run(company_id);
-      db.prepare('DELETE FROM company_profiles WHERE id = ?').run(company_id);
+      await db.prepare('DELETE FROM requirements WHERE company_id = ?').run(company_id);
+      await db.prepare('DELETE FROM company_student_mails WHERE company_name IN (SELECT company_name FROM company_profiles WHERE id = ?)').run(company_id);
+      await db.prepare('DELETE FROM company_profiles WHERE id = ?').run(company_id);
       if (company && company.user_id) {
-        db.prepare('DELETE FROM users WHERE id = ?').run(company.user_id);
+        await db.prepare('DELETE FROM users WHERE id = ?').run(company.user_id);
       }
       return res.json({ success: true, message: 'Company registration rejected and removed.' });
     }
@@ -1961,24 +1962,24 @@ router.post('/approve-company', (req, res) => {
 });
 
 // Remove / Delete Company Profile & Associated Drives (Admin Manager Authority)
-router.delete('/companies/:id', (req, res) => {
+router.delete('/companies/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const company = db.prepare('SELECT user_id FROM company_profiles WHERE id = ?').get(id);
+    const company = await db.prepare('SELECT user_id FROM company_profiles WHERE id = ?').get(id);
     if (!company) {
       return res.status(404).json({ error: 'Company profile not found.' });
     }
 
     // Cascade delete associated applications and requirements
-    const reqs = db.prepare('SELECT id FROM requirements WHERE company_id = ?').all(id);
+    const reqs = await db.prepare('SELECT id FROM requirements WHERE company_id = ?').all(id);
     for (const r of reqs) {
-      db.prepare('DELETE FROM applications WHERE requirement_id = ?').run(r.id);
+      await db.prepare('DELETE FROM applications WHERE requirement_id = ?').run(r.id);
     }
-    db.prepare('DELETE FROM requirements WHERE company_id = ?').run(id);
+    await db.prepare('DELETE FROM requirements WHERE company_id = ?').run(id);
 
     // Delete company profile and user account
-    db.prepare('DELETE FROM company_profiles WHERE id = ?').run(id);
-    db.prepare('DELETE FROM users WHERE id = ?').run(company.user_id);
+    await db.prepare('DELETE FROM company_profiles WHERE id = ?').run(id);
+    await db.prepare('DELETE FROM users WHERE id = ?').run(company.user_id);
 
     res.json({ message: 'Company account and associated placement drives deleted successfully.' });
   } catch (err) {
@@ -1987,17 +1988,17 @@ router.delete('/companies/:id', (req, res) => {
 });
 
 // Remove / Delete Single Placement Drive Requirement (Admin Authority)
-router.delete('/requirements/:id', (req, res) => {
+router.delete('/requirements/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const reqItem = db.prepare('SELECT title, company_id FROM requirements WHERE id = ?').get(id);
+    const reqItem = await db.prepare('SELECT title, company_id FROM requirements WHERE id = ?').get(id);
     if (!reqItem) {
       return res.status(404).json({ error: 'Placement drive requirement not found.' });
     }
 
     // Cascade delete applications for this drive
-    db.prepare('DELETE FROM applications WHERE requirement_id = ?').run(id);
-    db.prepare('DELETE FROM requirements WHERE id = ?').run(id);
+    await db.prepare('DELETE FROM applications WHERE requirement_id = ?').run(id);
+    await db.prepare('DELETE FROM requirements WHERE id = ?').run(id);
 
     res.json({ message: `Placement drive "${reqItem.title}" deleted successfully.` });
   } catch (err) {
@@ -2006,15 +2007,15 @@ router.delete('/requirements/:id', (req, res) => {
 });
 
 // Comprehensive TPC Placement Dashboard Analytics (With Year-Wise Batch Distribution)
-router.get('/analytics', (req, res) => {
+router.get('/analytics', async (req, res) => {
   try {
-    const totalRequirements = db.prepare('SELECT COUNT(*) as count FROM requirements').get().count;
-    const totalApplications = db.prepare('SELECT COUNT(*) as count FROM applications').get().count;
-    const totalCompanies = db.prepare('SELECT COUNT(*) as count FROM company_profiles WHERE approved = 1').get().count;
-    const totalStudents = db.prepare('SELECT COUNT(*) as count FROM student_profiles').get().count;
+    const totalRequirements = await db.prepare('SELECT COUNT(*) as count FROM requirements').get().count;
+    const totalApplications = await db.prepare('SELECT COUNT(*) as count FROM applications').get().count;
+    const totalCompanies = await db.prepare('SELECT COUNT(*) as count FROM company_profiles WHERE approved = 1').get().count;
+    const totalStudents = await db.prepare('SELECT COUNT(*) as count FROM student_profiles').get().count;
 
     // Sector-wise breakdown
-    const sectorStats = db.prepare(`
+    const sectorStats = await db.prepare(`
       SELECT industry, COUNT(*) as count 
       FROM company_profiles 
       WHERE approved = 1 
@@ -2022,14 +2023,14 @@ router.get('/analytics', (req, res) => {
     `).all();
 
     // Application Status Funnel
-    const funnelStats = db.prepare(`
+    const funnelStats = await db.prepare(`
       SELECT status, COUNT(*) as count 
       FROM applications 
       GROUP BY status
     `).all();
 
     // Program Placement Distribution
-    const programStats = db.prepare(`
+    const programStats = await db.prepare(`
       SELECT s.program, COUNT(a.id) as total_applications,
              SUM(CASE WHEN a.status IN ('interview', 'selected') THEN 1 ELSE 0 END) as shortlisted_or_placed
       FROM student_profiles s
@@ -2038,7 +2039,7 @@ router.get('/analytics', (req, res) => {
     `).all();
 
     // Year-wise / Batch Placement Analytics Breakdown
-    const yearStats = db.prepare(`
+    const yearStats = await db.prepare(`
       SELECT 
         COALESCE(s.passing_year, 2026) as passing_year,
         COALESCE(s.batch_year, '2022-2026') as batch_year,
@@ -2054,7 +2055,7 @@ router.get('/analytics', (req, res) => {
     `).all();
 
     // Top In-Demand Skills across postings
-    const requirements = db.prepare('SELECT required_skills_json FROM requirements').all();
+    const requirements = await db.prepare('SELECT required_skills_json FROM requirements').all();
     const skillCounts = {};
 
     requirements.forEach(r => {
@@ -2090,7 +2091,7 @@ router.get('/analytics', (req, res) => {
 });
 
 // CSV Export for Placement Accreditation (Supports Year Range Filtering)
-router.get('/export-report', (req, res) => {
+router.get('/export-report', async (req, res) => {
   try {
     const { startYear, endYear, years } = req.query;
 
@@ -2126,7 +2127,7 @@ router.get('/export-report', (req, res) => {
 
     query += ` ORDER BY s.passing_year DESC, a.applied_at DESC`;
 
-    const apps = db.prepare(query).all(...params);
+    const apps = await db.prepare(query).all(...params);
 
     let csvContent = 'Application ID,Roll Number,Student Name,Batch,Passing Year,Program,Branch,CGPA,Company,Job Title,CTC,AI Match Score %,Status,Applied At\n';
     apps.forEach(a => {
@@ -2143,7 +2144,7 @@ router.get('/export-report', (req, res) => {
 });
 
 // Global Search across Candidates, Companies, Requirements
-router.get('/global-search', (req, res) => {
+router.get('/global-search', async (req, res) => {
   try {
     const { q } = req.query;
     if (!q || !q.trim()) {
@@ -2152,7 +2153,7 @@ router.get('/global-search', (req, res) => {
 
     const searchTerm = `%${q.trim().toLowerCase()}%`;
 
-    const students = db.prepare(`
+    const students = await db.prepare(`
       SELECT s.*, u.email
       FROM student_profiles s
       JOIN users u ON s.user_id = u.id
@@ -2160,7 +2161,7 @@ router.get('/global-search', (req, res) => {
       LIMIT 10
     `).all(searchTerm, searchTerm, searchTerm);
 
-    const companies = db.prepare(`
+    const companies = await db.prepare(`
       SELECT c.*, u.email
       FROM company_profiles c
       JOIN users u ON c.user_id = u.id
@@ -2168,7 +2169,7 @@ router.get('/global-search', (req, res) => {
       LIMIT 10
     `).all(searchTerm, searchTerm);
 
-    const requirements = db.prepare(`
+    const requirements = await db.prepare(`
       SELECT r.*, c.company_name
       FROM requirements r
       JOIN company_profiles c ON r.company_id = c.id
@@ -2183,7 +2184,7 @@ router.get('/global-search', (req, res) => {
 });
 
 // Admin Inspection Audit Logging Endpoint (Section 2 Requirement)
-router.post('/audit-log', (req, res) => {
+router.post('/audit-log', async (req, res) => {
   try {
     const { admin_id, viewed_entity_type, viewed_entity_id } = req.body;
     if (!viewed_entity_type || !viewed_entity_id) {
@@ -2191,7 +2192,7 @@ router.post('/audit-log', (req, res) => {
     }
 
     const logId = 'log_' + Date.now();
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO admin_audit_logs (id, admin_id, viewed_entity_type, viewed_entity_id)
       VALUES (?, ?, ?, ?)
     `).run(logId, admin_id || 'u_admin_01', viewed_entity_type, viewed_entity_id);
@@ -2203,19 +2204,19 @@ router.post('/audit-log', (req, res) => {
 });
 
 // TPC Admin Cross-View: Get Any Company's Full Applicant Inbox with Audit Trail
-router.get('/company-applicant-inbox', (req, res) => {
+router.get('/company-applicant-inbox', async (req, res) => {
   try {
     const { companyId, adminId } = req.query;
     if (!companyId) return res.status(400).json({ error: 'companyId is required.' });
 
     // Audit Log
     const logId = 'log_' + Date.now();
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO admin_audit_logs (id, admin_id, viewed_entity_type, viewed_entity_id)
       VALUES (?, ?, 'company', ?)
     `).run(logId, adminId || 'u_admin_01', companyId);
 
-    const apps = db.prepare(`
+    const apps = await db.prepare(`
       SELECT a.id as application_id, a.match_score, a.status, a.applied_at, a.applied_via,
              r.id as requirement_id, r.title as job_title, r.ctc_range, r.job_type,
              s.id as student_id, s.name as candidate_name, s.program, s.branch, s.cgpa, 
@@ -2235,19 +2236,19 @@ router.get('/company-applicant-inbox', (req, res) => {
 });
 
 // TPC Admin Cross-View: Get Any Student's Full Applications across all Companies
-router.get('/student-applications', (req, res) => {
+router.get('/student-applications', async (req, res) => {
   try {
     const { studentId, adminId } = req.query;
     if (!studentId) return res.status(400).json({ error: 'studentId is required.' });
 
     // Audit Log
     const logId = 'log_' + Date.now();
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO admin_audit_logs (id, admin_id, viewed_entity_type, viewed_entity_id)
       VALUES (?, ?, 'student', ?)
     `).run(logId, adminId || 'u_admin_01', studentId);
 
-    const apps = db.prepare(`
+    const apps = await db.prepare(`
       SELECT a.id as application_id, a.match_score, a.status, a.applied_at, a.applied_via,
              r.id as requirement_id, r.title as job_title, r.ctc_range, c.company_name, c.logo_url
       FROM applications a
@@ -2264,9 +2265,9 @@ router.get('/student-applications', (req, res) => {
 });
 
 // Master Visibility: Get All Registered Companies (Approved + Pending + Subscriptions + Invoices)
-router.get('/all-companies', (req, res) => {
+router.get('/all-companies', async (req, res) => {
   try {
-    const companies = db.prepare(`
+    const companies = await db.prepare(`
       SELECT c.*, u.email, u.created_at as registered_at,
              (SELECT COUNT(*) FROM requirements WHERE company_id = c.id) as posted_drives_count,
              (SELECT COUNT(*) FROM applications a JOIN requirements r ON a.requirement_id = r.id WHERE r.company_id = c.id) as total_applicants_count,
@@ -2294,9 +2295,9 @@ router.get('/all-companies', (req, res) => {
 });
 
 // Master Visibility: Get All Posted Placement Requirements
-router.get('/all-requirements', (req, res) => {
+router.get('/all-requirements', async (req, res) => {
   try {
-    const reqs = db.prepare(`
+    const reqs = await db.prepare(`
       SELECT r.*, c.company_name, c.logo_url, c.approved as company_approved,
              (SELECT COUNT(*) FROM applications WHERE requirement_id = r.id) as total_applicants
       FROM requirements r
@@ -2310,9 +2311,9 @@ router.get('/all-requirements', (req, res) => {
 });
 
 // Master Visibility: Get All Student Job Applications
-router.get('/all-applications', (req, res) => {
+router.get('/all-applications', async (req, res) => {
   try {
-    const apps = db.prepare(`
+    const apps = await db.prepare(`
       SELECT a.id as application_id, a.match_score, a.status, a.applied_at, a.applied_via,
              s.id as student_id, s.name as student_name, s.roll_number, s.program, s.branch, s.cgpa, s.ats_score,
              r.title as job_title, r.ctc_range, c.company_name, c.logo_url
@@ -2329,7 +2330,7 @@ router.get('/all-applications', (req, res) => {
 });
 
 // Helper to parse salary LPA from CTC range string (e.g. "₹8,00,000 - ₹12,00,000 PA" -> 10.0 LPA)
-function parseSalaryLpa(ctcString) {
+async function parseSalaryLpa(ctcString) {
   if (!ctcString) return 6.0;
   const matches = ctcString.match(/(\d+(?:\.\d+)?)/g);
   if (!matches || matches.length === 0) return 6.0;
@@ -2346,21 +2347,21 @@ function parseSalaryLpa(ctcString) {
 }
 
 // 📊 NAAC & NIRF Accreditation 1-Click Intelligence Data Endpoint (100% Live Database Aggregation with <2ms Cache)
-router.get('/accreditation/nirf-naac-data', (req, res) => {
+router.get('/accreditation/nirf-naac-data', async (req, res) => {
   try {
     const cachedData = appCache.get('accreditation:nirf_naac');
     if (cachedData) {
       return res.json({ ...cachedData, from_fast_cache: true });
     }
 
-    const students = db.prepare(`
+    const students = await db.prepare(`
       SELECT s.*, u.email
       FROM student_profiles s
       JOIN users u ON s.user_id = u.id
       ORDER BY s.passing_year ASC
     `).all();
 
-    const applications = db.prepare(`
+    const applications = await db.prepare(`
       SELECT a.id as application_id, a.status, a.match_score, a.applied_at,
              s.id as student_id, s.name as student_name, s.roll_number, s.program, s.branch, s.cgpa, s.passing_year, s.admission_year,
              r.title as job_title, r.ctc_range, c.company_name
@@ -2534,8 +2535,8 @@ router.get('/accreditation/nirf-naac-data', (req, res) => {
 
     // Overall Live Metrics
     const placedCount = Object.keys(studentOffers).length;
-    const companies = db.prepare('SELECT id FROM company_profiles WHERE approved = 1').all();
-    const requirements = db.prepare('SELECT id FROM requirements').all();
+    const companies = await db.prepare('SELECT id FROM company_profiles WHERE approved = 1').all();
+    const requirements = await db.prepare('SELECT id FROM requirements').all();
 
     const allSalaries = applications.map(a => parseSalaryLpa(a.ctc_range));
     if (allSalaries.length === 0) allSalaries.push(7.5);
@@ -2578,7 +2579,7 @@ router.get('/accreditation/nirf-naac-data', (req, res) => {
 });
 
 // 📥 Unified Multi-Standard Accreditation Exporter (NAAC, NIRF, NBA Tier-1, AICTE)
-router.get(['/accreditation/export', '/accreditation/export-nirf-csv', '/accreditation/export-naac-csv'], (req, res) => {
+router.get(['/accreditation/export', '/accreditation/export-nirf-csv', '/accreditation/export-naac-csv'], async (req, res) => {
   try {
     let { format = 'naac', year, department } = req.query;
     if (req.path.includes('export-nirf-csv')) format = 'nirf';
@@ -2632,7 +2633,7 @@ router.get(['/accreditation/export', '/accreditation/export-nirf-csv', '/accredi
 
     // Default: NAAC Criteria 5.2.1
     let csv = 'Year,Student Roll Number,Student Name,Program Graduated From,Name of the Employer,Designation / Role,Pay Package at Appointment (INR LPA),Appointment Order / Letter Ref No\n';
-    const students = db.prepare(`
+    const students = await db.prepare(`
       SELECT a.id, s.roll_number, s.name as student_name, s.program, s.branch, s.passing_year,
              c.company_name, r.title as job_title, r.ctc_range
       FROM applications a
@@ -2660,7 +2661,7 @@ router.get(['/accreditation/export', '/accreditation/export-nirf-csv', '/accredi
 // 🔮 AI Predictive Placement & Recruitment Analytics (Rate Limited)
 router.get('/analytics/forecast', AuthRateLimiter.aiFeatureLimiter, async (req, res) => {
   try {
-    const students = db.prepare(`
+    const students = await db.prepare(`
       SELECT 
         s.id, s.name, s.roll_number, s.program, s.branch, s.cgpa, s.ats_score, s.passing_year,
         (SELECT COUNT(*) FROM applications a WHERE a.student_id = s.id) as app_count,
@@ -2672,7 +2673,7 @@ router.get('/analytics/forecast', AuthRateLimiter.aiFeatureLimiter, async (req, 
     const totalSelected = students.filter(s => s.offer_count > 0).length;
     const currentPlacementRate = totalStudents > 0 ? Math.round((totalSelected / totalStudents) * 100) : 0;
 
-    const reqStats = db.prepare(`
+    const reqStats = await db.prepare(`
       SELECT COUNT(*) as total_drives, COALESCE(SUM(openings), 0) as total_openings FROM requirements WHERE applications_open = 1
     `).get();
 

@@ -8,7 +8,7 @@ const startTime = Date.now();
 /**
  * Liveness Probe: GET /api/health
  */
-router.get('/', (req, res) => {
+router.get('/', async (req, res) => {
   const uptimeSeconds = Math.floor((Date.now() - startTime) / 1000);
   res.json({
     status: 'healthy',
@@ -23,7 +23,7 @@ router.get('/', (req, res) => {
 /**
  * Readiness Probe: GET /api/health/ready (Deep diagnostic)
  */
-router.get('/ready', (req, res) => {
+router.get('/ready', async (req, res) => {
   const checks = {
     database: 'down',
     memory: 'healthy',
@@ -33,7 +33,7 @@ router.get('/ready', (req, res) => {
   };
 
   try {
-    const row = db.prepare('SELECT 1 as test').get();
+    const row = await db.prepare('SELECT 1 as test').get();
     if (row && row.test === 1) {
       checks.database = 'connected';
     }

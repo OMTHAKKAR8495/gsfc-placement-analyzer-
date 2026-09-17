@@ -4,10 +4,10 @@ import db from '../../db/index.js';
  * Calculates a comprehensive 10-point Placement Readiness Score (0-100)
  * and Placement Probability with explainable factors.
  */
-export function calculateStudentReadiness(studentIdOrProfile) {
+export async function calculateStudentReadiness(studentIdOrProfile) {
   let profile = studentIdOrProfile;
   if (typeof studentIdOrProfile === 'string') {
-    profile = db.prepare('SELECT * FROM student_profiles WHERE id = ? OR user_id = ?').get(studentIdOrProfile, studentIdOrProfile);
+    profile = await db.prepare('SELECT * FROM student_profiles WHERE id = ? OR user_id = ?').get(studentIdOrProfile, studentIdOrProfile);
   }
 
   if (!profile) {

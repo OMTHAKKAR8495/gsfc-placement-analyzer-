@@ -10,7 +10,7 @@ import { JWT_SECRET } from '../config/secrets.js';
 
 const router = express.Router();
 
-function getAuthUser(req) {
+async function getAuthUser(req) {
   try {
     const authHeader = req.headers.authorization;
     let token = null;
@@ -22,11 +22,11 @@ function getAuthUser(req) {
     if (!token) return null;
     const decoded = jwt.verify(token, JWT_SECRET);
     if (!decoded || !decoded.userId) return null;
-    const user = db.prepare('SELECT id, email, role FROM users WHERE id = ?').get(decoded.userId);
+    const user = await db.prepare('SELECT id, email, role FROM users WHERE id = ?').get(decoded.userId);
     if (!user) return null;
     let profile = null;
     if (user.role === 'student') {
-      profile = db.prepare('SELECT * FROM student_profiles WHERE user_id = ?').get(user.id);
+      profile = await db.prepare('SELECT * FROM student_profiles WHERE user_id = ?').get(user.id);
     }
     return { ...user, student_id: profile?.id, profile };
   } catch (err) {
@@ -35,13 +35,13 @@ function getAuthUser(req) {
 }
 
 // Award XP & Streak helper
-function awardStudentXP(studentId, xpAmount, reason = 'placement_activity') {
+async function awardStudentXP(studentId, xpAmount, reason = 'placement_activity') {
   try {
     if (!studentId) return null;
-    let gamification = db.prepare('SELECT * FROM student_gamification WHERE student_id = ?').get(studentId);
+    let gamification = await db.prepare('SELECT * FROM student_gamification WHERE student_id = ?').get(studentId);
 
     if (!gamification) {
-      db.prepare(`
+      await db.prepare(`
         INSERT INTO student_gamification (student_id, points_total, level, current_streak, nickname)
         VALUES (?, ?, 1, 1, ?)
       `).run(studentId, xpAmount, 'Student_' + Math.floor(100 + Math.random() * 900));
@@ -51,7 +51,7 @@ function awardStudentXP(studentId, xpAmount, reason = 'placement_activity') {
     const newPoints = (gamification.points_total || 0) + xpAmount;
     const newLevel = Math.max(1, Math.floor(newPoints / 200) + 1);
 
-    db.prepare(`
+    await db.prepare(`
       UPDATE student_gamification
       SET points_total = ?, level = ?, updated_at = CURRENT_TIMESTAMP
       WHERE student_id = ?
@@ -76,7 +76,7 @@ router.post('/student-copilot', async (req, res) => {
 
     let student = null;
     if (targetStudentId) {
-      student = db.prepare('SELECT * FROM student_profiles WHERE id = ? OR user_id = ?').get(targetStudentId, targetStudentId);
+      student = await db.prepare('SELECT * FROM student_profiles WHERE id = ? OR user_id = ?').get(targetStudentId, targetStudentId);
     }
     const name = student?.name || authUser?.profile?.name || 'GSFC Candidate';
     const cgpa = Number(student?.cgpa) || 8.5;
@@ -85,7 +85,7 @@ router.post('/student-copilot', async (req, res) => {
 
     let applications = [];
     try {
-      applications = db.prepare(`
+      applications = await db.prepare(`
         SELECT a.*, r.title as req_title, c.company_name, r.ctc_range
         FROM applications a
         LEFT JOIN requirements r ON a.requirement_id = r.id
@@ -97,21 +97,21 @@ router.post('/student-copilot', async (req, res) => {
 
     let assessments = [];
     try {
-      assessments = db.prepare(`
+      assessments = await db.prepare(`
         SELECT * FROM student_assessments WHERE student_id = ? ORDER BY created_at DESC LIMIT 5
       `).all(sId);
     } catch(e) { assessments = []; }
 
     let mockSessions = [];
     try {
-      mockSessions = db.prepare(`
+      mockSessions = await db.prepare(`
         SELECT * FROM mock_interview_sessions WHERE student_id = ? ORDER BY created_at DESC LIMIT 5
       `).all(sId);
     } catch(e) { mockSessions = []; }
 
     let liveDrives = [];
     try {
-      liveDrives = db.prepare(`
+      liveDrives = await db.prepare(`
         SELECT r.id, r.title, c.company_name, r.ctc_range, r.min_cgpa, r.required_skills_json 
         FROM requirements r
         LEFT JOIN company_profiles c ON r.company_id = c.id
@@ -218,7 +218,7 @@ router.post('/student-copilot', async (req, res) => {
 // ---------------------------------------------------------------------------------
 // 2. DYNAMIC 0–100 PLACEMENT READINESS SCORE ENGINE
 // ---------------------------------------------------------------------------------
-router.get('/readiness/:studentId', (req, res) => {
+router.get('/readiness/:studentId', async (req, res) => {
   try {
     const { studentId } = req.params;
     const readiness = calculateStudentReadiness(studentId);
@@ -231,7 +231,7 @@ router.get('/readiness/:studentId', (req, res) => {
 // ---------------------------------------------------------------------------------
 // 3. AI COMPANY & JOB MATCHING ENGINE
 // ---------------------------------------------------------------------------------
-router.post('/match-company', (req, res) => {
+router.post('/match-company', async (req, res) => {
   try {
     const { student_id, requirement_id, custom_requirement } = req.body;
     const authUser = getAuthUser(req);
@@ -239,7 +239,7 @@ router.post('/match-company', (req, res) => {
 
     let student = null;
     if (targetStudentId) {
-      student = db.prepare('SELECT * FROM student_profiles WHERE id = ? OR user_id = ?').get(targetStudentId, targetStudentId);
+      student = await db.prepare('SELECT * FROM student_profiles WHERE id = ? OR user_id = ?').get(targetStudentId, targetStudentId);
     }
     if (!student) {
       student = { name: 'Candidate', cgpa: 8.5, program: 'BTech CSE', ats_score: 88, branch: 'Computer Science' };
@@ -247,11 +247,11 @@ router.post('/match-company', (req, res) => {
 
     let reqItem = null;
     if (requirement_id) {
-      reqItem = db.prepare('SELECT r.*, c.company_name FROM requirements r LEFT JOIN company_profiles c ON r.company_id = c.id WHERE r.id = ?').get(requirement_id);
+      reqItem = await db.prepare('SELECT r.*, c.company_name FROM requirements r LEFT JOIN company_profiles c ON r.company_id = c.id WHERE r.id = ?').get(requirement_id);
     } else if (custom_requirement) {
       reqItem = custom_requirement;
     } else {
-      reqItem = db.prepare('SELECT r.*, c.company_name FROM requirements r LEFT JOIN company_profiles c ON r.company_id = c.id LIMIT 1').get();
+      reqItem = await db.prepare('SELECT r.*, c.company_name FROM requirements r LEFT JOIN company_profiles c ON r.company_id = c.id LIMIT 1').get();
     }
 
     if (!reqItem) {
@@ -329,7 +329,7 @@ router.post('/match-company', (req, res) => {
 // ---------------------------------------------------------------------------------
 // 4. AI SKILL GAP ANALYZER & LEARNING PLAN GENERATOR
 // ---------------------------------------------------------------------------------
-router.post('/skill-gap-analysis', (req, res) => {
+router.post('/skill-gap-analysis', async (req, res) => {
   try {
     const { student_id, target_company = 'Google Cloud India', target_role = 'Software Development Engineer' } = req.body;
     const authUser = getAuthUser(req);
@@ -337,7 +337,7 @@ router.post('/skill-gap-analysis', (req, res) => {
 
     let student = null;
     if (targetStudentId) {
-      student = db.prepare('SELECT * FROM student_profiles WHERE id = ? OR user_id = ?').get(targetStudentId, targetStudentId);
+      student = await db.prepare('SELECT * FROM student_profiles WHERE id = ? OR user_id = ?').get(targetStudentId, targetStudentId);
     }
 
     let currentSkills = ['Python', 'SQL', 'React', 'Git'];
@@ -387,7 +387,7 @@ router.post('/skill-gap-analysis', (req, res) => {
 // ---------------------------------------------------------------------------------
 // 4B. UNIVERSITY-WIDE SKILL GAP HEATMAP DIAGNOSTIC
 // ---------------------------------------------------------------------------------
-router.get('/skill-heatmap', (req, res) => {
+router.get('/skill-heatmap', async (req, res) => {
   try {
     const { department = 'ALL' } = req.query;
     
@@ -443,7 +443,7 @@ router.get('/skill-heatmap', (req, res) => {
 // ---------------------------------------------------------------------------------
 // 5. AI RESUME OPTIMIZER (Target JD ATS Compatibility & Bullet Enhancer)
 // ---------------------------------------------------------------------------------
-router.post('/resume-optimizer', (req, res) => {
+router.post('/resume-optimizer', async (req, res) => {
   try {
     const { student_id, target_job_description, target_company = 'Google Cloud India' } = req.body;
     const authUser = getAuthUser(req);
@@ -451,7 +451,7 @@ router.post('/resume-optimizer', (req, res) => {
 
     let student = null;
     if (targetStudentId) {
-      student = db.prepare('SELECT * FROM student_profiles WHERE id = ? OR user_id = ?').get(targetStudentId, targetStudentId);
+      student = await db.prepare('SELECT * FROM student_profiles WHERE id = ? OR user_id = ?').get(targetStudentId, targetStudentId);
     }
 
     const currentAts = Number(student?.ats_score) || 84;
@@ -499,7 +499,7 @@ router.post('/resume-optimizer', (req, res) => {
 // ---------------------------------------------------------------------------------
 // 6. AI CODING INTERVIEWER & SANDBOX EVALUATION
 // ---------------------------------------------------------------------------------
-router.post('/coding-problem', (req, res) => {
+router.post('/coding-problem', async (req, res) => {
   try {
     const { company = 'Google Cloud', difficulty = 'Medium', topic = 'Arrays & Hashing' } = req.body;
 
@@ -510,7 +510,7 @@ router.post('/coding-problem', (req, res) => {
         difficulty: 'Medium',
         company: 'Google Cloud India',
         description: 'Given an unsorted array of integers `nums`, return the length of the longest consecutive elements sequence. You must write an algorithm that runs in `O(n)` time.',
-        starterCode: 'function longestConsecutive(nums) {\n  if (!nums || nums.length === 0) return 0;\n  const numSet = new Set(nums);\n  let longest = 0;\n  for (const num of numSet) {\n    if (!numSet.has(num - 1)) {\n      let current = num;\n      let streak = 1;\n      while (numSet.has(current + 1)) {\n        current += 1;\n        streak += 1;\n      }\n      longest = Math.max(longest, streak);\n    }\n  }\n  return longest;\n}',
+        starterCode: 'async function longestConsecutive(nums) {\n  if (!nums || nums.length === 0) return 0;\n  const numSet = new Set(nums);\n  let longest = 0;\n  for (const num of numSet) {\n    if (!numSet.has(num - 1)) {\n      let current = num;\n      let streak = 1;\n      while (numSet.has(current + 1)) {\n        current += 1;\n        streak += 1;\n      }\n      longest = Math.max(longest, streak);\n    }\n  }\n  return longest;\n}',
         testCases: [
           { input: '[100, 4, 200, 1, 3, 2]', expected: '4' },
           { input: '[0, 3, 7, 2, 5, 8, 4, 6, 0, 1]', expected: '9' },
@@ -541,7 +541,7 @@ router.post('/coding-problem', (req, res) => {
   }
 });
 
-router.post('/evaluate-code', (req, res) => {
+router.post('/evaluate-code', async (req, res) => {
   try {
     const { student_id, problem_id, problem_title, difficulty, company, language = 'javascript', code } = req.body;
     const authUser = getAuthUser(req);
@@ -576,7 +576,7 @@ router.post('/evaluate-code', (req, res) => {
     const submissionId = 'code_sub_' + Date.now();
 
     if (targetStudentId) {
-      db.prepare(`
+      await db.prepare(`
         INSERT INTO student_coding_submissions (id, student_id, problem_id, problem_title, difficulty, company, language, code, test_cases_passed, total_test_cases, execution_time_ms, complexity_analysis_json, status)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
@@ -616,10 +616,10 @@ router.post('/evaluate-code', (req, res) => {
   }
 });
 
-router.get('/coding-submissions/:studentId', (req, res) => {
+router.get('/coding-submissions/:studentId', async (req, res) => {
   try {
     const { studentId } = req.params;
-    const subs = db.prepare('SELECT * FROM student_coding_submissions WHERE student_id = ? ORDER BY created_at DESC').all(studentId);
+    const subs = await db.prepare('SELECT * FROM student_coding_submissions WHERE student_id = ? ORDER BY created_at DESC').all(studentId);
     res.json(subs);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -629,7 +629,7 @@ router.get('/coding-submissions/:studentId', (req, res) => {
 // ---------------------------------------------------------------------------------
 // 7. PERSONALIZED DAY-BY-DAY PREPARATION PLANNER
 // ---------------------------------------------------------------------------------
-router.post('/preparation-planner', (req, res) => {
+router.post('/preparation-planner', async (req, res) => {
   try {
     const { student_id, target_company = 'Google Cloud India', target_role = 'Software Engineer', total_days = 30, deadline_date } = req.body;
     const authUser = getAuthUser(req);
@@ -677,7 +677,7 @@ router.post('/preparation-planner', (req, res) => {
     }
 
     const planId = 'plan_' + Date.now();
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO student_preparation_plans (id, student_id, target_company, target_role, deadline_date, total_days, days_json, progress_percentage, status)
       VALUES (?, ?, ?, ?, ?, ?, ?, 5, 'active')
     `).run(planId, targetStudentId, target_company, target_role, deadline_date || '2026-09-30', daysCount, JSON.stringify(days));
@@ -698,10 +698,10 @@ router.post('/preparation-planner', (req, res) => {
   }
 });
 
-router.get('/preparation-plans/:studentId', (req, res) => {
+router.get('/preparation-plans/:studentId', async (req, res) => {
   try {
     const { studentId } = req.params;
-    const plans = db.prepare('SELECT * FROM student_preparation_plans WHERE student_id = ? ORDER BY created_at DESC').all(studentId);
+    const plans = await db.prepare('SELECT * FROM student_preparation_plans WHERE student_id = ? ORDER BY created_at DESC').all(studentId);
     res.json(plans.map(p => ({
       ...p,
       days: JSON.parse(p.days_json || '[]')
@@ -711,12 +711,12 @@ router.get('/preparation-plans/:studentId', (req, res) => {
   }
 });
 
-router.put('/preparation-plans/:id/task', (req, res) => {
+router.put('/preparation-plans/:id/task', async (req, res) => {
   try {
     const { id } = req.params;
     const { task_id, completed } = req.body;
 
-    const plan = db.prepare('SELECT * FROM student_preparation_plans WHERE id = ?').get(id);
+    const plan = await db.prepare('SELECT * FROM student_preparation_plans WHERE id = ?').get(id);
     if (!plan) return res.status(404).json({ error: 'Plan not found.' });
 
     const days = JSON.parse(plan.days_json || '[]');
@@ -733,7 +733,7 @@ router.put('/preparation-plans/:id/task', (req, res) => {
 
     const progressPct = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
 
-    db.prepare(`
+    await db.prepare(`
       UPDATE student_preparation_plans
       SET days_json = ?, progress_percentage = ?, updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
@@ -750,7 +750,7 @@ router.put('/preparation-plans/:id/task', (req, res) => {
 // ---------------------------------------------------------------------------------
 // 8. ADAPTIVE ASSESSMENT ENGINE
 // ---------------------------------------------------------------------------------
-router.post('/adaptive-questions', (req, res) => {
+router.post('/adaptive-questions', async (req, res) => {
   try {
     const { student_id, domain = 'Data Structures & Algorithms' } = req.body;
 
@@ -798,7 +798,7 @@ router.post('/adaptive-questions', (req, res) => {
 // ---------------------------------------------------------------------------------
 // 9. COMMUNICATION, HR & GROUP DISCUSSION (GD) ANALYZER
 // ---------------------------------------------------------------------------------
-router.post('/analyze-communication', (req, res) => {
+router.post('/analyze-communication', async (req, res) => {
   try {
     const { student_id, practice_type = 'hr_question', topic_or_question, student_response } = req.body;
     const authUser = getAuthUser(req);
@@ -843,7 +843,7 @@ router.post('/analyze-communication', (req, res) => {
     };
 
     if (targetStudentId) {
-      db.prepare(`
+      await db.prepare(`
         INSERT INTO student_communication_practices (id, student_id, practice_type, topic_or_question, student_response, feedback_json, score, fluency_score, structure_score, clarity_score)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
@@ -877,10 +877,10 @@ router.post('/analyze-communication', (req, res) => {
   }
 });
 
-router.get('/communication-history/:studentId', (req, res) => {
+router.get('/communication-history/:studentId', async (req, res) => {
   try {
     const { studentId } = req.params;
-    const history = db.prepare('SELECT * FROM student_communication_practices WHERE student_id = ? ORDER BY created_at DESC').all(studentId);
+    const history = await db.prepare('SELECT * FROM student_communication_practices WHERE student_id = ? ORDER BY created_at DESC').all(studentId);
     res.json(history.map(h => ({
       ...h,
       feedback: JSON.parse(h.feedback_json || '{}')
@@ -893,11 +893,11 @@ router.get('/communication-history/:studentId', (req, res) => {
 // ---------------------------------------------------------------------------------
 // 10. AI RECRUITER / PLACEMENT CELL CANDIDATE MATCHING SYSTEM
 // ---------------------------------------------------------------------------------
-router.post('/recruiter-match-candidates', (req, res) => {
+router.post('/recruiter-match-candidates', async (req, res) => {
   try {
     const { job_description, required_skills = [], min_cgpa = 7.0, target_branch = 'ALL' } = req.body;
 
-    const students = db.prepare(`
+    const students = await db.prepare(`
       SELECT s.*, u.email
       FROM student_profiles s
       JOIN users u ON s.user_id = u.id
@@ -952,9 +952,9 @@ router.post('/recruiter-match-candidates', (req, res) => {
 // ---------------------------------------------------------------------------------
 // 11. PLACEMENT RISK ALERTS & TPC MONITORS
 // ---------------------------------------------------------------------------------
-router.get('/placement-risks', (req, res) => {
+router.get('/placement-risks', async (req, res) => {
   try {
-    let risks = db.prepare(`
+    let risks = await db.prepare(`
       SELECT r.*, s.name as student_name, s.roll_number, s.program
       FROM placement_risk_alerts r
       LEFT JOIN student_profiles s ON r.student_id = s.id
@@ -982,19 +982,19 @@ router.get('/placement-risks', (req, res) => {
   }
 });
 
-router.post('/placement-risks/:id/resolve', (req, res) => {
+router.post('/placement-risks/:id/resolve', async (req, res) => {
   try {
     const { id } = req.params;
-    db.prepare('UPDATE placement_risk_alerts SET is_resolved = 1 WHERE id = ?').run(id);
+    await db.prepare('UPDATE placement_risk_alerts SET is_resolved = 1 WHERE id = ?').run(id);
     res.json({ success: true, message: 'Risk alert resolved.' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-router.get('/early-warnings', (req, res) => {
+router.get('/early-warnings', async (req, res) => {
   try {
-    let risks = db.prepare(`
+    let risks = await db.prepare(`
       SELECT r.*, s.name as student_name, s.roll_number, s.program
       FROM placement_risk_alerts r
       LEFT JOIN student_profiles s ON r.student_id = s.id
@@ -1020,9 +1020,9 @@ router.get('/early-warnings', (req, res) => {
 });
 
 // Continuous At-Risk Roster with Multi-Factor Factor Decomposition
-router.get('/at-risk-roster', (req, res) => {
+router.get('/at-risk-roster', async (req, res) => {
   try {
-    const students = db.prepare(`
+    const students = await db.prepare(`
       SELECT 
         s.*, 
         u.email,
@@ -1086,11 +1086,11 @@ router.get('/at-risk-roster', (req, res) => {
 // Institutional Placement Cohort Predictive Forecast
 router.get('/cohort-forecast', async (req, res) => {
   try {
-    const totalStudents = db.prepare('SELECT COUNT(*) as count FROM student_profiles').get()?.count || 120;
-    const totalSelected = db.prepare("SELECT COUNT(DISTINCT student_id) as count FROM applications WHERE status = 'selected'").get()?.count || 45;
-    const totalDrives = db.prepare('SELECT COUNT(*) as count FROM requirements').get()?.count || 18;
+    const totalStudents = await db.prepare('SELECT COUNT(*) as count FROM student_profiles').get()?.count || 120;
+    const totalSelected = await db.prepare("SELECT COUNT(DISTINCT student_id) as count FROM applications WHERE status = 'selected'").get()?.count || 45;
+    const totalDrives = await db.prepare('SELECT COUNT(*) as count FROM requirements').get()?.count || 18;
 
-    const branchStats = db.prepare(`
+    const branchStats = await db.prepare(`
       SELECT 
         COALESCE(s.branch, s.program) as branch,
         COUNT(s.id) as total,
@@ -1136,7 +1136,7 @@ router.get('/cohort-forecast', async (req, res) => {
 // ---------------------------------------------------------------------------------
 // 12. AI STUDY GENERATOR (Company-Specific MCQs, Notes & Flashcards)
 // ---------------------------------------------------------------------------------
-router.post('/generate-study-material', (req, res) => {
+router.post('/generate-study-material', async (req, res) => {
   try {
     const { student_id, category = 'mcq_quiz', company = 'Google Cloud India', difficulty = 'Medium', topic = 'Full-Stack Architecture' } = req.body;
     const authUser = getAuthUser(req);
@@ -1171,7 +1171,7 @@ router.post('/generate-study-material', (req, res) => {
 
     const materialId = 'study_' + Date.now();
     if (targetStudentId) {
-      db.prepare(`
+      await db.prepare(`
         INSERT INTO student_study_materials (id, student_id, title, category, company, difficulty, content_json)
         VALUES (?, ?, ?, ?, ?, ?, ?)
       `).run(materialId, targetStudentId, `${company} ${topic} Pack`, category, company, difficulty, JSON.stringify(content));
@@ -1192,10 +1192,10 @@ router.post('/generate-study-material', (req, res) => {
   }
 });
 
-router.get('/study-materials/:studentId', (req, res) => {
+router.get('/study-materials/:studentId', async (req, res) => {
   try {
     const { studentId } = req.params;
-    const mats = db.prepare('SELECT * FROM student_study_materials WHERE student_id = ? ORDER BY created_at DESC').all(studentId);
+    const mats = await db.prepare('SELECT * FROM student_study_materials WHERE student_id = ? ORDER BY created_at DESC').all(studentId);
     res.json(mats.map(m => ({
       ...m,
       content: JSON.parse(m.content_json || '{}')
@@ -1208,13 +1208,13 @@ router.get('/study-materials/:studentId', (req, res) => {
 // ---------------------------------------------------------------------------------
 // 13. STUDENT GAMIFICATION (XP, Streaks & Badges)
 // ---------------------------------------------------------------------------------
-router.get('/gamification/:studentId', (req, res) => {
+router.get('/gamification/:studentId', async (req, res) => {
   try {
     const { studentId } = req.params;
-    let gamification = db.prepare('SELECT * FROM student_gamification WHERE student_id = ?').get(studentId);
+    let gamification = await db.prepare('SELECT * FROM student_gamification WHERE student_id = ?').get(studentId);
     if (!gamification) {
       awardStudentXP(studentId, 100, 'initial_bonus');
-      gamification = db.prepare('SELECT * FROM student_gamification WHERE student_id = ?').get(studentId);
+      gamification = await db.prepare('SELECT * FROM student_gamification WHERE student_id = ?').get(studentId);
     }
     res.json({
       student_id: studentId,
@@ -1230,7 +1230,7 @@ router.get('/gamification/:studentId', (req, res) => {
   }
 });
 
-router.post('/gamification/award-xp', (req, res) => {
+router.post('/gamification/award-xp', async (req, res) => {
   try {
     const { student_id, xp_amount = 20, reason = 'activity' } = req.body;
     const authUser = getAuthUser(req);
@@ -1247,7 +1247,7 @@ router.post('/gamification/award-xp', (req, res) => {
 // ---------------------------------------------------------------------------------
 // 14. GSFC PLACEMENT POLICY RAG QUERY
 // ---------------------------------------------------------------------------------
-router.post('/rag-query', (req, res) => {
+router.post('/rag-query', async (req, res) => {
   try {
     const { query } = req.body;
     const result = queryPlacementRAG(query);
@@ -1274,7 +1274,7 @@ router.post('/tpo-copilot', async (req, res) => {
 // ---------------------------------------------------------------------------------
 // 16. PLACEMENT "WHAT-IF" SCENARIO SIMULATION ENGINE
 // ---------------------------------------------------------------------------------
-router.post('/what-if', (req, res) => {
+router.post('/what-if', async (req, res) => {
   try {
     const {
       dsaTrainingStudents = 150,
@@ -1334,7 +1334,7 @@ router.post('/what-if', (req, res) => {
 // ---------------------------------------------------------------------------------
 // 17. GLOBAL SEARCH ENGINE (STUDENTS, COMPANIES, DRIVES, ALUMNI)
 // ---------------------------------------------------------------------------------
-router.get('/global-search', (req, res) => {
+router.get('/global-search', async (req, res) => {
   try {
     const q = (req.query.q || '').trim().toLowerCase();
     if (!q) {
@@ -1345,7 +1345,7 @@ router.get('/global-search', (req, res) => {
     const wildcard = `%${q}%`;
 
     // 1. Search Students
-    const students = db.prepare(`
+    const students = await db.prepare(`
       SELECT id, name, roll_number, branch, program, cgpa
       FROM student_profiles
       WHERE LOWER(name) LIKE ? OR LOWER(roll_number) LIKE ? OR LOWER(branch) LIKE ?
@@ -1364,7 +1364,7 @@ router.get('/global-search', (req, res) => {
     });
 
     // 2. Search Companies & Placement Drives
-    const companies = db.prepare(`
+    const companies = await db.prepare(`
       SELECT id, company_name, industry, website
       FROM company_profiles
       WHERE LOWER(company_name) LIKE ? OR LOWER(industry) LIKE ?
@@ -1382,7 +1382,7 @@ router.get('/global-search', (req, res) => {
       });
     });
 
-    const drives = db.prepare(`
+    const drives = await db.prepare(`
       SELECT r.id, r.title, r.ctc_range, r.job_type, c.company_name
       FROM requirements r
       LEFT JOIN company_profiles c ON r.company_id = c.id
@@ -1402,7 +1402,7 @@ router.get('/global-search', (req, res) => {
     });
 
     // 3. Search Alumni
-    const alumni = db.prepare(`
+    const alumni = await db.prepare(`
       SELECT id, name, company, designation, batch_year
       FROM alumni_profiles
       WHERE LOWER(name) LIKE ? OR LOWER(company) LIKE ? OR LOWER(designation) LIKE ?

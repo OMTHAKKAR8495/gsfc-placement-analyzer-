@@ -8,7 +8,7 @@ const router = express.Router();
 const uuidv4 = () => crypto.randomUUID();
 
 // Helper to authenticate user from token
-const authenticateUser = (req, res, next) => {
+const authenticateUser = async (req, res, next) => {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return res.status(401).json({ error: 'Authentication required. No token provided.' });
@@ -29,7 +29,7 @@ const authenticateUser = (req, res, next) => {
       else if (role === 'student') demoUserId = 'u_student_1';
 
       try {
-        db.prepare('INSERT OR IGNORE INTO users (id, email, password_hash, role) VALUES (?, ?, ?, ?)').run(
+        await db.prepare('INSERT OR IGNORE INTO users (id, email, password_hash, role) VALUES (?, ?, ?, ?)').run(
           demoUserId,
           `${role}@gsfcuniversity.ac.in`,
           'demo_hash',
@@ -46,7 +46,7 @@ const authenticateUser = (req, res, next) => {
 
 
 // 1. Schedule an Online Video Meeting (Company Recruiter or TPC Admin)
-router.post('/schedule', authenticateUser, (req, res) => {
+router.post('/schedule', authenticateUser, async (req, res) => {
   try {
     const { driveId, companyId, title, description, scheduledAt, durationMinutes, studentIds } = req.body;
 
@@ -55,7 +55,7 @@ router.post('/schedule', authenticateUser, (req, res) => {
     }
 
     // Verify Drive exists
-    const drive = db.prepare('SELECT * FROM requirements WHERE id = ?').get(driveId);
+    const drive = await db.prepare('SELECT * FROM requirements WHERE id = ?').get(driveId);
     if (!drive) {
       return res.status(404).json({ error: 'Specified hiring drive was not found.' });
     }
@@ -64,20 +64,20 @@ router.post('/schedule', authenticateUser, (req, res) => {
 
     // Verify permission: Company recruiter must own the drive or user must be admin
     if (req.user.role === 'company') {
-      const compProfile = db.prepare('SELECT id FROM company_profiles WHERE user_id = ?').get(req.user.id);
+      const compProfile = await db.prepare('SELECT id FROM company_profiles WHERE user_id = ?').get(req.user.id);
       if (compProfile) {
         targetCompanyId = compProfile.id;
       }
     }
 
     let validCompanyId = null;
-    const compExists = db.prepare('SELECT id FROM company_profiles WHERE id = ?').get(targetCompanyId);
+    const compExists = await db.prepare('SELECT id FROM company_profiles WHERE id = ?').get(targetCompanyId);
     if (compExists) {
       validCompanyId = compExists.id;
     }
 
     let validSchedulerUserId = null;
-    const schedulerExists = db.prepare('SELECT id FROM users WHERE id = ?').get(req.user.id);
+    const schedulerExists = await db.prepare('SELECT id FROM users WHERE id = ?').get(req.user.id);
     if (schedulerExists) {
       validSchedulerUserId = schedulerExists.id;
     }
@@ -90,13 +90,13 @@ router.post('/schedule', authenticateUser, (req, res) => {
     const duration = parseInt(durationMinutes, 10) || 30;
 
     // Create Meeting
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO meetings (id, room_id, drive_id, company_id, title, description, scheduled_at, duration_minutes, status, created_by)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'scheduled', ?)
     `).run(meetingId, roomId, driveId, validCompanyId, title, description || '', scheduledAt, duration, validSchedulerUserId);
 
     // Add scheduling user as participant
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO meeting_participants (id, meeting_id, user_id, role, join_status)
       VALUES (?, ?, ?, ?, 'invited')
     `).run('part_' + uuidv4().slice(0, 8), meetingId, validSchedulerUserId, req.user.role);
@@ -104,7 +104,7 @@ router.post('/schedule', authenticateUser, (req, res) => {
     // Add shortlisted student participants
     const invitedStudents = [];
     if (Array.isArray(studentIds) && studentIds.length > 0) {
-      const insertPartStmt = db.prepare(`
+      const insertPartStmt = await db.prepare(`
         INSERT OR IGNORE INTO meeting_participants (id, meeting_id, user_id, student_id, role, join_status)
         VALUES (?, ?, ?, ?, 'student', 'invited')
       `);
@@ -115,7 +115,7 @@ router.post('/schedule', authenticateUser, (req, res) => {
       `);
 
       for (const stId of studentIds) {
-        const student = db.prepare(`
+        const student = await db.prepare(`
           SELECT s.id, s.user_id, s.name, u.email, s.phone 
           FROM student_profiles s 
           LEFT JOIN users u ON s.user_id = u.id 
@@ -127,11 +127,11 @@ router.post('/schedule', authenticateUser, (req, res) => {
 
         if (student) {
           if (student.user_id) {
-            const uExists = db.prepare('SELECT id FROM users WHERE id = ?').get(student.user_id);
+            const uExists = await db.prepare('SELECT id FROM users WHERE id = ?').get(student.user_id);
             if (uExists) validUserId = uExists.id;
           }
           if (student.id) {
-            const sExists = db.prepare('SELECT id FROM student_profiles WHERE id = ?').get(student.id);
+            const sExists = await db.prepare('SELECT id FROM student_profiles WHERE id = ?').get(student.id);
             if (sExists) validStudentId = sExists.id;
           }
 
@@ -176,9 +176,9 @@ router.post('/schedule', authenticateUser, (req, res) => {
 });
 
 // 2. Get All Meetings (Admin Oversight)
-router.get('/all', authenticateUser, (req, res) => {
+router.get('/all', authenticateUser, async (req, res) => {
   try {
-    const meetings = db.prepare(`
+    const meetings = await db.prepare(`
       SELECT 
         m.*,
         r.title as drive_title,
@@ -202,11 +202,11 @@ router.get('/all', authenticateUser, (req, res) => {
 });
 
 // 3. Get Company Meetings
-router.get('/company', authenticateUser, (req, res) => {
+router.get('/company', authenticateUser, async (req, res) => {
   try {
     let companyId = null;
     if (req.user.role === 'company') {
-      const comp = db.prepare('SELECT id FROM company_profiles WHERE user_id = ?').get(req.user.id);
+      const comp = await db.prepare('SELECT id FROM company_profiles WHERE user_id = ?').get(req.user.id);
       companyId = comp?.id;
     } else if (req.query.company_id) {
       companyId = req.query.company_id;
@@ -214,7 +214,7 @@ router.get('/company', authenticateUser, (req, res) => {
 
     let meetings = [];
     if (companyId) {
-      meetings = db.prepare(`
+      meetings = await db.prepare(`
         SELECT 
           m.*,
           r.title as drive_title,
@@ -231,7 +231,7 @@ router.get('/company', authenticateUser, (req, res) => {
         ORDER BY m.scheduled_at DESC
       `).all(companyId);
     } else {
-      meetings = db.prepare(`
+      meetings = await db.prepare(`
         SELECT 
           m.*,
           r.title as drive_title,
@@ -254,12 +254,12 @@ router.get('/company', authenticateUser, (req, res) => {
 });
 
 // 4. Get Student Invited Meetings
-router.get('/student', authenticateUser, (req, res) => {
+router.get('/student', authenticateUser, async (req, res) => {
   try {
-    const student = db.prepare('SELECT id FROM student_profiles WHERE user_id = ?').get(req.user.id);
+    const student = await db.prepare('SELECT id FROM student_profiles WHERE user_id = ?').get(req.user.id);
     const studentId = student?.id;
 
-    const meetings = db.prepare(`
+    const meetings = await db.prepare(`
       SELECT 
         m.*,
         mp.id as participant_id,
@@ -288,11 +288,11 @@ router.get('/student', authenticateUser, (req, res) => {
 });
 
 // 5. Room Verification & State Lookup (Server-Side Access Control)
-router.get('/room/:roomId', authenticateUser, (req, res) => {
+router.get('/room/:roomId', authenticateUser, async (req, res) => {
   try {
     const { roomId } = req.params;
 
-    const meeting = db.prepare(`
+    const meeting = await db.prepare(`
       SELECT 
         m.*,
         r.title as drive_title,
@@ -312,7 +312,7 @@ router.get('/room/:roomId', authenticateUser, (req, res) => {
     }
 
     // Load participants
-    const participants = db.prepare(`
+    const participants = await db.prepare(`
       SELECT 
         mp.*,
         u.email,
@@ -336,12 +336,12 @@ router.get('/room/:roomId', authenticateUser, (req, res) => {
     if (req.user.role === 'admin' || req.user.role === 'superadmin' || req.user.role === 'faculty') {
       isAllowed = true;
     } else if (req.user.role === 'company') {
-      const comp = db.prepare('SELECT id FROM company_profiles WHERE user_id = ?').get(req.user.id);
+      const comp = await db.prepare('SELECT id FROM company_profiles WHERE user_id = ?').get(req.user.id);
       if (comp && comp.id === meeting.company_id) {
         isAllowed = true;
       }
     } else if (req.user.role === 'student') {
-      const student = db.prepare('SELECT id FROM student_profiles WHERE user_id = ?').get(req.user.id);
+      const student = await db.prepare('SELECT id FROM student_profiles WHERE user_id = ?').get(req.user.id);
       const studentId = student?.id;
       myParticipantRecord = participants.find(p => p.user_id === req.user.id || (studentId && p.student_id === studentId));
       if (myParticipantRecord) {
@@ -354,14 +354,14 @@ router.get('/room/:roomId', authenticateUser, (req, res) => {
     }
 
     // Load chat messages
-    const chatMessages = db.prepare(`
+    const chatMessages = await db.prepare(`
       SELECT * FROM meeting_chat_messages
       WHERE meeting_id = ?
       ORDER BY created_at ASC
     `).all(meeting.id);
 
     // Load violations
-    const violations = db.prepare(`
+    const violations = await db.prepare(`
       SELECT * FROM meeting_violations
       WHERE meeting_id = ?
       ORDER BY occurred_at DESC
@@ -382,12 +382,12 @@ router.get('/room/:roomId', authenticateUser, (req, res) => {
 });
 
 // 6. Anti-Cheating Violation Logger & Automatic Ejection
-router.post('/:id/violation', authenticateUser, (req, res) => {
+router.post('/:id/violation', authenticateUser, async (req, res) => {
   try {
     const { id } = req.params;
     const { studentId, violationType, details } = req.body;
 
-    const meeting = db.prepare('SELECT * FROM meetings WHERE id = ?').get(id);
+    const meeting = await db.prepare('SELECT * FROM meetings WHERE id = ?').get(id);
     if (!meeting) {
       return res.status(404).json({ error: 'Meeting not found.' });
     }
@@ -399,24 +399,24 @@ router.post('/:id/violation', authenticateUser, (req, res) => {
     let sEmail = req.user.email || 'candidate@gsfcuniversity.ac.in';
 
     if (targetStudentId) {
-      const sp = db.prepare('SELECT id, name, user_id FROM student_profiles WHERE id = ?').get(targetStudentId);
+      const sp = await db.prepare('SELECT id, name, user_id FROM student_profiles WHERE id = ?').get(targetStudentId);
       if (sp) {
         validStudentProfileId = sp.id;
         sName = sp.name;
-        const u = db.prepare('SELECT email FROM users WHERE id = ?').get(sp.user_id);
+        const u = await db.prepare('SELECT email FROM users WHERE id = ?').get(sp.user_id);
         if (u?.email) sEmail = u.email;
       }
     }
 
     if (!validStudentProfileId && req.user.id) {
-      const sp = db.prepare('SELECT id, name, user_id FROM student_profiles WHERE user_id = ?').get(req.user.id);
+      const sp = await db.prepare('SELECT id, name, user_id FROM student_profiles WHERE user_id = ?').get(req.user.id);
       if (sp) {
         validStudentProfileId = sp.id;
         sName = sp.name;
-        const u = db.prepare('SELECT email FROM users WHERE id = ?').get(sp.user_id);
+        const u = await db.prepare('SELECT email FROM users WHERE id = ?').get(sp.user_id);
         if (u?.email) sEmail = u.email;
       } else {
-        const anySp = db.prepare('SELECT id, name, user_id FROM student_profiles LIMIT 1').get();
+        const anySp = await db.prepare('SELECT id, name, user_id FROM student_profiles LIMIT 1').get();
         if (anySp) {
           validStudentProfileId = anySp.id;
           sName = anySp.name;
@@ -428,7 +428,7 @@ router.post('/:id/violation', authenticateUser, (req, res) => {
     const vDetails = details || 'Candidate left meeting tab / minimized window.';
     const violationId = 'viol_' + uuidv4().slice(0, 8);
 
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO meeting_violations (id, meeting_id, student_id, student_name, student_email, violation_type, details)
       VALUES (?, ?, ?, ?, ?, ?, ?)
     `).run(violationId, id, validStudentProfileId, sName, sEmail, vType, vDetails);
@@ -437,7 +437,7 @@ router.post('/:id/violation', authenticateUser, (req, res) => {
 
     if (!isWarning) {
       // Mark student participant as ejected only on fatal disqualifications
-      db.prepare(`
+      await db.prepare(`
         UPDATE meeting_participants
         SET join_status = 'ejected',
             left_at = CURRENT_TIMESTAMP,
@@ -463,7 +463,7 @@ router.post('/:id/violation', authenticateUser, (req, res) => {
 });
 
 // 7. Save Recruiter Outcome Marks (Selected / Rejected / Hold / No-Show)
-router.post('/:id/outcome', authenticateUser, (req, res) => {
+router.post('/:id/outcome', authenticateUser, async (req, res) => {
   try {
     const { id } = req.params;
     const { outcomes, summaryNotes } = req.body;
@@ -472,13 +472,13 @@ router.post('/:id/outcome', authenticateUser, (req, res) => {
       return res.status(403).json({ error: 'Unauthorized: Only recruiters or TPC Admin can record candidate outcomes.' });
     }
 
-    const meeting = db.prepare('SELECT * FROM meetings WHERE id = ?').get(id);
+    const meeting = await db.prepare('SELECT * FROM meetings WHERE id = ?').get(id);
     if (!meeting) {
       return res.status(404).json({ error: 'Meeting not found.' });
     }
 
     if (Array.isArray(outcomes)) {
-      const updatePartStmt = db.prepare(`
+      const updatePartStmt = await db.prepare(`
         UPDATE meeting_participants
         SET outcome_status = ?,
             interviewer_notes = ?,
@@ -511,7 +511,7 @@ router.post('/:id/outcome', authenticateUser, (req, res) => {
     }
 
     if (summaryNotes) {
-      db.prepare('UPDATE meetings SET summary_notes = ? WHERE id = ?').run(summaryNotes, id);
+      await db.prepare('UPDATE meetings SET summary_notes = ? WHERE id = ?').run(summaryNotes, id);
     }
 
     res.json({ success: true, message: 'Candidate interview outcomes successfully recorded and synchronized with applications.' });
@@ -522,7 +522,7 @@ router.post('/:id/outcome', authenticateUser, (req, res) => {
 });
 
 // 8. End Meeting for All
-router.post('/:id/end', authenticateUser, (req, res) => {
+router.post('/:id/end', authenticateUser, async (req, res) => {
   try {
     const { id } = req.params;
     const { summaryNotes, outcomes } = req.body;
@@ -531,7 +531,7 @@ router.post('/:id/end', authenticateUser, (req, res) => {
       return res.status(403).json({ error: 'Only interviewers or administrators can end the live meeting.' });
     }
 
-    db.prepare(`
+    await db.prepare(`
       UPDATE meetings 
       SET status = 'completed',
           ended_at = CURRENT_TIMESTAMP,
@@ -541,7 +541,7 @@ router.post('/:id/end', authenticateUser, (req, res) => {
 
     // Save final outcomes if provided
     if (Array.isArray(outcomes) && outcomes.length > 0) {
-      const updatePartStmt = db.prepare(`
+      const updatePartStmt = await db.prepare(`
         UPDATE meeting_participants
         SET outcome_status = ?,
             interviewer_notes = ?,
@@ -574,10 +574,10 @@ router.post('/:id/end', authenticateUser, (req, res) => {
 });
 
 // 9. Fetch Violations Log for a Meeting
-router.get('/:id/violations', authenticateUser, (req, res) => {
+router.get('/:id/violations', authenticateUser, async (req, res) => {
   try {
     const { id } = req.params;
-    const violations = db.prepare(`
+    const violations = await db.prepare(`
       SELECT * FROM meeting_violations
       WHERE meeting_id = ?
       ORDER BY occurred_at DESC

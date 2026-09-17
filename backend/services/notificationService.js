@@ -10,7 +10,7 @@ class NotificationService {
    */
   static async notifyApplicationStatusChange(applicationId, newStatus, companyName = 'Hiring Partner', jobTitle = 'Placement Drive') {
     try {
-      const app = db.prepare(`
+      const app = await db.prepare(`
         SELECT a.*, s.name as student_name, s.phone as student_phone, s.roll_number, u.email as student_email
         FROM applications a
         JOIN student_profiles s ON a.student_id = s.id
@@ -56,7 +56,7 @@ class NotificationService {
 
       // 2. Log Notification into Database Table
       const notifId = 'notif_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
-      db.prepare(`
+      await db.prepare(`
         INSERT INTO notifications_log (id, recipient_name, recipient_email, recipient_phone, channel, notification_type, title, message, metadata_json, status)
         VALUES (?, ?, ?, ?, 'whatsapp', 'general', ?, ?, ?, 'sent')
       `).run(
@@ -95,7 +95,7 @@ class NotificationService {
       const minCgpa = requirement.min_cgpa || 0;
 
       // Query eligible students from SQLite
-      const eligibleStudents = db.prepare(`
+      const eligibleStudents = await db.prepare(`
         SELECT s.id, s.name, s.phone, s.program, s.cgpa, u.email
         FROM student_profiles s
         JOIN users u ON s.user_id = u.id
@@ -108,7 +108,7 @@ class NotificationService {
 
       for (const student of eligibleStudents) {
         const notifId = 'notif_drive_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
-        db.prepare(`
+        await db.prepare(`
           INSERT INTO notifications_log (id, recipient_name, recipient_email, recipient_phone, channel, notification_type, title, message, metadata_json, status)
           VALUES (?, ?, ?, ?, 'in_app', 'drive_alert', ?, ?, ?, 'sent')
         `).run(

@@ -34,14 +34,14 @@ try {
 }
 
 // Helper: Compute SHA-256 Hash of data string or buffer
-export function computeSha256(data) {
+export async function computeSha256(data) {
   return crypto.createHash('sha256').update(data).digest('hex');
 }
 
 // Seed initial Genesis Block and sample anchored credentials
-export function seedGenesisLedger() {
+export async function seedGenesisLedger() {
   try {
-    const existingCount = db.prepare('SELECT count(*) as count FROM blockchain_anchored_documents').get()?.count || 0;
+    const existingCount = await db.prepare('SELECT count(*) as count FROM blockchain_anchored_documents').get()?.count || 0;
 
     if (existingCount === 0) {
       const genesisHash = computeSha256('GSFC_UNIVERSITY_PLACEMENT_CELL_GENESIS_BLOCK_2026');
@@ -94,7 +94,7 @@ export function seedGenesisLedger() {
         const docHash = computeSha256(canonicalString);
         const merkleRoot = computeSha256(docHash + lastHash);
 
-        db.prepare(`
+        await db.prepare(`
           INSERT INTO blockchain_anchored_documents 
           (id, document_type, document_title, student_id, student_name, roll_number, company_name, job_title, ctc_range, document_hash, previous_block_hash, merkle_root, block_number, issuer_name, issuer_role)
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Dr. Neeshu Chaudhary', 'TPC Placement Director')
@@ -110,7 +110,7 @@ export function seedGenesisLedger() {
 seedGenesisLedger();
 
 // 1. Anchor a Document to the Cryptographic Hash-Chain
-router.post('/anchor-document', (req, res) => {
+router.post('/anchor-document', async (req, res) => {
   try {
     const { 
       documentId, documentType, documentTitle, studentId, studentName, 
@@ -124,13 +124,13 @@ router.post('/anchor-document', (req, res) => {
     const docId = documentId || `GSFC-DOC-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
 
     // Check if docId already anchored
-    const existing = db.prepare('SELECT * FROM blockchain_anchored_documents WHERE id = ?').get(docId);
+    const existing = await db.prepare('SELECT * FROM blockchain_anchored_documents WHERE id = ?').get(docId);
     if (existing) {
       return res.status(400).json({ error: 'This Document ID is already anchored in the cryptographic ledger.', existing });
     }
 
     // Get previous block hash
-    const lastBlock = db.prepare('SELECT block_number, document_hash FROM blockchain_anchored_documents ORDER BY block_number DESC LIMIT 1').get();
+    const lastBlock = await db.prepare('SELECT block_number, document_hash FROM blockchain_anchored_documents ORDER BY block_number DESC LIMIT 1').get();
     const prevBlockHash = lastBlock?.document_hash || computeSha256('GSFC_GENESIS_ROOT');
     const blockNumber = (lastBlock?.block_number || 0) + 1;
 
@@ -145,7 +145,7 @@ router.post('/anchor-document', (req, res) => {
 
     const merkleRoot = computeSha256(docHash + prevBlockHash);
 
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO blockchain_anchored_documents 
       (id, document_type, document_title, student_id, student_name, roll_number, company_name, job_title, ctc_range, document_hash, previous_block_hash, merkle_root, block_number, issuer_name, issuer_role, metadata_json)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'GSFC Placement Cell', 'Authorized Placement Officer', ?)
@@ -186,12 +186,12 @@ router.post('/anchor-document', (req, res) => {
 });
 
 // 2. Public Verification Endpoint by Document ID
-router.get('/verify/:docId', (req, res) => {
+router.get('/verify/:docId', async (req, res) => {
   try {
     const { docId } = req.params;
     const cleanId = (docId || '').trim();
 
-    const doc = db.prepare(`
+    const doc = await db.prepare(`
       SELECT * FROM blockchain_anchored_documents 
       WHERE id = ? OR document_hash = ?
     `).get(cleanId, cleanId);
@@ -243,7 +243,7 @@ router.get('/verify/:docId', (req, res) => {
 });
 
 // 3. Public Verification Endpoint by File / Text Hash
-router.post('/verify-hash', (req, res) => {
+router.post('/verify-hash', async (req, res) => {
   try {
     const { hash, fileBase64, textContent } = req.body;
     let targetHash = hash;
@@ -258,7 +258,7 @@ router.post('/verify-hash', (req, res) => {
       return res.status(400).json({ error: 'hash, fileBase64, or textContent is required.' });
     }
 
-    const doc = db.prepare(`
+    const doc = await db.prepare(`
       SELECT * FROM blockchain_anchored_documents 
       WHERE document_hash = ? OR merkle_root = ?
     `).get(targetHash, targetHash);
@@ -286,9 +286,9 @@ router.post('/verify-hash', (req, res) => {
 });
 
 // 4. Get Full Public Ledger Blocks
-router.get('/ledger', (req, res) => {
+router.get('/ledger', async (req, res) => {
   try {
-    const blocks = db.prepare(`
+    const blocks = await db.prepare(`
       SELECT id, document_type, document_title, student_name, roll_number, company_name, block_number, document_hash, previous_block_hash, merkle_root, issued_at
       FROM blockchain_anchored_documents
       ORDER BY block_number DESC
@@ -306,10 +306,10 @@ router.get('/ledger', (req, res) => {
 });
 
 // 5. Get Anchored Documents for a Specific Student
-router.get('/student/:studentId', (req, res) => {
+router.get('/student/:studentId', async (req, res) => {
   try {
     const { studentId } = req.params;
-    const docs = db.prepare(`
+    const docs = await db.prepare(`
       SELECT * FROM blockchain_anchored_documents
       WHERE student_id = ? OR roll_number = ?
       ORDER BY issued_at DESC
@@ -322,9 +322,9 @@ router.get('/student/:studentId', (req, res) => {
 });
 
 // 6. Comprehensive Whole-Ledger Cryptographic Audit
-router.get('/audit-chain', (req, res) => {
+router.get('/audit-chain', async (req, res) => {
   try {
-    const blocks = db.prepare(`
+    const blocks = await db.prepare(`
       SELECT id, block_number, document_hash, previous_block_hash, merkle_root, student_name, roll_number
       FROM blockchain_anchored_documents
       ORDER BY block_number ASC

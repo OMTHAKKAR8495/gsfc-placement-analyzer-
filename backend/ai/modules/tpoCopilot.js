@@ -18,19 +18,19 @@ export async function queryTPOCopilot(userQuery, conversationHistory = []) {
   const queryLower = (userQuery || '').toLowerCase();
 
   // 1. Extract live application metrics from DB
-  const totalStudents = db.prepare('SELECT COUNT(*) as count FROM student_profiles').get().count;
-  const placedCount = db.prepare("SELECT COUNT(DISTINCT student_id) as count FROM applications WHERE status = 'selected'").get().count;
+  const totalStudents = await db.prepare('SELECT COUNT(*) as count FROM student_profiles').get().count;
+  const placedCount = await db.prepare("SELECT COUNT(DISTINCT student_id) as count FROM applications WHERE status = 'selected'").get().count;
   const unplacedCount = Math.max(0, totalStudents - placedCount);
-  const activeDrives = db.prepare('SELECT COUNT(*) as count FROM requirements').get().count;
-  const allStudents = db.prepare(`
+  const activeDrives = await db.prepare('SELECT COUNT(*) as count FROM requirements').get().count;
+  const allStudents = await db.prepare(`
     SELECT s.id, s.name, s.roll_number, s.program, s.branch, s.cgpa, s.ats_score, u.email
     FROM student_profiles s
     JOIN users u ON s.user_id = u.id
     ORDER BY s.cgpa DESC
   `).all();
 
-  const companiesList = db.prepare('SELECT * FROM company_profiles').all();
-  const requirementsList = db.prepare('SELECT * FROM requirements').all();
+  const companiesList = await db.prepare('SELECT * FROM company_profiles').all();
+  const requirementsList = await db.prepare('SELECT * FROM requirements').all();
 
   // 2. Deterministic NLP Query Intent Handlers
   let responseText = '';

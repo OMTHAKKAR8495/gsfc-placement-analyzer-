@@ -13,7 +13,7 @@ const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABA
 
 let supabase = null;
 
-export function getSupabaseClient() {
+export async function getSupabaseClient() {
   if (supabase) return supabase;
   if (!SUPABASE_URL || !SUPABASE_KEY) {
     return null;

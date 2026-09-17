@@ -38,20 +38,20 @@ try {
 }
 
 // 1. Get Alumni Profile (by userId or alumniId)
-router.get('/profile', (req, res) => {
+router.get('/profile', async (req, res) => {
   try {
     const { userId, alumniId } = req.query;
     let profile = null;
 
     if (alumniId) {
-      profile = db.prepare(`
+      profile = await db.prepare(`
         SELECT a.*, u.email 
         FROM alumni_profiles a
         JOIN users u ON a.user_id = u.id
         WHERE a.id = ?
       `).get(alumniId);
     } else if (userId) {
-      profile = db.prepare(`
+      profile = await db.prepare(`
         SELECT a.*, u.email 
         FROM alumni_profiles a
         JOIN users u ON a.user_id = u.id
@@ -70,20 +70,20 @@ router.get('/profile', (req, res) => {
 });
 
 // 2. Register / Setup Alumni Profile
-router.post('/register', AuthRateLimiter.registerLimiter, (req, res) => {
+router.post('/register', AuthRateLimiter.registerLimiter, async (req, res) => {
   try {
     const { user_id, name, batch_year, company, designation, linkedin_url, bio } = req.body;
     if (!user_id || !name) {
       return res.status(400).json({ error: 'user_id and name are required.' });
     }
 
-    const existing = db.prepare('SELECT id FROM alumni_profiles WHERE user_id = ?').get(user_id);
+    const existing = await db.prepare('SELECT id FROM alumni_profiles WHERE user_id = ?').get(user_id);
     if (existing) {
       return res.status(400).json({ error: 'Alumni profile already exists for this user.' });
     }
 
     const alumniId = 'alumni_' + Date.now();
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO alumni_profiles (id, user_id, name, batch_year, company, designation, linkedin_url, bio, verified)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)
     `).run(
@@ -98,7 +98,7 @@ router.post('/register', AuthRateLimiter.registerLimiter, (req, res) => {
       1
     );
 
-    const created = db.prepare('SELECT * FROM alumni_profiles WHERE id = ?').get(alumniId);
+    const created = await db.prepare('SELECT * FROM alumni_profiles WHERE id = ?').get(alumniId);
     res.status(201).json({ success: true, profile: created, message: 'Alumni profile created!' });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -106,14 +106,14 @@ router.post('/register', AuthRateLimiter.registerLimiter, (req, res) => {
 });
 
 // 3. Update Alumni Profile
-router.put('/profile', (req, res) => {
+router.put('/profile', async (req, res) => {
   try {
     const { id, name, company, designation, linkedin_url, bio, batch_year } = req.body;
     if (!id) {
       return res.status(400).json({ error: 'Alumni profile id is required.' });
     }
 
-    db.prepare(`
+    await db.prepare(`
       UPDATE alumni_profiles
       SET name = COALESCE(?, name),
           company = COALESCE(?, company),
@@ -132,7 +132,7 @@ router.put('/profile', (req, res) => {
       id
     );
 
-    const updated = db.prepare('SELECT * FROM alumni_profiles WHERE id = ?').get(id);
+    const updated = await db.prepare('SELECT * FROM alumni_profiles WHERE id = ?').get(id);
     res.json({ success: true, profile: updated });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -142,20 +142,20 @@ router.put('/profile', (req, res) => {
 // ---------------------------------------------------------------------------------
 // 4. MENTORSHIP MATCHING ENGINE (Student-Mentor Semantic Scoring)
 // ---------------------------------------------------------------------------------
-router.get('/match-mentors', (req, res) => {
+router.get('/match-mentors', async (req, res) => {
   try {
     const { student_id, target_company = '', branch = 'CSE' } = req.query;
 
     let student = null;
     if (student_id) {
-      student = db.prepare('SELECT * FROM student_profiles WHERE id = ?').get(student_id);
+      student = await db.prepare('SELECT * FROM student_profiles WHERE id = ?').get(student_id);
     }
 
     const cleanTargetCompany = (target_company || '').trim().toLowerCase();
     const cleanBranch = (branch || student?.program || student?.branch || 'CSE').toLowerCase();
 
     // Fetch all verified alumni mentors with average rating and available slots
-    const mentors = db.prepare(`
+    const mentors = await db.prepare(`
       SELECT 
         a.*,
         u.email,
@@ -246,14 +246,14 @@ router.get('/match-mentors', (req, res) => {
 // ---------------------------------------------------------------------------------
 // 5. MENTORSHIP 1:1 SLOTS & BOOKING API
 // ---------------------------------------------------------------------------------
-router.get('/slots', (req, res) => {
+router.get('/slots', async (req, res) => {
   try {
     const { alumni_id } = req.query;
     if (!alumni_id) {
       return res.status(400).json({ error: 'alumni_id is required' });
     }
 
-    let slots = db.prepare(`
+    let slots = await db.prepare(`
       SELECT * FROM alumni_mentorship_slots 
       WHERE alumni_id = ? 
       ORDER BY is_booked ASC, created_at DESC
@@ -268,13 +268,13 @@ router.get('/slots', (req, res) => {
       ];
 
       for (const ds of defaultSlots) {
-        db.prepare(`
+        await db.prepare(`
           INSERT INTO alumni_mentorship_slots (id, alumni_id, day_of_week, start_time, end_time, topic_focus, is_booked)
           VALUES (?, ?, ?, ?, ?, ?, 0)
         `).run(ds.id, alumni_id, ds.day, ds.start, ds.end, ds.topic);
       }
 
-      slots = db.prepare('SELECT * FROM alumni_mentorship_slots WHERE alumni_id = ?').all(alumni_id);
+      slots = await db.prepare('SELECT * FROM alumni_mentorship_slots WHERE alumni_id = ?').all(alumni_id);
     }
 
     res.json(slots);
@@ -283,14 +283,14 @@ router.get('/slots', (req, res) => {
   }
 });
 
-router.post('/slots/book', (req, res) => {
+router.post('/slots/book', async (req, res) => {
   try {
     const { slot_id, student_id, student_name, topic, notes } = req.body;
     if (!slot_id || !student_id) {
       return res.status(400).json({ error: 'slot_id and student_id are required' });
     }
 
-    const slot = db.prepare('SELECT * FROM alumni_mentorship_slots WHERE id = ?').get(slot_id);
+    const slot = await db.prepare('SELECT * FROM alumni_mentorship_slots WHERE id = ?').get(slot_id);
     if (!slot) {
       return res.status(404).json({ error: 'Mentorship slot not found' });
     }
@@ -301,7 +301,7 @@ router.post('/slots/book', (req, res) => {
     const meetingRoomId = `meet_alumni_${Date.now()}`;
     const meetingLink = `/#meeting/${meetingRoomId}`;
 
-    db.prepare(`
+    await db.prepare(`
       UPDATE alumni_mentorship_slots 
       SET is_booked = 1,
           booked_student_id = ?,
@@ -313,7 +313,7 @@ router.post('/slots/book', (req, res) => {
 
     // Create unified meeting record
     try {
-      db.prepare(`
+      await db.prepare(`
         INSERT INTO meetings (id, title, host_name, host_role, participant_name, participant_id, status, scheduled_time, room_id)
         VALUES (?, ?, ?, 'alumni', ?, ?, 'scheduled', ?, ?)
       `).run(
@@ -342,7 +342,7 @@ router.post('/slots/book', (req, res) => {
 // ---------------------------------------------------------------------------------
 // 6. MENTOR REVIEWS & REPUTATION API
 // ---------------------------------------------------------------------------------
-router.post('/reviews', (req, res) => {
+router.post('/reviews', async (req, res) => {
   try {
     const { alumni_id, student_id, student_name, rating, feedback, session_topic } = req.body;
     if (!alumni_id || !student_id || !rating || !feedback) {
@@ -350,7 +350,7 @@ router.post('/reviews', (req, res) => {
     }
 
     const reviewId = 'rev_' + Date.now();
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO alumni_mentor_reviews (id, alumni_id, student_id, student_name, rating, feedback, session_topic)
       VALUES (?, ?, ?, ?, ?, ?, ?)
     `).run(
@@ -369,10 +369,10 @@ router.post('/reviews', (req, res) => {
   }
 });
 
-router.get('/:id/reviews', (req, res) => {
+router.get('/:id/reviews', async (req, res) => {
   try {
     const { id } = req.params;
-    const reviews = db.prepare(`
+    const reviews = await db.prepare(`
       SELECT * FROM alumni_mentor_reviews 
       WHERE alumni_id = ? 
       ORDER BY created_at DESC
@@ -396,7 +396,7 @@ router.get('/:id/reviews', (req, res) => {
 // ---------------------------------------------------------------------------------
 // 7. MENTORSHIP COMMUNITY FEED POSTS
 // ---------------------------------------------------------------------------------
-router.post('/posts', AuthRateLimiter.generalApiLimiter, (req, res) => {
+router.post('/posts', AuthRateLimiter.generalApiLimiter, async (req, res) => {
   try {
     const { alumni_id, title, content, tags } = req.body;
     if (!alumni_id || !title || !content) {
@@ -406,12 +406,12 @@ router.post('/posts', AuthRateLimiter.generalApiLimiter, (req, res) => {
     const postId = 'post_' + Date.now();
     const tagsJson = JSON.stringify(Array.isArray(tags) ? tags.map(t => sanitizeXss(t)) : ['Mentorship', 'Career']);
 
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO mentorship_posts (id, alumni_id, title, content, tags_json)
       VALUES (?, ?, ?, ?, ?)
     `).run(postId, alumni_id, sanitizeXss(title), sanitizeXss(content), tagsJson);
 
-    const createdPost = db.prepare(`
+    const createdPost = await db.prepare(`
       SELECT p.*, a.name as author_name, a.company as author_company, a.designation as author_designation, a.verified as author_verified
       FROM mentorship_posts p
       JOIN alumni_profiles a ON p.alumni_id = a.id
@@ -424,7 +424,7 @@ router.post('/posts', AuthRateLimiter.generalApiLimiter, (req, res) => {
   }
 });
 
-router.get('/posts', (req, res) => {
+router.get('/posts', async (req, res) => {
   try {
     const { search, tag } = req.query;
     let query = `
@@ -456,7 +456,7 @@ router.get('/posts', (req, res) => {
 
     query += ` ORDER BY p.created_at DESC`;
 
-    const posts = db.prepare(query).all(...params).map(p => ({
+    const posts = await db.prepare(query).all(...params).map(p => ({
       ...p,
       tags: (() => {
         try { return JSON.parse(p.tags_json || '[]'); } catch (e) { return []; }
@@ -469,7 +469,7 @@ router.get('/posts', (req, res) => {
   }
 });
 
-router.post('/posts/:id/comments', AuthRateLimiter.generalApiLimiter, (req, res) => {
+router.post('/posts/:id/comments', AuthRateLimiter.generalApiLimiter, async (req, res) => {
   try {
     const { id: postId } = req.params;
     const { author_id, author_name, author_role, content } = req.body;
@@ -479,7 +479,7 @@ router.post('/posts/:id/comments', AuthRateLimiter.generalApiLimiter, (req, res)
     }
 
     const commentId = 'comm_' + Date.now();
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO mentorship_comments (id, post_id, author_id, author_name, author_role, content)
       VALUES (?, ?, ?, ?, ?, ?)
     `).run(
@@ -491,17 +491,17 @@ router.post('/posts/:id/comments', AuthRateLimiter.generalApiLimiter, (req, res)
       sanitizeXss(content)
     );
 
-    const createdComment = db.prepare('SELECT * FROM mentorship_comments WHERE id = ?').get(commentId);
+    const createdComment = await db.prepare('SELECT * FROM mentorship_comments WHERE id = ?').get(commentId);
     res.status(201).json({ success: true, comment: createdComment });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-router.get('/posts/:id/comments', (req, res) => {
+router.get('/posts/:id/comments', async (req, res) => {
   try {
     const { id: postId } = req.params;
-    const comments = db.prepare(`
+    const comments = await db.prepare(`
       SELECT * FROM mentorship_comments
       WHERE post_id = ?
       ORDER BY created_at ASC

@@ -107,22 +107,23 @@ async function seedAccounts() {
     const passwordHash = await bcrypt.hash(acc.password, 10);
 
     // 1. Insert or update User
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO users (id, email, password_hash, role)
       VALUES (?, ?, ?, ?)
       ON CONFLICT(email) DO UPDATE SET password_hash = excluded.password_hash, role = excluded.role
     `).run(acc.userId, acc.email.toLowerCase(), passwordHash, acc.role);
 
-    const user = db.prepare('SELECT id FROM users WHERE email = ?').get(acc.email.toLowerCase());
+    const user = await db.prepare('SELECT id FROM users WHERE email = ?').get(acc.email.toLowerCase());
     const realUserId = user?.id || acc.userId;
 
     // 2. Role-specific profile record
     if (acc.role === 'student') {
-      const existingProfile = db.prepare('SELECT id FROM student_profiles WHERE user_id = ?').get(realUserId);
+      const existingProfile = await db.prepare('SELECT id FROM student_profiles WHERE user_id = ?').get(realUserId);
       const profileId = existingProfile?.id || ('s_dev_' + realUserId);
-      db.prepare(`
-        INSERT OR REPLACE INTO student_profiles (id, user_id, name, roll_number, program, branch, cgpa, ats_score)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      await db.prepare(`
+        INSERT INTO student_profiles (id, user_id, name, roll_number, program, branch, cgpa, ats_score, university_email)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET name = EXCLUDED.name, roll_number = EXCLUDED.roll_number, cgpa = EXCLUDED.cgpa, university_email = EXCLUDED.university_email
       `).run(
         profileId,
         realUserId,
@@ -131,42 +132,48 @@ async function seedAccounts() {
         acc.program,
         acc.branch,
         acc.cgpa,
-        acc.atsScore
+        acc.atsScore,
+        acc.email.toLowerCase()
       );
     } else if (acc.role === 'company') {
-      const existingComp = db.prepare('SELECT id FROM company_profiles WHERE user_id = ?').get(realUserId);
+      const existingComp = await db.prepare('SELECT id FROM company_profiles WHERE user_id = ?').get(realUserId);
       const compId = existingComp?.id || ('c_dev_' + realUserId);
-      db.prepare(`
-        INSERT OR REPLACE INTO company_profiles (id, user_id, company_name, industry, approved, website, contact_email)
+      await db.prepare(`
+        INSERT INTO company_profiles (id, user_id, company_name, industry, approved, website, contact_email)
         VALUES (?, ?, ?, ?, 1, 'https://cloud.google.com', ?)
+        ON CONFLICT(id) DO UPDATE SET company_name = EXCLUDED.company_name, approved = EXCLUDED.approved
       `).run(compId, realUserId, acc.companyName, acc.industry, acc.email);
     } else if (acc.role === 'alumni') {
-      const existingAlumni = db.prepare('SELECT id FROM alumni_profiles WHERE user_id = ?').get(realUserId);
+      const existingAlumni = await db.prepare('SELECT id FROM alumni_profiles WHERE user_id = ?').get(realUserId);
       const alumniId = existingAlumni?.id || ('alumni_dev_' + realUserId);
-      db.prepare(`
-        INSERT OR REPLACE INTO alumni_profiles (id, user_id, name, batch_year, company, designation, bio, verified)
+      await db.prepare(`
+        INSERT INTO alumni_profiles (id, user_id, name, batch_year, company, designation, bio, verified)
         VALUES (?, ?, ?, ?, ?, ?, 'Guiding GSFC engineering students in Cloud and Distributed Systems.', 1)
+        ON CONFLICT(id) DO UPDATE SET name = EXCLUDED.name, company = EXCLUDED.company, designation = EXCLUDED.designation
       `).run(alumniId, realUserId, acc.name, acc.batchYear, acc.company, acc.designation);
     } else if (acc.role === 'faculty') {
-      const existingFac = db.prepare('SELECT id FROM faculty_profiles WHERE user_id = ?').get(realUserId);
+      const existingFac = await db.prepare('SELECT id FROM faculty_profiles WHERE user_id = ?').get(realUserId);
       const facId = existingFac?.id || ('fac_dev_' + realUserId);
-      db.prepare(`
-        INSERT OR REPLACE INTO faculty_profiles (id, user_id, name, email, department, designation)
+      await db.prepare(`
+        INSERT INTO faculty_profiles (id, user_id, name, email, department, designation)
         VALUES (?, ?, ?, ?, ?, 'Associate Professor & Placement Coordinator')
+        ON CONFLICT(id) DO UPDATE SET name = EXCLUDED.name, email = EXCLUDED.email
       `).run(facId, realUserId, acc.name, acc.email, acc.department);
     } else if (acc.role === 'security') {
-      const existingSec = db.prepare('SELECT id FROM security_staff_profiles WHERE user_id = ?').get(realUserId);
+      const existingSec = await db.prepare('SELECT id FROM security_staff_profiles WHERE user_id = ?').get(realUserId);
       const secId = existingSec?.id || ('sec_dev_' + realUserId);
-      db.prepare(`
-        INSERT OR REPLACE INTO security_staff_profiles (id, user_id, name, gate_assigned, active_status)
+      await db.prepare(`
+        INSERT INTO security_staff_profiles (id, user_id, name, gate_assigned, active_status)
         VALUES (?, ?, ?, ?, 'active')
+        ON CONFLICT(id) DO UPDATE SET name = EXCLUDED.name, gate_assigned = EXCLUDED.gate_assigned
       `).run(secId, realUserId, acc.name, acc.gate || 'Main Campus Gate A');
     }
 
     if (acc.role === 'student' && acc.rollNumber) {
-      db.prepare(`
-        INSERT OR REPLACE INTO authorized_students (id, email, roll_number, name, access_status)
+      await db.prepare(`
+        INSERT INTO authorized_students (id, email, roll_number, name, access_status)
         VALUES (?, ?, ?, ?, 'active')
+        ON CONFLICT(id) DO UPDATE SET email = EXCLUDED.email, roll_number = EXCLUDED.roll_number
       `).run('auth_' + acc.rollNumber.toLowerCase(), acc.email, acc.rollNumber, acc.name);
     }
 

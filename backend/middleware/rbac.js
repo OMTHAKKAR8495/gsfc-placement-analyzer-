@@ -72,7 +72,7 @@ export const requireCompanyOrAdmin = requireRoles(['company', 'admin']);
  * Cross-Tenant Ownership Guard (Prevents IDOR attacks)
  * Ensures recruiters only access their own posted drives and student applicant pools.
  */
-export function requireRequirementOwnership(req, res, next) {
+export async function requireRequirementOwnership(req, res, next) {
   const reqId = req.params.id || req.body.requirement_id || req.query.requirementId;
   if (!reqId) return next();
 
@@ -83,12 +83,12 @@ export function requireRequirementOwnership(req, res, next) {
     return res.status(403).json({ error: 'Access denied: Recruiter account required.' });
   }
 
-  const requirement = db.prepare('SELECT company_id FROM requirements WHERE id = ?').get(reqId);
+  const requirement = await db.prepare('SELECT company_id FROM requirements WHERE id = ?').get(reqId);
   if (!requirement) {
     return res.status(404).json({ error: 'Hiring requirement not found.' });
   }
 
-  const company = db.prepare('SELECT id FROM company_profiles WHERE user_id = ? OR id = ?').get(req.user.id, req.user.owner_id);
+  const company = await db.prepare('SELECT id FROM company_profiles WHERE user_id = ? OR id = ?').get(req.user.id, req.user.owner_id);
   if (!company || requirement.company_id !== company.id) {
     return res.status(403).json({ error: 'Forbidden: You do not own this placement requirement.' });
   }
@@ -100,13 +100,13 @@ export function requireRequirementOwnership(req, res, next) {
  * Approved Company Status Guard
  * Ensures recruiter accounts are verified by TPC Admin before posting drives.
  */
-export function requireApprovedCompany(req, res, next) {
+export async function requireApprovedCompany(req, res, next) {
   if (req.user?.role === 'admin') return next();
   if (req.user?.role !== 'company') {
     return res.status(403).json({ error: 'Access restricted to recruiters.' });
   }
 
-  const company = db.prepare('SELECT approved FROM company_profiles WHERE user_id = ? OR id = ?').get(req.user.id, req.user.owner_id);
+  const company = await db.prepare('SELECT approved FROM company_profiles WHERE user_id = ? OR id = ?').get(req.user.id, req.user.owner_id);
   if (!company || company.approved !== 1) {
     return res.status(403).json({
       error: 'Recruiter account pending TPC verification. Please wait for placement cell approval.'

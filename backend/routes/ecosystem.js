@@ -69,7 +69,7 @@ try {
   `);
 
   // Seed default colleges if empty
-  const collegeCount = db.prepare('SELECT COUNT(*) as count FROM ecosystem_colleges').get().count;
+  const collegeCount = await db.prepare('SELECT COUNT(*) as count FROM ecosystem_colleges').get().count;
   if (collegeCount === 0) {
     const seedColleges = [
       { id: 'col_gsfc', name: 'GSFC University', code: 'GSFCU', city: 'Vadodara', state: 'Gujarat', zone: 'WEST', nirf_rank: 68, naac_grade: 'A++', total_students: 5200, is_host: 1 },
@@ -84,7 +84,7 @@ try {
       { id: 'col_jadavpur', name: 'Jadavpur University', code: 'JU', city: 'Kolkata', state: 'West Bengal', zone: 'EAST', nirf_rank: 10, naac_grade: 'A++', total_students: 11000, is_host: 0 }
     ];
 
-    const insertCollege = db.prepare(`
+    const insertCollege = await db.prepare(`
       INSERT INTO ecosystem_colleges (id, name, code, city, state, zone, nirf_rank, naac_grade, total_students, is_host)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
@@ -142,7 +142,7 @@ try {
       }
     ];
 
-    const insertPool = db.prepare(`
+    const insertPool = await db.prepare(`
       INSERT INTO ecosystem_pool_drives (id, title, company_name, company_logo, ctc_lpa, host_college_id, participating_colleges_json, min_cgpa, eligible_branches_json, drive_date, mode, registered_candidates_count)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
@@ -199,7 +199,7 @@ try {
         coding_problem: {
           title: 'Maximum Placement Package Subarray (Kadane’s Algorithm)',
           description: 'Given an array of candidate CTC package increments and market deviations, write an efficient algorithm to find the contiguous subarray which has the largest sum and return its sum.',
-          starterCode: 'function maxSubArray(nums) {\n  let currentSum = 0;\n  let maxSum = nums[0];\n  for (let i = 0; i < nums.length; i++) {\n    currentSum = Math.max(nums[i], currentSum + nums[i]);\n    maxSum = Math.max(maxSum, currentSum);\n  }\n  return maxSum;\n}',
+          starterCode: 'async function maxSubArray(nums) {\n  let currentSum = 0;\n  let maxSum = nums[0];\n  for (let i = 0; i < nums.length; i++) {\n    currentSum = Math.max(nums[i], currentSum + nums[i]);\n    maxSum = Math.max(maxSum, currentSum);\n  }\n  return maxSum;\n}',
           testCases: [
             { input: [-2,1,-3,4,-1,2,1,-5,4], expected: 6 },
             { input: [1], expected: 1 },
@@ -210,7 +210,7 @@ try {
       }
     ];
 
-    const insertAssessment = db.prepare(`
+    const insertAssessment = await db.prepare(`
       INSERT INTO ecosystem_assessments (id, title, category, duration_minutes, total_marks, questions_json, coding_problem_json)
       VALUES (?, ?, ?, ?, ?, ?, ?)
     `);
@@ -224,14 +224,14 @@ try {
 }
 
 // 1. Get Multi-College Consortium Roster
-router.get('/colleges', (req, res) => {
+router.get('/colleges', async (req, res) => {
   try {
     const { zone } = req.query;
     let colleges;
     if (zone && zone !== 'ALL') {
-      colleges = db.prepare('SELECT * FROM ecosystem_colleges WHERE zone = ? ORDER BY is_host DESC, nirf_rank ASC').all(zone);
+      colleges = await db.prepare('SELECT * FROM ecosystem_colleges WHERE zone = ? ORDER BY is_host DESC, nirf_rank ASC').all(zone);
     } else {
-      colleges = db.prepare('SELECT * FROM ecosystem_colleges ORDER BY is_host DESC, nirf_rank ASC').all();
+      colleges = await db.prepare('SELECT * FROM ecosystem_colleges ORDER BY is_host DESC, nirf_rank ASC').all();
     }
 
     const totalStudentsInConsortium = colleges.reduce((acc, c) => acc + (c.total_students || 0), 0);
@@ -248,9 +248,9 @@ router.get('/colleges', (req, res) => {
 });
 
 // 2. Get Inter-University Pool Campus Drives
-router.get('/pool-drives', (req, res) => {
+router.get('/pool-drives', async (req, res) => {
   try {
-    const rows = db.prepare('SELECT * FROM ecosystem_pool_drives ORDER BY created_at DESC').all();
+    const rows = await db.prepare('SELECT * FROM ecosystem_pool_drives ORDER BY created_at DESC').all();
     const parsed = rows.map(r => ({
       ...r,
       participating_colleges: JSON.parse(r.participating_colleges_json || '[]'),
@@ -263,12 +263,12 @@ router.get('/pool-drives', (req, res) => {
 });
 
 // 3. Register Student for Inter-College Pool Drive
-router.post('/pool-drives/register', (req, res) => {
+router.post('/pool-drives/register', async (req, res) => {
   try {
     const { driveId, studentName, collegeCode, rollNumber } = req.body;
     if (!driveId) return res.status(400).json({ error: 'Drive ID is required' });
 
-    db.prepare('UPDATE ecosystem_pool_drives SET registered_candidates_count = registered_candidates_count + 1 WHERE id = ?').run(driveId);
+    await db.prepare('UPDATE ecosystem_pool_drives SET registered_candidates_count = registered_candidates_count + 1 WHERE id = ?').run(driveId);
 
     res.json({
       success: true,
@@ -280,7 +280,7 @@ router.post('/pool-drives/register', (req, res) => {
 });
 
 // 4. National Verified Employer Network & Marketplace
-router.get('/employers', (req, res) => {
+router.get('/employers', async (req, res) => {
   try {
     const employers = [
       { id: 'emp_1', name: 'Google Cloud India', tier: 'Tier 1 Global', sector: 'Cloud & AI Engineering', hiring_ctc_lpa: '₹18 - ₹24 LPA', logo: '🌐', verified: true, active_drives: 2, total_hired_pan_india: 420 },
@@ -302,9 +302,9 @@ router.get('/employers', (req, res) => {
 });
 
 // 5. Get Proctored Assessments Roster
-router.get('/assessments', (req, res) => {
+router.get('/assessments', async (req, res) => {
   try {
-    const rows = db.prepare('SELECT * FROM ecosystem_assessments ORDER BY created_at DESC').all();
+    const rows = await db.prepare('SELECT * FROM ecosystem_assessments ORDER BY created_at DESC').all();
     const parsed = rows.map(r => ({
       ...r,
       questions: JSON.parse(r.questions_json || '[]'),
@@ -317,7 +317,7 @@ router.get('/assessments', (req, res) => {
 });
 
 // 6. Submit Proctored Assessment & Auto-Rank Submission
-router.post('/assessments/submit', (req, res) => {
+router.post('/assessments/submit', async (req, res) => {
   try {
     const { 
       assessmentId, 
@@ -329,7 +329,7 @@ router.post('/assessments/submit', (req, res) => {
       tabSwitchesCount = 0 
     } = req.body;
 
-    const assessmentRow = db.prepare('SELECT * FROM ecosystem_assessments WHERE id = ?').get(assessmentId || 'assess_software_fullstack');
+    const assessmentRow = await db.prepare('SELECT * FROM ecosystem_assessments WHERE id = ?').get(assessmentId || 'assess_software_fullstack');
     if (!assessmentRow) {
       return res.status(404).json({ error: 'Assessment not found' });
     }
@@ -367,7 +367,7 @@ router.post('/assessments/submit', (req, res) => {
     const proctoringIntegrity = Math.max(60, 100 - (tabSwitchesCount * 8.5));
 
     const submissionId = `sub_${Date.now()}`;
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO ecosystem_assessment_submissions (id, assessment_id, candidate_name, candidate_email, college_name, score, max_score, percentage, proctoring_integrity_score, code_solution, test_cases_passed, total_test_cases)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
@@ -389,15 +389,15 @@ router.post('/assessments/submit', (req, res) => {
     try {
       let student = null;
       if (candidateEmail) {
-        const u = db.prepare('SELECT id FROM users WHERE email = ?').get(candidateEmail);
+        const u = await db.prepare('SELECT id FROM users WHERE email = ?').get(candidateEmail);
         if (u) {
-          student = db.prepare('SELECT id FROM student_profiles WHERE user_id = ?').get(u.id);
+          student = await db.prepare('SELECT id FROM student_profiles WHERE user_id = ?').get(u.id);
         }
       }
       const studentId = student?.id || req.body.student_id;
       if (studentId) {
         const asmtId = 'asmt_eco_' + submissionId;
-        db.prepare(`
+        await db.prepare(`
           INSERT OR REPLACE INTO student_assessments (
             id, student_id, assessment_title, assessment_type, requirement_id,
             score, percentage, questions_attempted, correct_answers, incorrect_answers,
@@ -437,13 +437,13 @@ router.post('/assessments/submit', (req, res) => {
 });
 
 // 7. Production Infrastructure & High-Availability Telemetry Monitor
-router.get('/infra-health', (req, res) => {
+router.get('/infra-health', async (req, res) => {
   try {
     const memory = process.memoryUsage();
     const uptimeSec = process.uptime();
-    const activeIndexesCount = db.prepare("SELECT count(*) as count FROM sqlite_master WHERE type='index'").get().count;
-    const totalUsers = db.prepare('SELECT count(*) as count FROM users').get().count;
-    const totalDrives = db.prepare('SELECT count(*) as count FROM requirements').get().count;
+    const activeIndexesCount = await db.prepare("SELECT count(*) as count FROM sqlite_master WHERE type='index'").get().count;
+    const totalUsers = await db.prepare('SELECT count(*) as count FROM users').get().count;
+    const totalDrives = await db.prepare('SELECT count(*) as count FROM requirements').get().count;
 
     const telemetry = {
       status: 'HEALTHY / OPERATIONAL',

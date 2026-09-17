@@ -39,7 +39,7 @@ export async function connectMongoDB() {
 /**
  * Get active MongoDB database instance
  */
-export function getMongoDb() {
+export async function getMongoDb() {
   return db;
 }
 

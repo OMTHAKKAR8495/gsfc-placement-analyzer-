@@ -100,7 +100,7 @@ export function requireRole(allowedRoles = []) {
 }
 
 // Server-side ownership verification for company requirements (blocks IDOR)
-export function verifyRequirementOwnership(req, res, next) {
+export async function verifyRequirementOwnership(req, res, next) {
   const reqId = req.params.id || req.body.requirement_id;
   if (!reqId) return next();
 
@@ -111,7 +111,7 @@ export function verifyRequirementOwnership(req, res, next) {
     return res.status(403).json({ error: 'Access denied: Only companies and TPC Admin can access requirement details.' });
   }
 
-  const requirement = db.prepare('SELECT company_id FROM requirements WHERE id = ?').get(reqId);
+  const requirement = await db.prepare('SELECT company_id FROM requirements WHERE id = ?').get(reqId);
   if (!requirement) {
     return res.status(404).json({ error: 'Requirement not found.' });
   }
@@ -124,7 +124,7 @@ export function verifyRequirementOwnership(req, res, next) {
 }
 
 // Server-side ownership verification for student data (blocks IDOR)
-export function verifyStudentOwnership(req, res, next) {
+export async function verifyStudentOwnership(req, res, next) {
   const studentId = req.params.studentId || req.body.student_id;
   if (!studentId) return next();
 
@@ -133,7 +133,7 @@ export function verifyStudentOwnership(req, res, next) {
 
   // Company recruiters can view student profiles ONLY if the student applied to their requirement
   if (req.user.role === 'company') {
-    const hasApplied = db.prepare(`
+    const hasApplied = await db.prepare(`
       SELECT a.id FROM applications a
       JOIN requirements r ON a.requirement_id = r.id
       WHERE a.student_id = ? AND r.company_id = ?
