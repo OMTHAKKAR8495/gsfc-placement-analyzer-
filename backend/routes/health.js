@@ -1,5 +1,5 @@
 import express from 'express';
-import db from '../db/index.js';
+import db, { getPoolStats } from '../db/index.js';
 import os from 'os';
 
 const router = express.Router();
@@ -10,13 +10,29 @@ const startTime = Date.now();
  */
 router.get('/', async (req, res) => {
   const uptimeSeconds = Math.floor((Date.now() - startTime) / 1000);
+  const mem = process.memoryUsage();
+  const poolStats = getPoolStats();
+
   res.json({
     status: 'healthy',
     timestamp: new Date().toISOString(),
     uptimeSeconds,
     service: 'GSFC University Placement Portal & AI Career Suite',
     version: '2.0.0-enterprise',
-    environment: process.env.NODE_ENV || 'development'
+    environment: process.env.NODE_ENV || 'development',
+    databasePool: {
+      activeConnections: poolStats.totalCount - poolStats.idleCount,
+      idleConnections: poolStats.idleCount,
+      totalConnections: poolStats.totalCount,
+      waitingRequests: poolStats.waitingCount,
+      maxAllowed: poolStats.maxConnections
+    },
+    memoryUsageMB: {
+      rss: Math.round(mem.rss / (1024 * 1024)),
+      heapUsed: Math.round(mem.heapUsed / (1024 * 1024)),
+      heapTotal: Math.round(mem.heapTotal / (1024 * 1024)),
+      external: Math.round(mem.external / (1024 * 1024))
+    }
   });
 });
 
@@ -24,12 +40,20 @@ router.get('/', async (req, res) => {
  * Readiness Probe: GET /api/health/ready (Deep diagnostic)
  */
 router.get('/ready', async (req, res) => {
+  const mem = process.memoryUsage();
+  const poolStats = getPoolStats();
+
   const checks = {
     database: 'down',
-    memory: 'healthy',
+    memoryStatus: 'healthy',
     systemLoad: os.loadavg()[0],
-    freeMemoryMB: Math.round(os.freemem() / (1024 * 1024)),
-    totalMemoryMB: Math.round(os.totalmem() / (1024 * 1024))
+    freeSystemMemoryMB: Math.round(os.freemem() / (1024 * 1024)),
+    totalSystemMemoryMB: Math.round(os.totalmem() / (1024 * 1024)),
+    processMemoryMB: {
+      rss: Math.round(mem.rss / (1024 * 1024)),
+      heapUsed: Math.round(mem.heapUsed / (1024 * 1024))
+    },
+    databasePool: poolStats
   };
 
   try {

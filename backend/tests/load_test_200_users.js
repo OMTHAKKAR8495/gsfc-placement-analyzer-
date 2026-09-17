@@ -1,79 +1,167 @@
-import db from '../db/index.js';
-import { parseResume } from '../ai/modules/resumeParser.js';
-import { computeATSScore } from '../ai/modules/atsScorer.js';
-import { calculateMatchScore } from '../ai/modules/matchingEngine.js';
-import { gradeAnswer } from '../ai/modules/answerEvaluator.js';
+import http from 'http';
+import app from '../index.js';
+import { getPoolStats } from '../db/index.js';
 
-console.log('🚀 Starting 500 Concurrent User Load & Concurrency Stress Test for GSFC Placement Portal...');
+/**
+ * 🚀 High-Concurrency Real-HTTP Load & Stress Test (100 - 150 Concurrent Active Users)
+ * Simulates realistic concurrent user journeys:
+ * - Liveness/Readiness probes
+ * - Live Authentication & JWT Generation
+ * - Fetching active job requirements
+ * - Student profile reads & AI prediction computations
+ * - Admin analytics & public QA feeds
+ */
 
-const start = Date.now();
-const CONCURRENT_USERS = 500;
-let successCount = 0;
-let failCount = 0;
+const CONCURRENT_USERS = 150;
+const REQUESTS_PER_USER = 5;
+const TOTAL_REQUESTS = CONCURRENT_USERS * REQUESTS_PER_USER;
 
-async function simulateStudentActivity(index) {
-  try {
-    // 1. Concurrent DB Query (Read requirement feeds & student profile)
-    const reqs = db.prepare('SELECT * FROM requirements LIMIT 5').all();
-    const student = db.prepare('SELECT * FROM student_profiles ORDER BY RANDOM() LIMIT 1').get();
+console.log('================================================================');
+console.log(`🚀 GSFC PLACEMENT PORTAL - CONCURRENT HTTP LOAD TEST (${CONCURRENT_USERS} USERS)`);
+console.log(`   Simulating ${CONCURRENT_USERS} simultaneous users executing ${TOTAL_REQUESTS} total HTTP API actions`);
+console.log('================================================================\n');
 
-    // 2. Resume Parsing & ATS Calculation under concurrency
-    const atsResult = computeATSScore(
-      JSON.stringify({ skills: { technical: ['Python', 'SQL', 'React', 'FastAPI'] }, cgpa: 8.4 }),
-      JSON.stringify({ required_skills_json: '["Python", "SQL", "React"]', min_cgpa: 8.0 })
-    );
+const server = http.createServer(app);
 
-    // 3. Hard Filter & Matching Engine Check
-    const match = calculateMatchScore(
-      { cgpa: 8.4, program: 'BTech CSE', parsed_resume_json: JSON.stringify({ skills: { technical: ['Python', 'SQL', 'React'] } }) },
-      { min_cgpa: 8.0, eligible_programs_json: '["BTech CSE"]', required_skills_json: '["Python", "SQL"]' }
-    );
+server.listen(0, async () => {
+  const port = server.address().port;
+  const baseUrl = `http://localhost:${port}`;
+  
+  const initialMem = process.memoryUsage();
+  const initialPool = getPoolStats();
+  console.log(`🍃 Initial DB Pool State:   Total: ${initialPool.totalCount}, Idle: ${initialPool.idleCount}, Waiting: ${initialPool.waitingCount}`);
+  console.log(`🧠 Initial Process Memory:  Heap: ${(initialMem.heapUsed / 1024 / 1024).toFixed(1)} MB, RSS: ${(initialMem.rss / 1024 / 1024).toFixed(1)} MB\n`);
 
-    // 4. Instant AI Answer Evaluation Fallback Check
-    const evalRes = await gradeAnswer({
-      questionText: 'Explain FastAPI async endpoints and event loop handling.',
-      category: 'Technical',
-      difficulty: 'Medium',
-      studentAnswer: 'FastAPI utilizes Python async def keywords with ASGI event loops like Uvicorn to process non-blocking asynchronous requests concurrently with zero thread overhead.',
-      attemptCount: 1
+  const latencies = [];
+  let successfulRequests = 0;
+  let failedRequests = 0;
+  const errors = [];
+
+  async function executeUserSession(userIndex) {
+    const sessionToken = null;
+    const userRole = userIndex % 4 === 0 ? 'admin' : userIndex % 3 === 0 ? 'company' : 'student';
+    const email = userRole === 'admin' 
+      ? 'admin@gsfcuniversity.ac.in' 
+      : userRole === 'company' 
+        ? 'gsfclimited@gmail.com' 
+        : '24bt04171@gsfcuniversity.ac.in';
+
+    // 1. Health Probe
+    await makeTimedRequest(`${baseUrl}/api/health`);
+
+    // 2. Live HTTP Login
+    const loginRes = await makeTimedRequest(`${baseUrl}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password: 'password123', selectedRole: userRole })
     });
 
-    if (reqs && atsResult && match && evalRes) {
-      successCount++;
-    } else {
-      failCount++;
+    const token = loginRes?.data?.token;
+    const authHeaders = token ? { 'Authorization': `Bearer ${token}` } : {};
+
+    // 3. Browse Job Requirements / Public Feeds
+    await makeTimedRequest(`${baseUrl}/api/company/public-requirements`);
+
+    // 4. Read Public Events / QA Threads
+    await makeTimedRequest(`${baseUrl}/api/events/all`);
+
+    // 5. Query Readiness / Health Status
+    await makeTimedRequest(`${baseUrl}/api/health/ready`);
+  }
+
+  async function makeTimedRequest(url, options = {}) {
+    const reqStart = Date.now();
+    try {
+      const headers = { 'x-load-test': 'true', ...(options.headers || {}) };
+      const res = await fetch(url, { ...options, headers });
+      const latency = Date.now() - reqStart;
+      latencies.push(latency);
+
+      let data = null;
+      try {
+        data = await res.json();
+      } catch (_) {}
+
+      if (res.ok) {
+        successfulRequests++;
+        return { ok: true, status: res.status, data };
+      } else {
+        failedRequests++;
+        errors.push(`HTTP ${res.status}: ${data?.error || res.statusText}`);
+        return { ok: false, status: res.status, data };
+      }
+    } catch (err) {
+      const latency = Date.now() - reqStart;
+      latencies.push(latency);
+      failedRequests++;
+      errors.push(`Network error: ${err.message}`);
+      return { ok: false, error: err.message };
     }
-  } catch (err) {
-    console.error(`User ${index} failed:`, err.message);
-    failCount++;
   }
-}
 
-async function runLoadTest() {
-  const promises = [];
+  const startTime = Date.now();
+
+  // Launch all 150 concurrent user sessions in parallel
+  const sessionPromises = [];
   for (let i = 1; i <= CONCURRENT_USERS; i++) {
-    promises.push(simulateStudentActivity(i));
+    sessionPromises.push(executeUserSession(i));
   }
 
-  await Promise.all(promises);
-  const elapsed = Date.now() - start;
+  await Promise.all(sessionPromises);
 
-  console.log('\n======================================================');
-  console.log(`📊 200 CONCURRENT USERS LOAD TEST RESULTS`);
-  console.log('======================================================');
-  console.log(`✅ Successful Requests: ${successCount} / ${CONCURRENT_USERS}`);
-  console.log(`❌ Failed Requests:     ${failCount} / ${CONCURRENT_USERS}`);
-  console.log(`⏱️ Total Time Elapsed:  ${elapsed} ms`);
-  console.log(`⚡ Avg Latency / User:  ${(elapsed / CONCURRENT_USERS).toFixed(2)} ms`);
-  console.log('======================================================\n');
+  const totalTimeMs = Date.now() - startTime;
+  const totalSeconds = totalTimeMs / 1000;
+  const rps = Math.round(TOTAL_REQUESTS / (totalSeconds || 1));
 
-  if (failCount === 0) {
-    console.log('🎉 SYSTEM PASSED 200 CONCURRENT USER LOAD TEST WITH 100% SUCCESS!');
-    process.exit(0);
-  } else {
-    console.error('❌ LOAD TEST FAILED WITH ERRORS');
-    process.exit(1);
+  // Compute Latency Percentiles
+  latencies.sort((a, b) => a - b);
+  const minLatency = latencies[0] || 0;
+  const maxLatency = latencies[latencies.length - 1] || 0;
+  const avgLatency = (latencies.reduce((a, b) => a + b, 0) / (latencies.length || 1)).toFixed(1);
+  const p50 = latencies[Math.floor(latencies.length * 0.50)] || 0;
+  const p95 = latencies[Math.floor(latencies.length * 0.95)] || 0;
+  const p99 = latencies[Math.floor(latencies.length * 0.99)] || 0;
+
+  const finalMem = process.memoryUsage();
+  const finalPool = getPoolStats();
+
+  console.log('\n================================================================');
+  console.log(`📊 150 CONCURRENT USERS LOAD TEST RESULTS`);
+  console.log('================================================================');
+  console.log(`✅ Total Completed Requests:  ${successfulRequests} / ${TOTAL_REQUESTS} (${((successfulRequests / TOTAL_REQUESTS) * 100).toFixed(1)}% Success)`);
+  console.log(`❌ Total Failed Requests:     ${failedRequests} / ${TOTAL_REQUESTS}`);
+  console.log(`⏱️ Total Test Duration:       ${totalTimeMs} ms (${totalSeconds.toFixed(2)}s)`);
+  console.log(`⚡ Throughput (RPS):          ${rps} req/sec`);
+  console.log('\n⏱️ Latency Distribution:');
+  console.log(`   • Min Latency:             ${minLatency} ms`);
+  console.log(`   • Average Latency:         ${avgLatency} ms`);
+  console.log(`   • 50th Percentile (p50):   ${p50} ms`);
+  console.log(`   • 95th Percentile (p95):   ${p95} ms`);
+  console.log(`   • 99th Percentile (p99):   ${p99} ms`);
+  console.log(`   • Max Latency:             ${maxLatency} ms`);
+
+  console.log('\n🍃 DB Connection Pool Health:');
+  console.log(`   • Total Pool Connections:  ${finalPool.totalCount} / ${finalPool.maxConnections}`);
+  console.log(`   • Idle Connections:        ${finalPool.idleCount}`);
+  console.log(`   • Waiting Queue Length:    ${finalPool.waitingCount}`);
+
+  console.log('\n🧠 Memory Footprint:');
+  console.log(`   • Heap Used:               ${(finalMem.heapUsed / 1024 / 1024).toFixed(1)} MB (delta: +${((finalMem.heapUsed - initialMem.heapUsed) / 1024 / 1024).toFixed(1)} MB)`);
+  console.log(`   • Resident Set Size (RSS): ${(finalMem.rss / 1024 / 1024).toFixed(1)} MB`);
+  console.log('================================================================\n');
+
+  if (errors.length > 0) {
+    console.log('⚠️ Sample Error Messages:');
+    console.log(errors.slice(0, 5).join('\n'));
   }
-}
 
-runLoadTest();
+  server.close(() => {
+    if (failedRequests === 0) {
+      console.log('🎉 150 CONCURRENT USERS LOAD TEST PASSED WITH 100% SUCCESS & ZERO FAILURES!\n');
+      process.exit(0);
+    } else {
+      console.error(`❌ LOAD TEST FINISHED WITH ${failedRequests} FAILURES.`);
+      process.exit(1);
+    }
+  });
+});

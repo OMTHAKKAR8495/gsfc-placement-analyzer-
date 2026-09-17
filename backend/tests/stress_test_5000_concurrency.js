@@ -38,7 +38,7 @@ async function simulateSingleUserRequest(userId) {
     const cacheKey = `user_feed_${userId % 20}`;
     let feed = appCache.get(cacheKey);
     if (!feed) {
-      feed = db.prepare('SELECT id, title, ctc_range FROM requirements LIMIT 5').all();
+      feed = await db.prepare('SELECT id, title, ctc_range FROM requirements LIMIT 5').all();
       appCache.set(cacheKey, feed, 60000);
     }
 
@@ -53,7 +53,7 @@ async function simulateSingleUserRequest(userId) {
     const matchScore = calculateMatchScore(sampleStudent, sampleReq);
 
     // 3. Mathematical Placement Propensity Calculation (Logistic Sigmoid)
-    const propensity = computeStudentPlacementProbability(sampleStudent, { departmentMedianAts: 82 });
+    const propensity = await computeStudentPlacementProbability(sampleStudent, { departmentMedianAts: 82 });
 
     // 4. Cryptographic Hash Validation
     const certHash = computeSha256(`GSFC-CERT-STRESS-${userId}|${sampleStudent.id}|${sampleReq.id}`);

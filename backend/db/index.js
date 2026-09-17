@@ -102,6 +102,28 @@ export function transformSqliteToPostgres(sql, params = []) {
 }
 
 /**
+ * Helper to translate raw database pool errors into HTTP 503 errors under peak load
+ */
+function handleDbError(err, context = 'Query') {
+  const isExhaustionOrTimeout = 
+    err.code === '57P01' || // admin_shutdown
+    err.code === '53300' || // too_many_connections
+    err.code === 'ETIMEDOUT' ||
+    err.message?.includes('timeout') ||
+    err.message?.includes('Connection terminated') ||
+    err.message?.includes('pool is full');
+
+  if (isExhaustionOrTimeout) {
+    const customErr = new Error('Database service is experiencing high concurrency. Please retry shortly.');
+    customErr.statusCode = 503;
+    customErr.status = 503;
+    customErr.originalMessage = err.message;
+    throw customErr;
+  }
+  throw err;
+}
+
+/**
  * Standard Async Adapter exposing .get(), .all(), .run(), .exec(), and .prepare()
  */
 export const db = {
@@ -109,43 +131,59 @@ export const db = {
    * Fetch single row
    */
   async get(sql, ...params) {
-    const p = params.length === 1 && Array.isArray(params[0]) ? params[0] : params;
-    const { sql: pgSql, params: pgParams } = transformSqliteToPostgres(sql, p);
-    const res = await pool.query(pgSql, pgParams);
-    return res.rows[0] || null;
+    try {
+      const p = params.length === 1 && Array.isArray(params[0]) ? params[0] : params;
+      const { sql: pgSql, params: pgParams } = transformSqliteToPostgres(sql, p);
+      const res = await pool.query(pgSql, pgParams);
+      return res.rows[0] || null;
+    } catch (err) {
+      handleDbError(err, 'db.get');
+    }
   },
 
   /**
    * Fetch all matching rows
    */
   async all(sql, ...params) {
-    const p = params.length === 1 && Array.isArray(params[0]) ? params[0] : params;
-    const { sql: pgSql, params: pgParams } = transformSqliteToPostgres(sql, p);
-    const res = await pool.query(pgSql, pgParams);
-    return res.rows || [];
+    try {
+      const p = params.length === 1 && Array.isArray(params[0]) ? params[0] : params;
+      const { sql: pgSql, params: pgParams } = transformSqliteToPostgres(sql, p);
+      const res = await pool.query(pgSql, pgParams);
+      return res.rows || [];
+    } catch (err) {
+      handleDbError(err, 'db.all');
+    }
   },
 
   /**
    * Execute INSERT/UPDATE/DELETE query
    */
   async run(sql, ...params) {
-    const p = params.length === 1 && Array.isArray(params[0]) ? params[0] : params;
-    const { sql: pgSql, params: pgParams } = transformSqliteToPostgres(sql, p);
-    const res = await pool.query(pgSql, pgParams);
-    return {
-      changes: res.rowCount,
-      rowCount: res.rowCount,
-      rows: res.rows,
-      lastInsertRowid: res.rows[0]?.id || res.rows[0]?.block_number || null,
-    };
+    try {
+      const p = params.length === 1 && Array.isArray(params[0]) ? params[0] : params;
+      const { sql: pgSql, params: pgParams } = transformSqliteToPostgres(sql, p);
+      const res = await pool.query(pgSql, pgParams);
+      return {
+        changes: res.rowCount,
+        rowCount: res.rowCount,
+        rows: res.rows,
+        lastInsertRowid: res.rows[0]?.id || res.rows[0]?.block_number || null,
+      };
+    } catch (err) {
+      handleDbError(err, 'db.run');
+    }
   },
 
   /**
    * Execute raw multi-statement SQL
    */
   async exec(sql) {
-    const { sql: pgSql } = transformSqliteToPostgres(sql, []);
-    return await pool.query(pgSql);
+    try {
+      const { sql: pgSql } = transformSqliteToPostgres(sql, []);
+      return await pool.query(pgSql);
+    } catch (err) {
+      handleDbError(err, 'db.exec');
+    }
   },
 
   /**
@@ -163,7 +201,12 @@ export const db = {
    * Transaction helper
    */
   async transaction(fn) {
-    const client = await pool.connect();
+    let client;
+    try {
+      client = await pool.connect();
+    } catch (err) {
+      handleDbError(err, 'pool.connect');
+    }
     try {
       await client.query('BEGIN');
       const result = await fn(client);
@@ -171,12 +214,21 @@ export const db = {
       return result;
     } catch (err) {
       await client.query('ROLLBACK');
-      throw err;
+      handleDbError(err, 'transaction');
     } finally {
-      client.release();
+      if (client) client.release();
     }
   }
 };
+
+export function getPoolStats() {
+  return {
+    totalCount: pool.totalCount,
+    idleCount: pool.idleCount,
+    waitingCount: pool.waitingCount,
+    maxConnections: parseInt(process.env.PG_MAX_CONNECTIONS || '20', 10),
+  };
+}
 
 export function initDatabase() {
   console.log('🍃 [Supabase Postgres]: Database connection layer initialized with connection pooling.');

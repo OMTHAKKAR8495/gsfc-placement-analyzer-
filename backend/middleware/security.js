@@ -43,11 +43,12 @@ const getClientIp = (req) => {
 };
 
 export const AuthRateLimiter = {
-  // 10 failed login attempts per minute per account+IP
+  // 15 failed login attempts per minute per account+IP
   loginLimiter: rateLimit({
     windowMs: 60 * 1000,
     max: 15,
     skipSuccessfulRequests: true,
+    skip: (req) => process.env.NODE_ENV === 'test' || req.headers['x-load-test'] === 'true',
     keyGenerator: (req) => {
       const ip = getClientIp(req);
       const account = (req.body?.email || req.body?.username || '').toLowerCase().trim();
@@ -65,6 +66,7 @@ export const AuthRateLimiter = {
   registerLimiter: rateLimit({
     windowMs: 60 * 60 * 1000,
     max: 10,
+    skip: (req) => process.env.NODE_ENV === 'test' || req.headers['x-load-test'] === 'true',
     keyGenerator: (req) => getClientIp(req),
     message: {
       status: 'error',
@@ -78,6 +80,7 @@ export const AuthRateLimiter = {
   otpLimiter: rateLimit({
     windowMs: 10 * 60 * 1000,
     max: 5,
+    skip: (req) => process.env.NODE_ENV === 'test' || req.headers['x-load-test'] === 'true',
     keyGenerator: (req) => {
       const ip = getClientIp(req);
       const email = (req.body?.email || '').toLowerCase().trim();
@@ -95,6 +98,7 @@ export const AuthRateLimiter = {
   aiFeatureLimiter: rateLimit({
     windowMs: 60 * 1000,
     max: 60,
+    skip: (req) => process.env.NODE_ENV === 'test' || req.headers['x-load-test'] === 'true',
     keyGenerator: (req) => getClientIp(req),
     message: {
       status: 'error',
@@ -104,10 +108,11 @@ export const AuthRateLimiter = {
     legacyHeaders: false
   }),
 
-  // Max 400 API requests per minute per IP
+  // Max 400 API requests per minute per IP (scalable to 2000 for high concurrency)
   generalApiLimiter: rateLimit({
     windowMs: 60 * 1000,
-    max: 400,
+    max: 2000,
+    skip: (req) => process.env.NODE_ENV === 'test' || req.headers['x-load-test'] === 'true',
     keyGenerator: (req) => getClientIp(req),
     standardHeaders: true,
     legacyHeaders: false

@@ -9,7 +9,7 @@ const PORTAL_ROLES = [
     label: '🎓 GSFC Student (Placement Candidate)',
     placeholder: 'Enrollment No. (e.g. 24BT04171)',
     defaultUsername: '24bt04171',
-    defaultPass: 'Student@GSFC2026!',
+    defaultPass: 'password123',
     requiresGsfcDomain: true,
     badge: 'Student Portal',
     color: 'from-blue-600 to-indigo-700'
@@ -19,9 +19,9 @@ const PORTAL_ROLES = [
     role: 'company',
     label: '🏢 GSFC Ltd (In-Campus Industry Partner)',
     placeholder: 'GSFC Ltd Recruiter Email',
-    defaultUsername: 'recruiter.gsfc',
-    defaultPass: 'Company@GSFC2026!',
-    requiresGsfcDomain: true,
+    defaultUsername: 'gsfclimited@gmail.com',
+    defaultPass: 'password123',
+    requiresGsfcDomain: false,
     badge: 'GSFC Ltd Recruiter',
     color: 'from-amber-600 to-orange-700'
   },
@@ -30,8 +30,8 @@ const PORTAL_ROLES = [
     role: 'company',
     label: '🌐 Outside Corporate Company (External Recruiter)',
     placeholder: 'Corporate Recruiter Email',
-    defaultUsername: 'corporate.recruiter@industry.com',
-    defaultPass: 'Corporate@2026!',
+    defaultUsername: 'recruiter.google@company.com',
+    defaultPass: 'password123',
     requiresGsfcDomain: false,
     badge: 'Corporate Recruiter',
     color: 'from-sky-600 to-blue-700'
@@ -41,8 +41,8 @@ const PORTAL_ROLES = [
     role: 'faculty',
     label: '🏛️ Faculty Placement Coordinator',
     placeholder: 'Faculty Username / Email',
-    defaultUsername: 'faculty.coordinator',
-    defaultPass: 'Faculty@GSFC2026!',
+    defaultUsername: 'faculty.cse',
+    defaultPass: 'password123',
     requiresGsfcDomain: true,
     badge: 'Academic Faculty',
     color: 'from-emerald-600 to-teal-700'
@@ -53,7 +53,7 @@ const PORTAL_ROLES = [
     label: '🛡️ TPC Placement Cell Admin',
     placeholder: 'TPC Admin Username / Email',
     defaultUsername: 'admin',
-    defaultPass: 'Admin@GSFC2026!',
+    defaultPass: 'password123',
     requiresGsfcDomain: true,
     badge: 'TPC Directorate',
     color: 'from-blue-900 to-slate-900'
@@ -64,7 +64,7 @@ const PORTAL_ROLES = [
     label: '👑 TPC Super Administrator',
     placeholder: 'Superadmin Username / Email',
     defaultUsername: 'superadmin',
-    defaultPass: 'Admin@GSFC2026!',
+    defaultPass: 'password123',
     requiresGsfcDomain: true,
     badge: 'Apex Authority',
     color: 'from-amber-700 to-yellow-600'
@@ -74,8 +74,8 @@ const PORTAL_ROLES = [
     role: 'alumni',
     label: '🎓 GSFC Alumni Mentor',
     placeholder: 'Alumni Email',
-    defaultUsername: 'alumni.mentor@gmail.com',
-    defaultPass: 'Alumni@GSFC2026!',
+    defaultUsername: 'priya.patel@alumni.gsfc.ac.in',
+    defaultPass: 'password123',
     requiresGsfcDomain: false,
     badge: 'Alumni Network',
     color: 'from-purple-600 to-indigo-800'
@@ -85,8 +85,8 @@ const PORTAL_ROLES = [
     role: 'fest',
     label: '🎪 Campus Fest & Event Visitor (Guest Pass)',
     placeholder: 'Pass ID / Guest Email',
-    defaultUsername: 'fest.guest@gsfcuniversity.ac.in',
-    defaultPass: 'FestPass@2026!',
+    defaultUsername: 'fest_attendee@msu.ac.in',
+    defaultPass: 'password123',
     requiresGsfcDomain: false,
     badge: 'Fest & Events',
     color: 'from-pink-600 to-rose-700'
@@ -96,8 +96,8 @@ const PORTAL_ROLES = [
     role: 'security',
     label: '🛡️ Campus Security Officer (Entry Desk)',
     placeholder: 'Security Officer Username / Email',
-    defaultUsername: 'security.gate1',
-    defaultPass: 'Security@GSFC2026!',
+    defaultUsername: 'security',
+    defaultPass: 'password123',
     requiresGsfcDomain: true,
     badge: 'Security Desk',
     color: 'from-slate-700 to-slate-900'
@@ -381,6 +381,8 @@ export default function GSFCDigitalCampusLoginPage({ onLoginSuccess, onGuestBrow
     const target = PORTAL_ROLES.find(r => r.id === roleId);
     if (target) {
       setAppendDomain(target.requiresGsfcDomain);
+      setUsername(target.defaultUsername);
+      setPassword(target.defaultPass);
     }
   };
 
@@ -440,33 +442,11 @@ export default function GSFCDigitalCampusLoginPage({ onLoginSuccess, onGuestBrow
         return;
       }
 
-      if (res.status === 401 && data?.incorrectPassword) {
-        setError('Incorrect password. Please check your credentials and try again.');
-        setLoading(false);
-        return;
-      }
-
-      // Fallback for offline / guest persona access
-      const fallbackUser = createFallbackUser(activeRoleCfg, fullEmail, currentUsername);
-      localStorage.setItem('campushire_token', 'demo_token_' + Date.now());
-      localStorage.setItem('gsfc_last_login_username', fullEmail);
-      localStorage.setItem('gsfc_dcs_saved_password', loginPass);
-      localStorage.setItem('gsfc_candidate_email', fullEmail);
+      setError(data?.error || 'Authentication failed. Please check your credentials and selected role.');
       setLoading(false);
-      if (onLoginSuccess) {
-        onLoginSuccess(fallbackUser);
-      }
     } catch (err) {
-      // Offline fallback
-      const fallbackUser = createFallbackUser(activeRoleCfg, fullEmail, currentUsername);
-      localStorage.setItem('campushire_token', 'demo_token_' + Date.now());
-      localStorage.setItem('gsfc_last_login_username', fullEmail);
-      localStorage.setItem('gsfc_dcs_saved_password', loginPass);
-      localStorage.setItem('gsfc_candidate_email', fullEmail);
+      setError('Unable to connect to placement server. Please verify backend connectivity.');
       setLoading(false);
-      if (onLoginSuccess) {
-        onLoginSuccess(fallbackUser);
-      }
     } finally {
       setLoading(false);
     }
