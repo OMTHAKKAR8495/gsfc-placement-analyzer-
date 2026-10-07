@@ -719,25 +719,81 @@ CREATE TABLE IF NOT EXISTS public.mentorship_comments (
 -- ----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS public.alumni_mentorship_slots (
     id TEXT PRIMARY KEY,
-    alumni_id TEXT NOT NULL,
-    alumni_name TEXT NOT NULL,
-    slot_time TIMESTAMPTZ NOT NULL,
-    duration_minutes INTEGER DEFAULT 30,
+    alumni_id TEXT NOT NULL REFERENCES public.alumni_profiles(id) ON DELETE CASCADE,
+    alumni_name TEXT,
+    day_of_week TEXT,
+    start_time TEXT,
+    end_time TEXT,
+    topic_focus TEXT DEFAULT 'General Career & Technical Mentorship',
     topic TEXT,
+    slot_time TIMESTAMPTZ,
+    duration_minutes INTEGER DEFAULT 30,
+    is_booked INTEGER DEFAULT 0,
     booked_by_student_id TEXT,
-    status TEXT DEFAULT 'open' CHECK(status IN ('open', 'booked', 'completed', 'cancelled')),
+    booked_student_id TEXT,
+    booked_student_name TEXT,
     meeting_link TEXT,
+    session_notes TEXT,
+    status TEXT DEFAULT 'open',
     created_at TIMESTAMPTZ DEFAULT now()
 );
+
+ALTER TABLE public.alumni_mentorship_slots ALTER COLUMN alumni_name DROP NOT NULL;
+ALTER TABLE public.alumni_mentorship_slots ALTER COLUMN slot_time DROP NOT NULL;
+ALTER TABLE public.alumni_mentorship_slots ADD COLUMN IF NOT EXISTS day_of_week TEXT;
+ALTER TABLE public.alumni_mentorship_slots ADD COLUMN IF NOT EXISTS start_time TEXT;
+ALTER TABLE public.alumni_mentorship_slots ADD COLUMN IF NOT EXISTS end_time TEXT;
+ALTER TABLE public.alumni_mentorship_slots ADD COLUMN IF NOT EXISTS topic_focus TEXT DEFAULT 'General Career & Technical Mentorship';
+ALTER TABLE public.alumni_mentorship_slots ADD COLUMN IF NOT EXISTS is_booked INTEGER DEFAULT 0;
+ALTER TABLE public.alumni_mentorship_slots ADD COLUMN IF NOT EXISTS booked_student_id TEXT;
+ALTER TABLE public.alumni_mentorship_slots ADD COLUMN IF NOT EXISTS booked_student_name TEXT;
+ALTER TABLE public.alumni_mentorship_slots ADD COLUMN IF NOT EXISTS session_notes TEXT;
 
 CREATE TABLE IF NOT EXISTS public.alumni_mentor_reviews (
     id TEXT PRIMARY KEY,
     slot_id TEXT REFERENCES public.alumni_mentorship_slots(id) ON DELETE SET NULL,
-    student_id TEXT NOT NULL,
     alumni_id TEXT NOT NULL,
+    student_id TEXT NOT NULL,
+    student_name TEXT,
     rating INTEGER CHECK(rating BETWEEN 1 AND 5),
+    feedback TEXT,
     review_text TEXT,
+    session_topic TEXT,
     created_at TIMESTAMPTZ DEFAULT now()
+);
+
+ALTER TABLE public.alumni_mentor_reviews ADD COLUMN IF NOT EXISTS student_name TEXT;
+ALTER TABLE public.alumni_mentor_reviews ADD COLUMN IF NOT EXISTS feedback TEXT;
+ALTER TABLE public.alumni_mentor_reviews ADD COLUMN IF NOT EXISTS session_topic TEXT;
+
+CREATE TABLE IF NOT EXISTS public.drive_evaluation_rubrics (
+    id TEXT PRIMARY KEY,
+    requirement_id TEXT REFERENCES public.requirements(id) ON DELETE CASCADE,
+    company_id TEXT REFERENCES public.company_profiles(id) ON DELETE CASCADE,
+    rubric_name TEXT NOT NULL,
+    rubric_config_json TEXT NOT NULL DEFAULT '{}',
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS public.blockchain_anchored_documents (
+    id TEXT PRIMARY KEY,
+    document_type TEXT NOT NULL,
+    document_title TEXT NOT NULL,
+    student_id TEXT,
+    student_name TEXT NOT NULL,
+    roll_number TEXT NOT NULL,
+    company_name TEXT,
+    job_title TEXT,
+    ctc_range TEXT,
+    document_hash TEXT NOT NULL,
+    previous_block_hash TEXT NOT NULL,
+    merkle_root TEXT NOT NULL,
+    block_number INTEGER NOT NULL,
+    issuer_name TEXT DEFAULT 'GSFC Placement Cell',
+    issuer_role TEXT DEFAULT 'Authorized Placement Officer',
+    status TEXT DEFAULT 'authentic',
+    issued_at TIMESTAMPTZ DEFAULT now(),
+    metadata_json TEXT DEFAULT '{}'
 );
 
 -- ----------------------------------------------------------------------------

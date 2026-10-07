@@ -235,17 +235,13 @@ export function getPoolStats() {
 }
 
 export async function initDatabase() {
-  console.log('🍃 [Supabase Postgres]: Database connection layer initialized with connection pooling.');
+  console.log('🍃 [PostgreSQL]: Database connection layer initialized with connection pooling.');
   try {
-    const tableCheck = await pool.query("SELECT to_regclass('public.users') as exists");
-    if (!tableCheck.rows[0]?.exists) {
-      console.log('📦 Database tables not found. Applying backend/db/schema.postgres.sql...');
-      const schemaPath = path.resolve(__dirname, 'schema.postgres.sql');
-      if (fs.existsSync(schemaPath)) {
-        const sql = fs.readFileSync(schemaPath, 'utf8');
-        await pool.query(sql);
-        console.log('✅ Master Postgres schema created successfully.');
-      }
+    const schemaPath = path.resolve(__dirname, 'schema.postgres.sql');
+    if (fs.existsSync(schemaPath)) {
+      const sql = fs.readFileSync(schemaPath, 'utf8');
+      await pool.query(sql);
+      console.log('✅ Master Postgres schema verified/created successfully.');
     }
   } catch (err) {
     console.warn('⚠️ [Database Auto-Init]:', err.message);
