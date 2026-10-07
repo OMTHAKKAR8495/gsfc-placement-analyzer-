@@ -18,7 +18,7 @@ async function runAlumniTests() {
 
   await db.prepare(`
     INSERT INTO alumni_profiles (id, user_id, name, batch_year, company, designation, bio, verified)
-    VALUES (?, ?, 'Priya Patel', '2019-2023', 'Amazon AWS', 'Software Development Engineer - Cloud', 'Mentoring GSFC juniors on Distributed Systems & AWS.', 1)
+    VALUES (?, ?, 'Priya Patel', '2019-2023', 'Amazon AWS', 'Software Development Engineer - Cloud', 'Mentoring GSFC juniors on Distributed Systems & AWS.', true)
   `).run(testAlumniId, testUserId);
 
   const slotId = 'slot_' + Date.now();

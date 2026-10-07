@@ -27,3 +27,4 @@ uploads/
 # System
 .idea/
 .vscode/
+.neon

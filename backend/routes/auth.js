@@ -447,8 +447,11 @@ router.post('/login', AuthRateLimiter.loginLimiter, async (req, res) => {
         user = await db.prepare("SELECT * FROM users WHERE lower(email) = 'admin@gsfcuniversity.ac.in' LIMIT 1").get();
       } else if (prefix === 'superadmin') {
         user = await db.prepare("SELECT * FROM users WHERE lower(email) = 'superadmin@gsfcuniversity.ac.in' LIMIT 1").get();
+      }
+
+      if (!user) {
         try {
-          let studentProf = await db.prepare('SELECT user_id FROM student_profiles WHERE lower(roll_number) = ?').get(prefix);
+          let studentProf = await db.prepare('SELECT user_id FROM student_profiles WHERE lower(roll_number) = ? OR lower(roll_number) = ?').get(prefix, cleanEmail);
           if (!studentProf) {
             studentProf = await db.prepare('SELECT user_id FROM student_profiles WHERE CAST(parsed_resume_json AS TEXT) LIKE ?').get(`%"email":"${cleanEmail}"%`);
           }
@@ -456,18 +459,18 @@ router.post('/login', AuthRateLimiter.loginLimiter, async (req, res) => {
             user = await db.prepare('SELECT * FROM users WHERE id = ?').get(studentProf.user_id);
           }
         } catch (e) {}
-        
-        if (!user) {
-          try {
-            const authStudent = await db.prepare('SELECT * FROM authorized_students WHERE lower(roll_number) = ? OR lower(email) = ?').get(prefix, cleanEmail);
-            if (authStudent) {
-              const existingProf = await db.prepare('SELECT user_id FROM student_profiles WHERE lower(roll_number) = ?').get(authStudent.roll_number.toLowerCase());
-              if (existingProf && existingProf.user_id) {
-                user = await db.prepare('SELECT * FROM users WHERE id = ?').get(existingProf.user_id);
-              }
+      }
+
+      if (!user) {
+        try {
+          const authStudent = await db.prepare('SELECT * FROM authorized_students WHERE lower(roll_number) = ? OR lower(email) = ?').get(prefix, cleanEmail);
+          if (authStudent) {
+            const existingProf = await db.prepare('SELECT user_id FROM student_profiles WHERE lower(roll_number) = ?').get(authStudent.roll_number.toLowerCase());
+            if (existingProf && existingProf.user_id) {
+              user = await db.prepare('SELECT * FROM users WHERE id = ?').get(existingProf.user_id);
             }
-          } catch (e) {}
-        }
+          }
+        } catch (e) {}
       }
     }
 

@@ -17,6 +17,7 @@
     "mobile:ios": "npm --prefix frontend run mobile:ios"
   },
   "devDependencies": {
+    "@neon/config": "^1.8.4",
     "concurrently": "^8.2.2"
   },
   "dependencies": {

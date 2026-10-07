@@ -17,8 +17,6 @@ if (process.env.NODE_ENV === 'production' || process.env.ALLOW_DEV_SEED !== 'tru
 
 console.log('🌱 Initializing GSFC Placement Portal Local Development Seeder...\n');
 
-initDatabase();
-
 const DEV_ACCOUNTS = [
   {
     userId: 'u_dev_admin',
@@ -103,6 +101,7 @@ const DEV_ACCOUNTS = [
 ];
 
 async function seedAccounts() {
+  await initDatabase();
   for (const acc of DEV_ACCOUNTS) {
     const passwordHash = await bcrypt.hash(acc.password, 10);
 
@@ -121,9 +120,9 @@ async function seedAccounts() {
       const existingProfile = await db.prepare('SELECT id FROM student_profiles WHERE user_id = ?').get(realUserId);
       const profileId = existingProfile?.id || ('s_dev_' + realUserId);
       await db.prepare(`
-        INSERT INTO student_profiles (id, user_id, name, roll_number, program, branch, cgpa, ats_score, university_email)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ON CONFLICT(id) DO UPDATE SET name = EXCLUDED.name, roll_number = EXCLUDED.roll_number, cgpa = EXCLUDED.cgpa, university_email = EXCLUDED.university_email
+        INSERT INTO student_profiles (id, user_id, name, roll_number, program, branch, cgpa, ats_score)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET name = EXCLUDED.name, roll_number = EXCLUDED.roll_number, cgpa = EXCLUDED.cgpa
       `).run(
         profileId,
         realUserId,
@@ -132,8 +131,7 @@ async function seedAccounts() {
         acc.program,
         acc.branch,
         acc.cgpa,
-        acc.atsScore,
-        acc.email.toLowerCase()
+        acc.atsScore
       );
     } else if (acc.role === 'company') {
       const existingComp = await db.prepare('SELECT id FROM company_profiles WHERE user_id = ?').get(realUserId);
@@ -148,7 +146,7 @@ async function seedAccounts() {
       const alumniId = existingAlumni?.id || ('alumni_dev_' + realUserId);
       await db.prepare(`
         INSERT INTO alumni_profiles (id, user_id, name, batch_year, company, designation, bio, verified)
-        VALUES (?, ?, ?, ?, ?, ?, 'Guiding GSFC engineering students in Cloud and Distributed Systems.', 1)
+        VALUES (?, ?, ?, ?, ?, ?, 'Guiding GSFC engineering students in Cloud and Distributed Systems.', true)
         ON CONFLICT(id) DO UPDATE SET name = EXCLUDED.name, company = EXCLUDED.company, designation = EXCLUDED.designation
       `).run(alumniId, realUserId, acc.name, acc.batchYear, acc.company, acc.designation);
     } else if (acc.role === 'faculty') {
