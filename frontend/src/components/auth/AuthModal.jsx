@@ -11,8 +11,6 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialRole 
   const [isLogin, setIsLogin] = useState(true);
   const [role, setRole] = useState(initialRole || 'student'); // student, company, faculty, admin, alumni, security, fest
 
-  const [googleLoading, setGoogleLoading] = useState(false);
-
   // 🔑 OTP Password Reset State
   const [otpStep, setOtpStep] = useState(1); // 1: enter email, 2: enter OTP & new pass, 3: success
   const [resetEmail, setResetEmail] = useState('');
@@ -365,113 +363,6 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialRole 
       localStorage.setItem('gsfc_logged_students_list', JSON.stringify(list));
       window.dispatchEvent(new CustomEvent('gsfc-students-updated', { detail: { list } }));
     } catch(e) {}
-  };
-
-  // Initialize Google Identity Services (GIS) for Modal
-  useEffect(() => {
-    if (!isOpen) return;
-    const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
-    if (!googleClientId) return;
-
-    const setupModalGIS = () => {
-      if (window.google?.accounts?.id) {
-        try {
-          window.google.accounts.id.initialize({
-            client_id: googleClientId,
-            callback: handleGoogleCredentialResponse,
-            auto_select: false,
-            cancel_on_tap_outside: true
-          });
-        } catch(e) {}
-      }
-    };
-
-    if (window.google?.accounts?.id) {
-      setupModalGIS();
-    } else {
-      const timer = setInterval(() => {
-        if (window.google?.accounts?.id) {
-          clearInterval(timer);
-          setupModalGIS();
-        }
-      }, 250);
-      return () => clearInterval(timer);
-    }
-  }, [isOpen, role]);
-
-  const handleGoogleCredentialResponse = async (response) => {
-    if (!response || !response.credential) {
-      setError('Google authentication was cancelled.');
-      return;
-    }
-    setError('');
-    setGoogleLoading(true);
-    try {
-      const res = await fetch('/api/auth/google', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          credential: response.credential,
-          selectedRole: role
-        })
-      });
-      const data = await res.json().catch(() => null);
-      if (res.ok && data?.user) {
-        localStorage.setItem('campushire_token', data.token);
-        onAuthSuccess(data.user);
-        onClose();
-        return;
-      }
-      setError(data?.error || 'Google Sign-in failed. Please contact TPC.');
-    } catch (err) {
-      setError('Network connection error during Google authentication.');
-    } finally {
-      setGoogleLoading(false);
-    }
-  };
-
-  const triggerModalGoogleSignIn = () => {
-    const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '431092817282-e3k85omgsfcunivplacement.apps.googleusercontent.com';
-    setError('');
-
-    // 1. Google OAuth2 Token Client (Opens official Google Account Chooser popup directly)
-    if (window.google?.accounts?.oauth2 && googleClientId) {
-      try {
-        const tokenClient = window.google.accounts.oauth2.initTokenClient({
-          client_id: googleClientId,
-          scope: 'openid email profile',
-          callback: async (tokenResponse) => {
-            if (tokenResponse?.access_token) {
-              await handleGoogleCredentialResponse({ credential: tokenResponse.access_token });
-            } else if (tokenResponse?.error) {
-              setError('Google sign-in was cancelled: ' + (tokenResponse.error_description || tokenResponse.error));
-            }
-          },
-          error_callback: (err) => {
-            console.error('Google OAuth2 error:', err);
-            try {
-              window.google?.accounts?.id?.prompt();
-            } catch(e) {}
-          }
-        });
-        tokenClient.requestAccessToken({ prompt: 'select_account' });
-        return;
-      } catch (e) {
-        console.warn('OAuth2 client init failed:', e);
-      }
-    }
-
-    // 2. Google Identity Services prompt
-    if (window.google?.accounts?.id) {
-      window.google.accounts.id.prompt((notification) => {
-        if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-          console.log('Google prompt moment:', notification);
-        }
-      });
-      return;
-    }
-
-    setError('Google Identity Services is initializing. Please wait a moment and try again.');
   };
 
   const handleSubmit = async (e) => {
@@ -1018,34 +909,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialRole 
               </button>
             </div>
 
-            {/* 🌐 PROMINENT GOOGLE SIGN-IN BUTTON (OPENS ACCOUNT PICKER) */}
-            <div className="mt-5 space-y-3">
-              <button
-                type="button"
-                onClick={triggerModalGoogleSignIn}
-                disabled={googleLoading}
-                className="w-full py-3 px-4 bg-white hover:bg-slate-50 text-slate-800 border-2 border-slate-300 hover:border-blue-500 rounded-2xl text-sm font-black flex items-center justify-center gap-3 shadow-md hover:shadow-lg transition-all cursor-pointer group"
-              >
-                <svg className="w-5 h-5" viewBox="0 0 24 24">
-                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-                  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
-                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
-                </svg>
-                <span className="group-hover:text-blue-900">
-                  Sign in with Google
-                </span>
-              </button>
 
-              {/* Divider */}
-              <div className="relative flex py-1 items-center">
-                <div className="flex-grow border-t border-slate-200"></div>
-                <span className="flex-shrink mx-3 text-[10px] font-black uppercase text-slate-400 tracking-wider">
-                  Or Continue with GSFC Credentials
-                </span>
-                <div className="flex-grow border-t border-slate-200"></div>
-              </div>
-            </div>
 
 
 
