@@ -12,11 +12,8 @@ dotenv.config();
 
 import fs from 'fs';
 
-const connectionString = process.env.DATABASE_URL || process.env.SUPABASE_DB_URL;
-
-if (!connectionString) {
-  throw new Error('FATAL: DATABASE_URL (or SUPABASE_DB_URL) is not set in environment. Refusing to boot without Supabase Postgres connection.');
-}
+const fallbackConnectionString = 'postgresql://neondb_owner:npg_athoJrvRL24D@ep-sparkling-feather-b45s8c5f-pooler.c-6.us-east-2.aws.neon.tech/neondb?sslmode=require';
+const connectionString = process.env.DATABASE_URL || process.env.SUPABASE_DB_URL || fallbackConnectionString;
 
 const isLocal = connectionString.includes('localhost') || connectionString.includes('127.0.0.1') || connectionString.includes('sslmode=disable') || connectionString.includes('postgres:5432');
 

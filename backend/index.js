@@ -143,34 +143,36 @@ app.use(express.static(path.join(__dirname, '../frontend/dist')));
 // Initialize DB schema & seeds
 initDatabase();
 
-// Register API Routes
-app.use('/api/auth', authRoutes);
-app.use('/api/company', companyRoutes);
-app.use('/api/student', studentRoutes);
-app.use('/api/interview', interviewRoutes);
-app.use('/api/admin', adminRoutes);
-app.use('/api/notifications', notificationRoutes);
-app.use('/api/authenticity', authenticityRoutes);
-app.use('/api/alumni', alumniRoutes);
-app.use('/api/jobfair', jobfairRoutes);
-app.use('/api/qa', qaRoutes);
-app.use('/api/ecosystem', ecosystemRoutes);
-app.use('/api/intelligence', intelligenceRoutes);
-app.use('/api/faculty', facultyRoutes);
-app.use('/api/audit', auditRoutes);
-app.use('/api/events', eventsRoutes);
-app.use('/api/meetings', meetingsRoutes);
-app.use('/api/gamification', gamificationRoutes);
-app.use('/api/blockchain', blockchainRoutes);
-app.use('/api/subscriptions', subscriptionRoutes);
-app.use('/api/admin/subscriptions', adminSubscriptionRoutes);
+// Register API Routes (Dual-mounted for /api/* and /* to support all Vercel serverless configurations)
+const mountRoute = (pathName, routerModule) => {
+  app.use(`/api/${pathName}`, routerModule);
+  app.use(`/${pathName}`, routerModule);
+};
 
-
+mountRoute('auth', authRoutes);
+mountRoute('company', companyRoutes);
+mountRoute('student', studentRoutes);
+mountRoute('interview', interviewRoutes);
+mountRoute('admin', adminRoutes);
+mountRoute('notifications', notificationRoutes);
+mountRoute('authenticity', authenticityRoutes);
+mountRoute('alumni', alumniRoutes);
+mountRoute('jobfair', jobfairRoutes);
+mountRoute('qa', qaRoutes);
+mountRoute('ecosystem', ecosystemRoutes);
+mountRoute('intelligence', intelligenceRoutes);
+mountRoute('faculty', facultyRoutes);
+mountRoute('audit', auditRoutes);
+mountRoute('events', eventsRoutes);
+mountRoute('meetings', meetingsRoutes);
+mountRoute('gamification', gamificationRoutes);
+mountRoute('blockchain', blockchainRoutes);
+mountRoute('subscriptions', subscriptionRoutes);
+mountRoute('admin/subscriptions', adminSubscriptionRoutes);
 
 import healthRoutes from './routes/health.js';
 
-// Health and Readiness endpoints
-app.use('/api/health', healthRoutes);
+mountRoute('health', healthRoutes);
 
 // Real-Time Socket.IO WebRTC Signaling & Anti-Cheating Hub
 io.on('connection', (socket) => {
